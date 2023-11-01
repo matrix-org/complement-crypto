@@ -93,7 +93,8 @@ jobs:
 
       - run: |
           ls "$(pwd)/rust-sdk/target/debug"
-          export LIBRARY_PATH="$LIBRARY_PATH:$(pwd)/rust-sdk/target/debug"
+          export LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
+          export LD_LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
           env
           set -o pipefail &&
           go test -v -json -timeout 5m ./tests | gotestfmt
