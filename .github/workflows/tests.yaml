@@ -43,40 +43,46 @@ jobs:
           (cd js-sdk && yarn install --frozen-lockfile && yarn build)
           cp -r ./js-sdk/dist/. ./tests/dist
 
-      # Build homeserver image, honouring branch names
-      - name: "Checkout corresponding Synapse branch"
+      # Temporary: as it takes 3m to build the complement synapse image >:(
+      - name: Pull synapse service v1.94.0
         shell: bash
         run: |
-          mkdir -p homeserver
+          docker pull ghcr.io/matrix-org/synapse-service:v1.94.0
+          docker tag ghcr.io/matrix-org/synapse-service:v1.94.0 homeserver:latest
 
-          # Attempt to use the version of the homeserver which best matches the
-          # current build.
-          #
-          # 1. If we are not on complement's default branch, check if there's a
-          #    similarly named branch (GITHUB_HEAD_REF for pull requests,
-          #    otherwise GITHUB_REF).
-          # 2. otherwise, use the default homeserver branch ("HEAD")
-
-          for BRANCH_NAME in "$GITHUB_HEAD_REF" "${GITHUB_REF#refs/heads/}" "HEAD"; do
-            # Skip empty branch names, merge commits, and our default branch.
-            # (If we are on complement's default branch, we want to fall through to the HS's default branch
-            # rather than using the HS's 'master'/'main').
-            case "$BRANCH_NAME" in
-              "" | refs/pull/* | main | master)
-                continue
-                ;;
-            esac
-            (wget -O - "https://github.com/matrix-org/synapse/archive/$BRANCH_NAME.tar.gz" | tar -xz --strip-components=1 -C homeserver) && break
-          done
-
-        # Build the base Synapse dockerfile and then build a Complement-specific image from that base.
-      - run: |
-          docker build -t matrixdotorg/synapse:latest -f docker/Dockerfile .
-          docker build -t matrixdotorg/synapse-workers:latest -f docker/Dockerfile-workers .
-          docker build -t homeserver -f docker/complement/Dockerfile docker/complement
-        working-directory: homeserver
-        env:
-          DOCKER_BUILDKIT: 1
+      # Build homeserver image, honouring branch names
+      #- name: "Checkout corresponding Synapse branch" 
+        #shell: bash 
+        #run: |  
+          #mkdir -p homeserver 
+#  
+          ## Attempt to use the version of the homeserver which best matches the 
+          ## current build.  
+          ## 
+          ## 1. If we are not on complement's default branch, check if there's a 
+          ##    similarly named branch (GITHUB_HEAD_REF for pull requests, 
+          ##    otherwise GITHUB_REF). 
+          ## 2. otherwise, use the default homeserver branch ("HEAD")  
+#  
+          #for BRANCH_NAME in "$GITHUB_HEAD_REF" "${GITHUB_REF#refs/heads/}" "HEAD"; do  
+            ## Skip empty branch names, merge commits, and our default branch. 
+            ## (If we are on complement's default branch, we want to fall through to the HS's default branch 
+            ## rather than using the HS's 'master'/'main').  
+            #case "$BRANCH_NAME" in  
+              #"" | refs/pull/* | main | master) 
+                #continue  
+                #;;  
+            #esac  
+            #(wget -O - "https://github.com/matrix-org/synapse/archive/$BRANCH_NAME.tar.gz" | tar -xz --strip-components=1 -C homeserver) && break 
+          #done  
+        ## Build the base Synapse dockerfile and then build a Complement-specific image from that base.  
+      #- run: |  
+          #docker build -t matrixdotorg/synapse:latest -f docker/Dockerfile .  
+          #docker build -t matrixdotorg/synapse-workers:latest -f docker/Dockerfile-workers .  
+          #docker build -t homeserver -f docker/complement/Dockerfile docker/complement  
+        #working-directory: homeserver 
+        #env:  
+          #DOCKER_BUILDKIT: 1  
 
       - run: |
           set -o pipefail &&

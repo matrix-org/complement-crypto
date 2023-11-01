@@ -45,7 +45,7 @@ func (d *SlidingSyncDeployment) Teardown() {
 
 func RunNewDeployment(t *testing.T) *SlidingSyncDeployment {
 	// allow 30s for everything to deploy
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	// Deploy the homeserver using Complement
