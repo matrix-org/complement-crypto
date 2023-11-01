@@ -35,12 +35,3 @@ func Deploy(t *testing.T) *deploy.SlidingSyncDeployment {
 	ssDeployment = deploy.RunNewDeployment(t)
 	return ssDeployment
 }
-
-/*
-type timelineListener struct {
-	fn func(diff []*matrix_sdk_ffi.TimelineDiff)
-}
-
-func (l *timelineListener) OnUpdate(diff []*matrix_sdk_ffi.TimelineDiff) {
-	l.fn(diff)
-} */

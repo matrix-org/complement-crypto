@@ -40,11 +40,11 @@ git submodule update
 cd ..
 cargo install uniffi-bindgen-go --path ./uniffi-bindgen-go/bindgen
 ```
-- Compile the rust SDK: `cargo xtask ci bindings`. Check that `target/debug/libmatrix_sdk_ffi.a` exists.
-- Generate the Go bindings to `./sdk`: `uniffi-bindgen-go -l ../matrix-rust-sdk/target/debug/libmatrix_sdk_ffi.a -o ./sdk ../matrix-rust-sdk/bindings/matrix-sdk-ffi/src/api.udl`
+- Compile the rust SDK: `cargo build -p matrix-sdk-crypto-ffi -p matrix-sdk-ffi`. Check that `target/debug/libmatrix_sdk_ffi.a` exists.
+- Generate the Go bindings to `./rust`: `uniffi-bindgen-go -l ../matrix-rust-sdk/target/debug/libmatrix_sdk_ffi.a -o ./rust ../matrix-rust-sdk/bindings/matrix-sdk-ffi/src/api.udl`
 - Patch up the generated code as it's not quite right:
-```
-TODO
-```
-- Sanity check compile `LIBRARY_PATH=/path/to/matrix-rust-sdk/target/debug go test -c ./tests`
+    * `sed -i '' 's/bindingsContractVersion := 23/bindingsContractVersion := 24/' rust/matrix_sdk_ffi/matrix_sdk_ffi.go`
+    * Add `// #cgo LDFLAGS: -lmatrix_sdk_ffi` immediately after `// #include <matrix_sdk_ffi.h>` at the top of `matrix_sdk_ffi.go`.
+    * Replace field names `Error` with `Error2` to fix `unknown field Error in struct literal`.
+- Sanity check compile `LIBRARY_PATH="$LIBRARY_PATH:/path/to/matrix-rust-sdk/target/debug" go test -c ./tests`
 
