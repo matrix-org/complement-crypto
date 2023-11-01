@@ -1,0 +1,90 @@
+name: Tests
+
+on:
+  push:
+    branches: [ 'main' ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check-signoff:
+    if: "github.event_name == 'pull_request'"
+    uses: "matrix-org/backend-meta/.github/workflows/sign-off.yml@v2"
+
+
+  complement:
+    name: JS tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3 # Checkout crypto tests
+
+      # Install Node, Go and Rust, along with libolm and gotestfmt
+      - name: Setup | Node.js 18.x
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'yarn'
+      - name: Setup | Go
+        uses: actions/setup-go@v4
+      - name: Setup | Rust stable
+        uses: ATiltedTree/setup-rust@v1
+        with:
+          rust-version: stable
+      - name: "Install Complement Dependencies"
+        run: |
+          sudo apt-get update && sudo apt-get install -y libolm3 libolm-dev
+          go install -v github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
+
+      # Install whatever version of the JS SDK is in package.json
+      - name: Build JS SDK
+        run: |
+          cat ./js-sdk/package.json
+          (cd js-sdk && yarn install --frozen-lockfile && yarn build)
+          cp -r ./js-sdk/dist/. ./tests/dist
+
+      # Build homeserver image, honouring branch names
+      - name: "Checkout corresponding Synapse branch"
+        shell: bash
+        run: |
+          mkdir -p homeserver
+
+          # Attempt to use the version of the homeserver which best matches the
+          # current build.
+          #
+          # 1. If we are not on complement's default branch, check if there's a
+          #    similarly named branch (GITHUB_HEAD_REF for pull requests,
+          #    otherwise GITHUB_REF).
+          # 2. otherwise, use the default homeserver branch ("HEAD")
+
+          for BRANCH_NAME in "$GITHUB_HEAD_REF" "${GITHUB_REF#refs/heads/}" "HEAD"; do
+            # Skip empty branch names, merge commits, and our default branch.
+            # (If we are on complement's default branch, we want to fall through to the HS's default branch
+            # rather than using the HS's 'master'/'main').
+            case "$BRANCH_NAME" in
+              "" | refs/pull/* | main | master)
+                continue
+                ;;
+            esac
+            (wget -O - "https://github.com/matrix-org/synapse/archive/$BRANCH_NAME.tar.gz" | tar -xz --strip-components=1 -C homeserver) && break
+          done
+
+        # Build the base Synapse dockerfile and then build a Complement-specific image from that base.
+      - run: |
+          docker build -t matrixdotorg/synapse:latest -f docker/Dockerfile .
+          docker build -t matrixdotorg/synapse-workers:latest -f docker/Dockerfile-workers .
+          docker build -t homeserver -f docker/complement/Dockerfile docker/complement
+        working-directory: homeserver
+        env:
+          DOCKER_BUILDKIT: 1
+
+      - run: |
+          set -o pipefail &&
+          go test -v -json -timeout 5m ./tests | gotestfmt
+        shell: bash # required for pipefail to be A Thing. pipefail is required to stop gotestfmt swallowing non-zero exit codes
+        name: Run Complement Crypto Tests
+        env:
+          COMPLEMENT_BASE_IMAGE: homeserver
+          COMPLEMENT_ENABLE_DIRTY_RUNS: 1
+          COMPLEMENT_SHARE_ENV_PREFIX: PASS_
+          PASS_SYNAPSE_COMPLEMENT_DATABASE: sqlite
+          DOCKER_BUILDKIT: 1

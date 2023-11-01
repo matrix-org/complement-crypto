@@ -1,0 +1,46 @@
+package chrome
+
+import (
+	"context"
+	"testing"
+
+	"github.com/chromedp/cdproto/runtime"
+	"github.com/chromedp/chromedp"
+	"github.com/matrix-org/complement/must"
+)
+
+func MustExecuteInto[T any](t *testing.T, ctx context.Context, js string) T {
+	t.Helper()
+	out, err := ExecuteInto[T](t, ctx, js)
+	must.NotError(t, js, err)
+	return *out
+}
+
+func ExecuteInto[T any](t *testing.T, ctx context.Context, js string) (*T, error) {
+	t.Helper()
+	t.Log(js)
+	out := new(T)
+	err := chromedp.Run(ctx,
+		chromedp.Evaluate(js, &out),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func AwaitExecute(t *testing.T, ctx context.Context, js string) error {
+	var r *runtime.RemoteObject // stop large responses causing errors "Object reference chain is too long (-32000)"
+	t.Log(js)
+	return chromedp.Run(ctx,
+		chromedp.Evaluate(js, &r, func(p *runtime.EvaluateParams) *runtime.EvaluateParams {
+			return p.WithAwaitPromise(true)
+		}),
+	)
+}
+
+func MustAwaitExecute(t *testing.T, ctx context.Context, js string) {
+	t.Helper()
+	err := AwaitExecute(t, ctx, js)
+	must.NotError(t, js, err)
+}

@@ -1,0 +1,15 @@
+{
+  "name": "complement-crypto",
+  "version": "1.0.0",
+  "description": "ff",
+  "main": "index.js",
+  "scripts": {
+    "build": "vite build"
+  },
+  "author": "",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "matrix-js-sdk": "29.1.0",
+    "vite": "^4.5.0"
+  }
+}
