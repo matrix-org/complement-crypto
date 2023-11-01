@@ -21,10 +21,10 @@ jobs:
       # Install Node, Go and Rust, along with libolm and gotestfmt
       - name: Setup | Node.js 18.x
         uses: actions/setup-node@v3
-        working-directory: js-sdk
         with:
           node-version: 18
           cache: 'yarn'
+          cache-dependency-path: "js-sdk/yarn.lock"
       - name: Setup | Go
         uses: actions/setup-go@v4
       - name: Setup | Rust stable
