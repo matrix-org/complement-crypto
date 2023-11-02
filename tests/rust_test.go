@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/rust/matrix_sdk_ffi"
 
 	"github.com/matrix-org/complement/helpers"
@@ -146,6 +147,70 @@ func TestCreateRoom(t *testing.T) {
 
 	// Bob receives the message
 	waiter.Wait(t, time.Second)
+}
+
+func TestCreateRoomGeneric(t *testing.T) {
+	deployment := Deploy(t)
+	// pre-register alice and bob
+	csapiAlice := deployment.Register(t, "hs1", helpers.RegistrationOpts{
+		LocalpartSuffix: "alice",
+		Password:        "testfromrustsdk",
+	})
+	csapiBob := deployment.Register(t, "hs1", helpers.RegistrationOpts{
+		LocalpartSuffix: "bob",
+		Password:        "testfromrustsdk",
+	})
+	roomID := csapiAlice.MustCreateRoom(t, map[string]interface{}{
+		"name":   "JS SDK Test",
+		"preset": "trusted_private_chat",
+		"invite": []string{csapiBob.UserID},
+		"initial_state": []map[string]interface{}{
+			{
+				"type":      "m.room.encryption",
+				"state_key": "",
+				"content": map[string]interface{}{
+					"algorithm": "m.megolm.v1.aes-sha2",
+				},
+			},
+		},
+	})
+	csapiBob.MustJoinRoom(t, roomID, []string{"hs1"})
+	ss := deployment.SlidingSyncURL(t)
+
+	// Rust SDK testing below
+	// ----------------------
+	alice, err := api.NewRustClient(api.FromComplementClient(csapiAlice, "testfromrustsdk"), ss)
+	must.NotError(t, "failed to make new rust client", err)
+
+	// Alice starts syncing
+	aliceStopSyncing := alice.StartSyncing(t)
+	defer aliceStopSyncing()
+	time.Sleep(time.Second) // TODO: find another way to wait until initial sync is done
+
+	wantMsgBody := "Hello world"
+
+	// Check the room is in fact encrypted
+	isEncrypted, err := alice.IsRoomEncrypted(roomID)
+	must.NotError(t, "failed to check if room is encrypted", err)
+	must.Equal(t, isEncrypted, true, "room is not encrypted when it should be")
+
+	// Bob starts syncing
+	bob, err := api.NewRustClient(api.FromComplementClient(csapiBob, "testfromrustsdk"), ss)
+	must.NotError(t, "failed to make new rust client", err)
+	bobStopSyncing := bob.StartSyncing(t)
+	defer bobStopSyncing()
+	time.Sleep(time.Second) // TODO: find another way to wait until initial sync is done
+
+	isEncrypted, err = bob.IsRoomEncrypted(roomID)
+	must.NotError(t, "failed to check if room is encrypted", err)
+	must.Equal(t, isEncrypted, true, "room is not encrypted")
+	t.Logf("bob room encrypted = %v", isEncrypted)
+
+	waiter := bob.WaitUntilEventInRoom(t, roomID, wantMsgBody)
+	alice.SendMessage(t, roomID, wantMsgBody)
+
+	// Bob receives the message
+	waiter.Wait(t, 5*time.Second)
 }
 
 type timelineListener struct {

@@ -17,7 +17,7 @@ import (
 
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
-	"github.com/matrix-org/complement-crypto/chrome"
+	"github.com/matrix-org/complement-crypto/internal/chrome"
 	"github.com/matrix-org/complement/client"
 	"github.com/matrix-org/complement/helpers"
 	"github.com/matrix-org/complement/must"

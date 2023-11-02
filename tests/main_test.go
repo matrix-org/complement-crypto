@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/matrix-org/complement"
-	"github.com/matrix-org/complement-crypto/deploy"
+	"github.com/matrix-org/complement-crypto/internal/deploy"
 )
 
 var (
