@@ -10,8 +10,16 @@ import (
 	"github.com/matrix-org/complement/must"
 )
 
+func init() {
+	matrix_sdk_ffi.SetupTracing(matrix_sdk_ffi.TracingConfiguration{
+		WriteToStdoutOrSystem: true,
+		Filter:                "debug",
+	})
+}
+
 type RustRoomInfo struct {
 	attachedListener bool
+	room             *matrix_sdk_ffi.Room
 	timeline         []*Event
 }
 
@@ -98,28 +106,43 @@ func (c *RustClient) SendMessage(t *testing.T, roomID, text string) {
 	r.Send(matrix_sdk_ffi.MessageEventContentFromHtml(text, text))
 }
 
+func (c *RustClient) MustBackpaginate(t *testing.T, roomID string, count int) {
+	t.Helper()
+	t.Logf("[%s] MustBackpaginate %d %s", c.userID, count, roomID)
+	r := c.findRoom(roomID)
+	must.NotEqual(t, r, nil, "unknown room")
+	must.NotError(t, "failed to backpaginate", r.PaginateBackwards(matrix_sdk_ffi.PaginationOptionsSingleRequest{
+		EventLimit: uint16(count),
+	}))
+}
+
 func (c *RustClient) findRoom(roomID string) *matrix_sdk_ffi.Room {
 	rooms := c.FFIClient.Rooms()
-	for _, r := range rooms {
+	for i, r := range rooms {
+		rid := r.Id()
+		// ensure we only store rooms once
+		_, exists := c.rooms[rid]
+		if !exists {
+			c.rooms[rid] = &RustRoomInfo{
+				room: rooms[i],
+			}
+		}
 		if r.Id() == roomID {
-			return r
+			return c.rooms[rid].room
 		}
 	}
 	return nil
 }
 
 func (c *RustClient) ensureListening(t *testing.T, roomID string) *matrix_sdk_ffi.Room {
-	info, ok := c.rooms[roomID]
-	if !ok {
-		info = &RustRoomInfo{}
-	}
-	if info.attachedListener {
-		// TODO: will this work - can you send msgs twice?
-		return c.findRoom(roomID)
-	}
 	r := c.findRoom(roomID)
 	must.NotEqual(t, r, nil, fmt.Sprintf("room %s does not exist", roomID))
-	c.rooms[roomID] = info
+
+	info := c.rooms[roomID]
+	if info.attachedListener {
+		return r
+	}
+
 	t.Logf("[%s]AddTimelineListenerBlocking[%s]", c.userID, roomID)
 	// we need a timeline listener before we can send messages
 	r.AddTimelineListenerBlocking(&timelineListener{fn: func(diff []*matrix_sdk_ffi.TimelineDiff) {
@@ -136,7 +159,15 @@ func (c *RustClient) ensureListening(t *testing.T, roomID string) *matrix_sdk_ff
 					t.Logf("TimelineListener[%s] INSERT %d out of bounds of events timeline of size %d", roomID, i, len(timeline))
 					continue
 				}
-				timeline[i] = timelineItemToEvent(insertData.Item)
+				if timeline[i] != nil {
+					// shift the item in this position right and insert this item
+					timeline = append(timeline, nil)
+					copy(timeline[i+1:], timeline[i:])
+					timeline[i] = timelineItemToEvent(insertData.Item)
+				} else {
+					timeline[i] = timelineItemToEvent(insertData.Item)
+				}
+				fmt.Printf("[%s]_______ INSERT %+v\n", c.userID, timeline[i])
 			case matrix_sdk_ffi.TimelineChangeAppend:
 				appendItems := d.Append()
 				if appendItems == nil {
@@ -145,6 +176,7 @@ func (c *RustClient) ensureListening(t *testing.T, roomID string) *matrix_sdk_ff
 				for _, item := range *appendItems {
 					ev := timelineItemToEvent(item)
 					timeline = append(timeline, ev)
+					fmt.Printf("[%s]_______ APPEND %+v\n", c.userID, ev)
 				}
 			case matrix_sdk_ffi.TimelineChangePushBack:
 				pbData := d.PushBack()
@@ -153,6 +185,7 @@ func (c *RustClient) ensureListening(t *testing.T, roomID string) *matrix_sdk_ff
 				}
 				ev := timelineItemToEvent(*pbData)
 				timeline = append(timeline, ev)
+				fmt.Printf("[%s]_______ PUSH BACK %+v\n", c.userID, ev)
 			case matrix_sdk_ffi.TimelineChangeSet:
 				setData := d.Set()
 				if setData == nil {
@@ -164,6 +197,9 @@ func (c *RustClient) ensureListening(t *testing.T, roomID string) *matrix_sdk_ff
 					continue
 				}
 				timeline[i] = timelineItemToEvent(setData.Item)
+				fmt.Printf("[%s]_______ SET %+v\n", c.userID, timeline[i])
+			default:
+				t.Logf("Unhandled TimelineDiff change %v", d.Change())
 			}
 		}
 		c.rooms[roomID].timeline = timeline

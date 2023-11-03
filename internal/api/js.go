@@ -56,7 +56,7 @@ func NewJSClient(t *testing.T, opts ClientCreationOpts) (Client, error) {
 					continue
 				}
 				// TODO: debug mode only?
-				fmt.Printf("[%s] console.log %s\n", opts.UserID, s)
+				colorify("[%s] console.log %s\n", opts.UserID, s)
 
 				if strings.HasPrefix(s, CONSOLE_LOG_CONTROL_STRING) {
 					val := strings.TrimPrefix(s, CONSOLE_LOG_CONTROL_STRING)
@@ -186,12 +186,22 @@ func (c *JSClient) SendMessage(t *testing.T, roomID, text string) {
 	must.NotError(t, "failed to sendMessage", err)
 }
 
+func (c *JSClient) MustBackpaginate(t *testing.T, roomID string, count int) {
+	chrome.MustAwaitExecute(t, c.ctx, fmt.Sprintf(
+		`window.__client.scrollback(window.__client.getRoom("%s"), %d);`, roomID, count,
+	))
+}
+
 func (c *JSClient) WaitUntilEventInRoom(t *testing.T, roomID, wantBody string) Waiter {
-	// TODO: check if this event already exists
+	exists := chrome.MustExecuteInto[bool](t, c.ctx, fmt.Sprintf(
+		`window.__client.getRoom("%s").getLiveTimeline().getEvents().map((e)=>{return e.getContent().body}).includes("%s");`, roomID, wantBody,
+	))
+
 	return &jsTimelineWaiter{
 		roomID:   roomID,
 		wantBody: wantBody,
 		client:   c,
+		exists:   exists,
 	}
 }
 
@@ -211,9 +221,13 @@ type jsTimelineWaiter struct {
 	roomID   string
 	wantBody string
 	client   *JSClient
+	exists   bool
 }
 
 func (w *jsTimelineWaiter) Wait(t *testing.T, s time.Duration) {
+	if w.exists {
+		return
+	}
 	updates := make(chan bool, 3)
 	cancel := w.client.listenForUpdates(func(roomID, gotText string) {
 		if w.roomID != roomID {
@@ -241,8 +255,10 @@ func (w *jsTimelineWaiter) Wait(t *testing.T, s time.Duration) {
 	}
 }
 
-func (w *jsTimelineWaiter) callback(gotRoomID, gotText string) {
-	if w.roomID == gotRoomID && w.wantBody == gotText {
+const ansiYellowForeground = "\x1b[33m"
+const ansiResetForeground = "\x1b[39m"
 
-	}
+func colorify(format string, args ...any) {
+	format = ansiYellowForeground + format + ansiResetForeground
+	fmt.Printf(format, args...)
 }
