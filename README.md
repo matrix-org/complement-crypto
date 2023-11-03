@@ -14,6 +14,7 @@ Why:
 - To date, there exists no test suite which meets the scope of Complement-Crypto.
 
 ### How do I run it?
+It's currently pretty awful to run, as you need toolchains for both Rust and JS. Working on improving this.
 
 You need to build Rust SDK FFI bindings _and_ JS SDK before you can get this to run. You also need a Complement homeserver image. When that is setup:
 
@@ -23,7 +24,38 @@ COMPLEMENT_BASE_IMAGE=homeserver:latest go test -v ./tests
 
 TODO: consider checking in working builds so you can git clone and run. Git LFS for `libmatrix_sdk_ffi.so` given it's 60MB?
 
-### JS SDK
+
+### Test hitlist
+There is an exhaustive set of tests that this repository aims to exercise which are below:
+
+Membership ACLs:
+- [x] Happy case Alice <-> Bob encrypted room can send/recv messages.
+- [ ] New user Charlie does not see previous messages when he joins the room. TODO: can he see messages sent after he was invited?. Assert this either way.
+- [ ] Subsequent messages are decryptable by all 3 users.
+- [ ] Bob leaves the room. Some messages are sent. Bob rejoins and cannot decrypt the messages sent whilst he was gone (ensuring we cycle keys). Repeat this again with a device instead of a user (so 2x device, 1 remains always in the room, 1 then logs out -> messages sent -> logs in again).
+- [ ] Having A invite B, having B then change device, then B join, see if B can see A's message.
+
+Key backups:
+- [ ] New device for Alice cannot decrypt previous messages.
+- [ ] Backups can be made on Alice's first device.
+- [ ] Alice's new device can download the backup and decrypt the messages.
+
+One-time Keys:
+- [ ] When Alice runs out of OTKs, other users use the fallback key.
+- [ ] Ensure things don't explode if OTKs are reused (TODO: what should happen here?)
+
+Network connectivity:
+- [ ] If a client cannot upload OTKs, it retries.
+- [ ] If a client cannot claim OTKs, it retries.
+- [ ] If a server cannot send device list updates over federation, it retries.
+- [ ] If a client cannot query device keys for a user, it retries.
+- [ ] If a server cannot query device keys on another server, it retries.
+- [ ] If a client cannot send a to-device msg, it retries.
+- [ ] If a server cannot send a to-device msg to another server, it retries.
+- [ ] Repeat all of the above, but restart the client|server after the initial connection failure. This checks that retries aren't just stored in memory but persisted to disk.
+
+
+### Regenerate JS SDK
 
 Prerequisites:
  - A working Yarn/npm installation (version?)
@@ -32,7 +64,7 @@ This repo has a self-hosted copy of `matrix-js-sdk` which it will run in a headl
 
 In order to regenerate the JS SDK, run `./rebuild_js_sdk.sh` with an appropriate version.
 
-### FFI Bindings (TODO)
+### Regenerate FFI Bindings
 
 Prerequisites:
  - A working Rust installation (min version?)
