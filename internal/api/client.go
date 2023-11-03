@@ -34,7 +34,6 @@ type Client interface {
 	// Wait until an event with the given body is seen. Not all impls expose event IDs
 	// hence needing to use body as a proxy.
 	WaitUntilEventInRoom(t *testing.T, roomID, wantBody string) Waiter
-
 	Type() ClientType
 }
 

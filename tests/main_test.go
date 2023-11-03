@@ -1,7 +1,9 @@
 package tests
 
 import (
+	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 
@@ -11,27 +13,34 @@ import (
 	"github.com/matrix-org/complement/must"
 )
 
-const (
-	TestClientsMixed    = "mixed"
-	TestClientsRustOnly = "rust"
-	TestClientsJSOnly   = "js"
-)
-
 var (
-	ssDeployment *deploy.SlidingSyncDeployment
-	ssMutex      *sync.Mutex
-	testClients  = TestClientsMixed
+	ssDeployment     *deploy.SlidingSyncDeployment
+	ssMutex          *sync.Mutex
+	testClientMatrix = [][2]api.ClientType{} // set in TestMain
 )
 
 func TestMain(m *testing.M) {
-	ccTestClients := os.Getenv("COMPLEMENT_CRYPTO_TEST_CLIENTS")
-	switch ccTestClients {
-	case TestClientsRustOnly:
-		testClients = TestClientsRustOnly
-	case TestClientsJSOnly:
-		testClients = TestClientsJSOnly
-	default:
-		testClients = TestClientsMixed
+	ccTestClients := os.Getenv("COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX")
+	if ccTestClients == "" {
+		ccTestClients = "jj,jr,rj,rr"
+	}
+	segs := strings.Split(ccTestClients, ",")
+	for _, val := range segs { // e.g val == 'rj'
+		if len(val) != 2 {
+			panic("COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX bad value: " + val)
+		}
+		testCase := [2]api.ClientType{}
+		for i, ch := range val {
+			switch ch {
+			case 'r':
+				testCase[i] = api.ClientTypeRust
+			case 'j':
+				testCase[i] = api.ClientTypeJS
+			default:
+				panic("COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX bad value: " + val)
+			}
+		}
+		testClientMatrix = append(testClientMatrix, testCase)
 	}
 	ssMutex = &sync.Mutex{}
 	defer func() { // always teardown even if panicking
@@ -56,27 +65,10 @@ func Deploy(t *testing.T) *deploy.SlidingSyncDeployment {
 }
 
 func ClientTypeMatrix(t *testing.T, subTest func(tt *testing.T, a, b api.ClientType)) {
-	switch testClients {
-	case TestClientsJSOnly:
-		t.Run("JS|JS", func(t *testing.T) {
-			subTest(t, api.ClientTypeJS, api.ClientTypeJS)
-		})
-	case TestClientsRustOnly:
-		t.Run("Rust|Rust", func(t *testing.T) {
-			subTest(t, api.ClientTypeRust, api.ClientTypeRust)
-		})
-	case TestClientsMixed:
-		t.Run("Rust|Rust", func(t *testing.T) {
-			subTest(t, api.ClientTypeRust, api.ClientTypeRust)
-		})
-		t.Run("Rust|JS", func(t *testing.T) {
-			subTest(t, api.ClientTypeRust, api.ClientTypeJS)
-		})
-		t.Run("JS|Rust", func(t *testing.T) {
-			subTest(t, api.ClientTypeJS, api.ClientTypeRust)
-		})
-		t.Run("JS|JS", func(t *testing.T) {
-			subTest(t, api.ClientTypeJS, api.ClientTypeJS)
+	for _, tc := range testClientMatrix {
+		tc := tc
+		t.Run(fmt.Sprintf("%s|%s", tc[0], tc[1]), func(t *testing.T) {
+			subTest(t, tc[0], tc[1])
 		})
 	}
 }

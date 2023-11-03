@@ -26,8 +26,8 @@ TODO: consider checking in working builds so you can git clone and run. Git LFS 
 
 #### Environment Variables
 
-- `COMPLEMENT_CRYPTO_TEST_CLIENTS` : "mixed", "rust" or "js"
-   Control which kinds of clients to make for tests. `rust` only tests rust clients. `js` only tests JS clients. `mixed` tests all 4 permutations.
+- `COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX` : Comma separated clients to run. Default: `jj,jr,rj,rr`
+   Control which kinds of clients to make for tests. `r` creates Rust client. `j` creates JS clients. The default runs all permutations.
 
 
 ### Test hitlist
