@@ -7,25 +7,35 @@ import (
 	"github.com/matrix-org/complement/client"
 )
 
+type ClientType string
+
+var (
+	ClientTypeRust ClientType = "rust"
+	ClientTypeJS   ClientType = "js"
+)
+
 // Client represents a generic crypto client.
 // It is an abstraction to allow tests to interact with JS and FFI bindings in an agnostic way.
 type Client interface {
-	// Init is called prior to any test execution. Do any setup code here e.g run a browser.
-	// Call close() when the test terminates to clean up resources.
-	// TODO: will this be too slow if we spin up a browser for each test?
-	Init(t *testing.T) (close func())
+	// Close is called to clean up resources.
+	// Specifically, we need to shut off existing browsers and any FFI bindings.
+	// If we get callbacks/events after this point, tests may panic if the callbacks
+	// log messages.
+	Close(t *testing.T)
 	// StartSyncing to begin syncing from sync v2 / sliding sync.
 	// Tests should call stopSyncing() at the end of the test.
 	StartSyncing(t *testing.T) (stopSyncing func())
 	// IsRoomEncrypted returns true if the room is encrypted. May return an error e.g if you
 	// provide a bogus room ID.
-	IsRoomEncrypted(roomID string) (bool, error)
+	IsRoomEncrypted(t *testing.T, roomID string) (bool, error)
 	// SendMessage sends the given text as an m.room.message with msgtype:m.text into the given
 	// room. Returns the event ID of the sent event.
 	SendMessage(t *testing.T, roomID, text string)
 	// Wait until an event with the given body is seen. Not all impls expose event IDs
 	// hence needing to use body as a proxy.
 	WaitUntilEventInRoom(t *testing.T, roomID, wantBody string) Waiter
+
+	Type() ClientType
 }
 
 // ClientCreationOpts are generic opts to use when creating crypto clients.

@@ -24,7 +24,7 @@ type RustClient struct {
 	syncService *matrix_sdk_ffi.SyncService
 }
 
-func NewRustClient(opts ClientCreationOpts, ssURL string) (Client, error) {
+func NewRustClient(t *testing.T, opts ClientCreationOpts, ssURL string) (Client, error) {
 	ab := matrix_sdk_ffi.NewClientBuilder().HomeserverUrl(opts.BaseURL).SlidingSyncProxy(&ssURL)
 	client, err := ab.Build()
 	if err != nil {
@@ -46,11 +46,8 @@ func NewRustClient(opts ClientCreationOpts, ssURL string) (Client, error) {
 	}, nil
 }
 
-// Init is called prior to any test execution. Do any setup code here e.g run a browser.
-// Call close() when the test terminates to clean up resources.
-// TODO: will this be too slow if we spin up a browser for each test?
-func (c *RustClient) Init(t *testing.T) (close func()) {
-	return func() {}
+func (c *RustClient) Close(t *testing.T) {
+	c.FFIClient.Destroy()
 }
 
 // StartSyncing to begin syncing from sync v2 / sliding sync.
@@ -69,7 +66,7 @@ func (c *RustClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 
 // IsRoomEncrypted returns true if the room is encrypted. May return an error e.g if you
 // provide a bogus room ID.
-func (c *RustClient) IsRoomEncrypted(roomID string) (bool, error) {
+func (c *RustClient) IsRoomEncrypted(t *testing.T, roomID string) (bool, error) {
 	r := c.findRoom(roomID)
 	if r == nil {
 		rooms := c.FFIClient.Rooms()
@@ -87,10 +84,15 @@ func (c *RustClient) WaitUntilEventInRoom(t *testing.T, roomID, wantBody string)
 	}
 }
 
+func (c *RustClient) Type() ClientType {
+	return ClientTypeRust
+}
+
 // SendMessage sends the given text as an m.room.message with msgtype:m.text into the given
 // room. Returns the event ID of the sent event.
 func (c *RustClient) SendMessage(t *testing.T, roomID, text string) {
-	// we need a timeline listener before we can send messages
+	// we need a timeline listener before we can send messages, AND that listener must be attached to the
+	// same *Room you call .Send on :S
 	r := c.ensureListening(t, roomID)
 	t.Logf("%s: SendMessage[%s]: '%s'", c.userID, roomID, text)
 	r.Send(matrix_sdk_ffi.MessageEventContentFromHtml(text, text))

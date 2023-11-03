@@ -44,3 +44,13 @@ func MustAwaitExecute(t *testing.T, ctx context.Context, js string) {
 	err := AwaitExecute(t, ctx, js)
 	must.NotError(t, js, err)
 }
+
+func MustExecute(t *testing.T, ctx context.Context, js string) {
+	t.Helper()
+	var r *runtime.RemoteObject // stop large responses causing errors "Object reference chain is too long (-32000)"
+	t.Log(js)
+	err := chromedp.Run(ctx,
+		chromedp.Evaluate(js, &r),
+	)
+	must.NotError(t, js, err)
+}
