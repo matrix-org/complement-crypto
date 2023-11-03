@@ -41,7 +41,7 @@ jobs:
         run: |
           cat ./js-sdk/package.json
           (cd js-sdk && yarn install --frozen-lockfile && yarn build)
-          cp -r ./js-sdk/dist/. ./tests/dist
+          cp -r ./js-sdk/dist/. ./internal/api/dist
 
       - name: Build Rust FFI bindings
         run: |
