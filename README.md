@@ -24,6 +24,11 @@ COMPLEMENT_BASE_IMAGE=homeserver:latest go test -v ./tests
 
 TODO: consider checking in working builds so you can git clone and run. Git LFS for `libmatrix_sdk_ffi.so` given it's 60MB?
 
+#### Environment Variables
+
+- `COMPLEMENT_CRYPTO_TEST_CLIENTS` : "mixed", "rust" or "js"
+   Control which kinds of clients to make for tests. `rust` only tests rust clients. `js` only tests JS clients. `mixed` tests all 4 permutations.
+
 
 ### Test hitlist
 There is an exhaustive set of tests that this repository aims to exercise which are below:
@@ -92,3 +97,11 @@ cargo install uniffi-bindgen-go --path ./uniffi-bindgen-go/bindgen
     * Replace field names `Error` with `Error2` to fix `unknown field Error in struct literal`.
 - Sanity check compile `LIBRARY_PATH="$LIBRARY_PATH:/path/to/matrix-rust-sdk/target/debug" go test -c ./tests`
 
+
+### Github Action (TODO)
+
+Inputs:
+ - version/commit/branch of JS SDK
+ - version/commit/branch of Rust SDK
+ - version/commit/branch of synapse?
+ - Test only JS, only Rust, mixed.

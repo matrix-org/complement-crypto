@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"os"
 	"sync"
 	"testing"
 
@@ -10,12 +11,28 @@ import (
 	"github.com/matrix-org/complement/must"
 )
 
+const (
+	TestClientsMixed    = "mixed"
+	TestClientsRustOnly = "rust"
+	TestClientsJSOnly   = "js"
+)
+
 var (
 	ssDeployment *deploy.SlidingSyncDeployment
 	ssMutex      *sync.Mutex
+	testClients  = TestClientsMixed
 )
 
 func TestMain(m *testing.M) {
+	ccTestClients := os.Getenv("COMPLEMENT_CRYPTO_TEST_CLIENTS")
+	switch ccTestClients {
+	case TestClientsRustOnly:
+		testClients = TestClientsRustOnly
+	case TestClientsJSOnly:
+		testClients = TestClientsJSOnly
+	default:
+		testClients = TestClientsMixed
+	}
 	ssMutex = &sync.Mutex{}
 	defer func() { // always teardown even if panicking
 		ssMutex.Lock()
@@ -36,6 +53,32 @@ func Deploy(t *testing.T) *deploy.SlidingSyncDeployment {
 	}
 	ssDeployment = deploy.RunNewDeployment(t)
 	return ssDeployment
+}
+
+func ClientTypeMatrix(t *testing.T, subTest func(tt *testing.T, a, b api.ClientType)) {
+	switch testClients {
+	case TestClientsJSOnly:
+		t.Run("JS|JS", func(t *testing.T) {
+			subTest(t, api.ClientTypeJS, api.ClientTypeJS)
+		})
+	case TestClientsRustOnly:
+		t.Run("Rust|Rust", func(t *testing.T) {
+			subTest(t, api.ClientTypeRust, api.ClientTypeRust)
+		})
+	case TestClientsMixed:
+		t.Run("Rust|Rust", func(t *testing.T) {
+			subTest(t, api.ClientTypeRust, api.ClientTypeRust)
+		})
+		t.Run("Rust|JS", func(t *testing.T) {
+			subTest(t, api.ClientTypeRust, api.ClientTypeJS)
+		})
+		t.Run("JS|Rust", func(t *testing.T) {
+			subTest(t, api.ClientTypeJS, api.ClientTypeRust)
+		})
+		t.Run("JS|JS", func(t *testing.T) {
+			subTest(t, api.ClientTypeJS, api.ClientTypeJS)
+		})
+	}
 }
 
 func MustLoginClient(t *testing.T, clientType api.ClientType, opts api.ClientCreationOpts, ssURL string) api.Client {

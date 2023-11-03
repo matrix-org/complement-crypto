@@ -20,19 +20,7 @@ import (
 // asserting that isEncrypted() returns true. This test may be expanded in the
 // future to assert things like "there is a ciphertext".
 func TestAliceBobEncryptionWorks(t *testing.T) {
-	// TODO: factor out so we can just call "matrix subtests"
-	t.Run("Rust x Rust", func(t *testing.T) {
-		testAliceBobEncryptionWorks(t, api.ClientTypeRust, api.ClientTypeRust)
-	})
-	t.Run("JS x JS", func(t *testing.T) {
-		testAliceBobEncryptionWorks(t, api.ClientTypeJS, api.ClientTypeJS)
-	})
-	t.Run("Rust x JS", func(t *testing.T) {
-		testAliceBobEncryptionWorks(t, api.ClientTypeRust, api.ClientTypeJS)
-	})
-	t.Run("JS x Rust", func(t *testing.T) {
-		testAliceBobEncryptionWorks(t, api.ClientTypeJS, api.ClientTypeRust)
-	})
+	ClientTypeMatrix(t, testAliceBobEncryptionWorks)
 }
 
 func testAliceBobEncryptionWorks(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
