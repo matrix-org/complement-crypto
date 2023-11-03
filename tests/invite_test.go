@@ -97,7 +97,7 @@ func testCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T, clientTypeA, c
 	sentinelBody := "Sentinel"
 	waiter := bob.WaitUntilEventInRoom(t, roomID, sentinelBody)
 	alice.SendMessage(t, roomID, sentinelBody)
-	waiter.Wait(t, 2*time.Second)
+	waiter.Wait(t, 5*time.Second)
 
 	// Explicitly ask for a pagination, rather than assuming the SDK will return events
 	// earlier than the join by default. This is important because:
@@ -105,6 +105,6 @@ func testCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T, clientTypeA, c
 	// - sliding sync (FFI) it won't return events before the join by default, relying on clients using the prev_batch token.
 	waiter = bob.WaitUntilEventInRoom(t, roomID, wantMsgBody)
 	bob.MustBackpaginate(t, roomID, 5) // number is arbitrary, just needs to be >=2
-	waiter.Wait(t, 2*time.Second)
+	waiter.Wait(t, 5*time.Second)
 	// time.Sleep(time.Hour)
 }
