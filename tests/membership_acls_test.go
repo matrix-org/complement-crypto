@@ -27,14 +27,14 @@ func TestAliceBobEncryptionWorks(t *testing.T) {
 		// pre-register alice and bob
 		csapiAlice := deployment.Register(t, "hs1", helpers.RegistrationOpts{
 			LocalpartSuffix: "alice",
-			Password:        "testfromrustsdk",
+			Password:        "complement-crypto-password",
 		})
 		csapiBob := deployment.Register(t, "hs1", helpers.RegistrationOpts{
 			LocalpartSuffix: "bob",
-			Password:        "testfromrustsdk",
+			Password:        "complement-crypto-password",
 		})
 		roomID := csapiAlice.MustCreateRoom(t, map[string]interface{}{
-			"name":   "JS SDK Test",
+			"name":   "TestAliceBobEncryptionWorks",
 			"preset": "trusted_private_chat",
 			"invite": []string{csapiBob.UserID},
 			"initial_state": []map[string]interface{}{
@@ -52,7 +52,7 @@ func TestAliceBobEncryptionWorks(t *testing.T) {
 
 		// SDK testing below
 		// -----------------
-		alice := MustLoginClient(t, clientTypeA, api.FromComplementClient(csapiAlice, "testfromrustsdk"), ss)
+		alice := MustLoginClient(t, clientTypeA, api.FromComplementClient(csapiAlice, "complement-crypto-password"), ss)
 		defer alice.Close(t)
 
 		// Alice starts syncing
@@ -68,7 +68,7 @@ func TestAliceBobEncryptionWorks(t *testing.T) {
 		must.Equal(t, isEncrypted, true, "room is not encrypted when it should be")
 
 		// Bob starts syncing
-		bob := MustLoginClient(t, clientTypeB, api.FromComplementClient(csapiBob, "testfromrustsdk"), ss)
+		bob := MustLoginClient(t, clientTypeB, api.FromComplementClient(csapiBob, "complement-crypto-password"), ss)
 		defer bob.Close(t)
 		bobStopSyncing := bob.StartSyncing(t)
 		defer bobStopSyncing()
@@ -101,15 +101,15 @@ func TestCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T) {
 		// pre-register alice and bob
 		csapiAlice := deployment.Register(t, "hs1", helpers.RegistrationOpts{
 			LocalpartSuffix: "alice",
-			Password:        "testfromrustsdk",
+			Password:        "complement-crypto-password",
 		})
 		csapiBob := deployment.Register(t, "hs1", helpers.RegistrationOpts{
 			LocalpartSuffix: "bob",
-			Password:        "testfromrustsdk",
+			Password:        "complement-crypto-password",
 		})
 		// Alice invites Bob to the encrypted room
 		roomID := csapiAlice.MustCreateRoom(t, map[string]interface{}{
-			"name":   "JS SDK Test",
+			"name":   "TestCanDecryptMessagesAfterInviteButBeforeJoin",
 			"preset": "trusted_private_chat",
 			"invite": []string{csapiBob.UserID},
 			"initial_state": []map[string]interface{}{
@@ -128,12 +128,12 @@ func TestCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T) {
 		// -----------------
 
 		// Alice logs in.
-		alice := MustLoginClient(t, clientTypeA, api.FromComplementClient(csapiAlice, "testfromrustsdk"), ss)
+		alice := MustLoginClient(t, clientTypeA, api.FromComplementClient(csapiAlice, "complement-crypto-password"), ss)
 		defer alice.Close(t)
 
 		// Bob logs in BEFORE Alice starts syncing. This is important because the act of logging in should cause
 		// Bob to upload OTKs which will be needed to send the encrypted event.
-		bob := MustLoginClient(t, clientTypeB, api.FromComplementClient(csapiBob, "testfromrustsdk"), ss)
+		bob := MustLoginClient(t, clientTypeB, api.FromComplementClient(csapiBob, "complement-crypto-password"), ss)
 		defer bob.Close(t)
 
 		// Alice and Bob start syncing
@@ -182,3 +182,93 @@ func TestCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T) {
 		waiter.Wait(t, 5*time.Second)
 	})
 }
+
+/*
+// In a public, `shared` history visibility room, a new user Bob cannot decrypt earlier messages prior to his join,
+// despite being able to see the events. Subsequent messages are decryptable.
+func TestBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
+	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
+		// Setup Code
+		// ----------
+		deployment := Deploy(t)
+		// pre-register alice and bob
+		csapiAlice := deployment.Register(t, "hs1", helpers.RegistrationOpts{
+			LocalpartSuffix: "alice",
+			Password:        "complement-crypto-password",
+		})
+		csapiBob := deployment.Register(t, "hs1", helpers.RegistrationOpts{
+			LocalpartSuffix: "bob",
+			Password:        "complement-crypto-password",
+		})
+		roomID := csapiAlice.MustCreateRoom(t, map[string]interface{}{
+			"name":   "TestBobCanSeeButNotDecryptHistoryInPublicRoom",
+			"preset": "public_chat",
+			"initial_state": []map[string]interface{}{
+				{
+					"type":      "m.room.encryption",
+					"state_key": "",
+					"content": map[string]interface{}{
+						"algorithm": "m.megolm.v1.aes-sha2",
+					},
+				},
+			},
+		})
+		// TODO csapiBob.MustJoinRoom(t, roomID, []string{"hs1"})
+		ss := deployment.SlidingSyncURL(t)
+
+		// SDK testing below
+		// -----------------
+		// Alice and Bob are present with keys uploaded etc
+		alice := MustLoginClient(t, clientTypeA, api.FromComplementClient(csapiAlice, "complement-crypto-password"), ss)
+		defer alice.Close(t)
+		bob := MustLoginClient(t, clientTypeB, api.FromComplementClient(csapiBob, "complement-crypto-password"), ss)
+		defer bob.Close(t)
+
+		// Alice and Bob start syncing
+		aliceStopSyncing := alice.StartSyncing(t)
+		defer aliceStopSyncing()
+		bobStopSyncing := bob.StartSyncing(t)
+		defer bobStopSyncing()
+		time.Sleep(time.Second) // TODO: find another way to wait until initial sync is done
+
+		undecryptableBody := "Bob cannot decrypt this"
+
+		// Check the room is in fact encrypted
+		isEncrypted, err := alice.IsRoomEncrypted(t, roomID)
+		must.NotError(t, "failed to check if room is encrypted", err)
+		must.Equal(t, isEncrypted, true, "room is not encrypted when it should be")
+
+		// Alice sends a message to herself in this public room
+		waiter := alice.WaitUntilEventInRoom(t, roomID, undecryptableBody)
+		alice.SendMessage(t, roomID, undecryptableBody)
+		t.Logf("alice (%s) waiting for event", alice.Type())
+		waiter.Wait(t, 5*time.Second)
+
+		// Bob joins the room
+		csapiBob.JoinRoom(t, roomID, []string{"hs1"})
+		time.Sleep(time.Second) // TODO alice waits until she sees bob's join
+
+		// Alice sends a new message which Bob should be able to decrypt
+		decryptableBody := "Bob can decrypt this"
+		waiter = alice.WaitUntilEventInRoom(t, roomID, decryptableBody)
+		alice.SendMessage(t, roomID, decryptableBody)
+		t.Logf("alice (%s) waiting for event", alice.Type())
+		waiter.Wait(t, 5*time.Second)
+
+		isEncrypted, err = bob.IsRoomEncrypted(t, roomID)
+		must.NotError(t, "failed to check if room is encrypted", err)
+		must.Equal(t, isEncrypted, true, "room is not encrypted")
+		t.Logf("bob room encrypted = %v", isEncrypted)
+
+		// Bob receives the decryptable message
+		waiter = bob.WaitUntilEventInRoom(t, roomID, decryptableBody)
+		t.Logf("bob (%s) waiting for event", bob.Type())
+		waiter.Wait(t, 5*time.Second)
+
+		// Bob attempts to backpaginate to see the older message
+		bob.MustBackpaginate(t, roomID, 5) // arbitrary, must be >2
+
+		// TODO Ensure Bob cannot see the undecrypted content, find the event by event ID to confirm
+
+	})
+} */

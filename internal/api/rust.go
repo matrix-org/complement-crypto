@@ -232,6 +232,7 @@ func (w *timelineWaiter) Wait(t *testing.T, s time.Duration) {
 		// check if it exists in the timeline already
 		info := w.client.rooms[w.roomID]
 		if info == nil {
+			fmt.Printf("_____checkForEvent[%s] '%s' room does not exist\n", w.client.userID, w.wantBody)
 			return false
 		}
 		for _, ev := range info.timeline {
@@ -243,6 +244,7 @@ func (w *timelineWaiter) Wait(t *testing.T, s time.Duration) {
 				return true
 			}
 		}
+		fmt.Printf("_____checkForEvent[%s] '%s' checked %d timeline events and no match \n", w.client.userID, w.wantBody, len(info.timeline))
 		return false
 	}
 

@@ -36,7 +36,7 @@ There is an exhaustive set of tests that this repository aims to exercise which 
 Membership ACLs:
 - [x] Happy case Alice and Bob in an encrypted room can send and receive encrypted messages, and decrypt them all.
 - [x] Bob can see messages when he was invited but not joined to the room. Subsequent messages are also decryptable.
-- [ ] In a public, `shared` history visibility room, a new user Charlie cannot decrypt earlier messages prior to his join, despite being able to see the events. Subsequent messages are decryptable.
+- [ ] In a public, `shared` history visibility room, a new user Bob cannot decrypt earlier messages prior to his join, despite being able to see the events. Subsequent messages are decryptable.
 - [ ] Bob leaves the room. Some messages are sent. Bob rejoins and cannot decrypt the messages sent whilst he was gone (ensuring we cycle keys). Repeat this again with a device instead of a user (so 2x device, 1 remains always in the room, 1 then logs out -> messages sent -> logs in again).
 - [ ] Alice invites Bob, Bob changes their device, then Bob joins. Bob should be able to see Alice's message.
 
