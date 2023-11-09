@@ -16499,7 +16499,7 @@ type concurrentHandleMap[T any] struct {
 	leftMap       map[uint64]*T
 	rightMap      map[*T]uint64
 	currentHandle uint64
-	lock          sync.Mutex
+	lock          sync.RWMutex
 }
 
 func newConcurrentHandleMap[T any]() *concurrentHandleMap[T] {
@@ -16532,6 +16532,8 @@ func (cm *concurrentHandleMap[T]) remove(handle uint64) bool {
 }
 
 func (cm *concurrentHandleMap[T]) tryGet(handle uint64) (*T, bool) {
+	cm.lock.RLock()
+	defer cm.lock.RUnlock()
 	val, ok := cm.leftMap[handle]
 	return val, ok
 }

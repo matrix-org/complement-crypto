@@ -34,12 +34,11 @@ TODO: consider checking in working builds so you can git clone and run. Git LFS 
 There is an exhaustive set of tests that this repository aims to exercise which are below:
 
 Membership ACLs:
-- [x] Happy case Alice <-> Bob encrypted room can send/recv messages.
-- [x] Bob can see messages when he was invited but not joined to the room.
-- [ ] New user Charlie does not see previous messages when he joins the room. TODO: can he see messages sent after he was invited?. Assert this either way.
-- [ ] Subsequent messages are decryptable by all 3 users.
+- [x] Happy case Alice and Bob in an encrypted room can send and receive encrypted messages, and decrypt them all.
+- [x] Bob can see messages when he was invited but not joined to the room. Subsequent messages are also decryptable.
+- [ ] In a public, `shared` history visibility room, a new user Charlie cannot decrypt earlier messages prior to his join, despite being able to see the events. Subsequent messages are decryptable.
 - [ ] Bob leaves the room. Some messages are sent. Bob rejoins and cannot decrypt the messages sent whilst he was gone (ensuring we cycle keys). Repeat this again with a device instead of a user (so 2x device, 1 remains always in the room, 1 then logs out -> messages sent -> logs in again).
-- [ ] Having A invite B, having B then change device, then B join, see if B can see A's message.
+- [ ] Alice invites Bob, Bob changes their device, then Bob joins. Bob should be able to see Alice's message.
 
 Key backups:
 - [ ] New device for Alice cannot decrypt previous messages.
@@ -79,6 +78,8 @@ Prerequisites:
 This repo has a self-hosted copy of `matrix-js-sdk` which it will run in a headless chrome, in order to mimic Element Web (Rust Crypto edition).
 
 In order to regenerate the JS SDK, run `./rebuild_js_sdk.sh` with an appropriate version.
+
+TODO: Dockerify this so developers don't _need_ an active npm install?
 
 ### Regenerate FFI Bindings
 

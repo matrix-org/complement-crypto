@@ -80,7 +80,7 @@ func RunNewDeployment(t *testing.T) *SlidingSyncDeployment {
 	ssContainer, err := testcontainers.GenericContainer(ctx,
 		testcontainers.GenericContainerRequest{
 			ContainerRequest: testcontainers.ContainerRequest{
-				Image:        "ghcr.io/matrix-org/sliding-sync:v0.99.11",
+				Image:        "ghcr.io/matrix-org/sliding-sync:v0.99.12",
 				ExposedPorts: []string{ssExposedPort},
 				Env: map[string]string{
 					"SYNCV3_SECRET":   "secret",
@@ -103,9 +103,9 @@ func RunNewDeployment(t *testing.T) *SlidingSyncDeployment {
 
 	// log for debugging purposes
 	t.Logf("SlidingSyncDeployment created (network=%s):", networkName)
-	t.Logf("  NAME          INT / EXT")
-	t.Logf("  sliding sync: ssproxy / %s", ssURL)
-	t.Logf("  synapse:      hs1 / %s", csapi.BaseURL)
+	t.Logf("  NAME          INT        EXT")
+	t.Logf("  sliding sync: ssproxy    %s", ssURL)
+	t.Logf("  synapse:      hs1        %s", csapi.BaseURL)
 	t.Logf("  postgres:     postgres")
 	return &SlidingSyncDeployment{
 		Deployment:     deployment,

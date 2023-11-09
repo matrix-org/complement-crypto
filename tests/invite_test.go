@@ -19,9 +19,6 @@ func TestCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T) {
 }
 
 func testCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
-	if clientTypeA == api.ClientTypeRust && clientTypeB == api.ClientTypeRust {
-		t.Skip("Skipping rust/rust as SS proxy sends invite/join in timeline, omitting the invite msg")
-	}
 	// Setup Code
 	// ----------
 	deployment := Deploy(t)
@@ -93,7 +90,8 @@ func testCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T, clientTypeA, c
 	must.Equal(t, isEncrypted, true, "room is not encrypted")
 	t.Logf("bob room encrypted = %v", isEncrypted)
 
-	// send a sentinel message and wait for it to ensure we are joined and syncing
+	// send a sentinel message and wait for it to ensure we are joined and syncing.
+	// This also checks that subsequent messages are decryptable.
 	sentinelBody := "Sentinel"
 	waiter := bob.WaitUntilEventInRoom(t, roomID, sentinelBody)
 	alice.SendMessage(t, roomID, sentinelBody)
@@ -106,5 +104,4 @@ func testCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T, clientTypeA, c
 	waiter = bob.WaitUntilEventInRoom(t, roomID, wantMsgBody)
 	bob.MustBackpaginate(t, roomID, 5) // number is arbitrary, just needs to be >=2
 	waiter.Wait(t, 5*time.Second)
-	// time.Sleep(time.Hour)
 }
