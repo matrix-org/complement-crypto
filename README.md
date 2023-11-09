@@ -50,6 +50,16 @@ One-time Keys:
 - [ ] When Alice runs out of OTKs, other users use the fallback key.
 - [ ] Ensure things don't explode if OTKs are reused (TODO: what should happen here?)
 
+Key Verification: (Short Authentication String)
+- [ ] Happy case Alice <-> Bob key verification.
+- [ ] Happy case Alice <-> Bob key verification over federation.
+- [ ] Happy case Alice <-> Alice key verification (different devices).
+- [ ] A MITMed key fails key verification.
+- [ ] Repeat all of the above, but for QR code. (render QR code to png then rescan).
+- [ ] Repeat all of the above, but for Emoji representations of SAS.
+- [ ] Verification can be cancelled.
+- [ ] Verification can be cancelled over federation.
+
 Network connectivity:
 - [ ] If a client cannot upload OTKs, it retries.
 - [ ] If a client cannot claim OTKs, it retries.
