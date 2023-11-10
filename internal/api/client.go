@@ -33,7 +33,7 @@ type Client interface {
 	SendMessage(t *testing.T, roomID, text string)
 	// Wait until an event with the given body is seen. Not all impls expose event IDs
 	// hence needing to use body as a proxy.
-	WaitUntilEventInRoom(t *testing.T, roomID, wantBody string) Waiter
+	WaitUntilEventInRoom(t *testing.T, roomID string, checker func(e Event) bool) Waiter
 	// Backpaginate in this room by `count` events.
 	MustBackpaginate(t *testing.T, roomID string, count int)
 	Type() ClientType
@@ -69,9 +69,23 @@ type Event struct {
 	Text   string // FFI bindings don't expose the content object
 	Sender string
 	// FFI bindings don't expose state key
+	Target string
 	// FFI bindings don't expose type
+	Membership string
 }
 
 type Waiter interface {
 	Wait(t *testing.T, s time.Duration)
+}
+
+func CheckEventHasBody(body string) func(e Event) bool {
+	return func(e Event) bool {
+		return e.Text == body
+	}
+}
+
+func CheckEventHasMembership(target, membership string) func(e Event) bool {
+	return func(e Event) bool {
+		return e.Membership == membership && e.Target == target
+	}
 }

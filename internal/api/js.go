@@ -31,7 +31,7 @@ type JSClient struct {
 	ctx        context.Context
 	cancel     func()
 	baseJSURL  string
-	listeners  map[int32]func(roomID, text string)
+	listeners  map[int32]func(roomID string, ev Event)
 	listenerID atomic.Int32
 	userID     string
 }
@@ -42,7 +42,7 @@ func NewJSClient(t *testing.T, opts ClientCreationOpts) (Client, error) {
 		chromedp.WithBrowserLogf(log.Printf), chromedp.WithBrowserErrorf(log.Printf), //chromedp.WithBrowserDebugf(log.Printf),
 	))
 	jsc := &JSClient{
-		listeners: make(map[int32]func(roomID, text string)),
+		listeners: make(map[int32]func(roomID string, ev Event)),
 		userID:    opts.UserID,
 	}
 	// Listen for console logs for debugging AND to communicate live updates
@@ -60,10 +60,15 @@ func NewJSClient(t *testing.T, opts ClientCreationOpts) (Client, error) {
 
 				if strings.HasPrefix(s, CONSOLE_LOG_CONTROL_STRING) {
 					val := strings.TrimPrefix(s, CONSOLE_LOG_CONTROL_STRING)
-					// for now the format is always 'room_id||text'
+					// for now the format is always 'room_id||{event}'
 					segs := strings.Split(val, "||")
+					var ev JSEvent
+					if err := json.Unmarshal([]byte(segs[1]), &ev); err != nil {
+						colorify("[%s] failed to unmarshal event '%s' into Go %s\n", opts.UserID, segs[1], err)
+						continue
+					}
 					for _, l := range jsc.listeners {
-						l(segs[0], segs[1])
+						l(segs[0], jsToEvent(ev))
 					}
 				}
 			}
@@ -137,7 +142,7 @@ func NewJSClient(t *testing.T, opts ClientCreationOpts) (Client, error) {
 		if (event.getType() !== "m.room.message") {
 			return; // only use messages
 		}
-		console.log("%s"+event.getRoomId()+"||"+event.getEffectiveEvent().content.body);
+		console.log("%s"+event.getRoomId()+"||"+JSON.stringify(event.getEffectiveEvent()));
 	});`, CONSOLE_LOG_CONTROL_STRING))
 
 	jsc.ctx = ctx
@@ -152,7 +157,7 @@ func NewJSClient(t *testing.T, opts ClientCreationOpts) (Client, error) {
 // log messages.
 func (c *JSClient) Close(t *testing.T) {
 	c.cancel()
-	c.listeners = make(map[int32]func(roomID string, text string))
+	c.listeners = make(map[int32]func(roomID string, ev Event))
 }
 
 // StartSyncing to begin syncing from sync v2 / sliding sync.
@@ -192,16 +197,11 @@ func (c *JSClient) MustBackpaginate(t *testing.T, roomID string, count int) {
 	))
 }
 
-func (c *JSClient) WaitUntilEventInRoom(t *testing.T, roomID, wantBody string) Waiter {
-	exists := chrome.MustExecuteInto[bool](t, c.ctx, fmt.Sprintf(
-		`window.__client.getRoom("%s").getLiveTimeline().getEvents().map((e)=>{return e.getContent().body}).includes("%s");`, roomID, wantBody,
-	))
-
+func (c *JSClient) WaitUntilEventInRoom(t *testing.T, roomID string, checker func(e Event) bool) Waiter {
 	return &jsTimelineWaiter{
-		roomID:   roomID,
-		wantBody: wantBody,
-		client:   c,
-		exists:   exists,
+		roomID:  roomID,
+		checker: checker,
+		client:  c,
 	}
 }
 
@@ -209,7 +209,7 @@ func (c *JSClient) Type() ClientType {
 	return ClientTypeJS
 }
 
-func (c *JSClient) listenForUpdates(callback func(roomID, gotText string)) (cancel func()) {
+func (c *JSClient) listenForUpdates(callback func(roomID string, ev Event)) (cancel func()) {
 	id := c.listenerID.Add(1)
 	c.listeners[id] = callback
 	return func() {
@@ -218,27 +218,30 @@ func (c *JSClient) listenForUpdates(callback func(roomID, gotText string)) (canc
 }
 
 type jsTimelineWaiter struct {
-	roomID   string
-	wantBody string
-	client   *JSClient
-	exists   bool
+	roomID  string
+	checker func(e Event) bool
+	client  *JSClient
 }
 
 func (w *jsTimelineWaiter) Wait(t *testing.T, s time.Duration) {
-	if w.exists {
-		return
-	}
 	updates := make(chan bool, 3)
-	cancel := w.client.listenForUpdates(func(roomID, gotText string) {
+	cancel := w.client.listenForUpdates(func(roomID string, ev Event) {
 		if w.roomID != roomID {
 			return
 		}
-		if w.wantBody != gotText {
+		if !w.checker(ev) {
 			return
 		}
 		updates <- true
 	})
 	defer cancel()
+
+	// check if it already exists by echoing the current timeline. This will call the callback above.
+	chrome.MustExecute(t, w.client.ctx, fmt.Sprintf(
+		`window.__client.getRoom("%s")?.getLiveTimeline()?.getEvents().forEach((e)=>{
+			console.log("%s"+e.getRoomId()+"||"+JSON.stringify(e.getEffectiveEvent()));
+		});`, w.roomID, CONSOLE_LOG_CONTROL_STRING,
+	))
 
 	start := time.Now()
 	for {
@@ -261,4 +264,26 @@ const ansiResetForeground = "\x1b[39m"
 func colorify(format string, args ...any) {
 	format = ansiYellowForeground + format + ansiResetForeground
 	fmt.Printf(format, args...)
+}
+
+type JSEvent struct {
+	Type     string                 `json:"type"`
+	Sender   string                 `json:"sender,omitempty"`
+	StateKey *string                `json:"state_key,omitempty"`
+	Content  map[string]interface{} `json:"content"`
+	ID       string                 `json:"event_id"`
+}
+
+func jsToEvent(j JSEvent) Event {
+	var ev Event
+	ev.Sender = j.Sender
+	ev.ID = j.ID
+	switch j.Type {
+	case "m.room.member":
+		ev.Target = *j.StateKey
+		ev.Membership = j.Content["membership"].(string)
+	case "m.room.message":
+		ev.Text = j.Content["body"].(string)
+	}
+	return ev
 }

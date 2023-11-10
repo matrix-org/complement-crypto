@@ -12,10 +12,16 @@ import (
 
 func init() {
 	matrix_sdk_ffi.SetupTracing(matrix_sdk_ffi.TracingConfiguration{
-		WriteToStdoutOrSystem: true,
+		WriteToStdoutOrSystem: false,
 		Filter:                "debug",
+		WriteToFiles: &matrix_sdk_ffi.TracingFileConfiguration{
+			Path:       ".",
+			FilePrefix: "rust_sdk",
+		},
 	})
 }
+
+var zero uint32
 
 type RustRoomInfo struct {
 	attachedListener bool
@@ -33,6 +39,7 @@ type RustClient struct {
 }
 
 func NewRustClient(t *testing.T, opts ClientCreationOpts, ssURL string) (Client, error) {
+	t.Logf("NewRustClient[%s] creating...", opts.UserID)
 	ab := matrix_sdk_ffi.NewClientBuilder().HomeserverUrl(opts.BaseURL).SlidingSyncProxy(&ssURL)
 	client, err := ab.Build()
 	if err != nil {
@@ -46,25 +53,30 @@ func NewRustClient(t *testing.T, opts ClientCreationOpts, ssURL string) (Client,
 	if err != nil {
 		return nil, fmt.Errorf("Client.Login failed: %s", err)
 	}
-	return &RustClient{
+	c := &RustClient{
 		userID:    opts.UserID,
 		FFIClient: client,
 		rooms:     make(map[string]*RustRoomInfo),
 		listeners: make(map[int32]func(roomID string)),
-	}, nil
+	}
+	c.logf(t, "NewRustClient[%s] created client", opts.UserID)
+	return c, nil
 }
 
 func (c *RustClient) Close(t *testing.T) {
+	t.Helper()
+	c.logf(t, "Close[%s]", c.userID)
 	c.FFIClient.Destroy()
 }
 
 // StartSyncing to begin syncing from sync v2 / sliding sync.
 // Tests should call stopSyncing() at the end of the test.
 func (c *RustClient) StartSyncing(t *testing.T) (stopSyncing func()) {
+	t.Helper()
+	c.logf(t, "StartSyncing[%s]", c.userID)
 	syncService, err := c.FFIClient.SyncService().FinishBlocking()
 	must.NotError(t, fmt.Sprintf("[%s]failed to make sync service", c.userID), err)
 	c.syncService = syncService
-	t.Logf("%s: Starting sync service", c.userID)
 	go syncService.StartBlocking()
 	return func() {
 		t.Logf("%s: Stopping sync service", c.userID)
@@ -75,6 +87,8 @@ func (c *RustClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 // IsRoomEncrypted returns true if the room is encrypted. May return an error e.g if you
 // provide a bogus room ID.
 func (c *RustClient) IsRoomEncrypted(t *testing.T, roomID string) (bool, error) {
+	t.Helper()
+	c.logf(t, "IsRoomEncrypted[%s] %s", c.userID, roomID)
 	r := c.findRoom(roomID)
 	if r == nil {
 		rooms := c.FFIClient.Rooms()
@@ -83,12 +97,14 @@ func (c *RustClient) IsRoomEncrypted(t *testing.T, roomID string) (bool, error) 
 	return r.IsEncrypted()
 }
 
-func (c *RustClient) WaitUntilEventInRoom(t *testing.T, roomID, wantBody string) Waiter {
+func (c *RustClient) WaitUntilEventInRoom(t *testing.T, roomID string, checker func(Event) bool) Waiter {
+	t.Helper()
+	c.logf(t, "WaitUntilEventInRoom[%s] %s", c.userID, roomID)
 	c.ensureListening(t, roomID)
 	return &timelineWaiter{
-		roomID:   roomID,
-		wantBody: wantBody,
-		client:   c,
+		roomID:  roomID,
+		checker: checker,
+		client:  c,
 	}
 }
 
@@ -99,6 +115,8 @@ func (c *RustClient) Type() ClientType {
 // SendMessage sends the given text as an m.room.message with msgtype:m.text into the given
 // room. Returns the event ID of the sent event.
 func (c *RustClient) SendMessage(t *testing.T, roomID, text string) {
+	t.Helper()
+	c.logf(t, "SendMessage[%s] %s => %s", c.userID, roomID, text)
 	// we need a timeline listener before we can send messages, AND that listener must be attached to the
 	// same *Room you call .Send on :S
 	r := c.ensureListening(t, roomID)
@@ -108,7 +126,7 @@ func (c *RustClient) SendMessage(t *testing.T, roomID, text string) {
 
 func (c *RustClient) MustBackpaginate(t *testing.T, roomID string, count int) {
 	t.Helper()
-	t.Logf("[%s] MustBackpaginate %d %s", c.userID, count, roomID)
+	c.logf(t, "[%s] MustBackpaginate %d %s", c.userID, count, roomID)
 	r := c.findRoom(roomID)
 	must.NotEqual(t, r, nil, "unknown room")
 	must.NotError(t, "failed to backpaginate", r.PaginateBackwards(matrix_sdk_ffi.PaginationOptionsSingleRequest{
@@ -132,6 +150,12 @@ func (c *RustClient) findRoom(roomID string) *matrix_sdk_ffi.Room {
 		}
 	}
 	return nil
+}
+
+func (c *RustClient) logf(t *testing.T, format string, args ...interface{}) {
+	t.Helper()
+	matrix_sdk_ffi.LogEvent("rust.go", &zero, matrix_sdk_ffi.LogLevelInfo, t.Name(), fmt.Sprintf(format, args...))
+	t.Logf(format, args...)
 }
 
 func (c *RustClient) ensureListening(t *testing.T, roomID string) *matrix_sdk_ffi.Room {
@@ -220,31 +244,32 @@ func (c *RustClient) listenForUpdates(callback func(roomID string)) (cancel func
 }
 
 type timelineWaiter struct {
-	roomID   string
-	wantBody string
-	client   *RustClient
+	roomID  string
+	checker func(e Event) bool
+	client  *RustClient
 }
 
 func (w *timelineWaiter) Wait(t *testing.T, s time.Duration) {
 	t.Helper()
 
 	checkForEvent := func() bool {
+		t.Helper()
 		// check if it exists in the timeline already
 		info := w.client.rooms[w.roomID]
 		if info == nil {
-			fmt.Printf("_____checkForEvent[%s] '%s' room does not exist\n", w.client.userID, w.wantBody)
+			fmt.Printf("_____checkForEvent[%s] room does not exist\n", w.client.userID)
 			return false
 		}
 		for _, ev := range info.timeline {
 			if ev == nil {
 				continue
 			}
-			if ev.Text == w.wantBody {
+			if w.checker(*ev) {
 				t.Logf("%s: Wait[%s]: event exists in the timeline", w.client.userID, w.roomID)
 				return true
 			}
 		}
-		fmt.Printf("_____checkForEvent[%s] '%s' checked %d timeline events and no match \n", w.client.userID, w.wantBody, len(info.timeline))
+		fmt.Printf("_____checkForEvent[%s] checked %d timeline events and no match \n", w.client.userID, len(info.timeline))
 		return false
 	}
 
@@ -304,6 +329,34 @@ func timelineItemToEvent(item *matrix_sdk_ffi.TimelineItem) *Event {
 		ID:     eventID,
 		Sender: evv.Sender(),
 	}
+	switch k := evv.Content().Kind().(type) {
+	case matrix_sdk_ffi.TimelineItemContentKindRoomMembership:
+		complementEvent.Target = k.UserId
+		change := *k.Change
+		switch change {
+		case matrix_sdk_ffi.MembershipChangeInvited:
+			complementEvent.Membership = "invite"
+		case matrix_sdk_ffi.MembershipChangeBanned:
+			fallthrough
+		case matrix_sdk_ffi.MembershipChangeKickedAndBanned:
+			complementEvent.Membership = "ban"
+		case matrix_sdk_ffi.MembershipChangeJoined:
+			complementEvent.Membership = "join"
+		case matrix_sdk_ffi.MembershipChangeLeft:
+			fallthrough
+		case matrix_sdk_ffi.MembershipChangeInvitationRevoked:
+			fallthrough
+		case matrix_sdk_ffi.MembershipChangeInvitationRejected:
+			fallthrough
+		case matrix_sdk_ffi.MembershipChangeKicked:
+			fallthrough
+		case matrix_sdk_ffi.MembershipChangeUnbanned:
+			complementEvent.Membership = "leave"
+		default:
+			fmt.Printf("%s unhandled membership %d\n", k.UserId, change)
+		}
+	}
+
 	content := evv.Content()
 	if content != nil {
 		msg := content.AsMessage()

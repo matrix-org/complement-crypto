@@ -79,7 +79,7 @@ func TestAliceBobEncryptionWorks(t *testing.T) {
 		must.Equal(t, isEncrypted, true, "room is not encrypted")
 		t.Logf("bob room encrypted = %v", isEncrypted)
 
-		waiter := bob.WaitUntilEventInRoom(t, roomID, wantMsgBody)
+		waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 		alice.SendMessage(t, roomID, wantMsgBody)
 
 		// Bob receives the message
@@ -169,7 +169,7 @@ func TestCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T) {
 		// send a sentinel message and wait for it to ensure we are joined and syncing.
 		// This also checks that subsequent messages are decryptable.
 		sentinelBody := "Sentinel"
-		waiter := bob.WaitUntilEventInRoom(t, roomID, sentinelBody)
+		waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(sentinelBody))
 		alice.SendMessage(t, roomID, sentinelBody)
 		waiter.Wait(t, 5*time.Second)
 
@@ -177,7 +177,7 @@ func TestCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T) {
 		// earlier than the join by default. This is important because:
 		// - sync v2 (JS SDK) it depends on the timeline limit, which is 20 by default but we don't want to assume.
 		// - sliding sync (FFI) it won't return events before the join by default, relying on clients using the prev_batch token.
-		waiter = bob.WaitUntilEventInRoom(t, roomID, wantMsgBody)
+		waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 		bob.MustBackpaginate(t, roomID, 5) // number is arbitrary, just needs to be >=2
 		waiter.Wait(t, 5*time.Second)
 	})
@@ -239,10 +239,10 @@ func TestBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 		must.Equal(t, isEncrypted, true, "room is not encrypted when it should be")
 
 		// Alice sends a message to herself in this public room
-		waiter := alice.WaitUntilEventInRoom(t, roomID, undecryptableBody)
+		aliceWaiter := alice.WaitUntilEventInRoom(t, roomID, undecryptableBody)
 		alice.SendMessage(t, roomID, undecryptableBody)
 		t.Logf("alice (%s) waiting for event", alice.Type())
-		waiter.Wait(t, 5*time.Second)
+		aliceWaiter.Wait(t, 5*time.Second)
 
 		// Bob joins the room
 		csapiBob.JoinRoom(t, roomID, []string{"hs1"})
@@ -250,10 +250,12 @@ func TestBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 
 		// Alice sends a new message which Bob should be able to decrypt
 		decryptableBody := "Bob can decrypt this"
-		waiter = alice.WaitUntilEventInRoom(t, roomID, decryptableBody)
+		aliceWaiter = alice.WaitUntilEventInRoom(t, roomID, decryptableBody)
+		// Rust SDK listener doesn't seem to always catch this unless we are listening before the message is sent
+		bobWaiter := bob.WaitUntilEventInRoom(t, roomID, decryptableBody)
 		alice.SendMessage(t, roomID, decryptableBody)
 		t.Logf("alice (%s) waiting for event", alice.Type())
-		waiter.Wait(t, 5*time.Second)
+		aliceWaiter.Wait(t, 5*time.Second)
 
 		isEncrypted, err = bob.IsRoomEncrypted(t, roomID)
 		must.NotError(t, "failed to check if room is encrypted", err)
@@ -261,9 +263,8 @@ func TestBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 		t.Logf("bob room encrypted = %v", isEncrypted)
 
 		// Bob receives the decryptable message
-		waiter = bob.WaitUntilEventInRoom(t, roomID, decryptableBody)
 		t.Logf("bob (%s) waiting for event", bob.Type())
-		waiter.Wait(t, 5*time.Second)
+		bobWaiter.Wait(t, 5*time.Second)
 
 		// Bob attempts to backpaginate to see the older message
 		bob.MustBackpaginate(t, roomID, 5) // arbitrary, must be >2
