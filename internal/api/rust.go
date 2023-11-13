@@ -35,7 +35,6 @@ type RustClient struct {
 	listeners  map[int32]func(roomID string)
 	listenerID atomic.Int32
 	userID     string
-	// syncService *matrix_sdk_ffi.SyncService
 }
 
 func NewRustClient(t *testing.T, opts ClientCreationOpts, ssURL string) (Client, error) {
@@ -74,31 +73,33 @@ func (c *RustClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 	t.Helper()
 	syncService, err := c.FFIClient.SyncService().Finish()
 	must.NotError(t, fmt.Sprintf("[%s]failed to make sync service", c.userID), err)
-	//c.syncService = syncService
-	/* ch := make(chan matrix_sdk_ffi.SyncServiceState, 10)
-	th := syncService.State(&syncServiceStateObserver{
+	ch := make(chan matrix_sdk_ffi.RoomListLoadingState, 10)
+	roomList, err := syncService.RoomListService().AllRooms()
+	must.NotError(t, "failed to call SyncService.RoomListService.AllRooms", err)
+	result, err := roomList.LoadingState(&roomListLoadingStateListener{
 		ch: ch,
-	}) */
+	})
+	must.NotError(t, "failed to call RoomList.LoadingState", err)
 	go syncService.Start()
 
-	/*
-		isSyncing := false
+	isSyncing := false
 
-		for !isSyncing {
-			select {
-			case <-time.After(5 * time.Second):
-				t.Fatalf("timed out after 5s StartSyncing")
-			case state := <-ch:
-				fmt.Println(state)
-				if state == matrix_sdk_ffi.SyncServiceStateRunning {
-					isSyncing = true
-				}
+	for !isSyncing {
+		select {
+		case <-time.After(5 * time.Second):
+			t.Fatalf("timed out after 5s StartSyncing")
+		case state := <-ch:
+			fmt.Println(state)
+			switch state.(type) {
+			case matrix_sdk_ffi.RoomListLoadingStateLoaded:
+				isSyncing = true
+			case matrix_sdk_ffi.RoomListLoadingStateNotLoaded:
+				isSyncing = false
 			}
 		}
+	}
 
-		th.Cancel() */
-
-	time.Sleep(time.Second)
+	result.StateStream.Cancel()
 
 	return func() {
 		t.Logf("%s: Stopping sync service", c.userID)
@@ -392,10 +393,10 @@ func timelineItemToEvent(item *matrix_sdk_ffi.TimelineItem) *Event {
 	return &complementEvent
 }
 
-type syncServiceStateObserver struct {
-	ch chan matrix_sdk_ffi.SyncServiceState
+type roomListLoadingStateListener struct {
+	ch chan matrix_sdk_ffi.RoomListLoadingState
 }
 
-func (s *syncServiceStateObserver) OnUpdate(state matrix_sdk_ffi.SyncServiceState) {
+func (s *roomListLoadingStateListener) OnUpdate(state matrix_sdk_ffi.RoomListLoadingState) {
 	s.ch <- state
 }
