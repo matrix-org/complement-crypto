@@ -90,12 +90,12 @@ Prerequisites:
 This repo has bindings to the `matrix_sdk` crate in rust SDK, in order to mimic Element X.
 
 In order to generate these bindings, follow these instructions:
-- Check out https://github.com/matrix-org/matrix-rust-sdk/tree/kegan/complement-test-fork (TODO: go back to main when async fns work with bindgen)
-- Get the bindings generator: (TODO: recheck if https://github.com/NordSecurity/uniffi-bindgen-go/pull/13 lands)
+- Check out https://github.com/matrix-org/matrix-rust-sdk/tree/kegan/complement-test-fork (TODO: go back to main when `_ffi_matrix_sdk_ffi_rust_future_continuation_callback_set` is defined)
+- Get the bindings generator: (TODO: recheck if https://github.com/NordSecurity/uniffi-bindgen-go/pull/26 lands)
 ```
 git clone https://github.com/dignifiedquire/uniffi-bindgen-go.git
 cd uniffi-bindgen-go
-git checkout upgarde-uniffi-24
+git checkout upgrade-uniffi-25
 git submodule init
 git submodule update
 cd ..
@@ -104,7 +104,6 @@ cargo install uniffi-bindgen-go --path ./uniffi-bindgen-go/bindgen
 - Compile the rust SDK: `cargo build -p matrix-sdk-crypto-ffi -p matrix-sdk-ffi`. Check that `target/debug/libmatrix_sdk_ffi.a` exists.
 - Generate the Go bindings to `./rust`: `uniffi-bindgen-go -l ../matrix-rust-sdk/target/debug/libmatrix_sdk_ffi.a -o ./rust ../matrix-rust-sdk/bindings/matrix-sdk-ffi/src/api.udl`
 - Patch up the generated code as it's not quite right:
-    * `sed -i '' 's/bindingsContractVersion := 23/bindingsContractVersion := 24/' rust/matrix_sdk_ffi/matrix_sdk_ffi.go`
     * Add `// #cgo LDFLAGS: -lmatrix_sdk_ffi` immediately after `// #include <matrix_sdk_ffi.h>` at the top of `matrix_sdk_ffi.go`.
     * Replace field names `Error` with `Error2` to fix `unknown field Error in struct literal`.
 - Sanity check compile `LIBRARY_PATH="$LIBRARY_PATH:/path/to/matrix-rust-sdk/target/debug" go test -c ./tests`

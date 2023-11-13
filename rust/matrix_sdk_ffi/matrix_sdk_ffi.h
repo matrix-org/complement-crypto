@@ -13,15 +13,15 @@
 // We ensure they are declared exactly once, with a header guard, UNIFFI_SHARED_H.
 #ifdef UNIFFI_SHARED_H
 	// We also try to prevent mixing versions of shared uniffi header structs.
-	// If you add anything to the #else block, you must increment the version suffix in UNIFFI_SHARED_HEADER_V5
-	#ifndef UNIFFI_SHARED_HEADER_V5
+	// If you add anything to the #else block, you must increment the version suffix in UNIFFI_SHARED_HEADER_V6
+	#ifndef UNIFFI_SHARED_HEADER_V6
 		#error Combining helper code from multiple versions of uniffi is not supported
-	#endif // ndef UNIFFI_SHARED_HEADER_V5
+	#endif // ndef UNIFFI_SHARED_HEADER_V6
 #else
 #define UNIFFI_SHARED_H
-#define UNIFFI_SHARED_HEADER_V5
+#define UNIFFI_SHARED_HEADER_V6
 // ⚠️ Attention: If you change this #else block (ending in `#endif // def UNIFFI_SHARED_H`) you *must* ⚠️
-// ⚠️ increment the version suffix in all instances of UNIFFI_SHARED_HEADER_V5 in this file.           ⚠️
+// ⚠️ increment the version suffix in all instances of UNIFFI_SHARED_HEADER_V6 in this file.           ⚠️
 
 typedef struct RustBuffer {
 	int32_t capacity;
@@ -54,8 +54,11 @@ typedef struct RustCallStatus {
 	RustBuffer errorBuf;
 } RustCallStatus;
 
+// Continuation callback for UniFFI Futures
+typedef void (*RustFutureContinuation)(void * , int8_t);
+
 // ⚠️ Attention: If you change this #else block (ending in `#endif // def UNIFFI_SHARED_H`) you *must* ⚠️
-// ⚠️ increment the version suffix in all instances of UNIFFI_SHARED_HEADER_V5 in this file.           ⚠️
+// ⚠️ increment the version suffix in all instances of UNIFFI_SHARED_HEADER_V6 in this file.           ⚠️
 #endif // def UNIFFI_SHARED_H
 
 // Needed because we can't execute the callback directly from go.
@@ -63,39 +66,7 @@ void cgo_rust_task_callback_bridge_matrix_sdk_ffi(RustTaskCallback, const void *
 
 int8_t uniffiForeignExecutorCallbackmatrix_sdk_ffi(uint64_t, uint32_t, RustTaskCallback, void*);
 
-// Callbacks for UniFFI Futures
-typedef void (*UniFfiFutureCallbackuint8_t)(const void *, uint8_t, RustCallStatus);
-typedef void (*UniFfiFutureCallbackint8_t)(const void *, int8_t, RustCallStatus);
-typedef void (*UniFfiFutureCallbackuint32_t)(const void *, uint32_t, RustCallStatus);
-typedef void (*UniFfiFutureCallbackuint64_t)(const void *, uint64_t, RustCallStatus);
-typedef void (*UniFfiFutureCallbackint64_t)(const void *, int64_t, RustCallStatus);
-typedef void (*UniFfiFutureCallbackRustArcPtr)(const void *, void*, RustCallStatus);
-typedef void (*UniFfiFutureCallbackRustArcPtr)(const void *, void*, RustCallStatus);
-typedef void (*UniFfiFutureCallbackRustArcPtr)(const void *, void*, RustCallStatus);
-typedef void (*UniFfiFutureCallbackRustArcPtr)(const void *, void*, RustCallStatus);
-typedef void (*UniFfiFutureCallbackRustArcPtr)(const void *, void*, RustCallStatus);
-typedef void (*UniFfiFutureCallbackRustArcPtr)(const void *, void*, RustCallStatus);
-typedef void (*UniFfiFutureCallbackRustArcPtr)(const void *, void*, RustCallStatus);
-typedef void (*UniFfiFutureCallbackRustArcPtr)(const void *, void*, RustCallStatus);
-typedef void (*UniFfiFutureCallbackRustArcPtr)(const void *, void*, RustCallStatus);
-typedef void (*UniFfiFutureCallbackRustArcPtr)(const void *, void*, RustCallStatus);
-typedef void (*UniFfiFutureCallbackRustArcPtr)(const void *, void*, RustCallStatus);
-typedef void (*UniFfiFutureCallbackRustArcPtr)(const void *, void*, RustCallStatus);
-typedef void (*UniFfiFutureCallbackRustArcPtr)(const void *, void*, RustCallStatus);
-typedef void (*UniFfiFutureCallbackRustArcPtr)(const void *, void*, RustCallStatus);
-typedef void (*UniFfiFutureCallbackRustArcPtr)(const void *, void*, RustCallStatus);
-typedef void (*UniFfiFutureCallbackRustArcPtr)(const void *, void*, RustCallStatus);
-typedef void (*UniFfiFutureCallbackRustArcPtr)(const void *, void*, RustCallStatus);
-typedef void (*UniFfiFutureCallbackRustArcPtr)(const void *, void*, RustCallStatus);
-typedef void (*UniFfiFutureCallbackRustArcPtr)(const void *, void*, RustCallStatus);
-typedef void (*UniFfiFutureCallbackRustArcPtr)(const void *, void*, RustCallStatus);
-typedef void (*UniFfiFutureCallbackRustArcPtr)(const void *, void*, RustCallStatus);
-typedef void (*UniFfiFutureCallbackRustArcPtr)(const void *, void*, RustCallStatus);
-typedef void (*UniFfiFutureCallbackRustArcPtr)(const void *, void*, RustCallStatus);
-typedef void (*UniFfiFutureCallbackRustArcPtr)(const void *, void*, RustCallStatus);
-typedef void (*UniFfiFutureCallbackRustArcPtr)(const void *, void*, RustCallStatus);
-typedef void (*UniFfiFutureCallbackRustBuffer)(const void *, RustBuffer, RustCallStatus);
-
+void uniffiFutureContinuationCallbackmatrix_sdk_ffi(void*, int8_t);
 
 void uniffi_matrix_sdk_ffi_fn_free_mediasource(
 	void* ptr,
@@ -652,11 +623,8 @@ void uniffi_matrix_sdk_ffi_fn_free_notificationsettings(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_notificationsettings_contains_keywords_rules(
+void* uniffi_matrix_sdk_ffi_fn_method_notificationsettings_contains_keywords_rules(
 	void* ptr,
-	int uniffi_executor,
-	UniFfiFutureCallbackint8_t uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -665,13 +633,10 @@ int8_t uniffi_matrix_sdk_ffi_fn_method_notificationsettings_contains_keywords_ru
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_notificationsettings_get_default_room_notification_mode(
+void* uniffi_matrix_sdk_ffi_fn_method_notificationsettings_get_default_room_notification_mode(
 	void* ptr,
 	int8_t is_encrypted,
 	int8_t is_one_to_one,
-	int uniffi_executor,
-	UniFfiFutureCallbackRustBuffer uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -682,14 +647,11 @@ RustBuffer uniffi_matrix_sdk_ffi_fn_method_notificationsettings_get_default_room
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_notificationsettings_get_room_notification_settings(
+void* uniffi_matrix_sdk_ffi_fn_method_notificationsettings_get_room_notification_settings(
 	void* ptr,
 	RustBuffer room_id,
 	int8_t is_encrypted,
 	int8_t is_one_to_one,
-	int uniffi_executor,
-	UniFfiFutureCallbackRustBuffer uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -701,12 +663,9 @@ RustBuffer uniffi_matrix_sdk_ffi_fn_method_notificationsettings_get_room_notific
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_notificationsettings_get_rooms_with_user_defined_rules(
+void* uniffi_matrix_sdk_ffi_fn_method_notificationsettings_get_rooms_with_user_defined_rules(
 	void* ptr,
 	RustBuffer enabled,
-	int uniffi_executor,
-	UniFfiFutureCallbackRustBuffer uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -716,12 +675,9 @@ RustBuffer uniffi_matrix_sdk_ffi_fn_method_notificationsettings_get_rooms_with_u
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_notificationsettings_get_user_defined_room_notification_mode(
+void* uniffi_matrix_sdk_ffi_fn_method_notificationsettings_get_user_defined_room_notification_mode(
 	void* ptr,
 	RustBuffer room_id,
-	int uniffi_executor,
-	UniFfiFutureCallbackRustBuffer uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -731,11 +687,8 @@ RustBuffer uniffi_matrix_sdk_ffi_fn_method_notificationsettings_get_user_defined
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_notificationsettings_is_call_enabled(
+void* uniffi_matrix_sdk_ffi_fn_method_notificationsettings_is_call_enabled(
 	void* ptr,
-	int uniffi_executor,
-	UniFfiFutureCallbackint8_t uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -744,11 +697,8 @@ int8_t uniffi_matrix_sdk_ffi_fn_method_notificationsettings_is_call_enabled_bloc
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_notificationsettings_is_room_mention_enabled(
+void* uniffi_matrix_sdk_ffi_fn_method_notificationsettings_is_room_mention_enabled(
 	void* ptr,
-	int uniffi_executor,
-	UniFfiFutureCallbackint8_t uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -757,11 +707,8 @@ int8_t uniffi_matrix_sdk_ffi_fn_method_notificationsettings_is_room_mention_enab
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_notificationsettings_is_user_mention_enabled(
+void* uniffi_matrix_sdk_ffi_fn_method_notificationsettings_is_user_mention_enabled(
 	void* ptr,
-	int uniffi_executor,
-	UniFfiFutureCallbackint8_t uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -770,12 +717,9 @@ int8_t uniffi_matrix_sdk_ffi_fn_method_notificationsettings_is_user_mention_enab
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_notificationsettings_restore_default_room_notification_mode(
+void* uniffi_matrix_sdk_ffi_fn_method_notificationsettings_restore_default_room_notification_mode(
 	void* ptr,
 	RustBuffer room_id,
-	int uniffi_executor,
-	UniFfiFutureCallbackuint8_t uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -785,12 +729,9 @@ void uniffi_matrix_sdk_ffi_fn_method_notificationsettings_restore_default_room_n
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_notificationsettings_set_call_enabled(
+void* uniffi_matrix_sdk_ffi_fn_method_notificationsettings_set_call_enabled(
 	void* ptr,
 	int8_t enabled,
-	int uniffi_executor,
-	UniFfiFutureCallbackuint8_t uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -800,14 +741,11 @@ void uniffi_matrix_sdk_ffi_fn_method_notificationsettings_set_call_enabled_block
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_notificationsettings_set_default_room_notification_mode(
+void* uniffi_matrix_sdk_ffi_fn_method_notificationsettings_set_default_room_notification_mode(
 	void* ptr,
 	int8_t is_encrypted,
 	int8_t is_one_to_one,
 	RustBuffer mode,
-	int uniffi_executor,
-	UniFfiFutureCallbackuint8_t uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -825,12 +763,9 @@ void uniffi_matrix_sdk_ffi_fn_method_notificationsettings_set_delegate(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_notificationsettings_set_room_mention_enabled(
+void* uniffi_matrix_sdk_ffi_fn_method_notificationsettings_set_room_mention_enabled(
 	void* ptr,
 	int8_t enabled,
-	int uniffi_executor,
-	UniFfiFutureCallbackuint8_t uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -840,13 +775,10 @@ void uniffi_matrix_sdk_ffi_fn_method_notificationsettings_set_room_mention_enabl
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_notificationsettings_set_room_notification_mode(
+void* uniffi_matrix_sdk_ffi_fn_method_notificationsettings_set_room_notification_mode(
 	void* ptr,
 	RustBuffer room_id,
 	RustBuffer mode,
-	int uniffi_executor,
-	UniFfiFutureCallbackuint8_t uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -857,12 +789,9 @@ void uniffi_matrix_sdk_ffi_fn_method_notificationsettings_set_room_notification_
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_notificationsettings_set_user_mention_enabled(
+void* uniffi_matrix_sdk_ffi_fn_method_notificationsettings_set_user_mention_enabled(
 	void* ptr,
 	int8_t enabled,
-	int uniffi_executor,
-	UniFfiFutureCallbackuint8_t uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -872,14 +801,11 @@ void uniffi_matrix_sdk_ffi_fn_method_notificationsettings_set_user_mention_enabl
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_notificationsettings_unmute_room(
+void* uniffi_matrix_sdk_ffi_fn_method_notificationsettings_unmute_room(
 	void* ptr,
 	RustBuffer room_id,
 	int8_t is_encrypted,
 	int8_t is_one_to_one,
-	int uniffi_executor,
-	UniFfiFutureCallbackuint8_t uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -911,12 +837,9 @@ uint64_t uniffi_matrix_sdk_ffi_fn_method_room_active_members_count(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_room_add_timeline_listener(
+void* uniffi_matrix_sdk_ffi_fn_method_room_add_timeline_listener(
 	void* ptr,
 	uint64_t listener,
-	int uniffi_executor,
-	UniFfiFutureCallbackRustBuffer uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -936,12 +859,9 @@ RustBuffer uniffi_matrix_sdk_ffi_fn_method_room_avatar_url(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_room_can_user_ban(
+void* uniffi_matrix_sdk_ffi_fn_method_room_can_user_ban(
 	void* ptr,
 	RustBuffer user_id,
-	int uniffi_executor,
-	UniFfiFutureCallbackint8_t uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -951,12 +871,9 @@ int8_t uniffi_matrix_sdk_ffi_fn_method_room_can_user_ban_blocking(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_room_can_user_invite(
+void* uniffi_matrix_sdk_ffi_fn_method_room_can_user_invite(
 	void* ptr,
 	RustBuffer user_id,
-	int uniffi_executor,
-	UniFfiFutureCallbackint8_t uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -966,12 +883,9 @@ int8_t uniffi_matrix_sdk_ffi_fn_method_room_can_user_invite_blocking(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_room_can_user_kick(
+void* uniffi_matrix_sdk_ffi_fn_method_room_can_user_kick(
 	void* ptr,
 	RustBuffer user_id,
-	int uniffi_executor,
-	UniFfiFutureCallbackint8_t uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -981,12 +895,9 @@ int8_t uniffi_matrix_sdk_ffi_fn_method_room_can_user_kick_blocking(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_room_can_user_redact(
+void* uniffi_matrix_sdk_ffi_fn_method_room_can_user_redact(
 	void* ptr,
 	RustBuffer user_id,
-	int uniffi_executor,
-	UniFfiFutureCallbackint8_t uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -996,13 +907,10 @@ int8_t uniffi_matrix_sdk_ffi_fn_method_room_can_user_redact_blocking(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_room_can_user_send_message(
+void* uniffi_matrix_sdk_ffi_fn_method_room_can_user_send_message(
 	void* ptr,
 	RustBuffer user_id,
 	RustBuffer message,
-	int uniffi_executor,
-	UniFfiFutureCallbackint8_t uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -1013,13 +921,10 @@ int8_t uniffi_matrix_sdk_ffi_fn_method_room_can_user_send_message_blocking(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_room_can_user_send_state(
+void* uniffi_matrix_sdk_ffi_fn_method_room_can_user_send_state(
 	void* ptr,
 	RustBuffer user_id,
 	RustBuffer state_event,
-	int uniffi_executor,
-	UniFfiFutureCallbackint8_t uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -1030,12 +935,9 @@ int8_t uniffi_matrix_sdk_ffi_fn_method_room_can_user_send_state_blocking(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_room_can_user_trigger_room_notification(
+void* uniffi_matrix_sdk_ffi_fn_method_room_can_user_trigger_room_notification(
 	void* ptr,
 	RustBuffer user_id,
-	int uniffi_executor,
-	UniFfiFutureCallbackint8_t uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -1090,11 +992,8 @@ void uniffi_matrix_sdk_ffi_fn_method_room_fetch_details_for_event(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_room_fetch_members(
+void* uniffi_matrix_sdk_ffi_fn_method_room_fetch_members(
 	void* ptr,
-	int uniffi_executor,
-	UniFfiFutureCallbackuint8_t uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -1182,12 +1081,9 @@ void uniffi_matrix_sdk_ffi_fn_method_room_leave(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_room_member(
+void* uniffi_matrix_sdk_ffi_fn_method_room_member(
 	void* ptr,
 	RustBuffer user_id,
-	int uniffi_executor,
-	UniFfiFutureCallbackRustArcPtr uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -1209,11 +1105,8 @@ RustBuffer uniffi_matrix_sdk_ffi_fn_method_room_member_display_name(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_room_members(
+void* uniffi_matrix_sdk_ffi_fn_method_room_members(
 	void* ptr,
-	int uniffi_executor,
-	UniFfiFutureCallbackRustArcPtr uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -1280,11 +1173,8 @@ void uniffi_matrix_sdk_ffi_fn_method_room_retry_send(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_room_room_info(
+void* uniffi_matrix_sdk_ffi_fn_method_room_room_info(
 	void* ptr,
-	int uniffi_executor,
-	UniFfiFutureCallbackRustBuffer uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -1482,11 +1372,8 @@ RustBuffer uniffi_matrix_sdk_ffi_fn_method_roomlistitem_canonical_alias(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_roomlistitem_full_room(
+void* uniffi_matrix_sdk_ffi_fn_method_roomlistitem_full_room(
 	void* ptr,
-	int uniffi_executor,
-	UniFfiFutureCallbackRustArcPtr uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -1510,11 +1397,8 @@ int8_t uniffi_matrix_sdk_ffi_fn_method_roomlistitem_is_direct(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_roomlistitem_latest_event(
+void* uniffi_matrix_sdk_ffi_fn_method_roomlistitem_latest_event(
 	void* ptr,
-	int uniffi_executor,
-	UniFfiFutureCallbackRustBuffer uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -1523,11 +1407,8 @@ RustBuffer uniffi_matrix_sdk_ffi_fn_method_roomlistitem_name(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_roomlistitem_room_info(
+void* uniffi_matrix_sdk_ffi_fn_method_roomlistitem_room_info(
 	void* ptr,
-	int uniffi_executor,
-	UniFfiFutureCallbackRustBuffer uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -1557,28 +1438,19 @@ void uniffi_matrix_sdk_ffi_fn_free_roomlistservice(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_roomlistservice_all_rooms(
+void* uniffi_matrix_sdk_ffi_fn_method_roomlistservice_all_rooms(
 	void* ptr,
-	int uniffi_executor,
-	UniFfiFutureCallbackRustArcPtr uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_roomlistservice_apply_input(
+void* uniffi_matrix_sdk_ffi_fn_method_roomlistservice_apply_input(
 	void* ptr,
 	RustBuffer input,
-	int uniffi_executor,
-	UniFfiFutureCallbackuint8_t uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_roomlistservice_invites(
+void* uniffi_matrix_sdk_ffi_fn_method_roomlistservice_invites(
 	void* ptr,
-	int uniffi_executor,
-	UniFfiFutureCallbackRustArcPtr uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -1725,11 +1597,8 @@ void uniffi_matrix_sdk_ffi_fn_method_sendattachmentjoinhandle_cancel(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_sendattachmentjoinhandle_join(
+void* uniffi_matrix_sdk_ffi_fn_method_sendattachmentjoinhandle_join(
 	void* ptr,
-	int uniffi_executor,
-	UniFfiFutureCallbackuint8_t uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -1743,11 +1612,8 @@ void uniffi_matrix_sdk_ffi_fn_free_sessionverificationcontroller(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_sessionverificationcontroller_approve_verification(
+void* uniffi_matrix_sdk_ffi_fn_method_sessionverificationcontroller_approve_verification(
 	void* ptr,
-	int uniffi_executor,
-	UniFfiFutureCallbackuint8_t uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -1756,11 +1622,8 @@ void uniffi_matrix_sdk_ffi_fn_method_sessionverificationcontroller_approve_verif
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_sessionverificationcontroller_cancel_verification(
+void* uniffi_matrix_sdk_ffi_fn_method_sessionverificationcontroller_cancel_verification(
 	void* ptr,
-	int uniffi_executor,
-	UniFfiFutureCallbackuint8_t uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -1769,11 +1632,8 @@ void uniffi_matrix_sdk_ffi_fn_method_sessionverificationcontroller_cancel_verifi
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_sessionverificationcontroller_decline_verification(
+void* uniffi_matrix_sdk_ffi_fn_method_sessionverificationcontroller_decline_verification(
 	void* ptr,
-	int uniffi_executor,
-	UniFfiFutureCallbackuint8_t uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -1787,11 +1647,8 @@ int8_t uniffi_matrix_sdk_ffi_fn_method_sessionverificationcontroller_is_verified
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_sessionverificationcontroller_request_verification(
+void* uniffi_matrix_sdk_ffi_fn_method_sessionverificationcontroller_request_verification(
 	void* ptr,
-	int uniffi_executor,
-	UniFfiFutureCallbackuint8_t uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -1806,11 +1663,8 @@ void uniffi_matrix_sdk_ffi_fn_method_sessionverificationcontroller_set_delegate(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_sessionverificationcontroller_start_sas_verification(
+void* uniffi_matrix_sdk_ffi_fn_method_sessionverificationcontroller_start_sas_verification(
 	void* ptr,
-	int uniffi_executor,
-	UniFfiFutureCallbackuint8_t uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -1877,11 +1731,8 @@ void* uniffi_matrix_sdk_ffi_fn_method_syncservice_room_list_service(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_syncservice_start(
+void* uniffi_matrix_sdk_ffi_fn_method_syncservice_start(
 	void* ptr,
-	int uniffi_executor,
-	UniFfiFutureCallbackuint8_t uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -1896,11 +1747,8 @@ void* uniffi_matrix_sdk_ffi_fn_method_syncservice_state(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_syncservice_stop(
+void* uniffi_matrix_sdk_ffi_fn_method_syncservice_stop(
 	void* ptr,
-	int uniffi_executor,
-	UniFfiFutureCallbackuint8_t uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -1914,11 +1762,8 @@ void uniffi_matrix_sdk_ffi_fn_free_syncservicebuilder(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_syncservicebuilder_finish(
+void* uniffi_matrix_sdk_ffi_fn_method_syncservicebuilder_finish(
 	void* ptr,
-	int uniffi_executor,
-	UniFfiFutureCallbackRustArcPtr uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -2083,13 +1928,10 @@ void uniffi_matrix_sdk_ffi_fn_free_widgetdriver(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_widgetdriver_run(
+void* uniffi_matrix_sdk_ffi_fn_method_widgetdriver_run(
 	void* ptr,
 	void* room,
 	uint64_t capabilities_provider,
-	int uniffi_executor,
-	UniFfiFutureCallbackuint8_t uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -2098,20 +1940,14 @@ void uniffi_matrix_sdk_ffi_fn_free_widgetdriverhandle(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_widgetdriverhandle_recv(
+void* uniffi_matrix_sdk_ffi_fn_method_widgetdriverhandle_recv(
 	void* ptr,
-	int uniffi_executor,
-	UniFfiFutureCallbackRustBuffer uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_widgetdriverhandle_send(
+void* uniffi_matrix_sdk_ffi_fn_method_widgetdriverhandle_send(
 	void* ptr,
 	RustBuffer msg,
-	int uniffi_executor,
-	UniFfiFutureCallbackint8_t uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -2189,13 +2025,10 @@ RustBuffer uniffi_matrix_sdk_ffi_fn_func_gen_transaction_id(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_func_generate_webview_url(
+void* uniffi_matrix_sdk_ffi_fn_func_generate_webview_url(
 	RustBuffer widget_settings,
 	void* room,
 	RustBuffer props,
-	int uniffi_executor,
-	UniFfiFutureCallbackRustBuffer uniffi_callback,
-	void* uniffi_callback_data,
 	RustCallStatus* out_status
 );
 
@@ -2282,6 +2115,284 @@ void ffi_matrix_sdk_ffi_rustbuffer_free(
 RustBuffer ffi_matrix_sdk_ffi_rustbuffer_reserve(
 	RustBuffer buf,
 	int32_t additional,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_continuation_callback_set(
+	RustFutureContinuation callback,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_poll_u8(
+	void* handle,
+	void* uniffi_callback,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_cancel_u8(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_free_u8(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+uint8_t ffi_matrix_sdk_ffi_rust_future_complete_u8(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_poll_i8(
+	void* handle,
+	void* uniffi_callback,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_cancel_i8(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_free_i8(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+int8_t ffi_matrix_sdk_ffi_rust_future_complete_i8(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_poll_u16(
+	void* handle,
+	void* uniffi_callback,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_cancel_u16(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_free_u16(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+uint16_t ffi_matrix_sdk_ffi_rust_future_complete_u16(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_poll_i16(
+	void* handle,
+	void* uniffi_callback,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_cancel_i16(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_free_i16(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+int16_t ffi_matrix_sdk_ffi_rust_future_complete_i16(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_poll_u32(
+	void* handle,
+	void* uniffi_callback,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_cancel_u32(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_free_u32(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+uint32_t ffi_matrix_sdk_ffi_rust_future_complete_u32(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_poll_i32(
+	void* handle,
+	void* uniffi_callback,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_cancel_i32(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_free_i32(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+int32_t ffi_matrix_sdk_ffi_rust_future_complete_i32(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_poll_u64(
+	void* handle,
+	void* uniffi_callback,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_cancel_u64(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_free_u64(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+uint64_t ffi_matrix_sdk_ffi_rust_future_complete_u64(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_poll_i64(
+	void* handle,
+	void* uniffi_callback,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_cancel_i64(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_free_i64(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+int64_t ffi_matrix_sdk_ffi_rust_future_complete_i64(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_poll_f32(
+	void* handle,
+	void* uniffi_callback,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_cancel_f32(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_free_f32(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+float ffi_matrix_sdk_ffi_rust_future_complete_f32(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_poll_f64(
+	void* handle,
+	void* uniffi_callback,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_cancel_f64(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_free_f64(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+double ffi_matrix_sdk_ffi_rust_future_complete_f64(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_poll_pointer(
+	void* handle,
+	void* uniffi_callback,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_cancel_pointer(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_free_pointer(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+void* ffi_matrix_sdk_ffi_rust_future_complete_pointer(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_poll_rust_buffer(
+	void* handle,
+	void* uniffi_callback,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_cancel_rust_buffer(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+RustBuffer ffi_matrix_sdk_ffi_rust_future_complete_rust_buffer(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_poll_void(
+	void* handle,
+	void* uniffi_callback,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_cancel_void(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_free_void(
+	void* handle,
+	RustCallStatus* out_status
+);
+
+void ffi_matrix_sdk_ffi_rust_future_complete_void(
+	void* handle,
 	RustCallStatus* out_status
 );
 
@@ -3625,11 +3736,6 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_widgetcapabilitiesprovider_acquir
 	RustCallStatus* out_status
 );
 
-void ffi_matrix_sdk_ffi_foreign_executor_callback_set(
-	ForeignExecutorCallback callback,
-	RustCallStatus* out_status
-);
-
 uint32_t ffi_matrix_sdk_ffi_uniffi_contract_version(
 	RustCallStatus* out_status
 );
@@ -3649,92 +3755,4 @@ int32_t matrix_sdk_ffi_cgo_SessionVerificationControllerDelegate(uint64_t, int32
 int32_t matrix_sdk_ffi_cgo_SyncServiceStateObserver(uint64_t, int32_t, uint8_t *, int32_t, RustBuffer *);
 int32_t matrix_sdk_ffi_cgo_TimelineListener(uint64_t, int32_t, uint8_t *, int32_t, RustBuffer *);
 int32_t matrix_sdk_ffi_cgo_WidgetCapabilitiesProvider(uint64_t, int32_t, uint8_t *, int32_t, RustBuffer *);
-void uniffiFutureCallbackHandlerVoid(void *, uint8_t, RustCallStatus);
-void uniffiFutureCallbackHandlerVoidTypeAuthenticationError(void *, uint8_t, RustCallStatus);
-void uniffiFutureCallbackHandlerVoidTypeClientError(void *, uint8_t, RustCallStatus);
-void uniffiFutureCallbackHandlerVoidTypeNotificationSettingsError(void *, uint8_t, RustCallStatus);
-void uniffiFutureCallbackHandlerVoidTypeRoomError(void *, uint8_t, RustCallStatus);
-void uniffiFutureCallbackHandlerVoidTypeRoomListError(void *, uint8_t, RustCallStatus);
-void uniffiFutureCallbackHandlerUint32(void *, uint32_t, RustCallStatus);
-void uniffiFutureCallbackHandlerUint64(void *, uint64_t, RustCallStatus);
-void uniffiFutureCallbackHandlerInt64(void *, int64_t, RustCallStatus);
-void uniffiFutureCallbackHandlerBool(void *, int8_t, RustCallStatus);
-void uniffiFutureCallbackHandlerBoolTypeClientError(void *, int8_t, RustCallStatus);
-void uniffiFutureCallbackHandlerBoolTypeNotificationSettingsError(void *, int8_t, RustCallStatus);
-void uniffiFutureCallbackHandlerString(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerStringTypeClientError(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerStringTypeParseError(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerBytesTypeClientError(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerAuthenticationService(void *, void*, RustCallStatus);
-void uniffiFutureCallbackHandlerClientTypeAuthenticationError(void *, void*, RustCallStatus);
-void uniffiFutureCallbackHandlerClientTypeClientError(void *, void*, RustCallStatus);
-void uniffiFutureCallbackHandlerClientBuilder(void *, void*, RustCallStatus);
-void uniffiFutureCallbackHandlerEventTimelineItemTypeClientError(void *, void*, RustCallStatus);
-void uniffiFutureCallbackHandlerMediaFileHandleTypeClientError(void *, void*, RustCallStatus);
-void uniffiFutureCallbackHandlerMediaSource(void *, void*, RustCallStatus);
-void uniffiFutureCallbackHandlerMediaSourceTypeClientError(void *, void*, RustCallStatus);
-void uniffiFutureCallbackHandlerNotificationClient(void *, void*, RustCallStatus);
-void uniffiFutureCallbackHandlerNotificationClientBuilder(void *, void*, RustCallStatus);
-void uniffiFutureCallbackHandlerNotificationClientBuilderTypeClientError(void *, void*, RustCallStatus);
-void uniffiFutureCallbackHandlerNotificationSettings(void *, void*, RustCallStatus);
-void uniffiFutureCallbackHandlerOidcAuthenticationDataTypeAuthenticationError(void *, void*, RustCallStatus);
-void uniffiFutureCallbackHandlerRoom(void *, void*, RustCallStatus);
-void uniffiFutureCallbackHandlerRoomListTypeRoomListError(void *, void*, RustCallStatus);
-void uniffiFutureCallbackHandlerRoomListItemTypeRoomListError(void *, void*, RustCallStatus);
-void uniffiFutureCallbackHandlerRoomListService(void *, void*, RustCallStatus);
-void uniffiFutureCallbackHandlerRoomMemberTypeClientError(void *, void*, RustCallStatus);
-void uniffiFutureCallbackHandlerRoomMembersIteratorTypeClientError(void *, void*, RustCallStatus);
-void uniffiFutureCallbackHandlerRoomMessageEventContentWithoutRelation(void *, void*, RustCallStatus);
-void uniffiFutureCallbackHandlerRoomMessageEventContentWithoutRelationTypeClientError(void *, void*, RustCallStatus);
-void uniffiFutureCallbackHandlerSendAttachmentJoinHandle(void *, void*, RustCallStatus);
-void uniffiFutureCallbackHandlerSessionVerificationControllerTypeClientError(void *, void*, RustCallStatus);
-void uniffiFutureCallbackHandlerSpan(void *, void*, RustCallStatus);
-void uniffiFutureCallbackHandlerSyncServiceTypeClientError(void *, void*, RustCallStatus);
-void uniffiFutureCallbackHandlerSyncServiceBuilder(void *, void*, RustCallStatus);
-void uniffiFutureCallbackHandlerTaskHandle(void *, void*, RustCallStatus);
-void uniffiFutureCallbackHandlerTaskHandleTypeClientError(void *, void*, RustCallStatus);
-void uniffiFutureCallbackHandlerTimelineItemContent(void *, void*, RustCallStatus);
-void uniffiFutureCallbackHandlerUnreadNotificationsCount(void *, void*, RustCallStatus);
-void uniffiFutureCallbackHandlerTypeEventTimelineItemDebugInfo(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerTypeRoomInfoTypeClientError(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerTypeRoomListEntriesResult(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerTypeRoomListEntriesWithDynamicAdaptersResult(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerTypeRoomListLoadingStateResultTypeRoomListError(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerTypeRoomNotificationSettingsTypeNotificationSettingsError(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerTypeRoomTimelineListenerResult(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerTypeSearchUsersResultsTypeClientError(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerTypeSessionTypeClientError(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerTypeUserProfileTypeClientError(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerTypeWidgetDriverAndHandleTypeParseError(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerTypeWidgetSettingsTypeParseError(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerTypeMembership(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerTypeMembershipState(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerTypeMessageType(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerTypeProfileDetails(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerTypeRoomNotificationMode(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerTypeTimelineChange(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerTypeTimelineEventTypeTypeClientError(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerTypeTimelineItemContentKind(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerOptionalUint32(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerOptionalString(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerOptionalStringTypeClientError(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerOptionalEventTimelineItem(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerOptionalHomeserverLoginDetails(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerOptionalMessage(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerOptionalRoomTypeClientError(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerOptionalRoomMember(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerOptionalTimelineItem(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerOptionalTypeInReplyToDetails(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerOptionalTypeInsertData(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerOptionalTypeNotificationItemTypeClientError(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerOptionalTypeSetData(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerOptionalTypeEventItemOrigin(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerOptionalTypeEventSendState(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerOptionalTypeRoomNotificationModeTypeNotificationSettingsError(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerOptionalTypeVirtualTimelineItem(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerOptionalSequenceRoomMember(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerOptionalSequenceTimelineItem(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerSequenceString(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerSequenceRoom(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerSequenceTypeReaction(void *, RustBuffer, RustCallStatus);
-void uniffiFutureCallbackHandlerMapStringTypeReceipt(void *, RustBuffer, RustCallStatus);
+

@@ -334,7 +334,6 @@ func readFloat64(reader io.Reader) float64 {
 
 func init() {
 
-	uniffiInitForeignExecutor()
 	(&FfiConverterCallbackInterfaceBackPaginationStatusListener{}).register()
 	(&FfiConverterCallbackInterfaceClientDelegate{}).register()
 	(&FfiConverterCallbackInterfaceClientSessionDelegate{}).register()
@@ -349,6 +348,7 @@ func init() {
 	(&FfiConverterCallbackInterfaceSyncServiceStateObserver{}).register()
 	(&FfiConverterCallbackInterfaceTimelineListener{}).register()
 	(&FfiConverterCallbackInterfaceWidgetCapabilitiesProvider{}).register()
+	uniffiInitContinuationCallback()
 	uniffiCheckChecksums()
 }
 
@@ -5180,28 +5180,25 @@ type NotificationSettings struct {
 func (_self *NotificationSettings) ContainsKeywordsRules() bool {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct {
-		val bool
-		err error
-	})
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_contains_keywords_rules(
+	return uniffiRustCallAsyncWithResult(func(status *C.RustCallStatus) *C.void {
+		// rustFutureFunc
+		return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_contains_keywords_rules(
 			_pointer,
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackint8_t(C.uniffiFutureCallbackHandlerBool),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.val
+			status,
+		))
+	},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_i8(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) C.int8_t {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_i8(unsafe.Pointer(handle), status)
+		},
+		FfiConverterBoolINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *NotificationSettings) ContainsKeywordsRulesBlocking() bool {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
@@ -5215,28 +5212,25 @@ func (_self *NotificationSettings) ContainsKeywordsRulesBlocking() bool {
 func (_self *NotificationSettings) GetDefaultRoomNotificationMode(isEncrypted bool, isOneToOne bool) RoomNotificationMode {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct {
-		val RoomNotificationMode
-		err error
-	})
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_get_default_room_notification_mode(
+	return uniffiRustCallAsyncWithResult(func(status *C.RustCallStatus) *C.void {
+		// rustFutureFunc
+		return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_get_default_room_notification_mode(
 			_pointer, FfiConverterBoolINSTANCE.Lower(isEncrypted), FfiConverterBoolINSTANCE.Lower(isOneToOne),
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackRustBuffer(C.uniffiFutureCallbackHandlerTypeRoomNotificationMode),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.val
+			status,
+		))
+	},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_rust_buffer(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) RustBufferI {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_rust_buffer(unsafe.Pointer(handle), status)
+		},
+		FfiConverterTypeRoomNotificationModeINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *NotificationSettings) GetDefaultRoomNotificationModeBlocking(isEncrypted bool, isOneToOne bool) RoomNotificationMode {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
@@ -5250,28 +5244,26 @@ func (_self *NotificationSettings) GetDefaultRoomNotificationModeBlocking(isEncr
 func (_self *NotificationSettings) GetRoomNotificationSettings(roomId string, isEncrypted bool, isOneToOne bool) (RoomNotificationSettings, error) {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct {
-		val RoomNotificationSettings
-		err error
-	})
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_get_room_notification_settings(
-			_pointer, FfiConverterStringINSTANCE.Lower(roomId), FfiConverterBoolINSTANCE.Lower(isEncrypted), FfiConverterBoolINSTANCE.Lower(isOneToOne),
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackRustBuffer(C.uniffiFutureCallbackHandlerTypeRoomNotificationSettingsTypeNotificationSettingsError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.val, res.err
+	return uniffiRustCallAsyncWithErrorAndResult(
+		FfiConverterTypeNotificationSettingsError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_get_room_notification_settings(
+				_pointer, FfiConverterStringINSTANCE.Lower(roomId), FfiConverterBoolINSTANCE.Lower(isEncrypted), FfiConverterBoolINSTANCE.Lower(isOneToOne),
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_rust_buffer(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) RustBufferI {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_rust_buffer(unsafe.Pointer(handle), status)
+		},
+		FfiConverterTypeRoomNotificationSettingsINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *NotificationSettings) GetRoomNotificationSettingsBlocking(roomId string, isEncrypted bool, isOneToOne bool) (RoomNotificationSettings, error) {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
@@ -5291,28 +5283,25 @@ func (_self *NotificationSettings) GetRoomNotificationSettingsBlocking(roomId st
 func (_self *NotificationSettings) GetRoomsWithUserDefinedRules(enabled *bool) []string {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct {
-		val []string
-		err error
-	})
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_get_rooms_with_user_defined_rules(
+	return uniffiRustCallAsyncWithResult(func(status *C.RustCallStatus) *C.void {
+		// rustFutureFunc
+		return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_get_rooms_with_user_defined_rules(
 			_pointer, FfiConverterOptionalBoolINSTANCE.Lower(enabled),
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackRustBuffer(C.uniffiFutureCallbackHandlerSequenceString),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.val
+			status,
+		))
+	},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_rust_buffer(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) RustBufferI {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_rust_buffer(unsafe.Pointer(handle), status)
+		},
+		FfiConverterSequenceStringINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *NotificationSettings) GetRoomsWithUserDefinedRulesBlocking(enabled *bool) []string {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
@@ -5326,28 +5315,26 @@ func (_self *NotificationSettings) GetRoomsWithUserDefinedRulesBlocking(enabled 
 func (_self *NotificationSettings) GetUserDefinedRoomNotificationMode(roomId string) (*RoomNotificationMode, error) {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct {
-		val *RoomNotificationMode
-		err error
-	})
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_get_user_defined_room_notification_mode(
-			_pointer, FfiConverterStringINSTANCE.Lower(roomId),
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackRustBuffer(C.uniffiFutureCallbackHandlerOptionalTypeRoomNotificationModeTypeNotificationSettingsError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.val, res.err
+	return uniffiRustCallAsyncWithErrorAndResult(
+		FfiConverterTypeNotificationSettingsError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_get_user_defined_room_notification_mode(
+				_pointer, FfiConverterStringINSTANCE.Lower(roomId),
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_rust_buffer(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) RustBufferI {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_rust_buffer(unsafe.Pointer(handle), status)
+		},
+		FfiConverterOptionalTypeRoomNotificationModeINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *NotificationSettings) GetUserDefinedRoomNotificationModeBlocking(roomId string) (*RoomNotificationMode, error) {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
@@ -5367,28 +5354,26 @@ func (_self *NotificationSettings) GetUserDefinedRoomNotificationModeBlocking(ro
 func (_self *NotificationSettings) IsCallEnabled() (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct {
-		val bool
-		err error
-	})
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_is_call_enabled(
-			_pointer,
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackint8_t(C.uniffiFutureCallbackHandlerBoolTypeNotificationSettingsError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.val, res.err
+	return uniffiRustCallAsyncWithErrorAndResult(
+		FfiConverterTypeNotificationSettingsError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_is_call_enabled(
+				_pointer,
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_i8(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) C.int8_t {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_i8(unsafe.Pointer(handle), status)
+		},
+		FfiConverterBoolINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *NotificationSettings) IsCallEnabledBlocking() (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
@@ -5408,28 +5393,26 @@ func (_self *NotificationSettings) IsCallEnabledBlocking() (bool, error) {
 func (_self *NotificationSettings) IsRoomMentionEnabled() (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct {
-		val bool
-		err error
-	})
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_is_room_mention_enabled(
-			_pointer,
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackint8_t(C.uniffiFutureCallbackHandlerBoolTypeNotificationSettingsError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.val, res.err
+	return uniffiRustCallAsyncWithErrorAndResult(
+		FfiConverterTypeNotificationSettingsError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_is_room_mention_enabled(
+				_pointer,
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_i8(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) C.int8_t {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_i8(unsafe.Pointer(handle), status)
+		},
+		FfiConverterBoolINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *NotificationSettings) IsRoomMentionEnabledBlocking() (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
@@ -5449,28 +5432,26 @@ func (_self *NotificationSettings) IsRoomMentionEnabledBlocking() (bool, error) 
 func (_self *NotificationSettings) IsUserMentionEnabled() (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct {
-		val bool
-		err error
-	})
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_is_user_mention_enabled(
-			_pointer,
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackint8_t(C.uniffiFutureCallbackHandlerBoolTypeNotificationSettingsError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.val, res.err
+	return uniffiRustCallAsyncWithErrorAndResult(
+		FfiConverterTypeNotificationSettingsError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_is_user_mention_enabled(
+				_pointer,
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_i8(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) C.int8_t {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_i8(unsafe.Pointer(handle), status)
+		},
+		FfiConverterBoolINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *NotificationSettings) IsUserMentionEnabledBlocking() (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
@@ -5490,25 +5471,26 @@ func (_self *NotificationSettings) IsUserMentionEnabledBlocking() (bool, error) 
 func (_self *NotificationSettings) RestoreDefaultRoomNotificationMode(roomId string) error {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct{ err error })
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_restore_default_room_notification_mode(
-			_pointer, FfiConverterStringINSTANCE.Lower(roomId),
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackuint8_t(C.uniffiFutureCallbackHandlerVoidTypeNotificationSettingsError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.err
+	return uniffiRustCallAsyncWithError(
+		FfiConverterTypeNotificationSettingsError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_restore_default_room_notification_mode(
+				_pointer, FfiConverterStringINSTANCE.Lower(roomId),
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_void(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) {
+			// completeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_complete_void(unsafe.Pointer(handle), status)
+		},
+		func(bool) {}, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *NotificationSettings) RestoreDefaultRoomNotificationModeBlocking(roomId string) error {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
@@ -5524,25 +5506,26 @@ func (_self *NotificationSettings) RestoreDefaultRoomNotificationModeBlocking(ro
 func (_self *NotificationSettings) SetCallEnabled(enabled bool) error {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct{ err error })
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_set_call_enabled(
-			_pointer, FfiConverterBoolINSTANCE.Lower(enabled),
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackuint8_t(C.uniffiFutureCallbackHandlerVoidTypeNotificationSettingsError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.err
+	return uniffiRustCallAsyncWithError(
+		FfiConverterTypeNotificationSettingsError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_set_call_enabled(
+				_pointer, FfiConverterBoolINSTANCE.Lower(enabled),
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_void(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) {
+			// completeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_complete_void(unsafe.Pointer(handle), status)
+		},
+		func(bool) {}, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *NotificationSettings) SetCallEnabledBlocking(enabled bool) error {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
@@ -5558,25 +5541,26 @@ func (_self *NotificationSettings) SetCallEnabledBlocking(enabled bool) error {
 func (_self *NotificationSettings) SetDefaultRoomNotificationMode(isEncrypted bool, isOneToOne bool, mode RoomNotificationMode) error {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct{ err error })
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_set_default_room_notification_mode(
-			_pointer, FfiConverterBoolINSTANCE.Lower(isEncrypted), FfiConverterBoolINSTANCE.Lower(isOneToOne), FfiConverterTypeRoomNotificationModeINSTANCE.Lower(mode),
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackuint8_t(C.uniffiFutureCallbackHandlerVoidTypeNotificationSettingsError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.err
+	return uniffiRustCallAsyncWithError(
+		FfiConverterTypeNotificationSettingsError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_set_default_room_notification_mode(
+				_pointer, FfiConverterBoolINSTANCE.Lower(isEncrypted), FfiConverterBoolINSTANCE.Lower(isOneToOne), FfiConverterTypeRoomNotificationModeINSTANCE.Lower(mode),
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_void(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) {
+			// completeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_complete_void(unsafe.Pointer(handle), status)
+		},
+		func(bool) {}, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *NotificationSettings) SetDefaultRoomNotificationModeBlocking(isEncrypted bool, isOneToOne bool, mode RoomNotificationMode) error {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
@@ -5602,25 +5586,26 @@ func (_self *NotificationSettings) SetDelegate(delegate *NotificationSettingsDel
 func (_self *NotificationSettings) SetRoomMentionEnabled(enabled bool) error {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct{ err error })
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_set_room_mention_enabled(
-			_pointer, FfiConverterBoolINSTANCE.Lower(enabled),
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackuint8_t(C.uniffiFutureCallbackHandlerVoidTypeNotificationSettingsError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.err
+	return uniffiRustCallAsyncWithError(
+		FfiConverterTypeNotificationSettingsError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_set_room_mention_enabled(
+				_pointer, FfiConverterBoolINSTANCE.Lower(enabled),
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_void(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) {
+			// completeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_complete_void(unsafe.Pointer(handle), status)
+		},
+		func(bool) {}, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *NotificationSettings) SetRoomMentionEnabledBlocking(enabled bool) error {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
@@ -5636,25 +5621,26 @@ func (_self *NotificationSettings) SetRoomMentionEnabledBlocking(enabled bool) e
 func (_self *NotificationSettings) SetRoomNotificationMode(roomId string, mode RoomNotificationMode) error {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct{ err error })
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_set_room_notification_mode(
-			_pointer, FfiConverterStringINSTANCE.Lower(roomId), FfiConverterTypeRoomNotificationModeINSTANCE.Lower(mode),
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackuint8_t(C.uniffiFutureCallbackHandlerVoidTypeNotificationSettingsError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.err
+	return uniffiRustCallAsyncWithError(
+		FfiConverterTypeNotificationSettingsError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_set_room_notification_mode(
+				_pointer, FfiConverterStringINSTANCE.Lower(roomId), FfiConverterTypeRoomNotificationModeINSTANCE.Lower(mode),
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_void(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) {
+			// completeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_complete_void(unsafe.Pointer(handle), status)
+		},
+		func(bool) {}, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *NotificationSettings) SetRoomNotificationModeBlocking(roomId string, mode RoomNotificationMode) error {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
@@ -5670,25 +5656,26 @@ func (_self *NotificationSettings) SetRoomNotificationModeBlocking(roomId string
 func (_self *NotificationSettings) SetUserMentionEnabled(enabled bool) error {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct{ err error })
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_set_user_mention_enabled(
-			_pointer, FfiConverterBoolINSTANCE.Lower(enabled),
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackuint8_t(C.uniffiFutureCallbackHandlerVoidTypeNotificationSettingsError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.err
+	return uniffiRustCallAsyncWithError(
+		FfiConverterTypeNotificationSettingsError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_set_user_mention_enabled(
+				_pointer, FfiConverterBoolINSTANCE.Lower(enabled),
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_void(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) {
+			// completeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_complete_void(unsafe.Pointer(handle), status)
+		},
+		func(bool) {}, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *NotificationSettings) SetUserMentionEnabledBlocking(enabled bool) error {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
@@ -5704,25 +5691,26 @@ func (_self *NotificationSettings) SetUserMentionEnabledBlocking(enabled bool) e
 func (_self *NotificationSettings) UnmuteRoom(roomId string, isEncrypted bool, isOneToOne bool) error {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct{ err error })
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_unmute_room(
-			_pointer, FfiConverterStringINSTANCE.Lower(roomId), FfiConverterBoolINSTANCE.Lower(isEncrypted), FfiConverterBoolINSTANCE.Lower(isOneToOne),
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackuint8_t(C.uniffiFutureCallbackHandlerVoidTypeNotificationSettingsError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.err
+	return uniffiRustCallAsyncWithError(
+		FfiConverterTypeNotificationSettingsError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_unmute_room(
+				_pointer, FfiConverterStringINSTANCE.Lower(roomId), FfiConverterBoolINSTANCE.Lower(isEncrypted), FfiConverterBoolINSTANCE.Lower(isOneToOne),
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_void(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) {
+			// completeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_complete_void(unsafe.Pointer(handle), status)
+		},
+		func(bool) {}, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *NotificationSettings) UnmuteRoomBlocking(roomId string, isEncrypted bool, isOneToOne bool) error {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
@@ -5852,28 +5840,25 @@ func (_self *Room) ActiveMembersCount() uint64 {
 func (_self *Room) AddTimelineListener(listener TimelineListener) RoomTimelineListenerResult {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct {
-		val RoomTimelineListenerResult
-		err error
-	})
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_room_add_timeline_listener(
+	return uniffiRustCallAsyncWithResult(func(status *C.RustCallStatus) *C.void {
+		// rustFutureFunc
+		return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_room_add_timeline_listener(
 			_pointer, FfiConverterCallbackInterfaceTimelineListenerINSTANCE.Lower(listener),
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackRustBuffer(C.uniffiFutureCallbackHandlerTypeRoomTimelineListenerResult),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.val
+			status,
+		))
+	},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_rust_buffer(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) RustBufferI {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_rust_buffer(unsafe.Pointer(handle), status)
+		},
+		FfiConverterTypeRoomTimelineListenerResultINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *Room) AddTimelineListenerBlocking(listener TimelineListener) RoomTimelineListenerResult {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
@@ -5905,28 +5890,26 @@ func (_self *Room) AvatarUrl() *string {
 func (_self *Room) CanUserBan(userId string) (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct {
-		val bool
-		err error
-	})
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_room_can_user_ban(
-			_pointer, FfiConverterStringINSTANCE.Lower(userId),
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackint8_t(C.uniffiFutureCallbackHandlerBoolTypeClientError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.val, res.err
+	return uniffiRustCallAsyncWithErrorAndResult(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_room_can_user_ban(
+				_pointer, FfiConverterStringINSTANCE.Lower(userId),
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_i8(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) C.int8_t {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_i8(unsafe.Pointer(handle), status)
+		},
+		FfiConverterBoolINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *Room) CanUserBanBlocking(userId string) (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
@@ -5946,28 +5929,26 @@ func (_self *Room) CanUserBanBlocking(userId string) (bool, error) {
 func (_self *Room) CanUserInvite(userId string) (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct {
-		val bool
-		err error
-	})
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_room_can_user_invite(
-			_pointer, FfiConverterStringINSTANCE.Lower(userId),
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackint8_t(C.uniffiFutureCallbackHandlerBoolTypeClientError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.val, res.err
+	return uniffiRustCallAsyncWithErrorAndResult(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_room_can_user_invite(
+				_pointer, FfiConverterStringINSTANCE.Lower(userId),
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_i8(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) C.int8_t {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_i8(unsafe.Pointer(handle), status)
+		},
+		FfiConverterBoolINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *Room) CanUserInviteBlocking(userId string) (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
@@ -5987,28 +5968,26 @@ func (_self *Room) CanUserInviteBlocking(userId string) (bool, error) {
 func (_self *Room) CanUserKick(userId string) (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct {
-		val bool
-		err error
-	})
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_room_can_user_kick(
-			_pointer, FfiConverterStringINSTANCE.Lower(userId),
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackint8_t(C.uniffiFutureCallbackHandlerBoolTypeClientError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.val, res.err
+	return uniffiRustCallAsyncWithErrorAndResult(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_room_can_user_kick(
+				_pointer, FfiConverterStringINSTANCE.Lower(userId),
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_i8(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) C.int8_t {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_i8(unsafe.Pointer(handle), status)
+		},
+		FfiConverterBoolINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *Room) CanUserKickBlocking(userId string) (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
@@ -6028,28 +6007,26 @@ func (_self *Room) CanUserKickBlocking(userId string) (bool, error) {
 func (_self *Room) CanUserRedact(userId string) (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct {
-		val bool
-		err error
-	})
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_room_can_user_redact(
-			_pointer, FfiConverterStringINSTANCE.Lower(userId),
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackint8_t(C.uniffiFutureCallbackHandlerBoolTypeClientError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.val, res.err
+	return uniffiRustCallAsyncWithErrorAndResult(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_room_can_user_redact(
+				_pointer, FfiConverterStringINSTANCE.Lower(userId),
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_i8(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) C.int8_t {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_i8(unsafe.Pointer(handle), status)
+		},
+		FfiConverterBoolINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *Room) CanUserRedactBlocking(userId string) (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
@@ -6069,28 +6046,26 @@ func (_self *Room) CanUserRedactBlocking(userId string) (bool, error) {
 func (_self *Room) CanUserSendMessage(userId string, message MessageLikeEventType) (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct {
-		val bool
-		err error
-	})
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_room_can_user_send_message(
-			_pointer, FfiConverterStringINSTANCE.Lower(userId), FfiConverterTypeMessageLikeEventTypeINSTANCE.Lower(message),
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackint8_t(C.uniffiFutureCallbackHandlerBoolTypeClientError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.val, res.err
+	return uniffiRustCallAsyncWithErrorAndResult(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_room_can_user_send_message(
+				_pointer, FfiConverterStringINSTANCE.Lower(userId), FfiConverterTypeMessageLikeEventTypeINSTANCE.Lower(message),
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_i8(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) C.int8_t {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_i8(unsafe.Pointer(handle), status)
+		},
+		FfiConverterBoolINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *Room) CanUserSendMessageBlocking(userId string, message MessageLikeEventType) (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
@@ -6110,28 +6085,26 @@ func (_self *Room) CanUserSendMessageBlocking(userId string, message MessageLike
 func (_self *Room) CanUserSendState(userId string, stateEvent StateEventType) (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct {
-		val bool
-		err error
-	})
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_room_can_user_send_state(
-			_pointer, FfiConverterStringINSTANCE.Lower(userId), FfiConverterTypeStateEventTypeINSTANCE.Lower(stateEvent),
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackint8_t(C.uniffiFutureCallbackHandlerBoolTypeClientError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.val, res.err
+	return uniffiRustCallAsyncWithErrorAndResult(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_room_can_user_send_state(
+				_pointer, FfiConverterStringINSTANCE.Lower(userId), FfiConverterTypeStateEventTypeINSTANCE.Lower(stateEvent),
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_i8(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) C.int8_t {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_i8(unsafe.Pointer(handle), status)
+		},
+		FfiConverterBoolINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *Room) CanUserSendStateBlocking(userId string, stateEvent StateEventType) (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
@@ -6151,28 +6124,26 @@ func (_self *Room) CanUserSendStateBlocking(userId string, stateEvent StateEvent
 func (_self *Room) CanUserTriggerRoomNotification(userId string) (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct {
-		val bool
-		err error
-	})
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_room_can_user_trigger_room_notification(
-			_pointer, FfiConverterStringINSTANCE.Lower(userId),
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackint8_t(C.uniffiFutureCallbackHandlerBoolTypeClientError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.val, res.err
+	return uniffiRustCallAsyncWithErrorAndResult(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_room_can_user_trigger_room_notification(
+				_pointer, FfiConverterStringINSTANCE.Lower(userId),
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_i8(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) C.int8_t {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_i8(unsafe.Pointer(handle), status)
+		},
+		FfiConverterBoolINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *Room) CanUserTriggerRoomNotificationBlocking(userId string) (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
@@ -6270,25 +6241,26 @@ func (_self *Room) FetchDetailsForEvent(eventId string) error {
 func (_self *Room) FetchMembers() error {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct{ err error })
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_room_fetch_members(
-			_pointer,
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackuint8_t(C.uniffiFutureCallbackHandlerVoidTypeClientError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.err
+	return uniffiRustCallAsyncWithError(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_room_fetch_members(
+				_pointer,
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_void(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) {
+			// completeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_complete_void(unsafe.Pointer(handle), status)
+		},
+		func(bool) {}, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *Room) FetchMembersBlocking() error {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
@@ -6465,28 +6437,26 @@ func (_self *Room) Leave() error {
 func (_self *Room) Member(userId string) (*RoomMember, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct {
-		val *RoomMember
-		err error
-	})
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_room_member(
-			_pointer, FfiConverterStringINSTANCE.Lower(userId),
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackRustArcPtr(C.uniffiFutureCallbackHandlerRoomMemberTypeClientError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.val, res.err
+	return uniffiRustCallAsyncWithErrorAndResult(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_room_member(
+				_pointer, FfiConverterStringINSTANCE.Lower(userId),
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_pointer(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) unsafe.Pointer {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_pointer(unsafe.Pointer(handle), status)
+		},
+		FfiConverterRoomMemberINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_pointer(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *Room) MemberAvatarUrl(userId string) (*string, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
@@ -6536,28 +6506,26 @@ func (_self *Room) MemberDisplayName(userId string) (*string, error) {
 func (_self *Room) Members() (*RoomMembersIterator, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct {
-		val *RoomMembersIterator
-		err error
-	})
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_room_members(
-			_pointer,
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackRustArcPtr(C.uniffiFutureCallbackHandlerRoomMembersIteratorTypeClientError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.val, res.err
+	return uniffiRustCallAsyncWithErrorAndResult(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_room_members(
+				_pointer,
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_pointer(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) unsafe.Pointer {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_pointer(unsafe.Pointer(handle), status)
+		},
+		FfiConverterRoomMembersIteratorINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_pointer(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *Room) MembersBlocking() (*RoomMembersIterator, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
@@ -6678,28 +6646,26 @@ func (_self *Room) RetrySend(txnId string) {
 func (_self *Room) RoomInfo() (RoomInfo, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct {
-		val RoomInfo
-		err error
-	})
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_room_room_info(
-			_pointer,
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackRustBuffer(C.uniffiFutureCallbackHandlerTypeRoomInfoTypeClientError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.val, res.err
+	return uniffiRustCallAsyncWithErrorAndResult(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_room_room_info(
+				_pointer,
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_rust_buffer(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) RustBufferI {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_rust_buffer(unsafe.Pointer(handle), status)
+		},
+		FfiConverterTypeRoomInfoINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *Room) RoomInfoBlocking() (RoomInfo, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
@@ -7133,28 +7099,25 @@ func (_self *RoomListItem) CanonicalAlias() *string {
 func (_self *RoomListItem) FullRoom() *Room {
 	_pointer := _self.ffiObject.incrementPointer("*RoomListItem")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct {
-		val *Room
-		err error
-	})
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_roomlistitem_full_room(
+	return uniffiRustCallAsyncWithResult(func(status *C.RustCallStatus) *C.void {
+		// rustFutureFunc
+		return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_roomlistitem_full_room(
 			_pointer,
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackRustArcPtr(C.uniffiFutureCallbackHandlerRoom),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.val
+			status,
+		))
+	},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_pointer(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) unsafe.Pointer {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_pointer(unsafe.Pointer(handle), status)
+		},
+		FfiConverterRoomINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_pointer(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *RoomListItem) FullRoomBlocking() *Room {
 	_pointer := _self.ffiObject.incrementPointer("*RoomListItem")
@@ -7195,28 +7158,25 @@ func (_self *RoomListItem) IsDirect() bool {
 func (_self *RoomListItem) LatestEvent() **EventTimelineItem {
 	_pointer := _self.ffiObject.incrementPointer("*RoomListItem")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct {
-		val **EventTimelineItem
-		err error
-	})
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_roomlistitem_latest_event(
+	return uniffiRustCallAsyncWithResult(func(status *C.RustCallStatus) *C.void {
+		// rustFutureFunc
+		return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_roomlistitem_latest_event(
 			_pointer,
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackRustBuffer(C.uniffiFutureCallbackHandlerOptionalEventTimelineItem),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.val
+			status,
+		))
+	},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_rust_buffer(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) RustBufferI {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_rust_buffer(unsafe.Pointer(handle), status)
+		},
+		FfiConverterOptionalEventTimelineItemINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *RoomListItem) Name() *string {
 	_pointer := _self.ffiObject.incrementPointer("*RoomListItem")
@@ -7230,28 +7190,26 @@ func (_self *RoomListItem) Name() *string {
 func (_self *RoomListItem) RoomInfo() (RoomInfo, error) {
 	_pointer := _self.ffiObject.incrementPointer("*RoomListItem")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct {
-		val RoomInfo
-		err error
-	})
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_roomlistitem_room_info(
-			_pointer,
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackRustBuffer(C.uniffiFutureCallbackHandlerTypeRoomInfoTypeClientError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.val, res.err
+	return uniffiRustCallAsyncWithErrorAndResult(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_roomlistitem_room_info(
+				_pointer,
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_rust_buffer(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) RustBufferI {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_rust_buffer(unsafe.Pointer(handle), status)
+		},
+		FfiConverterTypeRoomInfoINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *RoomListItem) RoomInfoBlocking() (RoomInfo, error) {
 	_pointer := _self.ffiObject.incrementPointer("*RoomListItem")
@@ -7348,77 +7306,74 @@ type RoomListService struct {
 func (_self *RoomListService) AllRooms() (*RoomList, error) {
 	_pointer := _self.ffiObject.incrementPointer("*RoomListService")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct {
-		val *RoomList
-		err error
-	})
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_roomlistservice_all_rooms(
-			_pointer,
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackRustArcPtr(C.uniffiFutureCallbackHandlerRoomListTypeRoomListError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.val, res.err
+	return uniffiRustCallAsyncWithErrorAndResult(
+		FfiConverterTypeRoomListError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_roomlistservice_all_rooms(
+				_pointer,
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_pointer(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) unsafe.Pointer {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_pointer(unsafe.Pointer(handle), status)
+		},
+		FfiConverterRoomListINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_pointer(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *RoomListService) ApplyInput(input RoomListInput) error {
 	_pointer := _self.ffiObject.incrementPointer("*RoomListService")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct{ err error })
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_roomlistservice_apply_input(
-			_pointer, FfiConverterTypeRoomListInputINSTANCE.Lower(input),
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackuint8_t(C.uniffiFutureCallbackHandlerVoidTypeRoomListError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.err
+	return uniffiRustCallAsyncWithError(
+		FfiConverterTypeRoomListError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_roomlistservice_apply_input(
+				_pointer, FfiConverterTypeRoomListInputINSTANCE.Lower(input),
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_void(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) {
+			// completeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_complete_void(unsafe.Pointer(handle), status)
+		},
+		func(bool) {}, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *RoomListService) Invites() (*RoomList, error) {
 	_pointer := _self.ffiObject.incrementPointer("*RoomListService")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct {
-		val *RoomList
-		err error
-	})
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_roomlistservice_invites(
-			_pointer,
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackRustArcPtr(C.uniffiFutureCallbackHandlerRoomListTypeRoomListError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.val, res.err
+	return uniffiRustCallAsyncWithErrorAndResult(
+		FfiConverterTypeRoomListError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_roomlistservice_invites(
+				_pointer,
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_pointer(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) unsafe.Pointer {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_pointer(unsafe.Pointer(handle), status)
+		},
+		FfiConverterRoomListINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_pointer(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *RoomListService) Room(roomId string) (*RoomListItem, error) {
 	_pointer := _self.ffiObject.incrementPointer("*RoomListService")
@@ -7851,25 +7806,26 @@ func (_self *SendAttachmentJoinHandle) Cancel() {
 func (_self *SendAttachmentJoinHandle) Join() error {
 	_pointer := _self.ffiObject.incrementPointer("*SendAttachmentJoinHandle")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct{ err error })
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_sendattachmentjoinhandle_join(
-			_pointer,
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackuint8_t(C.uniffiFutureCallbackHandlerVoidTypeRoomError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.err
+	return uniffiRustCallAsyncWithError(
+		FfiConverterTypeRoomError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_sendattachmentjoinhandle_join(
+				_pointer,
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_void(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) {
+			// completeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_complete_void(unsafe.Pointer(handle), status)
+		},
+		func(bool) {}, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *SendAttachmentJoinHandle) JoinBlocking() error {
 	_pointer := _self.ffiObject.incrementPointer("*SendAttachmentJoinHandle")
@@ -7933,25 +7889,26 @@ type SessionVerificationController struct {
 func (_self *SessionVerificationController) ApproveVerification() error {
 	_pointer := _self.ffiObject.incrementPointer("*SessionVerificationController")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct{ err error })
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_sessionverificationcontroller_approve_verification(
-			_pointer,
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackuint8_t(C.uniffiFutureCallbackHandlerVoidTypeClientError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.err
+	return uniffiRustCallAsyncWithError(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_sessionverificationcontroller_approve_verification(
+				_pointer,
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_void(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) {
+			// completeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_complete_void(unsafe.Pointer(handle), status)
+		},
+		func(bool) {}, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *SessionVerificationController) ApproveVerificationBlocking() error {
 	_pointer := _self.ffiObject.incrementPointer("*SessionVerificationController")
@@ -7967,25 +7924,26 @@ func (_self *SessionVerificationController) ApproveVerificationBlocking() error 
 func (_self *SessionVerificationController) CancelVerification() error {
 	_pointer := _self.ffiObject.incrementPointer("*SessionVerificationController")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct{ err error })
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_sessionverificationcontroller_cancel_verification(
-			_pointer,
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackuint8_t(C.uniffiFutureCallbackHandlerVoidTypeClientError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.err
+	return uniffiRustCallAsyncWithError(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_sessionverificationcontroller_cancel_verification(
+				_pointer,
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_void(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) {
+			// completeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_complete_void(unsafe.Pointer(handle), status)
+		},
+		func(bool) {}, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *SessionVerificationController) CancelVerificationBlocking() error {
 	_pointer := _self.ffiObject.incrementPointer("*SessionVerificationController")
@@ -8001,25 +7959,26 @@ func (_self *SessionVerificationController) CancelVerificationBlocking() error {
 func (_self *SessionVerificationController) DeclineVerification() error {
 	_pointer := _self.ffiObject.incrementPointer("*SessionVerificationController")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct{ err error })
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_sessionverificationcontroller_decline_verification(
-			_pointer,
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackuint8_t(C.uniffiFutureCallbackHandlerVoidTypeClientError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.err
+	return uniffiRustCallAsyncWithError(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_sessionverificationcontroller_decline_verification(
+				_pointer,
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_void(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) {
+			// completeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_complete_void(unsafe.Pointer(handle), status)
+		},
+		func(bool) {}, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *SessionVerificationController) DeclineVerificationBlocking() error {
 	_pointer := _self.ffiObject.incrementPointer("*SessionVerificationController")
@@ -8044,25 +8003,26 @@ func (_self *SessionVerificationController) IsVerified() bool {
 func (_self *SessionVerificationController) RequestVerification() error {
 	_pointer := _self.ffiObject.incrementPointer("*SessionVerificationController")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct{ err error })
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_sessionverificationcontroller_request_verification(
-			_pointer,
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackuint8_t(C.uniffiFutureCallbackHandlerVoidTypeClientError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.err
+	return uniffiRustCallAsyncWithError(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_sessionverificationcontroller_request_verification(
+				_pointer,
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_void(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) {
+			// completeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_complete_void(unsafe.Pointer(handle), status)
+		},
+		func(bool) {}, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *SessionVerificationController) RequestVerificationBlocking() error {
 	_pointer := _self.ffiObject.incrementPointer("*SessionVerificationController")
@@ -8088,25 +8048,26 @@ func (_self *SessionVerificationController) SetDelegate(delegate *SessionVerific
 func (_self *SessionVerificationController) StartSasVerification() error {
 	_pointer := _self.ffiObject.incrementPointer("*SessionVerificationController")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct{ err error })
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_sessionverificationcontroller_start_sas_verification(
-			_pointer,
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackuint8_t(C.uniffiFutureCallbackHandlerVoidTypeClientError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.err
+	return uniffiRustCallAsyncWithError(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_sessionverificationcontroller_start_sas_verification(
+				_pointer,
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_void(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) {
+			// completeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_complete_void(unsafe.Pointer(handle), status)
+		},
+		func(bool) {}, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *SessionVerificationController) StartSasVerificationBlocking() error {
 	_pointer := _self.ffiObject.incrementPointer("*SessionVerificationController")
@@ -8334,25 +8295,25 @@ func (_self *SyncService) RoomListService() *RoomListService {
 func (_self *SyncService) Start() {
 	_pointer := _self.ffiObject.incrementPointer("*SyncService")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct{ err error })
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_syncservice_start(
+	uniffiRustCallAsync(func(status *C.RustCallStatus) *C.void {
+		// rustFutureFunc
+		return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_syncservice_start(
 			_pointer,
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackuint8_t(C.uniffiFutureCallbackHandlerVoid),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	_ = res
+			status,
+		))
+	},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_void(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) {
+			// completeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_complete_void(unsafe.Pointer(handle), status)
+		},
+		func(bool) {}, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *SyncService) StartBlocking() {
 	_pointer := _self.ffiObject.incrementPointer("*SyncService")
@@ -8376,25 +8337,26 @@ func (_self *SyncService) State(listener SyncServiceStateObserver) *TaskHandle {
 func (_self *SyncService) Stop() error {
 	_pointer := _self.ffiObject.incrementPointer("*SyncService")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct{ err error })
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_syncservice_stop(
-			_pointer,
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackuint8_t(C.uniffiFutureCallbackHandlerVoidTypeClientError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.err
+	return uniffiRustCallAsyncWithError(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_syncservice_stop(
+				_pointer,
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_void(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) {
+			// completeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_complete_void(unsafe.Pointer(handle), status)
+		},
+		func(bool) {}, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *SyncService) StopBlocking() error {
 	_pointer := _self.ffiObject.incrementPointer("*SyncService")
@@ -8458,28 +8420,26 @@ type SyncServiceBuilder struct {
 func (_self *SyncServiceBuilder) Finish() (*SyncService, error) {
 	_pointer := _self.ffiObject.incrementPointer("*SyncServiceBuilder")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct {
-		val *SyncService
-		err error
-	})
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_syncservicebuilder_finish(
-			_pointer,
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackRustArcPtr(C.uniffiFutureCallbackHandlerSyncServiceTypeClientError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.val, res.err
+	return uniffiRustCallAsyncWithErrorAndResult(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_syncservicebuilder_finish(
+				_pointer,
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_pointer(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) unsafe.Pointer {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_pointer(unsafe.Pointer(handle), status)
+		},
+		FfiConverterSyncServiceINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_pointer(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *SyncServiceBuilder) FinishBlocking() (*SyncService, error) {
 	_pointer := _self.ffiObject.incrementPointer("*SyncServiceBuilder")
@@ -9058,25 +9018,25 @@ type WidgetDriver struct {
 func (_self *WidgetDriver) Run(room *Room, capabilitiesProvider WidgetCapabilitiesProvider) {
 	_pointer := _self.ffiObject.incrementPointer("*WidgetDriver")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct{ err error })
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_widgetdriver_run(
+	uniffiRustCallAsync(func(status *C.RustCallStatus) *C.void {
+		// rustFutureFunc
+		return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_widgetdriver_run(
 			_pointer, FfiConverterRoomINSTANCE.Lower(room), FfiConverterCallbackInterfaceWidgetCapabilitiesProviderINSTANCE.Lower(capabilitiesProvider),
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackuint8_t(C.uniffiFutureCallbackHandlerVoid),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	_ = res
+			status,
+		))
+	},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_void(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) {
+			// completeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_complete_void(unsafe.Pointer(handle), status)
+		},
+		func(bool) {}, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
+		})
 }
 
 func (object *WidgetDriver) Destroy() {
@@ -9130,54 +9090,48 @@ type WidgetDriverHandle struct {
 func (_self *WidgetDriverHandle) Recv() *string {
 	_pointer := _self.ffiObject.incrementPointer("*WidgetDriverHandle")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct {
-		val *string
-		err error
-	})
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_widgetdriverhandle_recv(
+	return uniffiRustCallAsyncWithResult(func(status *C.RustCallStatus) *C.void {
+		// rustFutureFunc
+		return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_widgetdriverhandle_recv(
 			_pointer,
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackRustBuffer(C.uniffiFutureCallbackHandlerOptionalString),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.val
+			status,
+		))
+	},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_rust_buffer(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) RustBufferI {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_rust_buffer(unsafe.Pointer(handle), status)
+		},
+		FfiConverterOptionalStringINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
+		})
 }
 func (_self *WidgetDriverHandle) Send(msg string) bool {
 	_pointer := _self.ffiObject.incrementPointer("*WidgetDriverHandle")
 	defer _self.ffiObject.decrementPointer()
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct {
-		val bool
-		err error
-	})
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_widgetdriverhandle_send(
+	return uniffiRustCallAsyncWithResult(func(status *C.RustCallStatus) *C.void {
+		// rustFutureFunc
+		return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_widgetdriverhandle_send(
 			_pointer, FfiConverterStringINSTANCE.Lower(msg),
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackint8_t(C.uniffiFutureCallbackHandlerBool),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.val
+			status,
+		))
+	},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_i8(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) C.int8_t {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_i8(unsafe.Pointer(handle), status)
+		},
+		FfiConverterBoolINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
+		})
 }
 
 func (object *WidgetDriverHandle) Destroy() {
@@ -9223,90 +9177,6 @@ type FfiDestroyerWidgetDriverHandle struct{}
 func (_ FfiDestroyerWidgetDriverHandle) Destroy(value *WidgetDriverHandle) {
 	value.Destroy()
 }
-
-const uniffiRustTaskCallbackSuccess byte = 0
-const uniffiRustTaskCallbackCancelled byte = 1
-const uniffiForeignExecutorCallbackSuccess byte = 0
-const uniffiForeignExecutorCallbackCanceled byte = 1
-const uniffiForeignExecutorCallbackError byte = 2
-
-type uniffiCallbackResult C.int32_t
-
-const (
-	idxCallbackFree                                          = 0
-	uniffiCallbackResultSuccess         uniffiCallbackResult = 0
-	uniffiCallbackResultError           uniffiCallbackResult = 1
-	uniffiCallbackUnexpectedResultError uniffiCallbackResult = 2
-)
-
-// UniFfiForeignExecutor encapsulates an executor that can run Rust tasks.
-type UniFfiForeignExecutor struct{}
-
-type FfiConverterForeignExecutor struct{}
-
-var FfiConverterForeignExecutorINSTANCE = FfiConverterForeignExecutor{}
-
-func (c FfiConverterForeignExecutor) Lower(value UniFfiForeignExecutor) C.int {
-	return 0
-}
-
-func (c FfiConverterForeignExecutor) Write(writer io.Writer, value UniFfiForeignExecutor) {
-	writeUint64(writer, uint64(c.Lower(value)))
-}
-
-func (c FfiConverterForeignExecutor) Lift(value C.int) UniFfiForeignExecutor {
-	if value != 0 {
-		panic(fmt.Errorf("Invalid executor pointer: %d", value))
-	}
-	return UniFfiForeignExecutor{}
-}
-
-func (c FfiConverterForeignExecutor) Read(reader io.Reader) UniFfiForeignExecutor {
-	return c.Lift(C.int(readUint64(reader)))
-}
-
-//export uniffiForeignExecutorCallbackmatrix_sdk_ffi
-func uniffiForeignExecutorCallbackmatrix_sdk_ffi(executor C.uint64_t, delay C.uint32_t, task C.RustTaskCallback, taskData *C.void) C.int8_t {
-	if task != nil {
-		_ = FfiConverterForeignExecutorINSTANCE.Lift(C.int(executor))
-		go func() {
-			if delay > 0 {
-				time.Sleep(time.Duration(delay) * time.Millisecond)
-			} else {
-				runtime.Gosched()
-			}
-
-			C.cgo_rust_task_callback_bridge_matrix_sdk_ffi(
-				C.RustTaskCallback(unsafe.Pointer(task)),
-				unsafe.Pointer(taskData),
-				C.int8_t(uniffiCallbackResultSuccess),
-			)
-		}()
-		return C.int8_t(uniffiCallbackResultSuccess)
-	} else {
-		// Drop the executor
-		// nothing to do at the moment
-		return C.int8_t(idxCallbackFree)
-	}
-}
-
-func uniffiInitForeignExecutor() {
-	// Register the callback
-	rustCall(func(uniffiStatus *C.RustCallStatus) bool {
-		C.ffi_matrix_sdk_ffi_foreign_executor_callback_set(C.ForeignExecutorCallback(C.uniffiForeignExecutorCallbackmatrix_sdk_ffi), uniffiStatus)
-		if uniffiStatus != nil {
-			err := checkCallStatusUnknown(*uniffiStatus)
-			if err != nil {
-				panic(fmt.Errorf("Failed to register ForeignExecutor %v", err))
-			}
-		}
-		return false
-	})
-}
-
-type FfiDestroyerForeignExecutor struct{}
-
-func (FfiDestroyerForeignExecutor) Destroy(_ UniFfiForeignExecutor) {}
 
 type AudioInfo struct {
 	Duration *time.Duration
@@ -16495,11 +16365,21 @@ func (_ FfiDestroyerTypeWidgetEventFilter) Destroy(value WidgetEventFilter) {
 	value.Destroy()
 }
 
+type uniffiCallbackResult C.int32_t
+
+const (
+	uniffiIdxCallbackFree               uniffiCallbackResult = 0
+	uniffiCallbackResultSuccess         uniffiCallbackResult = 0
+	uniffiCallbackResultError           uniffiCallbackResult = 1
+	uniffiCallbackUnexpectedResultError uniffiCallbackResult = 2
+	uniffiCallbackCancelled             uniffiCallbackResult = 3
+)
+
 type concurrentHandleMap[T any] struct {
 	leftMap       map[uint64]*T
 	rightMap      map[*T]uint64
 	currentHandle uint64
-	lock          sync.RWMutex
+	lock          sync.Mutex
 }
 
 func newConcurrentHandleMap[T any]() *concurrentHandleMap[T] {
@@ -16532,8 +16412,6 @@ func (cm *concurrentHandleMap[T]) remove(handle uint64) bool {
 }
 
 func (cm *concurrentHandleMap[T]) tryGet(handle uint64) (*T, bool) {
-	cm.lock.RLock()
-	defer cm.lock.RUnlock()
 	val, ok := cm.leftMap[handle]
 	return val, ok
 }
@@ -16584,7 +16462,7 @@ func matrix_sdk_ffi_cgo_BackPaginationStatusListener(handle C.uint64_t, method C
 		// can be dropped by the foreign language.
 		*outBuf = FfiConverterCallbackInterfaceBackPaginationStatusListenerINSTANCE.drop(uint64(handle))
 		// See docs of ForeignCallback in `uniffi/src/ffi/foreigncallbacks.rs`
-		return C.int32_t(idxCallbackFree)
+		return C.int32_t(uniffiIdxCallbackFree)
 
 	case 1:
 		var result uniffiCallbackResult
@@ -16648,7 +16526,7 @@ func matrix_sdk_ffi_cgo_ClientDelegate(handle C.uint64_t, method C.int32_t, args
 		// can be dropped by the foreign language.
 		*outBuf = FfiConverterCallbackInterfaceClientDelegateINSTANCE.drop(uint64(handle))
 		// See docs of ForeignCallback in `uniffi/src/ffi/foreigncallbacks.rs`
-		return C.int32_t(idxCallbackFree)
+		return C.int32_t(uniffiIdxCallbackFree)
 
 	case 1:
 		var result uniffiCallbackResult
@@ -16722,7 +16600,7 @@ func matrix_sdk_ffi_cgo_ClientSessionDelegate(handle C.uint64_t, method C.int32_
 		// can be dropped by the foreign language.
 		*outBuf = FfiConverterCallbackInterfaceClientSessionDelegateINSTANCE.drop(uint64(handle))
 		// See docs of ForeignCallback in `uniffi/src/ffi/foreigncallbacks.rs`
-		return C.int32_t(idxCallbackFree)
+		return C.int32_t(uniffiIdxCallbackFree)
 
 	case 1:
 		var result uniffiCallbackResult
@@ -16806,7 +16684,7 @@ func matrix_sdk_ffi_cgo_NotificationSettingsDelegate(handle C.uint64_t, method C
 		// can be dropped by the foreign language.
 		*outBuf = FfiConverterCallbackInterfaceNotificationSettingsDelegateINSTANCE.drop(uint64(handle))
 		// See docs of ForeignCallback in `uniffi/src/ffi/foreigncallbacks.rs`
-		return C.int32_t(idxCallbackFree)
+		return C.int32_t(uniffiIdxCallbackFree)
 
 	case 1:
 		var result uniffiCallbackResult
@@ -16868,7 +16746,7 @@ func matrix_sdk_ffi_cgo_ProgressWatcher(handle C.uint64_t, method C.int32_t, arg
 		// can be dropped by the foreign language.
 		*outBuf = FfiConverterCallbackInterfaceProgressWatcherINSTANCE.drop(uint64(handle))
 		// See docs of ForeignCallback in `uniffi/src/ffi/foreigncallbacks.rs`
-		return C.int32_t(idxCallbackFree)
+		return C.int32_t(uniffiIdxCallbackFree)
 
 	case 1:
 		var result uniffiCallbackResult
@@ -16931,7 +16809,7 @@ func matrix_sdk_ffi_cgo_RoomInfoListener(handle C.uint64_t, method C.int32_t, ar
 		// can be dropped by the foreign language.
 		*outBuf = FfiConverterCallbackInterfaceRoomInfoListenerINSTANCE.drop(uint64(handle))
 		// See docs of ForeignCallback in `uniffi/src/ffi/foreigncallbacks.rs`
-		return C.int32_t(idxCallbackFree)
+		return C.int32_t(uniffiIdxCallbackFree)
 
 	case 1:
 		var result uniffiCallbackResult
@@ -16994,7 +16872,7 @@ func matrix_sdk_ffi_cgo_RoomListEntriesListener(handle C.uint64_t, method C.int3
 		// can be dropped by the foreign language.
 		*outBuf = FfiConverterCallbackInterfaceRoomListEntriesListenerINSTANCE.drop(uint64(handle))
 		// See docs of ForeignCallback in `uniffi/src/ffi/foreigncallbacks.rs`
-		return C.int32_t(idxCallbackFree)
+		return C.int32_t(uniffiIdxCallbackFree)
 
 	case 1:
 		var result uniffiCallbackResult
@@ -17057,7 +16935,7 @@ func matrix_sdk_ffi_cgo_RoomListLoadingStateListener(handle C.uint64_t, method C
 		// can be dropped by the foreign language.
 		*outBuf = FfiConverterCallbackInterfaceRoomListLoadingStateListenerINSTANCE.drop(uint64(handle))
 		// See docs of ForeignCallback in `uniffi/src/ffi/foreigncallbacks.rs`
-		return C.int32_t(idxCallbackFree)
+		return C.int32_t(uniffiIdxCallbackFree)
 
 	case 1:
 		var result uniffiCallbackResult
@@ -17120,7 +16998,7 @@ func matrix_sdk_ffi_cgo_RoomListServiceStateListener(handle C.uint64_t, method C
 		// can be dropped by the foreign language.
 		*outBuf = FfiConverterCallbackInterfaceRoomListServiceStateListenerINSTANCE.drop(uint64(handle))
 		// See docs of ForeignCallback in `uniffi/src/ffi/foreigncallbacks.rs`
-		return C.int32_t(idxCallbackFree)
+		return C.int32_t(uniffiIdxCallbackFree)
 
 	case 1:
 		var result uniffiCallbackResult
@@ -17183,7 +17061,7 @@ func matrix_sdk_ffi_cgo_RoomListServiceSyncIndicatorListener(handle C.uint64_t, 
 		// can be dropped by the foreign language.
 		*outBuf = FfiConverterCallbackInterfaceRoomListServiceSyncIndicatorListenerINSTANCE.drop(uint64(handle))
 		// See docs of ForeignCallback in `uniffi/src/ffi/foreigncallbacks.rs`
-		return C.int32_t(idxCallbackFree)
+		return C.int32_t(uniffiIdxCallbackFree)
 
 	case 1:
 		var result uniffiCallbackResult
@@ -17251,7 +17129,7 @@ func matrix_sdk_ffi_cgo_SessionVerificationControllerDelegate(handle C.uint64_t,
 		// can be dropped by the foreign language.
 		*outBuf = FfiConverterCallbackInterfaceSessionVerificationControllerDelegateINSTANCE.drop(uint64(handle))
 		// See docs of ForeignCallback in `uniffi/src/ffi/foreigncallbacks.rs`
-		return C.int32_t(idxCallbackFree)
+		return C.int32_t(uniffiIdxCallbackFree)
 
 	case 1:
 		var result uniffiCallbackResult
@@ -17364,7 +17242,7 @@ func matrix_sdk_ffi_cgo_SyncServiceStateObserver(handle C.uint64_t, method C.int
 		// can be dropped by the foreign language.
 		*outBuf = FfiConverterCallbackInterfaceSyncServiceStateObserverINSTANCE.drop(uint64(handle))
 		// See docs of ForeignCallback in `uniffi/src/ffi/foreigncallbacks.rs`
-		return C.int32_t(idxCallbackFree)
+		return C.int32_t(uniffiIdxCallbackFree)
 
 	case 1:
 		var result uniffiCallbackResult
@@ -17427,7 +17305,7 @@ func matrix_sdk_ffi_cgo_TimelineListener(handle C.uint64_t, method C.int32_t, ar
 		// can be dropped by the foreign language.
 		*outBuf = FfiConverterCallbackInterfaceTimelineListenerINSTANCE.drop(uint64(handle))
 		// See docs of ForeignCallback in `uniffi/src/ffi/foreigncallbacks.rs`
-		return C.int32_t(idxCallbackFree)
+		return C.int32_t(uniffiIdxCallbackFree)
 
 	case 1:
 		var result uniffiCallbackResult
@@ -17490,7 +17368,7 @@ func matrix_sdk_ffi_cgo_WidgetCapabilitiesProvider(handle C.uint64_t, method C.i
 		// can be dropped by the foreign language.
 		*outBuf = FfiConverterCallbackInterfaceWidgetCapabilitiesProviderINSTANCE.drop(uint64(handle))
 		// See docs of ForeignCallback in `uniffi/src/ffi/foreigncallbacks.rs`
-		return C.int32_t(idxCallbackFree)
+		return C.int32_t(uniffiIdxCallbackFree)
 
 	case 1:
 		var result uniffiCallbackResult
@@ -20096,2773 +19974,162 @@ func (_ FfiDestroyerMapStringSequenceString) Destroy(mapValue map[string][]strin
 	}
 }
 
-// Callbacks for async functions
+const (
+	uniffiRustFuturePollReady      C.int8_t = 0
+	uniffiRustFuturePollMaybeReady C.int8_t = 1
+)
 
-// Callback handlers for an async calls. These are invoked by Rust when the future is ready.
-// They lift the return value or error and resume the suspended function.
+func uniffiRustCallAsync(
+	rustFutureFunc func(*C.RustCallStatus) *C.void,
+	pollFunc func(*C.void, unsafe.Pointer, *C.RustCallStatus),
+	completeFunc func(*C.void, *C.RustCallStatus),
+	_liftFunc func(bool),
+	freeFunc func(*C.void, *C.RustCallStatus),
+) {
+	rustFuture, err := uniffiRustCallAsyncInner(nil, rustFutureFunc, pollFunc, freeFunc)
+	if err != nil {
+		panic(err)
+	}
+	defer rustCall(func(status *C.RustCallStatus) int {
+		freeFunc(rustFuture, status)
+		return 0
+	})
 
-//export uniffiFutureCallbackHandlerVoid
-func uniffiFutureCallbackHandlerVoid(
-	rawChan unsafe.Pointer,
-	returnValue C.uint8_t,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct{ err error }))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		done <- struct{ err error }{
-			err,
-		}
-		return
-	}
-	done <- struct{ err error }{}
-}
-
-//export uniffiFutureCallbackHandlerVoidTypeAuthenticationError
-func uniffiFutureCallbackHandlerVoidTypeAuthenticationError(
-	rawChan unsafe.Pointer,
-	returnValue C.uint8_t,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct{ err error }))
-	err := checkCallStatus(FfiConverterTypeAuthenticationError{}, status)
-	if err != nil {
-		done <- struct{ err error }{
-			err,
-		}
-		return
-	}
-	done <- struct{ err error }{}
-}
-
-//export uniffiFutureCallbackHandlerVoidTypeClientError
-func uniffiFutureCallbackHandlerVoidTypeClientError(
-	rawChan unsafe.Pointer,
-	returnValue C.uint8_t,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct{ err error }))
-	err := checkCallStatus(FfiConverterTypeClientError{}, status)
-	if err != nil {
-		done <- struct{ err error }{
-			err,
-		}
-		return
-	}
-	done <- struct{ err error }{}
-}
-
-//export uniffiFutureCallbackHandlerVoidTypeNotificationSettingsError
-func uniffiFutureCallbackHandlerVoidTypeNotificationSettingsError(
-	rawChan unsafe.Pointer,
-	returnValue C.uint8_t,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct{ err error }))
-	err := checkCallStatus(FfiConverterTypeNotificationSettingsError{}, status)
-	if err != nil {
-		done <- struct{ err error }{
-			err,
-		}
-		return
-	}
-	done <- struct{ err error }{}
-}
-
-//export uniffiFutureCallbackHandlerVoidTypeRoomError
-func uniffiFutureCallbackHandlerVoidTypeRoomError(
-	rawChan unsafe.Pointer,
-	returnValue C.uint8_t,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct{ err error }))
-	err := checkCallStatus(FfiConverterTypeRoomError{}, status)
-	if err != nil {
-		done <- struct{ err error }{
-			err,
-		}
-		return
-	}
-	done <- struct{ err error }{}
-}
-
-//export uniffiFutureCallbackHandlerVoidTypeRoomListError
-func uniffiFutureCallbackHandlerVoidTypeRoomListError(
-	rawChan unsafe.Pointer,
-	returnValue C.uint8_t,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct{ err error }))
-	err := checkCallStatus(FfiConverterTypeRoomListError{}, status)
-	if err != nil {
-		done <- struct{ err error }{
-			err,
-		}
-		return
-	}
-	done <- struct{ err error }{}
-}
-
-//export uniffiFutureCallbackHandlerUint32
-func uniffiFutureCallbackHandlerUint32(
-	rawChan unsafe.Pointer,
-	returnValue C.uint32_t,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val uint32
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val uint32
-		done <- struct {
-			val uint32
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val uint32
-		err error
-	}{
-		val: FfiConverterUint32INSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerUint64
-func uniffiFutureCallbackHandlerUint64(
-	rawChan unsafe.Pointer,
-	returnValue C.uint64_t,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val uint64
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val uint64
-		done <- struct {
-			val uint64
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val uint64
-		err error
-	}{
-		val: FfiConverterUint64INSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerInt64
-func uniffiFutureCallbackHandlerInt64(
-	rawChan unsafe.Pointer,
-	returnValue C.int64_t,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val int64
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val int64
-		done <- struct {
-			val int64
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val int64
-		err error
-	}{
-		val: FfiConverterInt64INSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerBool
-func uniffiFutureCallbackHandlerBool(
-	rawChan unsafe.Pointer,
-	returnValue C.int8_t,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val bool
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val bool
-		done <- struct {
-			val bool
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val bool
-		err error
-	}{
-		val: FfiConverterBoolINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerBoolTypeClientError
-func uniffiFutureCallbackHandlerBoolTypeClientError(
-	rawChan unsafe.Pointer,
-	returnValue C.int8_t,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val bool
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeClientError{}, status)
-	if err != nil {
-		var _val bool
-		done <- struct {
-			val bool
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val bool
-		err error
-	}{
-		val: FfiConverterBoolINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerBoolTypeNotificationSettingsError
-func uniffiFutureCallbackHandlerBoolTypeNotificationSettingsError(
-	rawChan unsafe.Pointer,
-	returnValue C.int8_t,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val bool
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeNotificationSettingsError{}, status)
-	if err != nil {
-		var _val bool
-		done <- struct {
-			val bool
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val bool
-		err error
-	}{
-		val: FfiConverterBoolINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerString
-func uniffiFutureCallbackHandlerString(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val string
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val string
-		done <- struct {
-			val string
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val string
-		err error
-	}{
-		val: FfiConverterStringINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerStringTypeClientError
-func uniffiFutureCallbackHandlerStringTypeClientError(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val string
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeClientError{}, status)
-	if err != nil {
-		var _val string
-		done <- struct {
-			val string
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val string
-		err error
-	}{
-		val: FfiConverterStringINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerStringTypeParseError
-func uniffiFutureCallbackHandlerStringTypeParseError(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val string
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeParseError{}, status)
-	if err != nil {
-		var _val string
-		done <- struct {
-			val string
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val string
-		err error
-	}{
-		val: FfiConverterStringINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerBytesTypeClientError
-func uniffiFutureCallbackHandlerBytesTypeClientError(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val []byte
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeClientError{}, status)
-	if err != nil {
-		var _val []byte
-		done <- struct {
-			val []byte
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val []byte
-		err error
-	}{
-		val: FfiConverterBytesINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerAuthenticationService
-func uniffiFutureCallbackHandlerAuthenticationService(
-	rawChan unsafe.Pointer,
-	returnValue unsafe.Pointer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *AuthenticationService
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val *AuthenticationService
-		done <- struct {
-			val *AuthenticationService
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *AuthenticationService
-		err error
-	}{
-		val: FfiConverterAuthenticationServiceINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerClientTypeAuthenticationError
-func uniffiFutureCallbackHandlerClientTypeAuthenticationError(
-	rawChan unsafe.Pointer,
-	returnValue unsafe.Pointer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *Client
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeAuthenticationError{}, status)
-	if err != nil {
-		var _val *Client
-		done <- struct {
-			val *Client
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *Client
-		err error
-	}{
-		val: FfiConverterClientINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerClientTypeClientError
-func uniffiFutureCallbackHandlerClientTypeClientError(
-	rawChan unsafe.Pointer,
-	returnValue unsafe.Pointer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *Client
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeClientError{}, status)
-	if err != nil {
-		var _val *Client
-		done <- struct {
-			val *Client
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *Client
-		err error
-	}{
-		val: FfiConverterClientINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerClientBuilder
-func uniffiFutureCallbackHandlerClientBuilder(
-	rawChan unsafe.Pointer,
-	returnValue unsafe.Pointer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *ClientBuilder
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val *ClientBuilder
-		done <- struct {
-			val *ClientBuilder
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *ClientBuilder
-		err error
-	}{
-		val: FfiConverterClientBuilderINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerEventTimelineItemTypeClientError
-func uniffiFutureCallbackHandlerEventTimelineItemTypeClientError(
-	rawChan unsafe.Pointer,
-	returnValue unsafe.Pointer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *EventTimelineItem
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeClientError{}, status)
-	if err != nil {
-		var _val *EventTimelineItem
-		done <- struct {
-			val *EventTimelineItem
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *EventTimelineItem
-		err error
-	}{
-		val: FfiConverterEventTimelineItemINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerMediaFileHandleTypeClientError
-func uniffiFutureCallbackHandlerMediaFileHandleTypeClientError(
-	rawChan unsafe.Pointer,
-	returnValue unsafe.Pointer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *MediaFileHandle
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeClientError{}, status)
-	if err != nil {
-		var _val *MediaFileHandle
-		done <- struct {
-			val *MediaFileHandle
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *MediaFileHandle
-		err error
-	}{
-		val: FfiConverterMediaFileHandleINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerMediaSource
-func uniffiFutureCallbackHandlerMediaSource(
-	rawChan unsafe.Pointer,
-	returnValue unsafe.Pointer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *MediaSource
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val *MediaSource
-		done <- struct {
-			val *MediaSource
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *MediaSource
-		err error
-	}{
-		val: FfiConverterMediaSourceINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerMediaSourceTypeClientError
-func uniffiFutureCallbackHandlerMediaSourceTypeClientError(
-	rawChan unsafe.Pointer,
-	returnValue unsafe.Pointer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *MediaSource
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeClientError{}, status)
-	if err != nil {
-		var _val *MediaSource
-		done <- struct {
-			val *MediaSource
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *MediaSource
-		err error
-	}{
-		val: FfiConverterMediaSourceINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerNotificationClient
-func uniffiFutureCallbackHandlerNotificationClient(
-	rawChan unsafe.Pointer,
-	returnValue unsafe.Pointer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *NotificationClient
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val *NotificationClient
-		done <- struct {
-			val *NotificationClient
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *NotificationClient
-		err error
-	}{
-		val: FfiConverterNotificationClientINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerNotificationClientBuilder
-func uniffiFutureCallbackHandlerNotificationClientBuilder(
-	rawChan unsafe.Pointer,
-	returnValue unsafe.Pointer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *NotificationClientBuilder
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val *NotificationClientBuilder
-		done <- struct {
-			val *NotificationClientBuilder
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *NotificationClientBuilder
-		err error
-	}{
-		val: FfiConverterNotificationClientBuilderINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerNotificationClientBuilderTypeClientError
-func uniffiFutureCallbackHandlerNotificationClientBuilderTypeClientError(
-	rawChan unsafe.Pointer,
-	returnValue unsafe.Pointer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *NotificationClientBuilder
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeClientError{}, status)
-	if err != nil {
-		var _val *NotificationClientBuilder
-		done <- struct {
-			val *NotificationClientBuilder
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *NotificationClientBuilder
-		err error
-	}{
-		val: FfiConverterNotificationClientBuilderINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerNotificationSettings
-func uniffiFutureCallbackHandlerNotificationSettings(
-	rawChan unsafe.Pointer,
-	returnValue unsafe.Pointer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *NotificationSettings
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val *NotificationSettings
-		done <- struct {
-			val *NotificationSettings
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *NotificationSettings
-		err error
-	}{
-		val: FfiConverterNotificationSettingsINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerOidcAuthenticationDataTypeAuthenticationError
-func uniffiFutureCallbackHandlerOidcAuthenticationDataTypeAuthenticationError(
-	rawChan unsafe.Pointer,
-	returnValue unsafe.Pointer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *OidcAuthenticationData
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeAuthenticationError{}, status)
-	if err != nil {
-		var _val *OidcAuthenticationData
-		done <- struct {
-			val *OidcAuthenticationData
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *OidcAuthenticationData
-		err error
-	}{
-		val: FfiConverterOidcAuthenticationDataINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerRoom
-func uniffiFutureCallbackHandlerRoom(
-	rawChan unsafe.Pointer,
-	returnValue unsafe.Pointer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *Room
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val *Room
-		done <- struct {
-			val *Room
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *Room
-		err error
-	}{
-		val: FfiConverterRoomINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerRoomListTypeRoomListError
-func uniffiFutureCallbackHandlerRoomListTypeRoomListError(
-	rawChan unsafe.Pointer,
-	returnValue unsafe.Pointer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *RoomList
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeRoomListError{}, status)
-	if err != nil {
-		var _val *RoomList
-		done <- struct {
-			val *RoomList
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *RoomList
-		err error
-	}{
-		val: FfiConverterRoomListINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerRoomListItemTypeRoomListError
-func uniffiFutureCallbackHandlerRoomListItemTypeRoomListError(
-	rawChan unsafe.Pointer,
-	returnValue unsafe.Pointer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *RoomListItem
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeRoomListError{}, status)
-	if err != nil {
-		var _val *RoomListItem
-		done <- struct {
-			val *RoomListItem
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *RoomListItem
-		err error
-	}{
-		val: FfiConverterRoomListItemINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerRoomListService
-func uniffiFutureCallbackHandlerRoomListService(
-	rawChan unsafe.Pointer,
-	returnValue unsafe.Pointer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *RoomListService
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val *RoomListService
-		done <- struct {
-			val *RoomListService
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *RoomListService
-		err error
-	}{
-		val: FfiConverterRoomListServiceINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerRoomMemberTypeClientError
-func uniffiFutureCallbackHandlerRoomMemberTypeClientError(
-	rawChan unsafe.Pointer,
-	returnValue unsafe.Pointer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *RoomMember
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeClientError{}, status)
-	if err != nil {
-		var _val *RoomMember
-		done <- struct {
-			val *RoomMember
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *RoomMember
-		err error
-	}{
-		val: FfiConverterRoomMemberINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerRoomMembersIteratorTypeClientError
-func uniffiFutureCallbackHandlerRoomMembersIteratorTypeClientError(
-	rawChan unsafe.Pointer,
-	returnValue unsafe.Pointer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *RoomMembersIterator
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeClientError{}, status)
-	if err != nil {
-		var _val *RoomMembersIterator
-		done <- struct {
-			val *RoomMembersIterator
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *RoomMembersIterator
-		err error
-	}{
-		val: FfiConverterRoomMembersIteratorINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerRoomMessageEventContentWithoutRelation
-func uniffiFutureCallbackHandlerRoomMessageEventContentWithoutRelation(
-	rawChan unsafe.Pointer,
-	returnValue unsafe.Pointer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *RoomMessageEventContentWithoutRelation
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val *RoomMessageEventContentWithoutRelation
-		done <- struct {
-			val *RoomMessageEventContentWithoutRelation
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *RoomMessageEventContentWithoutRelation
-		err error
-	}{
-		val: FfiConverterRoomMessageEventContentWithoutRelationINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerRoomMessageEventContentWithoutRelationTypeClientError
-func uniffiFutureCallbackHandlerRoomMessageEventContentWithoutRelationTypeClientError(
-	rawChan unsafe.Pointer,
-	returnValue unsafe.Pointer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *RoomMessageEventContentWithoutRelation
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeClientError{}, status)
-	if err != nil {
-		var _val *RoomMessageEventContentWithoutRelation
-		done <- struct {
-			val *RoomMessageEventContentWithoutRelation
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *RoomMessageEventContentWithoutRelation
-		err error
-	}{
-		val: FfiConverterRoomMessageEventContentWithoutRelationINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerSendAttachmentJoinHandle
-func uniffiFutureCallbackHandlerSendAttachmentJoinHandle(
-	rawChan unsafe.Pointer,
-	returnValue unsafe.Pointer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *SendAttachmentJoinHandle
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val *SendAttachmentJoinHandle
-		done <- struct {
-			val *SendAttachmentJoinHandle
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *SendAttachmentJoinHandle
-		err error
-	}{
-		val: FfiConverterSendAttachmentJoinHandleINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerSessionVerificationControllerTypeClientError
-func uniffiFutureCallbackHandlerSessionVerificationControllerTypeClientError(
-	rawChan unsafe.Pointer,
-	returnValue unsafe.Pointer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *SessionVerificationController
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeClientError{}, status)
-	if err != nil {
-		var _val *SessionVerificationController
-		done <- struct {
-			val *SessionVerificationController
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *SessionVerificationController
-		err error
-	}{
-		val: FfiConverterSessionVerificationControllerINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerSpan
-func uniffiFutureCallbackHandlerSpan(
-	rawChan unsafe.Pointer,
-	returnValue unsafe.Pointer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *Span
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val *Span
-		done <- struct {
-			val *Span
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *Span
-		err error
-	}{
-		val: FfiConverterSpanINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerSyncServiceTypeClientError
-func uniffiFutureCallbackHandlerSyncServiceTypeClientError(
-	rawChan unsafe.Pointer,
-	returnValue unsafe.Pointer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *SyncService
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeClientError{}, status)
-	if err != nil {
-		var _val *SyncService
-		done <- struct {
-			val *SyncService
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *SyncService
-		err error
-	}{
-		val: FfiConverterSyncServiceINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerSyncServiceBuilder
-func uniffiFutureCallbackHandlerSyncServiceBuilder(
-	rawChan unsafe.Pointer,
-	returnValue unsafe.Pointer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *SyncServiceBuilder
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val *SyncServiceBuilder
-		done <- struct {
-			val *SyncServiceBuilder
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *SyncServiceBuilder
-		err error
-	}{
-		val: FfiConverterSyncServiceBuilderINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerTaskHandle
-func uniffiFutureCallbackHandlerTaskHandle(
-	rawChan unsafe.Pointer,
-	returnValue unsafe.Pointer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *TaskHandle
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val *TaskHandle
-		done <- struct {
-			val *TaskHandle
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *TaskHandle
-		err error
-	}{
-		val: FfiConverterTaskHandleINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerTaskHandleTypeClientError
-func uniffiFutureCallbackHandlerTaskHandleTypeClientError(
-	rawChan unsafe.Pointer,
-	returnValue unsafe.Pointer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *TaskHandle
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeClientError{}, status)
-	if err != nil {
-		var _val *TaskHandle
-		done <- struct {
-			val *TaskHandle
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *TaskHandle
-		err error
-	}{
-		val: FfiConverterTaskHandleINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerTimelineItemContent
-func uniffiFutureCallbackHandlerTimelineItemContent(
-	rawChan unsafe.Pointer,
-	returnValue unsafe.Pointer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *TimelineItemContent
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val *TimelineItemContent
-		done <- struct {
-			val *TimelineItemContent
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *TimelineItemContent
-		err error
-	}{
-		val: FfiConverterTimelineItemContentINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerUnreadNotificationsCount
-func uniffiFutureCallbackHandlerUnreadNotificationsCount(
-	rawChan unsafe.Pointer,
-	returnValue unsafe.Pointer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *UnreadNotificationsCount
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val *UnreadNotificationsCount
-		done <- struct {
-			val *UnreadNotificationsCount
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *UnreadNotificationsCount
-		err error
-	}{
-		val: FfiConverterUnreadNotificationsCountINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerTypeEventTimelineItemDebugInfo
-func uniffiFutureCallbackHandlerTypeEventTimelineItemDebugInfo(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val EventTimelineItemDebugInfo
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val EventTimelineItemDebugInfo
-		done <- struct {
-			val EventTimelineItemDebugInfo
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val EventTimelineItemDebugInfo
-		err error
-	}{
-		val: FfiConverterTypeEventTimelineItemDebugInfoINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerTypeRoomInfoTypeClientError
-func uniffiFutureCallbackHandlerTypeRoomInfoTypeClientError(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val RoomInfo
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeClientError{}, status)
-	if err != nil {
-		var _val RoomInfo
-		done <- struct {
-			val RoomInfo
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val RoomInfo
-		err error
-	}{
-		val: FfiConverterTypeRoomInfoINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerTypeRoomListEntriesResult
-func uniffiFutureCallbackHandlerTypeRoomListEntriesResult(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val RoomListEntriesResult
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val RoomListEntriesResult
-		done <- struct {
-			val RoomListEntriesResult
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val RoomListEntriesResult
-		err error
-	}{
-		val: FfiConverterTypeRoomListEntriesResultINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerTypeRoomListEntriesWithDynamicAdaptersResult
-func uniffiFutureCallbackHandlerTypeRoomListEntriesWithDynamicAdaptersResult(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val RoomListEntriesWithDynamicAdaptersResult
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val RoomListEntriesWithDynamicAdaptersResult
-		done <- struct {
-			val RoomListEntriesWithDynamicAdaptersResult
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val RoomListEntriesWithDynamicAdaptersResult
-		err error
-	}{
-		val: FfiConverterTypeRoomListEntriesWithDynamicAdaptersResultINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerTypeRoomListLoadingStateResultTypeRoomListError
-func uniffiFutureCallbackHandlerTypeRoomListLoadingStateResultTypeRoomListError(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val RoomListLoadingStateResult
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeRoomListError{}, status)
-	if err != nil {
-		var _val RoomListLoadingStateResult
-		done <- struct {
-			val RoomListLoadingStateResult
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val RoomListLoadingStateResult
-		err error
-	}{
-		val: FfiConverterTypeRoomListLoadingStateResultINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerTypeRoomNotificationSettingsTypeNotificationSettingsError
-func uniffiFutureCallbackHandlerTypeRoomNotificationSettingsTypeNotificationSettingsError(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val RoomNotificationSettings
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeNotificationSettingsError{}, status)
-	if err != nil {
-		var _val RoomNotificationSettings
-		done <- struct {
-			val RoomNotificationSettings
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val RoomNotificationSettings
-		err error
-	}{
-		val: FfiConverterTypeRoomNotificationSettingsINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerTypeRoomTimelineListenerResult
-func uniffiFutureCallbackHandlerTypeRoomTimelineListenerResult(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val RoomTimelineListenerResult
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val RoomTimelineListenerResult
-		done <- struct {
-			val RoomTimelineListenerResult
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val RoomTimelineListenerResult
-		err error
-	}{
-		val: FfiConverterTypeRoomTimelineListenerResultINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerTypeSearchUsersResultsTypeClientError
-func uniffiFutureCallbackHandlerTypeSearchUsersResultsTypeClientError(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val SearchUsersResults
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeClientError{}, status)
-	if err != nil {
-		var _val SearchUsersResults
-		done <- struct {
-			val SearchUsersResults
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val SearchUsersResults
-		err error
-	}{
-		val: FfiConverterTypeSearchUsersResultsINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerTypeSessionTypeClientError
-func uniffiFutureCallbackHandlerTypeSessionTypeClientError(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val Session
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeClientError{}, status)
-	if err != nil {
-		var _val Session
-		done <- struct {
-			val Session
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val Session
-		err error
-	}{
-		val: FfiConverterTypeSessionINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerTypeUserProfileTypeClientError
-func uniffiFutureCallbackHandlerTypeUserProfileTypeClientError(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val UserProfile
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeClientError{}, status)
-	if err != nil {
-		var _val UserProfile
-		done <- struct {
-			val UserProfile
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val UserProfile
-		err error
-	}{
-		val: FfiConverterTypeUserProfileINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerTypeWidgetDriverAndHandleTypeParseError
-func uniffiFutureCallbackHandlerTypeWidgetDriverAndHandleTypeParseError(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val WidgetDriverAndHandle
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeParseError{}, status)
-	if err != nil {
-		var _val WidgetDriverAndHandle
-		done <- struct {
-			val WidgetDriverAndHandle
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val WidgetDriverAndHandle
-		err error
-	}{
-		val: FfiConverterTypeWidgetDriverAndHandleINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerTypeWidgetSettingsTypeParseError
-func uniffiFutureCallbackHandlerTypeWidgetSettingsTypeParseError(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val WidgetSettings
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeParseError{}, status)
-	if err != nil {
-		var _val WidgetSettings
-		done <- struct {
-			val WidgetSettings
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val WidgetSettings
-		err error
-	}{
-		val: FfiConverterTypeWidgetSettingsINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerTypeMembership
-func uniffiFutureCallbackHandlerTypeMembership(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val Membership
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val Membership
-		done <- struct {
-			val Membership
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val Membership
-		err error
-	}{
-		val: FfiConverterTypeMembershipINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerTypeMembershipState
-func uniffiFutureCallbackHandlerTypeMembershipState(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val MembershipState
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val MembershipState
-		done <- struct {
-			val MembershipState
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val MembershipState
-		err error
-	}{
-		val: FfiConverterTypeMembershipStateINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerTypeMessageType
-func uniffiFutureCallbackHandlerTypeMessageType(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val MessageType
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val MessageType
-		done <- struct {
-			val MessageType
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val MessageType
-		err error
-	}{
-		val: FfiConverterTypeMessageTypeINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerTypeProfileDetails
-func uniffiFutureCallbackHandlerTypeProfileDetails(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val ProfileDetails
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val ProfileDetails
-		done <- struct {
-			val ProfileDetails
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val ProfileDetails
-		err error
-	}{
-		val: FfiConverterTypeProfileDetailsINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerTypeRoomNotificationMode
-func uniffiFutureCallbackHandlerTypeRoomNotificationMode(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val RoomNotificationMode
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val RoomNotificationMode
-		done <- struct {
-			val RoomNotificationMode
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val RoomNotificationMode
-		err error
-	}{
-		val: FfiConverterTypeRoomNotificationModeINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerTypeTimelineChange
-func uniffiFutureCallbackHandlerTypeTimelineChange(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val TimelineChange
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val TimelineChange
-		done <- struct {
-			val TimelineChange
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val TimelineChange
-		err error
-	}{
-		val: FfiConverterTypeTimelineChangeINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerTypeTimelineEventTypeTypeClientError
-func uniffiFutureCallbackHandlerTypeTimelineEventTypeTypeClientError(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val TimelineEventType
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeClientError{}, status)
-	if err != nil {
-		var _val TimelineEventType
-		done <- struct {
-			val TimelineEventType
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val TimelineEventType
-		err error
-	}{
-		val: FfiConverterTypeTimelineEventTypeINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerTypeTimelineItemContentKind
-func uniffiFutureCallbackHandlerTypeTimelineItemContentKind(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val TimelineItemContentKind
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val TimelineItemContentKind
-		done <- struct {
-			val TimelineItemContentKind
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val TimelineItemContentKind
-		err error
-	}{
-		val: FfiConverterTypeTimelineItemContentKindINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerOptionalUint32
-func uniffiFutureCallbackHandlerOptionalUint32(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *uint32
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val *uint32
-		done <- struct {
-			val *uint32
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *uint32
-		err error
-	}{
-		val: FfiConverterOptionalUint32INSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerOptionalString
-func uniffiFutureCallbackHandlerOptionalString(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *string
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val *string
-		done <- struct {
-			val *string
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *string
-		err error
-	}{
-		val: FfiConverterOptionalStringINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerOptionalStringTypeClientError
-func uniffiFutureCallbackHandlerOptionalStringTypeClientError(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *string
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeClientError{}, status)
-	if err != nil {
-		var _val *string
-		done <- struct {
-			val *string
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *string
-		err error
-	}{
-		val: FfiConverterOptionalStringINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerOptionalEventTimelineItem
-func uniffiFutureCallbackHandlerOptionalEventTimelineItem(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val **EventTimelineItem
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val **EventTimelineItem
-		done <- struct {
-			val **EventTimelineItem
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val **EventTimelineItem
-		err error
-	}{
-		val: FfiConverterOptionalEventTimelineItemINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerOptionalHomeserverLoginDetails
-func uniffiFutureCallbackHandlerOptionalHomeserverLoginDetails(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val **HomeserverLoginDetails
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val **HomeserverLoginDetails
-		done <- struct {
-			val **HomeserverLoginDetails
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val **HomeserverLoginDetails
-		err error
-	}{
-		val: FfiConverterOptionalHomeserverLoginDetailsINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
-
-//export uniffiFutureCallbackHandlerOptionalMessage
-func uniffiFutureCallbackHandlerOptionalMessage(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val **Message
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val **Message
-		done <- struct {
-			val **Message
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val **Message
-		err error
-	}{
-		val: FfiConverterOptionalMessageINSTANCE.Lift(returnValue),
-		err: nil,
-	}
+	rustCall(func(status *C.RustCallStatus) int {
+		completeFunc(rustFuture, status)
+		return 0
+	})
 }
 
-//export uniffiFutureCallbackHandlerOptionalRoomTypeClientError
-func uniffiFutureCallbackHandlerOptionalRoomTypeClientError(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val **Room
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeClientError{}, status)
+func uniffiRustCallAsyncWithResult[T any, U any](
+	rustFutureFunc func(*C.RustCallStatus) *C.void,
+	pollFunc func(*C.void, unsafe.Pointer, *C.RustCallStatus),
+	completeFunc func(*C.void, *C.RustCallStatus) T,
+	liftFunc func(T) U,
+	freeFunc func(*C.void, *C.RustCallStatus),
+) U {
+	rustFuture, err := uniffiRustCallAsyncInner(nil, rustFutureFunc, pollFunc, freeFunc)
 	if err != nil {
-		var _val **Room
-		done <- struct {
-			val **Room
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val **Room
-		err error
-	}{
-		val: FfiConverterOptionalRoomINSTANCE.Lift(returnValue),
-		err: nil,
+		panic(err)
 	}
-}
 
-//export uniffiFutureCallbackHandlerOptionalRoomMember
-func uniffiFutureCallbackHandlerOptionalRoomMember(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val **RoomMember
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val **RoomMember
-		done <- struct {
-			val **RoomMember
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val **RoomMember
-		err error
-	}{
-		val: FfiConverterOptionalRoomMemberINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
+	defer rustCall(func(status *C.RustCallStatus) int {
+		freeFunc(rustFuture, status)
+		return 0
+	})
 
-//export uniffiFutureCallbackHandlerOptionalTimelineItem
-func uniffiFutureCallbackHandlerOptionalTimelineItem(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val **TimelineItem
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val **TimelineItem
-		done <- struct {
-			val **TimelineItem
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val **TimelineItem
-		err error
-	}{
-		val: FfiConverterOptionalTimelineItemINSTANCE.Lift(returnValue),
-		err: nil,
-	}
+	res := rustCall(func(status *C.RustCallStatus) T {
+		return completeFunc(rustFuture, status)
+	})
+	return liftFunc(res)
 }
 
-//export uniffiFutureCallbackHandlerOptionalTypeInReplyToDetails
-func uniffiFutureCallbackHandlerOptionalTypeInReplyToDetails(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *InReplyToDetails
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
+func uniffiRustCallAsyncWithError(
+	converter BufLifter[error],
+	rustFutureFunc func(*C.RustCallStatus) *C.void,
+	pollFunc func(*C.void, unsafe.Pointer, *C.RustCallStatus),
+	completeFunc func(*C.void, *C.RustCallStatus),
+	_liftFunc func(bool),
+	freeFunc func(*C.void, *C.RustCallStatus),
+) error {
+	rustFuture, err := uniffiRustCallAsyncInner(converter, rustFutureFunc, pollFunc, freeFunc)
 	if err != nil {
-		var _val *InReplyToDetails
-		done <- struct {
-			val *InReplyToDetails
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
+		return err
 	}
-	done <- struct {
-		val *InReplyToDetails
-		err error
-	}{
-		val: FfiConverterOptionalTypeInReplyToDetailsINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
 
-//export uniffiFutureCallbackHandlerOptionalTypeInsertData
-func uniffiFutureCallbackHandlerOptionalTypeInsertData(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *InsertData
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val *InsertData
-		done <- struct {
-			val *InsertData
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *InsertData
-		err error
-	}{
-		val: FfiConverterOptionalTypeInsertDataINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
+	defer rustCall(func(status *C.RustCallStatus) int {
+		freeFunc(rustFuture, status)
+		return 0
+	})
 
-//export uniffiFutureCallbackHandlerOptionalTypeNotificationItemTypeClientError
-func uniffiFutureCallbackHandlerOptionalTypeNotificationItemTypeClientError(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *NotificationItem
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeClientError{}, status)
-	if err != nil {
-		var _val *NotificationItem
-		done <- struct {
-			val *NotificationItem
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *NotificationItem
-		err error
-	}{
-		val: FfiConverterOptionalTypeNotificationItemINSTANCE.Lift(returnValue),
-		err: nil,
-	}
+	_, err = rustCallWithError(converter, func(status *C.RustCallStatus) int {
+		completeFunc(rustFuture, status)
+		return 0
+	})
+	return err
 }
 
-//export uniffiFutureCallbackHandlerOptionalTypeSetData
-func uniffiFutureCallbackHandlerOptionalTypeSetData(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *SetData
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
+func uniffiRustCallAsyncWithErrorAndResult[T any, U any](
+	converter BufLifter[error],
+	rustFutureFunc func(*C.RustCallStatus) *C.void,
+	pollFunc func(*C.void, unsafe.Pointer, *C.RustCallStatus),
+	completeFunc func(*C.void, *C.RustCallStatus) T,
+	liftFunc func(T) U,
+	freeFunc func(*C.void, *C.RustCallStatus),
+) (U, error) {
+	var returnValue U
+	rustFuture, err := uniffiRustCallAsyncInner(converter, rustFutureFunc, pollFunc, freeFunc)
 	if err != nil {
-		var _val *SetData
-		done <- struct {
-			val *SetData
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *SetData
-		err error
-	}{
-		val: FfiConverterOptionalTypeSetDataINSTANCE.Lift(returnValue),
-		err: nil,
+		return returnValue, err
 	}
-}
 
-//export uniffiFutureCallbackHandlerOptionalTypeEventItemOrigin
-func uniffiFutureCallbackHandlerOptionalTypeEventItemOrigin(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *EventItemOrigin
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val *EventItemOrigin
-		done <- struct {
-			val *EventItemOrigin
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *EventItemOrigin
-		err error
-	}{
-		val: FfiConverterOptionalTypeEventItemOriginINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
+	defer rustCall(func(status *C.RustCallStatus) int {
+		freeFunc(rustFuture, status)
+		return 0
+	})
 
-//export uniffiFutureCallbackHandlerOptionalTypeEventSendState
-func uniffiFutureCallbackHandlerOptionalTypeEventSendState(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *EventSendState
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
+	res, err := rustCallWithError(converter, func(status *C.RustCallStatus) T {
+		return completeFunc(rustFuture, status)
+	})
 	if err != nil {
-		var _val *EventSendState
-		done <- struct {
-			val *EventSendState
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *EventSendState
-		err error
-	}{
-		val: FfiConverterOptionalTypeEventSendStateINSTANCE.Lift(returnValue),
-		err: nil,
+		return returnValue, err
 	}
+	return liftFunc(res), nil
 }
 
-//export uniffiFutureCallbackHandlerOptionalTypeRoomNotificationModeTypeNotificationSettingsError
-func uniffiFutureCallbackHandlerOptionalTypeRoomNotificationModeTypeNotificationSettingsError(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *RoomNotificationMode
-		err error
-	}))
-	err := checkCallStatus(FfiConverterTypeNotificationSettingsError{}, status)
-	if err != nil {
-		var _val *RoomNotificationMode
-		done <- struct {
-			val *RoomNotificationMode
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *RoomNotificationMode
-		err error
-	}{
-		val: FfiConverterOptionalTypeRoomNotificationModeINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
+func uniffiRustCallAsyncInner(
+	converter BufLifter[error],
+	rustFutureFunc func(*C.RustCallStatus) *C.void,
+	pollFunc func(*C.void, unsafe.Pointer, *C.RustCallStatus),
+	freeFunc func(*C.void, *C.RustCallStatus),
+) (*C.void, error) {
+	pollResult := C.int8_t(-1)
+	waiter := make(chan C.int8_t, 1)
+	chanHandle := cgo.NewHandle(waiter)
 
-//export uniffiFutureCallbackHandlerOptionalTypeVirtualTimelineItem
-func uniffiFutureCallbackHandlerOptionalTypeVirtualTimelineItem(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *VirtualTimelineItem
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
+	rustFuture, err := rustCallWithError(converter, func(status *C.RustCallStatus) *C.void {
+		return rustFutureFunc(status)
+	})
 	if err != nil {
-		var _val *VirtualTimelineItem
-		done <- struct {
-			val *VirtualTimelineItem
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
+		return nil, err
 	}
-	done <- struct {
-		val *VirtualTimelineItem
-		err error
-	}{
-		val: FfiConverterOptionalTypeVirtualTimelineItemINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
 
-//export uniffiFutureCallbackHandlerOptionalSequenceRoomMember
-func uniffiFutureCallbackHandlerOptionalSequenceRoomMember(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *[]*RoomMember
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val *[]*RoomMember
-		done <- struct {
-			val *[]*RoomMember
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val *[]*RoomMember
-		err error
-	}{
-		val: FfiConverterOptionalSequenceRoomMemberINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
+	defer chanHandle.Delete()
 
-//export uniffiFutureCallbackHandlerOptionalSequenceTimelineItem
-func uniffiFutureCallbackHandlerOptionalSequenceTimelineItem(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val *[]*TimelineItem
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val *[]*TimelineItem
-		done <- struct {
-			val *[]*TimelineItem
-			err error
-		}{
-			val: _val,
-			err: err,
+	for pollResult != uniffiRustFuturePollReady {
+		ptr := unsafe.Pointer(&chanHandle)
+		_, err = rustCallWithError(converter, func(status *C.RustCallStatus) int {
+			pollFunc(rustFuture, ptr, status)
+			return 0
+		})
+		if err != nil {
+			return nil, err
 		}
-		return
+		res := <-waiter
+		pollResult = res
 	}
-	done <- struct {
-		val *[]*TimelineItem
-		err error
-	}{
-		val: FfiConverterOptionalSequenceTimelineItemINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
 
-//export uniffiFutureCallbackHandlerSequenceString
-func uniffiFutureCallbackHandlerSequenceString(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val []string
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val []string
-		done <- struct {
-			val []string
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val []string
-		err error
-	}{
-		val: FfiConverterSequenceStringINSTANCE.Lift(returnValue),
-		err: nil,
-	}
+	return rustFuture, nil
 }
 
-//export uniffiFutureCallbackHandlerSequenceRoom
-func uniffiFutureCallbackHandlerSequenceRoom(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val []*Room
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val []*Room
-		done <- struct {
-			val []*Room
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val []*Room
-		err error
-	}{
-		val: FfiConverterSequenceRoomINSTANCE.Lift(returnValue),
-		err: nil,
-	}
-}
+// Callback handlers for an async calls.  These are invoked by Rust when the future is ready.  They
+// lift the return value or error and resume the suspended function.
 
-//export uniffiFutureCallbackHandlerSequenceTypeReaction
-func uniffiFutureCallbackHandlerSequenceTypeReaction(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val []Reaction
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val []Reaction
-		done <- struct {
-			val []Reaction
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val []Reaction
-		err error
-	}{
-		val: FfiConverterSequenceTypeReactionINSTANCE.Lift(returnValue),
-		err: nil,
-	}
+//export uniffiFutureContinuationCallbackmatrix_sdk_ffi
+func uniffiFutureContinuationCallbackmatrix_sdk_ffi(ptr unsafe.Pointer, pollResult C.int8_t) {
+	doneHandle := *(*cgo.Handle)(ptr)
+	done := doneHandle.Value().((chan C.int8_t))
+	done <- pollResult
 }
 
-//export uniffiFutureCallbackHandlerMapStringTypeReceipt
-func uniffiFutureCallbackHandlerMapStringTypeReceipt(
-	rawChan unsafe.Pointer,
-	returnValue RustBuffer,
-	status C.RustCallStatus,
-) {
-	doneHandle := *(*cgo.Handle)(rawChan)
-	done := doneHandle.Value().((chan struct {
-		val map[string]Receipt
-		err error
-	}))
-	err := checkCallStatusUnknown(status)
-	if err != nil {
-		var _val map[string]Receipt
-		done <- struct {
-			val map[string]Receipt
-			err error
-		}{
-			val: _val,
-			err: err,
-		}
-		return
-	}
-	done <- struct {
-		val map[string]Receipt
-		err error
-	}{
-		val: FfiConverterMapStringTypeReceiptINSTANCE.Lift(returnValue),
-		err: nil,
-	}
+func uniffiInitContinuationCallback() {
+	rustCall(func(uniffiStatus *C.RustCallStatus) bool {
+		C.ffi_matrix_sdk_ffi_rust_future_continuation_callback_set(
+			C.RustFutureContinuation(C.uniffiFutureContinuationCallbackmatrix_sdk_ffi),
+			uniffiStatus,
+		)
+		return false
+	})
 }
 
 func GenTransactionId() string {
@@ -22872,27 +20139,25 @@ func GenTransactionId() string {
 }
 
 func GenerateWebviewUrl(widgetSettings WidgetSettings, room *Room, props ClientProperties) (string, error) {
-	// We create a channel, that this function blocks on, until the callback sends a result on it
-	done := make(chan struct {
-		val string
-		err error
-	})
-	chanHandle := cgo.NewHandle(done)
-	defer chanHandle.Delete()
-
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_func_generate_webview_url(FfiConverterTypeWidgetSettingsINSTANCE.Lower(widgetSettings), FfiConverterRoomINSTANCE.Lower(room), FfiConverterTypeClientPropertiesINSTANCE.Lower(props),
-			FfiConverterForeignExecutorINSTANCE.Lower(UniFfiForeignExecutor{}),
-			C.UniFfiFutureCallbackRustBuffer(C.uniffiFutureCallbackHandlerStringTypeParseError),
-			unsafe.Pointer(&chanHandle),
-			_uniffiStatus,
-		)
-		return false
-	})
-
-	// wait for things to be done
-	res := <-done
-	return res.val, res.err
+	return uniffiRustCallAsyncWithErrorAndResult(
+		FfiConverterTypeParseError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_func_generate_webview_url(FfiConverterTypeWidgetSettingsINSTANCE.Lower(widgetSettings), FfiConverterRoomINSTANCE.Lower(room), FfiConverterTypeClientPropertiesINSTANCE.Lower(props),
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_rust_buffer(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) RustBufferI {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_rust_buffer(unsafe.Pointer(handle), status)
+		},
+		FfiConverterStringINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
+		})
 }
 
 func LogEvent(file string, line *uint32, level LogLevel, target string, message string) {

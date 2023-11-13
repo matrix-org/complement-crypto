@@ -72,14 +72,14 @@ func (c *RustClient) Close(t *testing.T) {
 // Tests should call stopSyncing() at the end of the test.
 func (c *RustClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 	t.Helper()
-	syncService, err := c.FFIClient.SyncService().FinishBlocking()
+	syncService, err := c.FFIClient.SyncService().Finish()
 	must.NotError(t, fmt.Sprintf("[%s]failed to make sync service", c.userID), err)
 	//c.syncService = syncService
 	/* ch := make(chan matrix_sdk_ffi.SyncServiceState, 10)
 	th := syncService.State(&syncServiceStateObserver{
 		ch: ch,
 	}) */
-	go syncService.StartBlocking()
+	go syncService.Start()
 
 	/*
 		isSyncing := false
@@ -102,7 +102,7 @@ func (c *RustClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 
 	return func() {
 		t.Logf("%s: Stopping sync service", c.userID)
-		syncService.StopBlocking()
+		syncService.Stop()
 	}
 }
 
@@ -191,7 +191,7 @@ func (c *RustClient) ensureListening(t *testing.T, roomID string) *matrix_sdk_ff
 
 	t.Logf("[%s]AddTimelineListenerBlocking[%s]", c.userID, roomID)
 	// we need a timeline listener before we can send messages
-	r.AddTimelineListenerBlocking(&timelineListener{fn: func(diff []*matrix_sdk_ffi.TimelineDiff) {
+	r.AddTimelineListener(&timelineListener{fn: func(diff []*matrix_sdk_ffi.TimelineDiff) {
 		timeline := c.rooms[roomID].timeline
 		for _, d := range diff {
 			switch d.Change() {
