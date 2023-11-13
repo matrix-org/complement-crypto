@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
-	"log"
 	"net"
 	"net/http"
 	"strconv"
@@ -39,7 +38,7 @@ type JSClient struct {
 func NewJSClient(t *testing.T, opts ClientCreationOpts) (Client, error) {
 	// start a headless chrome
 	ctx, cancel := chromedp.NewContext(context.Background(), chromedp.WithBrowserOption(
-		chromedp.WithBrowserLogf(log.Printf), chromedp.WithBrowserErrorf(log.Printf), //chromedp.WithBrowserDebugf(log.Printf),
+		chromedp.WithBrowserLogf(colorifyError), chromedp.WithBrowserErrorf(colorifyError), //chromedp.WithBrowserDebugf(log.Printf),
 	))
 	jsc := &JSClient{
 		listeners: make(map[int32]func(roomID string, ev Event)),
@@ -52,8 +51,7 @@ func NewJSClient(t *testing.T, opts ClientCreationOpts) (Client, error) {
 			for _, arg := range ev.Args {
 				s, err := strconv.Unquote(string(arg.Value))
 				if err != nil {
-					log.Println(err)
-					continue
+					s = string(arg.Value)
 				}
 				// TODO: debug mode only?
 				colorify("[%s] console.log %s\n", opts.UserID, s)
@@ -295,10 +293,15 @@ func (w *jsTimelineWaiter) Wait(t *testing.T, s time.Duration) {
 }
 
 const ansiYellowForeground = "\x1b[33m"
+const ansiRedForeground = "\x1b[31m"
 const ansiResetForeground = "\x1b[39m"
 
 func colorify(format string, args ...any) {
-	format = ansiYellowForeground + format + ansiResetForeground
+	format = ansiYellowForeground + time.Now().Format(time.RFC3339) + " " + format + ansiResetForeground
+	fmt.Printf(format, args...)
+}
+func colorifyError(format string, args ...any) {
+	format = ansiRedForeground + time.Now().Format(time.RFC3339) + " " + format + ansiResetForeground
 	fmt.Printf(format, args...)
 }
 
