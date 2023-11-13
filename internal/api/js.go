@@ -168,12 +168,16 @@ func (c *JSClient) UserID() string {
 // Tests should call stopSyncing() at the end of the test.
 func (c *JSClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 	t.Logf("%s is starting to sync", c.userID)
-	chrome.MustExecute(t, c.ctx, fmt.Sprintf(`window.__client.on("sync", function(state) {
-		if (state !== "PREPARED") {
-			return;
-		}
-		console.log("%s"+"sync||{\"type\":\"sync\",\"content\":{}}");
-	});`, CONSOLE_LOG_CONTROL_STRING))
+	chrome.MustExecute(t, c.ctx, fmt.Sprintf(`
+		var fn;
+		fn = function(state) {
+			if (state !== "SYNCING") {
+				return;
+			}
+			console.log("%s"+"sync||{\"type\":\"sync\",\"content\":{}}");
+			window.__client.off("sync", fn);
+		};
+		window.__client.on("sync", fn);`, CONSOLE_LOG_CONTROL_STRING))
 	ch := make(chan struct{})
 	cancel := c.listenForUpdates(func(roomID string, ev Event) {
 		if roomID != "sync" {
@@ -189,7 +193,6 @@ func (c *JSClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 	}
 	cancel()
 	t.Logf("%s is now syncing", c.userID)
-	time.Sleep(500 * time.Millisecond) // race condition means we don't query keys yet
 	return func() {
 		chrome.AwaitExecute(t, c.ctx, `window.__client.stopClient();`)
 	}

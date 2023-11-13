@@ -52,13 +52,16 @@ func TestAliceBobEncryptionWorks(t *testing.T) {
 
 		// SDK testing below
 		// -----------------
+
+		// login both clients first, so OTKs etc are uploaded.
 		alice := MustLoginClient(t, clientTypeA, api.FromComplementClient(csapiAlice, "complement-crypto-password"), ss)
 		defer alice.Close(t)
+		bob := MustLoginClient(t, clientTypeB, api.FromComplementClient(csapiBob, "complement-crypto-password"), ss)
+		defer bob.Close(t)
 
 		// Alice starts syncing
 		aliceStopSyncing := alice.StartSyncing(t)
 		defer aliceStopSyncing()
-		time.Sleep(time.Second) // TODO: find another way to wait until initial sync is done
 
 		wantMsgBody := "Hello world"
 
@@ -68,11 +71,8 @@ func TestAliceBobEncryptionWorks(t *testing.T) {
 		must.Equal(t, isEncrypted, true, "room is not encrypted when it should be")
 
 		// Bob starts syncing
-		bob := MustLoginClient(t, clientTypeB, api.FromComplementClient(csapiBob, "complement-crypto-password"), ss)
-		defer bob.Close(t)
 		bobStopSyncing := bob.StartSyncing(t)
 		defer bobStopSyncing()
-		time.Sleep(time.Second) // TODO: find another way to wait until initial sync is done
 
 		isEncrypted, err = bob.IsRoomEncrypted(t, roomID)
 		must.NotError(t, "failed to check if room is encrypted", err)
