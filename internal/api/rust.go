@@ -30,12 +30,12 @@ type RustRoomInfo struct {
 }
 
 type RustClient struct {
-	FFIClient   *matrix_sdk_ffi.Client
-	rooms       map[string]*RustRoomInfo
-	listeners   map[int32]func(roomID string)
-	listenerID  atomic.Int32
-	userID      string
-	syncService *matrix_sdk_ffi.SyncService
+	FFIClient  *matrix_sdk_ffi.Client
+	rooms      map[string]*RustRoomInfo
+	listeners  map[int32]func(roomID string)
+	listenerID atomic.Int32
+	userID     string
+	// syncService *matrix_sdk_ffi.SyncService
 }
 
 func NewRustClient(t *testing.T, opts ClientCreationOpts, ssURL string) (Client, error) {
@@ -59,13 +59,12 @@ func NewRustClient(t *testing.T, opts ClientCreationOpts, ssURL string) (Client,
 		rooms:     make(map[string]*RustRoomInfo),
 		listeners: make(map[int32]func(roomID string)),
 	}
-	c.logf(t, "NewRustClient[%s] created client", opts.UserID)
-	return c, nil
+	c.Logf(t, "NewRustClient[%s] created client", opts.UserID)
+	return &LoggedClient{Client: c}, nil
 }
 
 func (c *RustClient) Close(t *testing.T) {
 	t.Helper()
-	c.logf(t, "Close[%s]", c.userID)
 	c.FFIClient.Destroy()
 }
 
@@ -73,11 +72,34 @@ func (c *RustClient) Close(t *testing.T) {
 // Tests should call stopSyncing() at the end of the test.
 func (c *RustClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 	t.Helper()
-	c.logf(t, "StartSyncing[%s]", c.userID)
 	syncService, err := c.FFIClient.SyncService().FinishBlocking()
 	must.NotError(t, fmt.Sprintf("[%s]failed to make sync service", c.userID), err)
-	c.syncService = syncService
+	//c.syncService = syncService
+	/* ch := make(chan matrix_sdk_ffi.SyncServiceState, 10)
+	th := syncService.State(&syncServiceStateObserver{
+		ch: ch,
+	}) */
 	go syncService.StartBlocking()
+
+	/*
+		isSyncing := false
+
+		for !isSyncing {
+			select {
+			case <-time.After(5 * time.Second):
+				t.Fatalf("timed out after 5s StartSyncing")
+			case state := <-ch:
+				fmt.Println(state)
+				if state == matrix_sdk_ffi.SyncServiceStateRunning {
+					isSyncing = true
+				}
+			}
+		}
+
+		th.Cancel() */
+
+	time.Sleep(time.Second)
+
 	return func() {
 		t.Logf("%s: Stopping sync service", c.userID)
 		syncService.StopBlocking()
@@ -88,7 +110,6 @@ func (c *RustClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 // provide a bogus room ID.
 func (c *RustClient) IsRoomEncrypted(t *testing.T, roomID string) (bool, error) {
 	t.Helper()
-	c.logf(t, "IsRoomEncrypted[%s] %s", c.userID, roomID)
 	r := c.findRoom(roomID)
 	if r == nil {
 		rooms := c.FFIClient.Rooms()
@@ -99,7 +120,6 @@ func (c *RustClient) IsRoomEncrypted(t *testing.T, roomID string) (bool, error) 
 
 func (c *RustClient) WaitUntilEventInRoom(t *testing.T, roomID string, checker func(Event) bool) Waiter {
 	t.Helper()
-	c.logf(t, "WaitUntilEventInRoom[%s] %s", c.userID, roomID)
 	c.ensureListening(t, roomID)
 	return &timelineWaiter{
 		roomID:  roomID,
@@ -116,7 +136,6 @@ func (c *RustClient) Type() ClientType {
 // room. Returns the event ID of the sent event.
 func (c *RustClient) SendMessage(t *testing.T, roomID, text string) {
 	t.Helper()
-	c.logf(t, "SendMessage[%s] %s => %s", c.userID, roomID, text)
 	// we need a timeline listener before we can send messages, AND that listener must be attached to the
 	// same *Room you call .Send on :S
 	r := c.ensureListening(t, roomID)
@@ -126,12 +145,15 @@ func (c *RustClient) SendMessage(t *testing.T, roomID, text string) {
 
 func (c *RustClient) MustBackpaginate(t *testing.T, roomID string, count int) {
 	t.Helper()
-	c.logf(t, "[%s] MustBackpaginate %d %s", c.userID, count, roomID)
 	r := c.findRoom(roomID)
 	must.NotEqual(t, r, nil, "unknown room")
 	must.NotError(t, "failed to backpaginate", r.PaginateBackwards(matrix_sdk_ffi.PaginationOptionsSingleRequest{
 		EventLimit: uint16(count),
 	}))
+}
+
+func (c *RustClient) UserID() string {
+	return c.userID
 }
 
 func (c *RustClient) findRoom(roomID string) *matrix_sdk_ffi.Room {
@@ -152,7 +174,7 @@ func (c *RustClient) findRoom(roomID string) *matrix_sdk_ffi.Room {
 	return nil
 }
 
-func (c *RustClient) logf(t *testing.T, format string, args ...interface{}) {
+func (c *RustClient) Logf(t *testing.T, format string, args ...interface{}) {
 	t.Helper()
 	matrix_sdk_ffi.LogEvent("rust.go", &zero, matrix_sdk_ffi.LogLevelInfo, t.Name(), fmt.Sprintf(format, args...))
 	t.Logf(format, args...)
@@ -341,6 +363,8 @@ func timelineItemToEvent(item *matrix_sdk_ffi.TimelineItem) *Event {
 		case matrix_sdk_ffi.MembershipChangeKickedAndBanned:
 			complementEvent.Membership = "ban"
 		case matrix_sdk_ffi.MembershipChangeJoined:
+			fallthrough
+		case matrix_sdk_ffi.MembershipChangeInvitationAccepted:
 			complementEvent.Membership = "join"
 		case matrix_sdk_ffi.MembershipChangeLeft:
 			fallthrough
@@ -366,4 +390,12 @@ func timelineItemToEvent(item *matrix_sdk_ffi.TimelineItem) *Event {
 		}
 	}
 	return &complementEvent
+}
+
+type syncServiceStateObserver struct {
+	ch chan matrix_sdk_ffi.SyncServiceState
+}
+
+func (s *syncServiceStateObserver) OnUpdate(state matrix_sdk_ffi.SyncServiceState) {
+	s.ch <- state
 }

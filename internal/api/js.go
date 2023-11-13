@@ -148,7 +148,7 @@ func NewJSClient(t *testing.T, opts ClientCreationOpts) (Client, error) {
 	jsc.ctx = ctx
 	jsc.cancel = cancel
 	jsc.baseJSURL = baseJSURL
-	return jsc, nil
+	return &LoggedClient{Client: jsc}, nil
 }
 
 // Close is called to clean up resources.
@@ -160,10 +160,36 @@ func (c *JSClient) Close(t *testing.T) {
 	c.listeners = make(map[int32]func(roomID string, ev Event))
 }
 
+func (c *JSClient) UserID() string {
+	return c.userID
+}
+
 // StartSyncing to begin syncing from sync v2 / sliding sync.
 // Tests should call stopSyncing() at the end of the test.
 func (c *JSClient) StartSyncing(t *testing.T) (stopSyncing func()) {
+	t.Logf("%s is starting to sync", c.userID)
+	chrome.MustExecute(t, c.ctx, fmt.Sprintf(`window.__client.on("sync", function(state) {
+		if (state !== "PREPARED") {
+			return;
+		}
+		console.log("%s"+"sync||{\"type\":\"sync\",\"content\":{}}");
+	});`, CONSOLE_LOG_CONTROL_STRING))
+	ch := make(chan struct{})
+	cancel := c.listenForUpdates(func(roomID string, ev Event) {
+		if roomID != "sync" {
+			return
+		}
+		close(ch)
+	})
 	chrome.AwaitExecute(t, c.ctx, `window.__client.startClient({});`)
+	select {
+	case <-time.After(5 * time.Second):
+		t.Fatalf("took >5s to StartSyncing")
+	case <-ch:
+	}
+	cancel()
+	t.Logf("%s is now syncing", c.userID)
+	time.Sleep(500 * time.Millisecond) // race condition means we don't query keys yet
 	return func() {
 		chrome.AwaitExecute(t, c.ctx, `window.__client.stopClient();`)
 	}
@@ -203,6 +229,13 @@ func (c *JSClient) WaitUntilEventInRoom(t *testing.T, roomID string, checker fun
 		checker: checker,
 		client:  c,
 	}
+}
+
+func (c *JSClient) Logf(t *testing.T, format string, args ...interface{}) {
+	t.Helper()
+	formatted := fmt.Sprintf(t.Name()+": "+format, args...)
+	chrome.MustExecute(t, c.ctx, fmt.Sprintf(`console.log("%s");`, formatted))
+	t.Logf(format, args...)
 }
 
 func (c *JSClient) Type() ClientType {

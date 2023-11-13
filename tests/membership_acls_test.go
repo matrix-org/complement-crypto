@@ -127,24 +127,26 @@ func TestCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T) {
 		// SDK testing below
 		// -----------------
 
-		// Alice logs in.
-		alice := MustLoginClient(t, clientTypeA, api.FromComplementClient(csapiAlice, "complement-crypto-password"), ss)
-		defer alice.Close(t)
-
-		// Bob logs in BEFORE Alice starts syncing. This is important because the act of logging in should cause
+		// Bob logs in BEFORE Alice. This is important because the act of logging in should cause
 		// Bob to upload OTKs which will be needed to send the encrypted event.
 		bob := MustLoginClient(t, clientTypeB, api.FromComplementClient(csapiBob, "complement-crypto-password"), ss)
 		defer bob.Close(t)
 
-		// Alice and Bob start syncing
-		aliceStopSyncing := alice.StartSyncing(t)
-		defer aliceStopSyncing()
+		// Alice logs in.
+		alice := MustLoginClient(t, clientTypeA, api.FromComplementClient(csapiAlice, "complement-crypto-password"), ss)
+		defer alice.Close(t)
+
+		// Alice and Bob start syncing.
+		// FIXME: Bob must sync before Alice otherwise Alice does not seem to get Bob's device in /keys/query. By putting
+		// Bob first, we ensure that the _first_ device list sync for the room includes Bob.
 		bobStopSyncing := bob.StartSyncing(t)
 		defer bobStopSyncing()
+		aliceStopSyncing := alice.StartSyncing(t)
+		defer aliceStopSyncing()
 
 		time.Sleep(time.Second) // TODO: find another way to wait until initial sync is done
 
-		wantMsgBody := "Hello world"
+		wantMsgBody := "Message sent when bob is invited not joined"
 
 		// Check the room is in fact encrypted
 		isEncrypted, err := alice.IsRoomEncrypted(t, roomID)

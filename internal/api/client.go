@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -24,6 +25,7 @@ type Client interface {
 	Close(t *testing.T)
 	// StartSyncing to begin syncing from sync v2 / sliding sync.
 	// Tests should call stopSyncing() at the end of the test.
+	// MUST BLOCK until the initial sync is complete.
 	StartSyncing(t *testing.T) (stopSyncing func())
 	// IsRoomEncrypted returns true if the room is encrypted. May return an error e.g if you
 	// provide a bogus room ID.
@@ -36,7 +38,57 @@ type Client interface {
 	WaitUntilEventInRoom(t *testing.T, roomID string, checker func(e Event) bool) Waiter
 	// Backpaginate in this room by `count` events.
 	MustBackpaginate(t *testing.T, roomID string, count int)
+	// Log something to stdout and the underlying client log file
+	Logf(t *testing.T, format string, args ...interface{})
+	// The user for this client
+	UserID() string
 	Type() ClientType
+}
+
+type LoggedClient struct {
+	Client
+}
+
+func (c *LoggedClient) Close(t *testing.T) {
+	t.Helper()
+	c.Logf(t, "%s Close", c.logPrefix())
+	c.Client.Close(t)
+}
+
+func (c *LoggedClient) StartSyncing(t *testing.T) (stopSyncing func()) {
+	t.Helper()
+	c.Logf(t, "%s StartSyncing starting to sync", c.logPrefix())
+	stopSyncing = c.Client.StartSyncing(t)
+	c.Logf(t, "%s StartSyncing now syncing", c.logPrefix())
+	return
+}
+
+func (c *LoggedClient) IsRoomEncrypted(t *testing.T, roomID string) (bool, error) {
+	t.Helper()
+	c.Logf(t, "%s IsRoomEncrypted %s", c.logPrefix(), roomID)
+	return c.Client.IsRoomEncrypted(t, roomID)
+}
+
+func (c *LoggedClient) SendMessage(t *testing.T, roomID, text string) {
+	t.Helper()
+	c.Logf(t, "%s SendMessage %s => %s", c.logPrefix(), roomID, text)
+	c.Client.SendMessage(t, roomID, text)
+}
+
+func (c *LoggedClient) WaitUntilEventInRoom(t *testing.T, roomID string, checker func(e Event) bool) Waiter {
+	t.Helper()
+	c.Logf(t, "%s WaitUntilEventInRoom %s", c.logPrefix(), roomID)
+	return c.Client.WaitUntilEventInRoom(t, roomID, checker)
+}
+
+func (c *LoggedClient) MustBackpaginate(t *testing.T, roomID string, count int) {
+	t.Helper()
+	c.Logf(t, "%s MustBackpaginate %d %s", c.logPrefix(), count, roomID)
+	c.Client.MustBackpaginate(t, roomID, count)
+}
+
+func (c *LoggedClient) logPrefix() string {
+	return fmt.Sprintf("[%s](%s)", c.UserID(), c.Type())
 }
 
 // ClientCreationOpts are generic opts to use when creating crypto clients.
