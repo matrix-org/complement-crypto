@@ -144,8 +144,6 @@ func TestCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T) {
 		aliceStopSyncing := alice.StartSyncing(t)
 		defer aliceStopSyncing()
 
-		time.Sleep(time.Second) // TODO: find another way to wait until initial sync is done
-
 		wantMsgBody := "Message sent when bob is invited not joined"
 
 		// Check the room is in fact encrypted
@@ -158,6 +156,8 @@ func TestCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T) {
 		// wait for SS proxy to get it. Only needed when testing Rust TODO FIXME
 		// Without this, the join will race with sending the msg and you could end up with the
 		// message being sent POST join, which breaks the point of this test.
+		// kegan: I think this happens because SendMessage on Rust does not block until a 200 OK
+		// because it allows for local echo. Can we fix the RustClient?
 		time.Sleep(time.Second)
 
 		// Bob joins the room (via Complement, but it shouldn't matter)
