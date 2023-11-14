@@ -190,6 +190,10 @@ func (c *JSClient) UserID() string {
 	return c.userID
 }
 
+func (c *JSClient) MustGetEvent(t *testing.T, roomID, eventID string) Event {
+	return Event{}
+}
+
 // StartSyncing to begin syncing from sync v2 / sliding sync.
 // Tests should call stopSyncing() at the end of the test.
 func (c *JSClient) StartSyncing(t *testing.T) (stopSyncing func()) {

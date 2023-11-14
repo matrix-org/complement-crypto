@@ -38,6 +38,8 @@ type Client interface {
 	WaitUntilEventInRoom(t *testing.T, roomID string, checker func(e Event) bool) Waiter
 	// Backpaginate in this room by `count` events.
 	MustBackpaginate(t *testing.T, roomID string, count int)
+	// MustGetEvent will return the client's view of this event, or fail the test if the event cannot be found.
+	MustGetEvent(t *testing.T, roomID, eventID string) Event
 	// Log something to stdout and the underlying client log file
 	Logf(t *testing.T, format string, args ...interface{})
 	// The user for this client

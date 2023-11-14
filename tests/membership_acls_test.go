@@ -179,7 +179,6 @@ func TestCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T) {
 	})
 }
 
-/*
 // In a public, `shared` history visibility room, a new user Bob cannot decrypt earlier messages prior to his join,
 // despite being able to see the events. Subsequent messages are decryptable.
 func TestBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
@@ -198,7 +197,7 @@ func TestBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 		})
 		roomID := csapiAlice.MustCreateRoom(t, map[string]interface{}{
 			"name":   "TestBobCanSeeButNotDecryptHistoryInPublicRoom",
-			"preset": "public_chat",
+			"preset": "public_chat", // shared history visibility
 			"initial_state": []map[string]interface{}{
 				{
 					"type":      "m.room.encryption",
@@ -209,12 +208,12 @@ func TestBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 				},
 			},
 		})
-		// TODO csapiBob.MustJoinRoom(t, roomID, []string{"hs1"})
 		ss := deployment.SlidingSyncURL(t)
 
 		// SDK testing below
 		// -----------------
-		// Alice and Bob are present with keys uploaded etc
+
+		// login both clients first, so OTKs etc are uploaded.
 		alice := MustLoginClient(t, clientTypeA, api.FromComplementClient(csapiAlice, "complement-crypto-password"), ss)
 		defer alice.Close(t)
 		bob := MustLoginClient(t, clientTypeB, api.FromComplementClient(csapiBob, "complement-crypto-password"), ss)
@@ -225,47 +224,23 @@ func TestBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 		defer aliceStopSyncing()
 		bobStopSyncing := bob.StartSyncing(t)
 		defer bobStopSyncing()
-		time.Sleep(time.Second) // TODO: find another way to wait until initial sync is done
 
-		undecryptableBody := "Bob cannot decrypt this"
+		// Alice sends a message which Bob should not be able to decrypt
+		beforeJoinBody := "Before Bob joins"
+		waiter := alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(beforeJoinBody))
+		evID := alice.SendMessage(t, roomID, beforeJoinBody)
+		t.Logf("alice (%s) waiting for event %s", alice.Type(), evID)
+		waiter.Wait(t, 5*time.Second)
 
-		// Check the room is in fact encrypted
-		isEncrypted, err := alice.IsRoomEncrypted(t, roomID)
-		must.NotError(t, "failed to check if room is encrypted", err)
-		must.Equal(t, isEncrypted, true, "room is not encrypted when it should be")
+		// now bob joins the room
+		csapiBob.MustJoinRoom(t, roomID, []string{"hs1"})
+		time.Sleep(time.Second) // wait for it to appear on the client else rust crashes if it cannot find the room FIXME
+		waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(bob.UserID(), "join"))
+		waiter.Wait(t, 5*time.Second)
 
-		// Alice sends a message to herself in this public room
-		aliceWaiter := alice.WaitUntilEventInRoom(t, roomID, undecryptableBody)
-		alice.SendMessage(t, roomID, undecryptableBody)
-		t.Logf("alice (%s) waiting for event", alice.Type())
-		aliceWaiter.Wait(t, 5*time.Second)
-
-		// Bob joins the room
-		csapiBob.JoinRoom(t, roomID, []string{"hs1"})
-		time.Sleep(time.Second) // TODO alice waits until she sees bob's join
-
-		// Alice sends a new message which Bob should be able to decrypt
-		decryptableBody := "Bob can decrypt this"
-		aliceWaiter = alice.WaitUntilEventInRoom(t, roomID, decryptableBody)
-		// Rust SDK listener doesn't seem to always catch this unless we are listening before the message is sent
-		bobWaiter := bob.WaitUntilEventInRoom(t, roomID, decryptableBody)
-		alice.SendMessage(t, roomID, decryptableBody)
-		t.Logf("alice (%s) waiting for event", alice.Type())
-		aliceWaiter.Wait(t, 5*time.Second)
-
-		isEncrypted, err = bob.IsRoomEncrypted(t, roomID)
-		must.NotError(t, "failed to check if room is encrypted", err)
-		must.Equal(t, isEncrypted, true, "room is not encrypted")
-		t.Logf("bob room encrypted = %v", isEncrypted)
-
-		// Bob receives the decryptable message
-		t.Logf("bob (%s) waiting for event", bob.Type())
-		bobWaiter.Wait(t, 5*time.Second)
-
-		// Bob attempts to backpaginate to see the older message
-		bob.MustBackpaginate(t, roomID, 5) // arbitrary, must be >2
-
-		// TODO Ensure Bob cannot see the undecrypted content, find the event by event ID to confirm
-
+		// bob hits scrollback and should see but not be able to decrypt the message
+		bob.MustBackpaginate(t, roomID, 5)
+		ev := bob.MustGetEvent(t, roomID, evID) // TODO
+		must.NotEqual(t, ev.Text, beforeJoinBody, "bob was able to decrypt a message from before he was joined")
 	})
-} */
+}

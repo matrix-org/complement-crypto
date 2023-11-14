@@ -68,6 +68,10 @@ func (c *RustClient) Close(t *testing.T) {
 	c.FFIClient.Destroy()
 }
 
+func (c *RustClient) MustGetEvent(t *testing.T, roomID, eventID string) Event {
+	return Event{}
+}
+
 // StartSyncing to begin syncing from sync v2 / sliding sync.
 // Tests should call stopSyncing() at the end of the test.
 func (c *RustClient) StartSyncing(t *testing.T) (stopSyncing func()) {
@@ -214,7 +218,7 @@ func (c *RustClient) ensureListening(t *testing.T, roomID string) *matrix_sdk_ff
 		return r
 	}
 
-	t.Logf("[%s]AddTimelineListenerBlocking[%s]", c.userID, roomID)
+	t.Logf("[%s]AddTimelineListener[%s]", c.userID, roomID)
 	// we need a timeline listener before we can send messages
 	r.AddTimelineListener(&timelineListener{fn: func(diff []*matrix_sdk_ffi.TimelineDiff) {
 		timeline := c.rooms[roomID].timeline
