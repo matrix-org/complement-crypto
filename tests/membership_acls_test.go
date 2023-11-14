@@ -80,10 +80,10 @@ func TestAliceBobEncryptionWorks(t *testing.T) {
 		t.Logf("bob room encrypted = %v", isEncrypted)
 
 		waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
-		alice.SendMessage(t, roomID, wantMsgBody)
+		evID := alice.SendMessage(t, roomID, wantMsgBody)
 
 		// Bob receives the message
-		t.Logf("bob (%s) waiting for event", bob.Type())
+		t.Logf("bob (%s) waiting for event %s", bob.Type(), evID)
 		waiter.Wait(t, 5*time.Second)
 	})
 }
@@ -153,12 +153,6 @@ func TestCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T) {
 
 		// Alice sends the message whilst Bob is still invited.
 		alice.SendMessage(t, roomID, wantMsgBody)
-		// wait for SS proxy to get it. Only needed when testing Rust TODO FIXME
-		// Without this, the join will race with sending the msg and you could end up with the
-		// message being sent POST join, which breaks the point of this test.
-		// kegan: I think this happens because SendMessage on Rust does not block until a 200 OK
-		// because it allows for local echo. Can we fix the RustClient?
-		time.Sleep(time.Second)
 
 		// Bob joins the room (via Complement, but it shouldn't matter)
 		csapiBob.MustJoinRoom(t, roomID, []string{"hs1"})

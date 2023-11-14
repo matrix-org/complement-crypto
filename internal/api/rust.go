@@ -8,6 +8,7 @@ import (
 
 	"github.com/matrix-org/complement-crypto/rust/matrix_sdk_ffi"
 	"github.com/matrix-org/complement/must"
+	"golang.org/x/exp/slices"
 )
 
 func init() {
@@ -87,7 +88,7 @@ func (c *RustClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 	for !isSyncing {
 		select {
 		case <-time.After(5 * time.Second):
-			t.Fatalf("timed out after 5s StartSyncing")
+			t.Fatalf("[%s](rust) timed out after 5s StartSyncing", c.userID)
 		case state := <-ch:
 			fmt.Println(state)
 			switch state.(type) {
@@ -135,13 +136,36 @@ func (c *RustClient) Type() ClientType {
 
 // SendMessage sends the given text as an m.room.message with msgtype:m.text into the given
 // room. Returns the event ID of the sent event.
-func (c *RustClient) SendMessage(t *testing.T, roomID, text string) {
+func (c *RustClient) SendMessage(t *testing.T, roomID, text string) (eventID string) {
 	t.Helper()
+	ch := make(chan bool)
 	// we need a timeline listener before we can send messages, AND that listener must be attached to the
 	// same *Room you call .Send on :S
 	r := c.ensureListening(t, roomID)
-	t.Logf("%s: SendMessage[%s]: '%s'", c.userID, roomID, text)
+	cancel := c.listenForUpdates(func(roomID string) {
+		info := c.rooms[roomID]
+		if info == nil {
+			return
+		}
+		for _, ev := range info.timeline {
+			if ev == nil {
+				continue
+			}
+			if ev.Text == text && ev.ID != "" {
+				eventID = ev.ID
+				close(ch)
+			}
+		}
+	})
+	defer cancel()
 	r.Send(matrix_sdk_ffi.MessageEventContentFromHtml(text, text))
+	select {
+	case <-time.After(5 * time.Second):
+		t.Fatalf("SendMessage: timed out after 5s")
+	case <-ch:
+		return
+	}
+	return
 }
 
 func (c *RustClient) MustBackpaginate(t *testing.T, roomID string, count int) {
@@ -206,14 +230,7 @@ func (c *RustClient) ensureListening(t *testing.T, roomID string) *matrix_sdk_ff
 					t.Logf("TimelineListener[%s] INSERT %d out of bounds of events timeline of size %d", roomID, i, len(timeline))
 					continue
 				}
-				if timeline[i] != nil {
-					// shift the item in this position right and insert this item
-					timeline = append(timeline, nil)
-					copy(timeline[i+1:], timeline[i:])
-					timeline[i] = timelineItemToEvent(insertData.Item)
-				} else {
-					timeline[i] = timelineItemToEvent(insertData.Item)
-				}
+				timeline = slices.Insert(timeline, i, timelineItemToEvent(insertData.Item))
 				fmt.Printf("[%s]_______ INSERT %+v\n", c.userID, timeline[i])
 			case matrix_sdk_ffi.TimelineChangeAppend:
 				appendItems := d.Append()
@@ -225,7 +242,7 @@ func (c *RustClient) ensureListening(t *testing.T, roomID string) *matrix_sdk_ff
 					timeline = append(timeline, ev)
 					fmt.Printf("[%s]_______ APPEND %+v\n", c.userID, ev)
 				}
-			case matrix_sdk_ffi.TimelineChangePushBack:
+			case matrix_sdk_ffi.TimelineChangePushBack: // append but 1 element
 				pbData := d.PushBack()
 				if pbData == nil {
 					continue

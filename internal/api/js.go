@@ -156,6 +156,10 @@ func NewJSClient(t *testing.T, opts ClientCreationOpts) (Client, error) {
 func (c *JSClient) Close(t *testing.T) {
 	c.cancel()
 	c.listeners = make(map[int32]func(roomID string, ev Event))
+	if t.Failed() {
+		// print logs for this test
+
+	}
 }
 
 func (c *JSClient) UserID() string {
@@ -186,7 +190,7 @@ func (c *JSClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 	chrome.AwaitExecute(t, c.ctx, `window.__client.startClient({});`)
 	select {
 	case <-time.After(5 * time.Second):
-		t.Fatalf("took >5s to StartSyncing")
+		t.Fatalf("[%s](js) took >5s to StartSyncing", c.userID)
 	case <-ch:
 	}
 	cancel()
@@ -210,12 +214,13 @@ func (c *JSClient) IsRoomEncrypted(t *testing.T, roomID string) (bool, error) {
 
 // SendMessage sends the given text as an m.room.message with msgtype:m.text into the given
 // room.
-func (c *JSClient) SendMessage(t *testing.T, roomID, text string) {
-	err := chrome.AwaitExecute(t, c.ctx, fmt.Sprintf(`window.__client.sendMessage("%s", {
+func (c *JSClient) SendMessage(t *testing.T, roomID, text string) (eventID string) {
+	res, err := chrome.AwaitExecuteInto[map[string]interface{}](t, c.ctx, fmt.Sprintf(`window.__client.sendMessage("%s", {
 		"msgtype": "m.text",
 		"body": "%s"
 	});`, roomID, text))
 	must.NotError(t, "failed to sendMessage", err)
+	return (*res)["event_id"].(string)
 }
 
 func (c *JSClient) MustBackpaginate(t *testing.T, roomID string, count int) {

@@ -31,8 +31,8 @@ type Client interface {
 	// provide a bogus room ID.
 	IsRoomEncrypted(t *testing.T, roomID string) (bool, error)
 	// SendMessage sends the given text as an m.room.message with msgtype:m.text into the given
-	// room. Returns the event ID of the sent event.
-	SendMessage(t *testing.T, roomID, text string)
+	// room. Returns the event ID of the sent event, so MUST BLOCK until the event has been sent.
+	SendMessage(t *testing.T, roomID, text string) (eventID string)
 	// Wait until an event with the given body is seen. Not all impls expose event IDs
 	// hence needing to use body as a proxy.
 	WaitUntilEventInRoom(t *testing.T, roomID string, checker func(e Event) bool) Waiter
@@ -69,10 +69,12 @@ func (c *LoggedClient) IsRoomEncrypted(t *testing.T, roomID string) (bool, error
 	return c.Client.IsRoomEncrypted(t, roomID)
 }
 
-func (c *LoggedClient) SendMessage(t *testing.T, roomID, text string) {
+func (c *LoggedClient) SendMessage(t *testing.T, roomID, text string) (eventID string) {
 	t.Helper()
 	c.Logf(t, "%s SendMessage %s => %s", c.logPrefix(), roomID, text)
-	c.Client.SendMessage(t, roomID, text)
+	eventID = c.Client.SendMessage(t, roomID, text)
+	c.Logf(t, "%s SendMessage %s => %s", c.logPrefix(), roomID, eventID)
+	return
 }
 
 func (c *LoggedClient) WaitUntilEventInRoom(t *testing.T, roomID string, checker func(e Event) bool) Waiter {

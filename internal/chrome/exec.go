@@ -39,6 +39,21 @@ func AwaitExecute(t *testing.T, ctx context.Context, js string) error {
 	)
 }
 
+func AwaitExecuteInto[T any](t *testing.T, ctx context.Context, js string) (*T, error) {
+	t.Helper()
+	t.Log(js)
+	out := new(T)
+	err := chromedp.Run(ctx,
+		chromedp.Evaluate(js, &out, func(p *runtime.EvaluateParams) *runtime.EvaluateParams {
+			return p.WithAwaitPromise(true)
+		}),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func MustAwaitExecute(t *testing.T, ctx context.Context, js string) {
 	t.Helper()
 	err := AwaitExecute(t, ctx, js)
