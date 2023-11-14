@@ -62,7 +62,7 @@ func Deploy(t *testing.T) *deploy.SlidingSyncDeployment {
 	if ssDeployment != nil {
 		return ssDeployment
 	}
-	ssDeployment = deploy.RunNewDeployment(t)
+	ssDeployment = deploy.RunNewDeployment(t, os.Getenv("COMPLEMENT_CRYPTO_TCPDUMP") == "1")
 	return ssDeployment
 }
 

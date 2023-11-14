@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/url"
+	"os"
+	"os/exec"
 	"testing"
 	"time"
 
@@ -19,6 +22,7 @@ type SlidingSyncDeployment struct {
 	postgres       testcontainers.Container
 	slidingSync    testcontainers.Container
 	slidingSyncURL string
+	tcpdump        *exec.Cmd
 }
 
 func (d *SlidingSyncDeployment) SlidingSyncURL(t *testing.T) string {
@@ -41,9 +45,12 @@ func (d *SlidingSyncDeployment) Teardown() {
 			log.Fatalf("failed to stop postgres: %s", err)
 		}
 	}
+	if d.tcpdump != nil {
+		d.tcpdump.Process.Signal(os.Interrupt)
+	}
 }
 
-func RunNewDeployment(t *testing.T) *SlidingSyncDeployment {
+func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 	// allow 30s for everything to deploy
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -107,11 +114,26 @@ func RunNewDeployment(t *testing.T) *SlidingSyncDeployment {
 	t.Logf("  sliding sync: ssproxy    %s", ssURL)
 	t.Logf("  synapse:      hs1        %s", csapi.BaseURL)
 	t.Logf("  postgres:     postgres")
+	var cmd *exec.Cmd
+	if shouldTCPDump {
+		t.Log("Running tcpdump...")
+		su, _ := url.Parse(ssURL)
+		cu, _ := url.Parse(csapi.BaseURL)
+		filter := fmt.Sprintf("tcp port %s or port %s", su.Port(), cu.Port())
+		cmd = exec.Command("tcpdump", "-i", "any", "-s", "0", filter, "-w", "test.pcap")
+		t.Log(cmd.String())
+		if err := cmd.Start(); err != nil {
+			t.Fatalf("tcpdump failed: %v", err)
+		}
+		// TODO needs sudo
+		t.Logf("Started tcpdumping: PID %d", cmd.Process.Pid)
+	}
 	return &SlidingSyncDeployment{
 		Deployment:     deployment,
 		slidingSync:    ssContainer,
 		postgres:       postgresContainer,
 		slidingSyncURL: ssURL,
+		tcpdump:        cmd,
 	}
 }
 
