@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -25,6 +26,29 @@ const CONSOLE_LOG_CONTROL_STRING = "CC:" // for "complement-crypto"
 
 //go:embed dist
 var jsSDKDistDirectory embed.FS
+
+var logFile *os.File
+
+func SetupJSLogs(filename string) {
+	var err error
+	logFile, err = os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0666)
+	if err != nil {
+		panic(err)
+	}
+	logFile.Truncate(0)
+}
+
+func WriteJSLogs() {
+	logFile.Close()
+}
+
+func writeToLog(s string, args ...interface{}) {
+	str := fmt.Sprintf(s, args...)
+	_, err := logFile.WriteString(time.Now().Format("15:04:05.000000Z07:00") + " " + str)
+	if err != nil {
+		panic(err)
+	}
+}
 
 type JSClient struct {
 	ctx        context.Context
@@ -54,7 +78,7 @@ func NewJSClient(t *testing.T, opts ClientCreationOpts) (Client, error) {
 					s = string(arg.Value)
 				}
 				// TODO: debug mode only?
-				colorify("[%s] console.log %s\n", opts.UserID, s)
+				writeToLog("[%s] console.log %s\n", opts.UserID, s)
 
 				if strings.HasPrefix(s, CONSOLE_LOG_CONTROL_STRING) {
 					val := strings.TrimPrefix(s, CONSOLE_LOG_CONTROL_STRING)
@@ -62,7 +86,7 @@ func NewJSClient(t *testing.T, opts ClientCreationOpts) (Client, error) {
 					segs := strings.Split(val, "||")
 					var ev JSEvent
 					if err := json.Unmarshal([]byte(segs[1]), &ev); err != nil {
-						colorify("[%s] failed to unmarshal event '%s' into Go %s\n", opts.UserID, segs[1], err)
+						writeToLog("[%s] failed to unmarshal event '%s' into Go %s\n", opts.UserID, segs[1], err)
 						continue
 					}
 					for _, l := range jsc.listeners {
@@ -190,7 +214,7 @@ func (c *JSClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 	chrome.AwaitExecute(t, c.ctx, `window.__client.startClient({});`)
 	select {
 	case <-time.After(5 * time.Second):
-		t.Fatalf("[%s](js) took >5s to StartSyncing", c.userID)
+		fatalf(t, "[%s](js) took >5s to StartSyncing", c.userID)
 	case <-ch:
 	}
 	cancel()
@@ -286,25 +310,17 @@ func (w *jsTimelineWaiter) Wait(t *testing.T, s time.Duration) {
 	for {
 		timeLeft := s - time.Since(start)
 		if timeLeft <= 0 {
-			t.Fatalf("%s: Wait[%s]: timed out", w.client.userID, w.roomID)
+			fatalf(t, "%s: Wait[%s]: timed out", w.client.userID, w.roomID)
 		}
 		select {
 		case <-time.After(timeLeft):
-			t.Fatalf("%s: Wait[%s]: timed out", w.client.userID, w.roomID)
+			fatalf(t, "%s: Wait[%s]: timed out", w.client.userID, w.roomID)
 		case <-updates:
 			return
 		}
 	}
 }
 
-const ansiYellowForeground = "\x1b[33m"
-const ansiRedForeground = "\x1b[31m"
-const ansiResetForeground = "\x1b[39m"
-
-func colorify(format string, args ...any) {
-	format = ansiYellowForeground + time.Now().Format(time.RFC3339) + " " + format + ansiResetForeground
-	fmt.Printf(format, args...)
-}
 func colorifyError(format string, args ...any) {
 	format = ansiRedForeground + time.Now().Format(time.RFC3339) + " " + format + ansiResetForeground
 	fmt.Printf(format, args...)

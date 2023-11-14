@@ -143,3 +143,20 @@ func CheckEventHasMembership(target, membership string) func(e Event) bool {
 		return e.Membership == membership && e.Target == target
 	}
 }
+
+const ansiRedForeground = "\x1b[31m"
+const ansiResetForeground = "\x1b[39m"
+
+// errorf is a wrapper around t.Errorf which prints the failing error message in red.
+func errorf(t *testing.T, format string, args ...any) {
+	t.Helper()
+	format = ansiRedForeground + format + ansiResetForeground
+	t.Errorf(format, args...)
+}
+
+// fatalf is a wrapper around t.Fatalf which prints the failing error message in red.
+func fatalf(t *testing.T, format string, args ...any) {
+	t.Helper()
+	format = ansiRedForeground + format + ansiResetForeground
+	t.Fatalf(format, args...)
+}

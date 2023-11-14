@@ -17,7 +17,7 @@ func init() {
 		Filter:                "debug",
 		WriteToFiles: &matrix_sdk_ffi.TracingFileConfiguration{
 			Path:       ".",
-			FilePrefix: "rust_sdk",
+			FilePrefix: "rust_sdk_logs",
 		},
 	})
 }
@@ -88,7 +88,7 @@ func (c *RustClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 	for !isSyncing {
 		select {
 		case <-time.After(5 * time.Second):
-			t.Fatalf("[%s](rust) timed out after 5s StartSyncing", c.userID)
+			fatalf(t, "[%s](rust) timed out after 5s StartSyncing", c.userID)
 		case state := <-ch:
 			fmt.Println(state)
 			switch state.(type) {
@@ -161,7 +161,7 @@ func (c *RustClient) SendMessage(t *testing.T, roomID, text string) (eventID str
 	r.Send(matrix_sdk_ffi.MessageEventContentFromHtml(text, text))
 	select {
 	case <-time.After(5 * time.Second):
-		t.Fatalf("SendMessage: timed out after 5s")
+		fatalf(t, "SendMessage: timed out after 5s")
 	case <-ch:
 		return
 	}
@@ -331,11 +331,11 @@ func (w *timelineWaiter) Wait(t *testing.T, s time.Duration) {
 	for {
 		timeLeft := s - time.Since(start)
 		if timeLeft <= 0 {
-			t.Fatalf("%s: Wait[%s]: timed out", w.client.userID, w.roomID)
+			fatalf(t, "%s: Wait[%s]: timed out", w.client.userID, w.roomID)
 		}
 		select {
 		case <-time.After(timeLeft):
-			t.Fatalf("%s: Wait[%s]: timed out", w.client.userID, w.roomID)
+			fatalf(t, "%s: Wait[%s]: timed out", w.client.userID, w.roomID)
 		case <-updates:
 			if checkForEvent() {
 				return

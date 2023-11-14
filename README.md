@@ -24,6 +24,8 @@ COMPLEMENT_BASE_IMAGE=homeserver:latest go test -v ./tests
 
 TODO: consider checking in working builds so you can git clone and run. Git LFS for `libmatrix_sdk_ffi.so` given it's 60MB?
 
+If you get failing tests, JS SDK logs to file as does Rust SDK in `./tests`, which are uploaded to GHA as artifacts. You can then grep for the test name to find the right place in the file e.g `grep 'TestAliceBobEncryptionWorks/js|js' tests/js_sdk.log`.
+
 #### Environment Variables
 
 - `COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX` : Comma separated clients to run. Default: `jj,jr,rj,rr`

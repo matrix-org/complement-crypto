@@ -49,7 +49,9 @@ func TestMain(m *testing.M) {
 			ssDeployment.Teardown()
 		}
 		ssMutex.Unlock()
+		api.WriteJSLogs()
 	}()
+	api.SetupJSLogs("js_sdk.log") // rust sdk logs on its own
 	complement.TestMain(m, "crypto")
 
 }
