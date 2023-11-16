@@ -6,8 +6,9 @@ require (
 	github.com/chromedp/cdproto v0.0.0-20231025043423-5615e204d422
 	github.com/chromedp/chromedp v0.9.3
 	github.com/docker/go-connections v0.4.0
-	github.com/matrix-org/complement v0.0.0-20231030161126-e811566d9bb6
+	github.com/matrix-org/complement v0.0.0-20231116184323-62f59c436d00
 	github.com/testcontainers/testcontainers-go v0.26.0
+	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 )
 
 require (
@@ -58,7 +59,6 @@ require (
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	golang.org/x/crypto v0.14.0 // indirect
-	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
 	golang.org/x/mod v0.12.0 // indirect
 	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/sys v0.13.0 // indirect

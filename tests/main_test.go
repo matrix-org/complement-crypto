@@ -43,17 +43,15 @@ func TestMain(m *testing.M) {
 		testClientMatrix = append(testClientMatrix, testCase)
 	}
 	ssMutex = &sync.Mutex{}
-	defer func() { // always teardown even if panicking
+	api.SetupJSLogs("js_sdk.log")                        // rust sdk logs on its own
+	complement.TestMainWithCleanup(m, "crypto", func() { // always teardown even if panicking
 		ssMutex.Lock()
 		if ssDeployment != nil {
 			ssDeployment.Teardown()
 		}
 		ssMutex.Unlock()
 		api.WriteJSLogs()
-	}()
-	api.SetupJSLogs("js_sdk.log") // rust sdk logs on its own
-	complement.TestMain(m, "crypto")
-
+	})
 }
 
 func Deploy(t *testing.T) *deploy.SlidingSyncDeployment {

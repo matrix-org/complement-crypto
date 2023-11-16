@@ -83,8 +83,8 @@ github.com/magiconair/properties v1.8.7 h1:IeQXZAiQcpL9mgcAe1Nu6cX9LLw6ExEHKjN0V
 github.com/magiconair/properties v1.8.7/go.mod h1:Dhd985XPs7jluiymwWYZ0G4Z61jb3vdS329zhj2hYo0=
 github.com/mailru/easyjson v0.7.7 h1:UGYAvKxe3sBsEDzO8ZeWOSlIQfWFlxbzLZe7hwFURr0=
 github.com/mailru/easyjson v0.7.7/go.mod h1:xzfreul335JAWq5oZzymOObrkdz5UnU4kGfJJLY9Nlc=
-github.com/matrix-org/complement v0.0.0-20231030161126-e811566d9bb6 h1:CooPBAdWBGghbspoZj83k12XC/6c/ofmTg52R8Zy5NU=
-github.com/matrix-org/complement v0.0.0-20231030161126-e811566d9bb6/go.mod h1:UQqYuClBEPysOJJU4MKWVSna3ev8q56aV6OeYm0lk3g=
+github.com/matrix-org/complement v0.0.0-20231116184323-62f59c436d00 h1:nljG6wWK2IgqNFCkGXllzsDEm7EDNEcUn3XyoUSVouI=
+github.com/matrix-org/complement v0.0.0-20231116184323-62f59c436d00/go.mod h1:MpFg8YqIgcfReuwX5x0HyIsxkekKyUvbXxY6ey9LeE0=
 github.com/matrix-org/gomatrix v0.0.0-20220926102614-ceba4d9f7530 h1:kHKxCOLcHH8r4Fzarl4+Y3K5hjothkVW5z7T1dUM11U=
 github.com/matrix-org/gomatrix v0.0.0-20220926102614-ceba4d9f7530/go.mod h1:/gBX06Kw0exX1HrwmoBibFA98yBk/jxKpGVeyQbff+s=
 github.com/matrix-org/gomatrixserverlib v0.0.0-20230921171121-0466775328c7 h1:NhPNNFLHwdDb/upeicBh1GkxX/sFinEp5HF1WBqPtiY=

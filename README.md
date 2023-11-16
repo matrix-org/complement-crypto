@@ -30,6 +30,7 @@ If you get failing tests, JS SDK logs to file as does Rust SDK in `./tests`, whi
 
 - `COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX` : Comma separated clients to run. Default: `jj,jr,rj,rr`
    Control which kinds of clients to make for tests. `r` creates Rust client. `j` creates JS clients. The default runs all permutations.
+- `COMPLEMENT_CRYPTO_TCPDUMP`: If `1`, will execute `tcpdump` automatically when the servers are running on the dynamic ports being used. To run this, `go test` must be run with `sudo -E` (preserve env vars for configuration) e.g `COMPLEMENT_BASE_IMAGE=homeserver:latest sudo -E go test ./tests`. Listens for synapse and sliding sync traffic.
 
 
 ### Test hitlist

@@ -46,6 +46,7 @@ func (d *SlidingSyncDeployment) Teardown() {
 		}
 	}
 	if d.tcpdump != nil {
+		fmt.Println("Killing tcpdump...")
 		d.tcpdump.Process.Signal(os.Interrupt)
 	}
 }
