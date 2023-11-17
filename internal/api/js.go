@@ -314,7 +314,7 @@ func (c *JSClient) Logf(t *testing.T, format string, args ...interface{}) {
 	t.Logf(format, args...)
 }
 
-func (c *JSClient) Type() ClientType {
+func (c *JSClient) Type() ClientTypeLang {
 	return ClientTypeJS
 }
 

@@ -8,12 +8,17 @@ import (
 	"github.com/matrix-org/complement/client"
 )
 
-type ClientType string
+type ClientTypeLang string
 
 var (
-	ClientTypeRust ClientType = "rust"
-	ClientTypeJS   ClientType = "js"
+	ClientTypeRust ClientTypeLang = "rust"
+	ClientTypeJS   ClientTypeLang = "js"
 )
+
+type ClientType struct {
+	Lang ClientTypeLang // rust or js
+	HS   string         // hs1 or hs2
+}
 
 // Client represents a generic crypto client.
 // It is an abstraction to allow tests to interact with JS and FFI bindings in an agnostic way.
@@ -44,7 +49,7 @@ type Client interface {
 	Logf(t *testing.T, format string, args ...interface{})
 	// The user for this client
 	UserID() string
-	Type() ClientType
+	Type() ClientTypeLang
 }
 
 type LoggedClient struct {

@@ -33,9 +33,21 @@ func TestMain(m *testing.M) {
 		for i, ch := range val {
 			switch ch {
 			case 'r':
-				testCase[i] = api.ClientTypeRust
+				testCase[i] = api.ClientType{
+					Lang: api.ClientTypeRust,
+					HS:   "hs1",
+				}
 			case 'j':
-				testCase[i] = api.ClientTypeJS
+				testCase[i] = api.ClientType{
+					Lang: api.ClientTypeJS,
+					HS:   "hs1",
+				}
+			case 'J':
+				testCase[i] = api.ClientType{
+					Lang: api.ClientTypeRust,
+					HS:   "hs2",
+				}
+			// TODO: case 'R': requires 2x sliding syncs / postgres
 			default:
 				panic("COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX bad value: " + val)
 			}
@@ -74,7 +86,7 @@ func ClientTypeMatrix(t *testing.T, subTest func(tt *testing.T, a, b api.ClientT
 }
 
 func MustLoginClient(t *testing.T, clientType api.ClientType, opts api.ClientCreationOpts, ssURL string) api.Client {
-	switch clientType {
+	switch clientType.Lang {
 	case api.ClientTypeRust:
 		c, err := api.NewRustClient(t, opts, ssURL)
 		must.NotError(t, "NewRustClient: %s", err)

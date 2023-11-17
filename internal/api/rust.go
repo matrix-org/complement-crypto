@@ -149,7 +149,7 @@ func (c *RustClient) WaitUntilEventInRoom(t *testing.T, roomID string, checker f
 	}
 }
 
-func (c *RustClient) Type() ClientType {
+func (c *RustClient) Type() ClientTypeLang {
 	return ClientTypeRust
 }
 

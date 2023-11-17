@@ -25,11 +25,11 @@ func TestAliceBobEncryptionWorks(t *testing.T) {
 		// ----------
 		deployment := Deploy(t)
 		// pre-register alice and bob
-		csapiAlice := deployment.Register(t, "hs1", helpers.RegistrationOpts{
+		csapiAlice := deployment.Register(t, clientTypeA.HS, helpers.RegistrationOpts{
 			LocalpartSuffix: "alice",
 			Password:        "complement-crypto-password",
 		})
-		csapiBob := deployment.Register(t, "hs1", helpers.RegistrationOpts{
+		csapiBob := deployment.Register(t, clientTypeB.HS, helpers.RegistrationOpts{
 			LocalpartSuffix: "bob",
 			Password:        "complement-crypto-password",
 		})
@@ -47,21 +47,17 @@ func TestAliceBobEncryptionWorks(t *testing.T) {
 				},
 			},
 		})
-		csapiBob.MustJoinRoom(t, roomID, []string{"hs1"})
+		csapiBob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 		ss := deployment.SlidingSyncURL(t)
 
 		// SDK testing below
 		// -----------------
 
 		// login both clients first, so OTKs etc are uploaded.
-		// We sign in Bob first to try to encourage Alice to get a device list
-		// update with bob's device keys, which will be important when Alice
-		// sends the event.
-		bob := MustLoginClient(t, clientTypeB, api.FromComplementClient(csapiBob, "complement-crypto-password"), ss)
-		defer bob.Close(t)
-		time.Sleep(500 * time.Millisecond)
 		alice := MustLoginClient(t, clientTypeA, api.FromComplementClient(csapiAlice, "complement-crypto-password"), ss)
 		defer alice.Close(t)
+		bob := MustLoginClient(t, clientTypeB, api.FromComplementClient(csapiBob, "complement-crypto-password"), ss)
+		defer bob.Close(t)
 
 		// Alice starts syncing
 		aliceStopSyncing := alice.StartSyncing(t)
@@ -103,11 +99,11 @@ func TestCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T) {
 		// ----------
 		deployment := Deploy(t)
 		// pre-register alice and bob
-		csapiAlice := deployment.Register(t, "hs1", helpers.RegistrationOpts{
+		csapiAlice := deployment.Register(t, clientTypeA.HS, helpers.RegistrationOpts{
 			LocalpartSuffix: "alice",
 			Password:        "complement-crypto-password",
 		})
-		csapiBob := deployment.Register(t, "hs1", helpers.RegistrationOpts{
+		csapiBob := deployment.Register(t, clientTypeB.HS, helpers.RegistrationOpts{
 			LocalpartSuffix: "bob",
 			Password:        "complement-crypto-password",
 		})
@@ -159,7 +155,7 @@ func TestCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T) {
 		alice.SendMessage(t, roomID, wantMsgBody)
 
 		// Bob joins the room (via Complement, but it shouldn't matter)
-		csapiBob.MustJoinRoom(t, roomID, []string{"hs1"})
+		csapiBob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 
 		isEncrypted, err = bob.IsRoomEncrypted(t, roomID)
 		must.NotError(t, "failed to check if room is encrypted", err)
@@ -191,11 +187,11 @@ func TestBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 		// ----------
 		deployment := Deploy(t)
 		// pre-register alice and bob
-		csapiAlice := deployment.Register(t, "hs1", helpers.RegistrationOpts{
+		csapiAlice := deployment.Register(t, clientTypeA.HS, helpers.RegistrationOpts{
 			LocalpartSuffix: "alice",
 			Password:        "complement-crypto-password",
 		})
-		csapiBob := deployment.Register(t, "hs1", helpers.RegistrationOpts{
+		csapiBob := deployment.Register(t, clientTypeB.HS, helpers.RegistrationOpts{
 			LocalpartSuffix: "bob",
 			Password:        "complement-crypto-password",
 		})
@@ -237,7 +233,7 @@ func TestBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 		waiter.Wait(t, 5*time.Second)
 
 		// now bob joins the room
-		csapiBob.MustJoinRoom(t, roomID, []string{"hs1"})
+		csapiBob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 		time.Sleep(time.Second) // wait for it to appear on the client else rust crashes if it cannot find the room FIXME
 		waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(bob.UserID(), "join"))
 		waiter.Wait(t, 5*time.Second)
@@ -257,11 +253,11 @@ func TestOnRejoinBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 		// ----------
 		deployment := Deploy(t)
 		// pre-register alice and bob
-		csapiAlice := deployment.Register(t, "hs1", helpers.RegistrationOpts{
+		csapiAlice := deployment.Register(t, clientTypeA.HS, helpers.RegistrationOpts{
 			LocalpartSuffix: "alice",
 			Password:        "complement-crypto-password",
 		})
-		csapiBob := deployment.Register(t, "hs1", helpers.RegistrationOpts{
+		csapiBob := deployment.Register(t, clientTypeB.HS, helpers.RegistrationOpts{
 			LocalpartSuffix: "bob",
 			Password:        "complement-crypto-password",
 		})
@@ -278,7 +274,7 @@ func TestOnRejoinBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 				},
 			},
 		})
-		csapiBob.MustJoinRoom(t, roomID, []string{"hs1"})
+		csapiBob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 		ss := deployment.SlidingSyncURL(t)
 
 		// SDK testing below
@@ -318,7 +314,7 @@ func TestOnRejoinBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 		waiter.Wait(t, 5*time.Second)
 
 		// now bob rejoins the room, wait until he sees it.
-		csapiBob.MustJoinRoom(t, roomID, []string{"hs1"})
+		csapiBob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 		waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(bob.UserID(), "join"))
 		waiter.Wait(t, 5*time.Second)
 		// this is required for some reason else tests fail
