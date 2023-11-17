@@ -64,7 +64,7 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 	defer cancel()
 
 	// Deploy the homeserver using Complement
-	deployment := complement.Deploy(t, 1)
+	deployment := complement.Deploy(t, 2)
 	networkName := deployment.Network()
 
 	// Make a postgres container
@@ -114,20 +114,23 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 	must.NotError(t, "failed to start sliding sync container", err)
 
 	ssURL := externalURL(t, ssContainer, ssExposedPort)
-	csapi := deployment.UnauthenticatedClient(t, "hs1")
+	csapi1 := deployment.UnauthenticatedClient(t, "hs1")
+	csapi2 := deployment.UnauthenticatedClient(t, "hs2")
 
 	// log for debugging purposes
 	t.Logf("SlidingSyncDeployment created (network=%s):", networkName)
 	t.Logf("  NAME          INT        EXT")
 	t.Logf("  sliding sync: ssproxy    %s", ssURL)
-	t.Logf("  synapse:      hs1        %s", csapi.BaseURL)
+	t.Logf("  synapse:      hs1        %s", csapi1.BaseURL)
+	t.Logf("  synapse:      hs2        %s", csapi2.BaseURL)
 	t.Logf("  postgres:     postgres")
 	var cmd *exec.Cmd
 	if shouldTCPDump {
 		t.Log("Running tcpdump...")
 		su, _ := url.Parse(ssURL)
-		cu, _ := url.Parse(csapi.BaseURL)
-		filter := fmt.Sprintf("tcp port %s or port %s", su.Port(), cu.Port())
+		cu1, _ := url.Parse(csapi1.BaseURL)
+		cu2, _ := url.Parse(csapi2.BaseURL)
+		filter := fmt.Sprintf("tcp port %s or port %s or port %s", su.Port(), cu1.Port(), cu2.Port())
 		cmd = exec.Command("tcpdump", "-i", "any", "-s", "0", filter, "-w", "test.pcap")
 		t.Log(cmd.String())
 		if err := cmd.Start(); err != nil {

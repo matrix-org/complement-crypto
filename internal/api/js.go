@@ -256,6 +256,10 @@ func (c *JSClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 	case <-ch:
 	}
 	cancel()
+	// we need to wait for rust crypto's outgoing request loop to finish.
+	// There's no callbacks for that yet, so sleep and pray.
+	// See https://github.com/matrix-org/matrix-js-sdk/blob/v29.1.0/src/rust-crypto/rust-crypto.ts#L1483
+	time.Sleep(500 * time.Millisecond)
 	t.Logf("%s is now syncing", c.userID)
 	return func() {
 		chrome.AwaitExecute(t, c.ctx, `window.__client.stopClient();`)
