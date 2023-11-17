@@ -46,8 +46,8 @@ func (d *SlidingSyncDeployment) Teardown() {
 		}
 	}
 	if d.tcpdump != nil {
-		fmt.Println("Killing tcpdump...")
-		d.tcpdump.Process.Signal(os.Interrupt)
+		fmt.Println("Sent SIGINT to tcpdump, waiting for it to exit, err=", d.tcpdump.Process.Signal(os.Interrupt))
+		fmt.Println("tcpdump finished, err=", d.tcpdump.Wait())
 	}
 }
 
