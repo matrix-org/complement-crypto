@@ -240,7 +240,8 @@ func TestBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 
 		// bob hits scrollback and should see but not be able to decrypt the message
 		bob.MustBackpaginate(t, roomID, 5)
-		ev := bob.MustGetEvent(t, roomID, evID) // TODO
+		ev := bob.MustGetEvent(t, roomID, evID)
 		must.NotEqual(t, ev.Text, beforeJoinBody, "bob was able to decrypt a message from before he was joined")
+		must.Equal(t, ev.FailedToDecrypt, true, "message not marked as failed to decrypt")
 	})
 }

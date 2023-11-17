@@ -20,6 +20,7 @@ import (
 	"github.com/chromedp/chromedp"
 	"github.com/matrix-org/complement-crypto/internal/chrome"
 	"github.com/matrix-org/complement/must"
+	"github.com/tidwall/gjson"
 )
 
 const CONSOLE_LOG_CONTROL_STRING = "CC:" // for "complement-crypto"
@@ -191,7 +192,41 @@ func (c *JSClient) UserID() string {
 }
 
 func (c *JSClient) MustGetEvent(t *testing.T, roomID, eventID string) Event {
-	return Event{}
+	// serialised output (if encrypted):
+	// {
+	//    encrypted: { event }
+	//    decrypted: { event }
+	// }
+	// else just returns { event }
+	evSerialised := chrome.MustExecuteInto[string](t, c.ctx, fmt.Sprintf(`
+	JSON.stringify(window.__client.getRoom("%s")?.getLiveTimeline()?.getEvents().filter((ev) => {
+		return ev.getId() === "%s";
+	})[0].toJSON());
+	`, roomID, eventID))
+	if !gjson.Valid(evSerialised) {
+		fatalf(t, "MustGetEvent(%s, %s): invalid event, got %s", roomID, eventID, evSerialised)
+	}
+	result := gjson.Parse(evSerialised)
+	decryptedEvent := result.Get("decrypted")
+	if !decryptedEvent.Exists() {
+		decryptedEvent = result
+	}
+	encryptedEvent := result.Get("encrypted")
+	//fmt.Printf("DECRYPTED: %s\nENCRYPTED: %s\n\n", decryptedEvent.Raw, encryptedEvent.Raw)
+	ev := Event{
+		ID:     decryptedEvent.Get("event_id").Str,
+		Text:   decryptedEvent.Get("content.body").Str,
+		Sender: decryptedEvent.Get("sender").Str,
+	}
+	if decryptedEvent.Get("type").Str == "m.room.member" {
+		ev.Membership = decryptedEvent.Get("content.membership").Str
+		ev.Target = decryptedEvent.Get("state_key").Str
+	}
+	if encryptedEvent.Exists() && decryptedEvent.Get("content.msgtype").Str == "m.bad.encrypted" {
+		ev.FailedToDecrypt = true
+	}
+
+	return ev
 }
 
 // StartSyncing to begin syncing from sync v2 / sliding sync.

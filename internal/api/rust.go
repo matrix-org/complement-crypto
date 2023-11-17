@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -32,9 +33,11 @@ type RustRoomInfo struct {
 
 type RustClient struct {
 	FFIClient  *matrix_sdk_ffi.Client
-	rooms      map[string]*RustRoomInfo
 	listeners  map[int32]func(roomID string)
 	listenerID atomic.Int32
+	allRooms   *matrix_sdk_ffi.RoomList
+	rooms      map[string]*RustRoomInfo
+	roomsMu    *sync.RWMutex
 	userID     string
 }
 
@@ -58,6 +61,7 @@ func NewRustClient(t *testing.T, opts ClientCreationOpts, ssURL string) (Client,
 		FFIClient: client,
 		rooms:     make(map[string]*RustRoomInfo),
 		listeners: make(map[int32]func(roomID string)),
+		roomsMu:   &sync.RWMutex{},
 	}
 	c.Logf(t, "NewRustClient[%s] created client", opts.UserID)
 	return &LoggedClient{Client: c}, nil
@@ -69,7 +73,16 @@ func (c *RustClient) Close(t *testing.T) {
 }
 
 func (c *RustClient) MustGetEvent(t *testing.T, roomID, eventID string) Event {
-	return Event{}
+	room := c.findRoom(t, roomID)
+	timelineItem, err := room.GetEventTimelineItemByEventId(eventID)
+	if err != nil {
+		fatalf(t, "MustGetEvent(%s, %s): %s", roomID, eventID, err)
+	}
+	ev := eventTimelineItemToEvent(timelineItem)
+	if ev == nil {
+		fatalf(t, "MustGetEvent(%s, %s): found timeline item but failed to convert it to an Event", roomID, eventID)
+	}
+	return *ev
 }
 
 // StartSyncing to begin syncing from sync v2 / sliding sync.
@@ -86,6 +99,7 @@ func (c *RustClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 	})
 	must.NotError(t, "failed to call RoomList.LoadingState", err)
 	go syncService.Start()
+	c.allRooms = roomList
 
 	isSyncing := false
 
@@ -116,7 +130,7 @@ func (c *RustClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 // provide a bogus room ID.
 func (c *RustClient) IsRoomEncrypted(t *testing.T, roomID string) (bool, error) {
 	t.Helper()
-	r := c.findRoom(roomID)
+	r := c.findRoom(t, roomID)
 	if r == nil {
 		rooms := c.FFIClient.Rooms()
 		return false, fmt.Errorf("failed to find room %s, got %d rooms", roomID, len(rooms))
@@ -174,7 +188,7 @@ func (c *RustClient) SendMessage(t *testing.T, roomID, text string) (eventID str
 
 func (c *RustClient) MustBackpaginate(t *testing.T, roomID string, count int) {
 	t.Helper()
-	r := c.findRoom(roomID)
+	r := c.findRoom(t, roomID)
 	must.NotEqual(t, r, nil, "unknown room")
 	must.NotError(t, "failed to backpaginate", r.PaginateBackwards(matrix_sdk_ffi.PaginationOptionsSingleRequest{
 		EventLimit: uint16(count),
@@ -185,16 +199,50 @@ func (c *RustClient) UserID() string {
 	return c.userID
 }
 
-func (c *RustClient) findRoom(roomID string) *matrix_sdk_ffi.Room {
+func (c *RustClient) findRoomInMap(roomID string) *matrix_sdk_ffi.Room {
+	c.roomsMu.RLock()
+	defer c.roomsMu.RUnlock()
+	// do we have a reference to it already?
+	roomInfo := c.rooms[roomID]
+	if roomInfo != nil {
+		return roomInfo.room
+	}
+	return nil
+}
+
+// findRoom returns the room, waiting up to 5s for it to appear
+func (c *RustClient) findRoom(t *testing.T, roomID string) *matrix_sdk_ffi.Room {
+	room := c.findRoomInMap(roomID)
+	if room != nil {
+		return room
+	}
+	// try to find it in all_rooms
+	if c.allRooms != nil {
+		roomListItem, err := c.allRooms.Room(roomID)
+		if err != nil {
+			c.Logf(t, "allRooms.Room(%s) err: %s", roomID, err)
+		} else if roomListItem != nil {
+			room := roomListItem.FullRoom()
+			c.roomsMu.Lock()
+			c.rooms[roomID] = &RustRoomInfo{
+				room: room,
+			}
+			c.roomsMu.Unlock()
+			return room
+		}
+	}
+	// try to find it from cache?
 	rooms := c.FFIClient.Rooms()
 	for i, r := range rooms {
 		rid := r.Id()
 		// ensure we only store rooms once
 		_, exists := c.rooms[rid]
 		if !exists {
+			c.roomsMu.Lock()
 			c.rooms[rid] = &RustRoomInfo{
 				room: rooms[i],
 			}
+			c.roomsMu.Unlock()
 		}
 		if r.Id() == roomID {
 			return c.rooms[rid].room
@@ -210,7 +258,7 @@ func (c *RustClient) Logf(t *testing.T, format string, args ...interface{}) {
 }
 
 func (c *RustClient) ensureListening(t *testing.T, roomID string) *matrix_sdk_ffi.Room {
-	r := c.findRoom(roomID)
+	r := c.findRoom(t, roomID)
 	must.NotEqual(t, r, nil, fmt.Sprintf("room %s does not exist", roomID))
 
 	info := c.rooms[roomID]
@@ -218,10 +266,11 @@ func (c *RustClient) ensureListening(t *testing.T, roomID string) *matrix_sdk_ff
 		return r
 	}
 
-	t.Logf("[%s]AddTimelineListener[%s]", c.userID, roomID)
+	c.Logf(t, "[%s]AddTimelineListener[%s]", c.userID, roomID)
 	// we need a timeline listener before we can send messages
-	r.AddTimelineListener(&timelineListener{fn: func(diff []*matrix_sdk_ffi.TimelineDiff) {
+	result := r.AddTimelineListener(&timelineListener{fn: func(diff []*matrix_sdk_ffi.TimelineDiff) {
 		timeline := c.rooms[roomID].timeline
+		c.Logf(t, "[%s]AddTimelineListener[%s] TimelineDiff len=%d", c.userID, roomID, len(diff))
 		for _, d := range diff {
 			switch d.Change() {
 			case matrix_sdk_ffi.TimelineChangeInsert:
@@ -275,6 +324,17 @@ func (c *RustClient) ensureListening(t *testing.T, roomID string) *matrix_sdk_ff
 			l(roomID)
 		}
 	}})
+	events := make([]*Event, len(result.Items))
+	for i := range result.Items {
+		events[i] = timelineItemToEvent(result.Items[i])
+	}
+	c.rooms[roomID].timeline = events
+	c.Logf(t, "[%s]AddTimelineListener[%s] result.Items len=%d", c.userID, roomID, len(result.Items))
+	if len(events) > 0 {
+		for _, l := range c.listeners {
+			l(roomID)
+		}
+	}
 	info.attachedListener = true
 	return r
 }
@@ -361,19 +421,22 @@ func timelineItemToEvent(item *matrix_sdk_ffi.TimelineItem) *Event {
 	if ev == nil { // e.g day divider
 		return nil
 	}
-	evv := *ev
-	if evv == nil {
+	return eventTimelineItemToEvent(*ev)
+}
+
+func eventTimelineItemToEvent(item *matrix_sdk_ffi.EventTimelineItem) *Event {
+	if item == nil {
 		return nil
 	}
 	eventID := ""
-	if evv.EventId() != nil {
-		eventID = *evv.EventId()
+	if item.EventId() != nil {
+		eventID = *item.EventId()
 	}
 	complementEvent := Event{
 		ID:     eventID,
-		Sender: evv.Sender(),
+		Sender: item.Sender(),
 	}
-	switch k := evv.Content().Kind().(type) {
+	switch k := item.Content().Kind().(type) {
 	case matrix_sdk_ffi.TimelineItemContentKindRoomMembership:
 		complementEvent.Target = k.UserId
 		change := *k.Change
@@ -401,9 +464,11 @@ func timelineItemToEvent(item *matrix_sdk_ffi.TimelineItem) *Event {
 		default:
 			fmt.Printf("%s unhandled membership %d\n", k.UserId, change)
 		}
+	case matrix_sdk_ffi.TimelineItemContentKindUnableToDecrypt:
+		complementEvent.FailedToDecrypt = true
 	}
 
-	content := evv.Content()
+	content := item.Content()
 	if content != nil {
 		msg := content.AsMessage()
 		if msg != nil {

@@ -127,7 +127,8 @@ type Event struct {
 	// FFI bindings don't expose state key
 	Target string
 	// FFI bindings don't expose type
-	Membership string
+	Membership      string
+	FailedToDecrypt bool
 }
 
 type Waiter interface {
