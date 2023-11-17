@@ -26,9 +26,9 @@ func init() {
 var zero uint32
 
 type RustRoomInfo struct {
-	attachedListener bool
-	room             *matrix_sdk_ffi.Room
-	timeline         []*Event
+	stream   *matrix_sdk_ffi.TaskHandle
+	room     *matrix_sdk_ffi.Room
+	timeline []*Event
 }
 
 type RustClient struct {
@@ -73,14 +73,15 @@ func (c *RustClient) Close(t *testing.T) {
 }
 
 func (c *RustClient) MustGetEvent(t *testing.T, roomID, eventID string) Event {
+	t.Helper()
 	room := c.findRoom(t, roomID)
 	timelineItem, err := room.GetEventTimelineItemByEventId(eventID)
 	if err != nil {
-		fatalf(t, "MustGetEvent(%s, %s): %s", roomID, eventID, err)
+		fatalf(t, "MustGetEvent(rust) %s (%s, %s): %s", c.userID, roomID, eventID, err)
 	}
 	ev := eventTimelineItemToEvent(timelineItem)
 	if ev == nil {
-		fatalf(t, "MustGetEvent(%s, %s): found timeline item but failed to convert it to an Event", roomID, eventID)
+		fatalf(t, "MustGetEvent(rust) %s (%s, %s): found timeline item but failed to convert it to an Event", c.userID, roomID, eventID)
 	}
 	return *ev
 }
@@ -179,7 +180,7 @@ func (c *RustClient) SendMessage(t *testing.T, roomID, text string) (eventID str
 	r.Send(matrix_sdk_ffi.MessageEventContentFromHtml(text, text))
 	select {
 	case <-time.After(5 * time.Second):
-		fatalf(t, "SendMessage: timed out after 5s")
+		fatalf(t, "SendMessage(rust) %s: timed out after 5s", c.userID)
 	case <-ch:
 		return
 	}
@@ -212,6 +213,7 @@ func (c *RustClient) findRoomInMap(roomID string) *matrix_sdk_ffi.Room {
 
 // findRoom returns the room, waiting up to 5s for it to appear
 func (c *RustClient) findRoom(t *testing.T, roomID string) *matrix_sdk_ffi.Room {
+	t.Helper()
 	room := c.findRoomInMap(roomID)
 	if room != nil {
 		return room
@@ -258,11 +260,12 @@ func (c *RustClient) Logf(t *testing.T, format string, args ...interface{}) {
 }
 
 func (c *RustClient) ensureListening(t *testing.T, roomID string) *matrix_sdk_ffi.Room {
+	t.Helper()
 	r := c.findRoom(t, roomID)
 	must.NotEqual(t, r, nil, fmt.Sprintf("room %s does not exist", roomID))
 
 	info := c.rooms[roomID]
-	if info.attachedListener {
+	if info.stream != nil {
 		return r
 	}
 
@@ -270,6 +273,7 @@ func (c *RustClient) ensureListening(t *testing.T, roomID string) *matrix_sdk_ff
 	// we need a timeline listener before we can send messages
 	result := r.AddTimelineListener(&timelineListener{fn: func(diff []*matrix_sdk_ffi.TimelineDiff) {
 		timeline := c.rooms[roomID].timeline
+		var newEvents []*Event
 		c.Logf(t, "[%s]AddTimelineListener[%s] TimelineDiff len=%d", c.userID, roomID, len(diff))
 		for _, d := range diff {
 			switch d.Change() {
@@ -285,6 +289,7 @@ func (c *RustClient) ensureListening(t *testing.T, roomID string) *matrix_sdk_ff
 				}
 				timeline = slices.Insert(timeline, i, timelineItemToEvent(insertData.Item))
 				fmt.Printf("[%s]_______ INSERT %+v\n", c.userID, timeline[i])
+				newEvents = append(newEvents, timeline[i])
 			case matrix_sdk_ffi.TimelineChangeAppend:
 				appendItems := d.Append()
 				if appendItems == nil {
@@ -294,6 +299,7 @@ func (c *RustClient) ensureListening(t *testing.T, roomID string) *matrix_sdk_ff
 					ev := timelineItemToEvent(item)
 					timeline = append(timeline, ev)
 					fmt.Printf("[%s]_______ APPEND %+v\n", c.userID, ev)
+					newEvents = append(newEvents, ev)
 				}
 			case matrix_sdk_ffi.TimelineChangePushBack: // append but 1 element
 				pbData := d.PushBack()
@@ -303,6 +309,7 @@ func (c *RustClient) ensureListening(t *testing.T, roomID string) *matrix_sdk_ff
 				ev := timelineItemToEvent(*pbData)
 				timeline = append(timeline, ev)
 				fmt.Printf("[%s]_______ PUSH BACK %+v\n", c.userID, ev)
+				newEvents = append(newEvents, ev)
 			case matrix_sdk_ffi.TimelineChangeSet:
 				setData := d.Set()
 				if setData == nil {
@@ -315,6 +322,7 @@ func (c *RustClient) ensureListening(t *testing.T, roomID string) *matrix_sdk_ff
 				}
 				timeline[i] = timelineItemToEvent(setData.Item)
 				fmt.Printf("[%s]_______ SET %+v\n", c.userID, timeline[i])
+				newEvents = append(newEvents, timeline[i])
 			default:
 				t.Logf("Unhandled TimelineDiff change %v", d.Change())
 			}
@@ -323,11 +331,15 @@ func (c *RustClient) ensureListening(t *testing.T, roomID string) *matrix_sdk_ff
 		for _, l := range c.listeners {
 			l(roomID)
 		}
+		for _, e := range newEvents {
+			c.Logf(t, "TimelineDiff change: %+v", e)
+		}
 	}})
 	events := make([]*Event, len(result.Items))
 	for i := range result.Items {
 		events[i] = timelineItemToEvent(result.Items[i])
 	}
+	c.rooms[roomID].stream = result.ItemsStream
 	c.rooms[roomID].timeline = events
 	c.Logf(t, "[%s]AddTimelineListener[%s] result.Items len=%d", c.userID, roomID, len(result.Items))
 	if len(events) > 0 {
@@ -335,7 +347,6 @@ func (c *RustClient) ensureListening(t *testing.T, roomID string) *matrix_sdk_ff
 			l(roomID)
 		}
 	}
-	info.attachedListener = true
 	return r
 }
 
@@ -381,12 +392,15 @@ func (w *timelineWaiter) Wait(t *testing.T, s time.Duration) {
 		return
 	}
 
-	updates := make(chan bool, 10)
+	updates := make(chan bool, 3)
 	cancel := w.client.listenForUpdates(func(roomID string) {
 		if w.roomID != roomID {
 			return
 		}
-		updates <- true
+		if !checkForEvent() {
+			return
+		}
+		close(updates)
 	})
 	defer cancel()
 
@@ -395,15 +409,13 @@ func (w *timelineWaiter) Wait(t *testing.T, s time.Duration) {
 	for {
 		timeLeft := s - time.Since(start)
 		if timeLeft <= 0 {
-			fatalf(t, "%s: Wait[%s]: timed out", w.client.userID, w.roomID)
+			fatalf(t, "%s (rust): Wait[%s]: timed out", w.client.userID, w.roomID)
 		}
 		select {
 		case <-time.After(timeLeft):
-			fatalf(t, "%s: Wait[%s]: timed out", w.client.userID, w.roomID)
+			fatalf(t, "%s (rust): Wait[%s]: timed out", w.client.userID, w.roomID)
 		case <-updates:
-			if checkForEvent() {
-				return
-			}
+			return
 		}
 	}
 }

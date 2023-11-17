@@ -162,9 +162,9 @@ func NewJSClient(t *testing.T, opts ClientCreationOpts) (Client, error) {
 
 	// any events need to log the control string so we get notified
 	chrome.MustExecute(t, ctx, fmt.Sprintf(`window.__client.on("Event.decrypted", function(event) {
-		if (event.getType() !== "m.room.message") {
-			return; // only use messages
-		}
+		console.log("%s"+event.getRoomId()+"||"+JSON.stringify(event.getEffectiveEvent()));
+	});`, CONSOLE_LOG_CONTROL_STRING))
+	chrome.MustExecute(t, ctx, fmt.Sprintf(`window.__client.on("event", function(event) {
 		console.log("%s"+event.getRoomId()+"||"+JSON.stringify(event.getEffectiveEvent()));
 	});`, CONSOLE_LOG_CONTROL_STRING))
 
@@ -181,10 +181,6 @@ func NewJSClient(t *testing.T, opts ClientCreationOpts) (Client, error) {
 func (c *JSClient) Close(t *testing.T) {
 	c.cancel()
 	c.listeners = make(map[int32]func(roomID string, ev Event))
-	if t.Failed() {
-		// print logs for this test
-
-	}
 }
 
 func (c *JSClient) UserID() string {
@@ -192,6 +188,7 @@ func (c *JSClient) UserID() string {
 }
 
 func (c *JSClient) MustGetEvent(t *testing.T, roomID, eventID string) Event {
+	t.Helper()
 	// serialised output (if encrypted):
 	// {
 	//    encrypted: { event }
@@ -199,12 +196,13 @@ func (c *JSClient) MustGetEvent(t *testing.T, roomID, eventID string) Event {
 	// }
 	// else just returns { event }
 	evSerialised := chrome.MustExecuteInto[string](t, c.ctx, fmt.Sprintf(`
-	JSON.stringify(window.__client.getRoom("%s")?.getLiveTimeline()?.getEvents().filter((ev) => {
+	JSON.stringify(window.__client.getRoom("%s")?.getLiveTimeline()?.getEvents().filter((ev, i) => {
+		console.log("MustGetEvent["+i+"] => " + ev.getId()+ " " + JSON.stringify(ev.toJSON()));
 		return ev.getId() === "%s";
 	})[0].toJSON());
 	`, roomID, eventID))
 	if !gjson.Valid(evSerialised) {
-		fatalf(t, "MustGetEvent(%s, %s): invalid event, got %s", roomID, eventID, evSerialised)
+		fatalf(t, "MustGetEvent(%s, %s) %s (js): invalid event, got %s", roomID, eventID, c.userID, evSerialised)
 	}
 	result := gjson.Parse(evSerialised)
 	decryptedEvent := result.Get("decrypted")
@@ -232,6 +230,7 @@ func (c *JSClient) MustGetEvent(t *testing.T, roomID, eventID string) Event {
 // StartSyncing to begin syncing from sync v2 / sliding sync.
 // Tests should call stopSyncing() at the end of the test.
 func (c *JSClient) StartSyncing(t *testing.T) (stopSyncing func()) {
+	t.Helper()
 	t.Logf("%s is starting to sync", c.userID)
 	chrome.MustExecute(t, c.ctx, fmt.Sprintf(`
 		var fn;
@@ -266,6 +265,7 @@ func (c *JSClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 // IsRoomEncrypted returns true if the room is encrypted. May return an error e.g if you
 // provide a bogus room ID.
 func (c *JSClient) IsRoomEncrypted(t *testing.T, roomID string) (bool, error) {
+	t.Helper()
 	isEncrypted, err := chrome.ExecuteInto[bool](
 		t, c.ctx, fmt.Sprintf(`window.__client.isRoomEncrypted("%s")`, roomID),
 	)
@@ -278,6 +278,7 @@ func (c *JSClient) IsRoomEncrypted(t *testing.T, roomID string) (bool, error) {
 // SendMessage sends the given text as an m.room.message with msgtype:m.text into the given
 // room.
 func (c *JSClient) SendMessage(t *testing.T, roomID, text string) (eventID string) {
+	t.Helper()
 	res, err := chrome.AwaitExecuteInto[map[string]interface{}](t, c.ctx, fmt.Sprintf(`window.__client.sendMessage("%s", {
 		"msgtype": "m.text",
 		"body": "%s"
@@ -287,12 +288,14 @@ func (c *JSClient) SendMessage(t *testing.T, roomID, text string) (eventID strin
 }
 
 func (c *JSClient) MustBackpaginate(t *testing.T, roomID string, count int) {
+	t.Helper()
 	chrome.MustAwaitExecute(t, c.ctx, fmt.Sprintf(
 		`window.__client.scrollback(window.__client.getRoom("%s"), %d);`, roomID, count,
 	))
 }
 
 func (c *JSClient) WaitUntilEventInRoom(t *testing.T, roomID string, checker func(e Event) bool) Waiter {
+	t.Helper()
 	return &jsTimelineWaiter{
 		roomID:  roomID,
 		checker: checker,
@@ -326,6 +329,7 @@ type jsTimelineWaiter struct {
 }
 
 func (w *jsTimelineWaiter) Wait(t *testing.T, s time.Duration) {
+	t.Helper()
 	updates := make(chan bool, 3)
 	cancel := w.client.listenForUpdates(func(roomID string, ev Event) {
 		if w.roomID != roomID {
@@ -349,11 +353,11 @@ func (w *jsTimelineWaiter) Wait(t *testing.T, s time.Duration) {
 	for {
 		timeLeft := s - time.Since(start)
 		if timeLeft <= 0 {
-			fatalf(t, "%s: Wait[%s]: timed out", w.client.userID, w.roomID)
+			fatalf(t, "%s (js): Wait[%s]: timed out", w.client.userID, w.roomID)
 		}
 		select {
 		case <-time.After(timeLeft):
-			fatalf(t, "%s: Wait[%s]: timed out", w.client.userID, w.roomID)
+			fatalf(t, "%s (js): Wait[%s]: timed out", w.client.userID, w.roomID)
 		case <-updates:
 			return
 		}
