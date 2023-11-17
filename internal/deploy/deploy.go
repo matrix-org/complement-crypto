@@ -3,6 +3,7 @@ package deploy
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net/url"
 	"os"
@@ -34,8 +35,14 @@ func (d *SlidingSyncDeployment) SlidingSyncURL(t *testing.T) string {
 	return d.slidingSyncURL
 }
 
-func (d *SlidingSyncDeployment) Teardown() {
+func (d *SlidingSyncDeployment) Teardown(writeLogs bool) {
 	if d.slidingSync != nil {
+		if writeLogs {
+			err := writeContainerLogs(d.slidingSync, "container-sliding-sync.log")
+			if err != nil {
+				log.Printf("failed to write sliding sync logs: %s", err)
+			}
+		}
 		if err := d.slidingSync.Terminate(context.Background()); err != nil {
 			log.Fatalf("failed to stop sliding sync: %s", err)
 		}
@@ -147,4 +154,20 @@ func externalURL(t *testing.T, c testcontainers.Container, exposedPort string) s
 	mappedPort, err := c.MappedPort(ctx, nat.Port(exposedPort))
 	must.NotError(t, "failed to get mapped port", err)
 	return fmt.Sprintf("http://%s:%s", host, mappedPort.Port())
+}
+
+func writeContainerLogs(container testcontainers.Container, filename string) error {
+	w, err := os.Create(filename)
+	if err != nil {
+		return fmt.Errorf("os.Create: %s", err)
+	}
+	reader, err := container.Logs(context.Background())
+	if err != nil {
+		return fmt.Errorf("container.Logs: %s", err)
+	}
+	_, err = io.Copy(w, reader)
+	if err != nil {
+		return fmt.Errorf("io.Copy: %s", err)
+	}
+	return nil
 }
