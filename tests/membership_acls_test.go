@@ -54,10 +54,13 @@ func TestAliceBobEncryptionWorks(t *testing.T) {
 		// -----------------
 
 		// login both clients first, so OTKs etc are uploaded.
-		alice := MustLoginClient(t, clientTypeA, api.FromComplementClient(csapiAlice, "complement-crypto-password"), ss)
-		defer alice.Close(t)
+		// We sign in Bob first to try to encourage Alice to get a device list
+		// update with bob's device keys, which will be important when Alice
+		// sends the event.
 		bob := MustLoginClient(t, clientTypeB, api.FromComplementClient(csapiBob, "complement-crypto-password"), ss)
 		defer bob.Close(t)
+		alice := MustLoginClient(t, clientTypeA, api.FromComplementClient(csapiAlice, "complement-crypto-password"), ss)
+		defer alice.Close(t)
 
 		// Alice starts syncing
 		aliceStopSyncing := alice.StartSyncing(t)
@@ -281,10 +284,11 @@ func TestOnRejoinBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 		// -----------------
 
 		// login both clients first, so OTKs etc are uploaded.
-		alice := MustLoginClient(t, clientTypeA, api.FromComplementClient(csapiAlice, "complement-crypto-password"), ss)
-		defer alice.Close(t)
+		// Similarly to TestAliceBobEncryptionWorks, log Bob in first.
 		bob := MustLoginClient(t, clientTypeB, api.FromComplementClient(csapiBob, "complement-crypto-password"), ss)
 		defer bob.Close(t)
+		alice := MustLoginClient(t, clientTypeA, api.FromComplementClient(csapiAlice, "complement-crypto-password"), ss)
+		defer alice.Close(t)
 
 		// Alice and Bob start syncing. Both are in the same room
 		aliceStopSyncing := alice.StartSyncing(t)
