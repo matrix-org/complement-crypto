@@ -59,7 +59,7 @@ func TestAliceBobEncryptionWorks(t *testing.T) {
 		// sends the event.
 		bob := MustLoginClient(t, clientTypeB, api.FromComplementClient(csapiBob, "complement-crypto-password"), ss)
 		defer bob.Close(t)
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 		alice := MustLoginClient(t, clientTypeA, api.FromComplementClient(csapiAlice, "complement-crypto-password"), ss)
 		defer alice.Close(t)
 
@@ -288,7 +288,7 @@ func TestOnRejoinBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 		// Similarly to TestAliceBobEncryptionWorks, log Bob in first.
 		bob := MustLoginClient(t, clientTypeB, api.FromComplementClient(csapiBob, "complement-crypto-password"), ss)
 		defer bob.Close(t)
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 		alice := MustLoginClient(t, clientTypeA, api.FromComplementClient(csapiAlice, "complement-crypto-password"), ss)
 		defer alice.Close(t)
 
