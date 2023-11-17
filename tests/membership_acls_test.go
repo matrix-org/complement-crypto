@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -240,9 +241,11 @@ func TestBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 
 		// bob hits scrollback and should see but not be able to decrypt the message
 		bob.MustBackpaginate(t, roomID, 5)
+		// jJ runs need this, else the event will exist but not yet be marked as failed to decrypt. Unsure why fed slows it down.
+		time.Sleep(500 * time.Millisecond)
 		ev := bob.MustGetEvent(t, roomID, evID)
 		must.NotEqual(t, ev.Text, beforeJoinBody, "bob was able to decrypt a message from before he was joined")
-		must.Equal(t, ev.FailedToDecrypt, true, "message not marked as failed to decrypt")
+		must.Equal(t, ev.FailedToDecrypt, true, fmt.Sprintf("message not marked as failed to decrypt: %+v", ev))
 	})
 }
 
@@ -322,6 +325,7 @@ func TestOnRejoinBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 
 		// bob hits scrollback and should see but not be able to decrypt the message
 		bob.MustBackpaginate(t, roomID, 5)
+		// TODO: jJ runs fail as the timeline omits the event e.g it has leave,join and not leave,msg,join.
 		ev := bob.MustGetEvent(t, roomID, evID)
 		must.NotEqual(t, ev.Text, onlyAliceBody, "bob was able to decrypt a message from before he was joined")
 		must.Equal(t, ev.FailedToDecrypt, true, "message not marked as failed to decrypt")

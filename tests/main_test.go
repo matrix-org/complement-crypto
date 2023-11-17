@@ -44,7 +44,7 @@ func TestMain(m *testing.M) {
 				}
 			case 'J':
 				testCase[i] = api.ClientType{
-					Lang: api.ClientTypeRust,
+					Lang: api.ClientTypeJS,
 					HS:   "hs2",
 				}
 			// TODO: case 'R': requires 2x sliding syncs / postgres
