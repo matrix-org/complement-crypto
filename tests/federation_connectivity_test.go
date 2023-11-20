@@ -6,6 +6,7 @@ import (
 
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement/helpers"
+	"github.com/matrix-org/complement/must"
 )
 
 // A and B are in a room, on different servers.
@@ -80,10 +81,10 @@ func TestNewUserCannotGetKeysForOfflineServer(t *testing.T) {
 	time.Sleep(time.Second)
 
 	// send a message: bob won't be able to decrypt this, but alice will.
-	wantMsgBody = "Bob can't see this because his server is down"
-	waiter = alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
-	evID = charlie.SendMessage(t, roomID, wantMsgBody)
-	t.Logf("alice (%s) waiting for event %s", alice.Type(), evID)
+	wantUndecryptableMsgBody := "Bob can't see this because his server is down"
+	waiter = alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantUndecryptableMsgBody))
+	undecryptableEventID := charlie.SendMessage(t, roomID, wantUndecryptableMsgBody)
+	t.Logf("alice (%s) waiting for event %s", alice.Type(), undecryptableEventID)
 	waiter.Wait(t, 5*time.Second)
 
 	// now bob's server comes back online
@@ -103,4 +104,9 @@ func TestNewUserCannotGetKeysForOfflineServer(t *testing.T) {
 	evID = charlie.SendMessage(t, roomID, wantMsgBody)
 	t.Logf("bob (%s) waiting for event %s", bob.Type(), evID)
 	waiter.Wait(t, 5*time.Second)
+
+	// make sure bob cannot decrypt the msg from when his server was offline
+	// TODO: this isn't ideal, can we fix this?
+	ev := bob.MustGetEvent(t, roomID, undecryptableEventID)
+	must.Equal(t, ev.FailedToDecrypt, true, "bob was able to decrypt the undecryptable event")
 }
