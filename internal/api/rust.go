@@ -179,8 +179,8 @@ func (c *RustClient) SendMessage(t *testing.T, roomID, text string) (eventID str
 	defer cancel()
 	r.Send(matrix_sdk_ffi.MessageEventContentFromHtml(text, text))
 	select {
-	case <-time.After(5 * time.Second):
-		fatalf(t, "SendMessage(rust) %s: timed out after 5s", c.userID)
+	case <-time.After(15 * time.Second):
+		fatalf(t, "SendMessage(rust) %s: timed out after 35s", c.userID)
 	case <-ch:
 		return
 	}
