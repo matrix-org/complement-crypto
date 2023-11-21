@@ -42,7 +42,6 @@ Membership ACLs:
 - [x] In a public, `shared` history visibility room, a new user Bob cannot decrypt earlier messages prior to his join, despite being able to see the events. Subsequent messages are decryptable.
 - [x] Bob leaves the room. Some messages are sent. Bob rejoins and cannot decrypt the messages sent whilst he was gone (ensuring we cycle keys).
 - [x] Bob cannot decrypt older messages when logging in on a new device. When the device is logged out and in again, Bob cannot decrypt messages sent whilst he was logged out.
-- [ ] Alice invites Bob, Bob changes their device, then Bob joins. Bob should be able to see Alice's message.
 
 Key backups:
 - [ ] New device for Alice cannot decrypt previous messages.
