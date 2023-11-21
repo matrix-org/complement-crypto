@@ -14,7 +14,7 @@ import (
 // C joins the room (on A's server).
 // C sends a message. C will not be able to get device keys for B.
 // B comes back online.
-// B will be unable to decrypt C's message. TODO: how to fix?
+// B will be unable to decrypt C's message. TODO: see https://github.com/matrix-org/matrix-rust-sdk/issues/2864
 // Ensure sending another message from C is decryptable.
 func TestNewUserCannotGetKeysForOfflineServer(t *testing.T) {
 	deployment := Deploy(t)
@@ -106,7 +106,7 @@ func TestNewUserCannotGetKeysForOfflineServer(t *testing.T) {
 	waiter.Wait(t, 5*time.Second)
 
 	// make sure bob cannot decrypt the msg from when his server was offline
-	// TODO: this isn't ideal, can we fix this?
+	// TODO: this isn't ideal, see https://github.com/matrix-org/matrix-rust-sdk/issues/2864
 	ev := bob.MustGetEvent(t, roomID, undecryptableEventID)
 	must.Equal(t, ev.FailedToDecrypt, true, "bob was able to decrypt the undecryptable event")
 }

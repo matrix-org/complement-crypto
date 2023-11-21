@@ -340,3 +340,114 @@ func TestOnRejoinBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 		must.Equal(t, ev.Text, bothJoinedBody, "event was not decrypted correctly") */
 	})
 }
+
+// Test that Bob's devices are treated as separate members wrt encryption. Therefore, if the device does not exist (not in the room)
+// then messages aren't decryptable. Likewise, if the device DID exist but no longer does (due to /logout), ensure messages sent whilst
+// logged out are not decryptable.
+func TestOnNewDeviceBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
+	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
+		// Setup Code
+		// ----------
+		deployment := Deploy(t)
+		// pre-register alice and bob
+		csapiAlice := deployment.Register(t, clientTypeA.HS, helpers.RegistrationOpts{
+			LocalpartSuffix: "alice",
+			Password:        "complement-crypto-password",
+		})
+		csapiBob := deployment.Register(t, clientTypeB.HS, helpers.RegistrationOpts{
+			LocalpartSuffix: "bob",
+			Password:        "complement-crypto-password",
+		})
+		roomID := csapiAlice.MustCreateRoom(t, map[string]interface{}{
+			"name":   "TestOnNewDeviceBobCanSeeButNotDecryptHistoryInPublicRoom",
+			"preset": "public_chat", // shared history visibility
+			"initial_state": []map[string]interface{}{
+				{
+					"type":      "m.room.encryption",
+					"state_key": "",
+					"content": map[string]interface{}{
+						"algorithm": "m.megolm.v1.aes-sha2",
+					},
+				},
+			},
+		})
+		csapiBob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+		ss := deployment.SlidingSyncURL(t)
+
+		// SDK testing below
+		// -----------------
+
+		// login both clients first, so OTKs etc are uploaded.
+		// Similarly to TestAliceBobEncryptionWorks, log Bob in first.
+		bob := MustLoginClient(t, clientTypeB, api.FromComplementClient(csapiBob, "complement-crypto-password"), ss)
+		defer bob.Close(t)
+		alice := MustLoginClient(t, clientTypeA, api.FromComplementClient(csapiAlice, "complement-crypto-password"), ss)
+		defer alice.Close(t)
+
+		// Alice and Bob start syncing. Both are in the same room
+		aliceStopSyncing := alice.StartSyncing(t)
+		defer aliceStopSyncing()
+		bobStopSyncing := bob.StartSyncing(t)
+		defer bobStopSyncing()
+
+		// Alice sends a message which Bob should be able to decrypt.
+		onlyFirstDeviceBody := "Alice and Bob in a room"
+		waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(onlyFirstDeviceBody))
+		evID := alice.SendMessage(t, roomID, onlyFirstDeviceBody)
+		t.Logf("bob (%s) waiting for event %s", bob.Type(), evID)
+		waiter.Wait(t, 5*time.Second)
+
+		// now bob logs in on a new device. He should NOT be able to decrypt this event (though can see it due to history visibility)
+		csapiBob2 := deployment.Login(t, clientTypeB.HS, csapiBob, helpers.LoginOpts{
+			DeviceID: "NEW_DEVICE",
+			Password: "complement-crypto-password",
+		})
+		bob2 := MustLoginClient(t, clientTypeB, api.FromComplementClient(csapiBob2, "complement-crypto-password"), ss)
+		bob2StopSyncing := bob2.StartSyncing(t)
+		bob2StoppedSyncing := false
+		defer func() {
+			if bob2StoppedSyncing {
+				return
+			}
+			bob2StopSyncing()
+		}()
+		time.Sleep(time.Second)             // let device keys propagate to alice
+		bob2.MustBackpaginate(t, roomID, 5) // ensure the older event is there
+		time.Sleep(time.Second)
+		undecryptableEvent := bob2.MustGetEvent(t, roomID, evID)
+		must.Equal(t, undecryptableEvent.FailedToDecrypt, true, "bob's new device was able to decrypt a message sent before he logged in")
+
+		// now alice sends another message, which bob's new device should be able to decrypt.
+		decryptableBody := "Bob's new device can decrypt this"
+		waiter = bob2.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(decryptableBody))
+		evID = alice.SendMessage(t, roomID, decryptableBody)
+		t.Logf("bob2 (%s) waiting for event %s", bob2.Type(), evID)
+		waiter.Wait(t, 5*time.Second)
+
+		// now bob logs out
+		bob2StopSyncing()
+		bob2StoppedSyncing = true
+		csapiBob2.MustDo(t, "POST", []string{"_matrix", "client", "v3", "logout"})
+		bob2.Close(t)
+
+		time.Sleep(time.Second) // let device keys propagate to alice
+
+		// alice sends another message which should not be decryptable due to key cycling. The message should be decryptable
+		// by bob's other logged in device though.
+		undecryptableBody := "Bob's logged out device won't be able to decrypt this"
+		waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(undecryptableBody))
+		evID = alice.SendMessage(t, roomID, undecryptableBody)
+		t.Logf("bob (%s) waiting for event %s", bob.Type(), evID)
+		waiter.Wait(t, 5*time.Second)
+
+		// now bob logs in again
+		bob2 = MustLoginClient(t, clientTypeB, api.FromComplementClient(csapiBob2, "complement-crypto-password"), ss)
+		bob2StopSyncingAgain := bob2.StartSyncing(t)
+		defer bob2StopSyncingAgain()
+
+		time.Sleep(time.Second) // let device keys propagate to alice
+
+		undecryptableEvent = bob2.MustGetEvent(t, roomID, evID)
+		must.Equal(t, undecryptableEvent.FailedToDecrypt, true, "bob's new device was able to decrypt a message sent after he had logged out")
+	})
+}

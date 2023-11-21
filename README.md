@@ -40,7 +40,8 @@ Membership ACLs:
 - [x] Happy case Alice and Bob in an encrypted room can send and receive encrypted messages, and decrypt them all.
 - [x] Bob can see messages when he was invited but not joined to the room. Subsequent messages are also decryptable.
 - [x] In a public, `shared` history visibility room, a new user Bob cannot decrypt earlier messages prior to his join, despite being able to see the events. Subsequent messages are decryptable.
-- [ ] Bob leaves the room. Some messages are sent. Bob rejoins and cannot decrypt the messages sent whilst he was gone (ensuring we cycle keys). Repeat this again with a device instead of a user (so 2x device, 1 remains always in the room, 1 then logs out -> messages sent -> logs in again).
+- [x] Bob leaves the room. Some messages are sent. Bob rejoins and cannot decrypt the messages sent whilst he was gone (ensuring we cycle keys).
+- [x] Bob cannot decrypt older messages when logging in on a new device. When the device is logged out and in again, Bob cannot decrypt messages sent whilst he was logged out.
 - [ ] Alice invites Bob, Bob changes their device, then Bob joins. Bob should be able to see Alice's message.
 
 Key backups:
@@ -72,6 +73,7 @@ Network connectivity:
 - [ ] If a server cannot send a to-device msg to another server, it retries.
 - [ ] Repeat all of the above, but restart the client|server after the initial connection failure. This checks that retries aren't just stored in memory but persisted to disk.
 
+Network connectivity tests are extremely time sensitive as retries are often using timeouts in clients.
 
 ### Regenerate JS SDK
 

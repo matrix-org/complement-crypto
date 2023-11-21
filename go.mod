@@ -6,8 +6,9 @@ require (
 	github.com/chromedp/cdproto v0.0.0-20231025043423-5615e204d422
 	github.com/chromedp/chromedp v0.9.3
 	github.com/docker/go-connections v0.4.0
-	github.com/matrix-org/complement v0.0.0-20231120201658-8e45f46bc412
+	github.com/matrix-org/complement v0.0.0-20231121123151-a43fb99237ed
 	github.com/testcontainers/testcontainers-go v0.26.0
+	github.com/tidwall/gjson v1.16.0
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 )
 
@@ -51,7 +52,6 @@ require (
 	github.com/shirou/gopsutil/v3 v3.23.9 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/tidwall/gjson v1.16.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect

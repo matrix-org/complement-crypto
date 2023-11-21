@@ -13,6 +13,9 @@ func MustExecuteInto[T any](t *testing.T, ctx context.Context, js string) T {
 	t.Helper()
 	out, err := ExecuteInto[T](t, ctx, js)
 	must.NotError(t, js, err)
+	if out == nil {
+		t.Fatalf("MustExecuteInto: output was nil. JS: %s", js)
+	}
 	return *out
 }
 
