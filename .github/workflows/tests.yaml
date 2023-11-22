@@ -50,7 +50,7 @@ jobs:
       - name: Build Rust FFI bindings
         run: |
           mkdir rust-sdk
-          (wget -O - "https://github.com/matrix-org/matrix-rust-sdk/archive/kegan/complement-test-fork.tar.gz" | tar -xz --strip-components=1 -C rust-sdk)
+          (wget -O - "https://github.com/matrix-org/matrix-rust-sdk/archive/kegan/poljar-recovery-complement-fork.tar.gz" | tar -xz --strip-components=1 -C rust-sdk)
           (cd rust-sdk && cargo build -p matrix-sdk-ffi)
           ls -alh rust-sdk/target/debug
 

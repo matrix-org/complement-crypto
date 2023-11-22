@@ -335,10 +335,14 @@ func readFloat64(reader io.Reader) float64 {
 func init() {
 
 	(&FfiConverterCallbackInterfaceBackPaginationStatusListener{}).register()
+	(&FfiConverterCallbackInterfaceBackupStateListener{}).register()
+	(&FfiConverterCallbackInterfaceBackupSteadyStateListener{}).register()
 	(&FfiConverterCallbackInterfaceClientDelegate{}).register()
 	(&FfiConverterCallbackInterfaceClientSessionDelegate{}).register()
+	(&FfiConverterCallbackInterfaceEnableRecoveryProgressListener{}).register()
 	(&FfiConverterCallbackInterfaceNotificationSettingsDelegate{}).register()
 	(&FfiConverterCallbackInterfaceProgressWatcher{}).register()
+	(&FfiConverterCallbackInterfaceRecoveryStateListener{}).register()
 	(&FfiConverterCallbackInterfaceRoomInfoListener{}).register()
 	(&FfiConverterCallbackInterfaceRoomListEntriesListener{}).register()
 	(&FfiConverterCallbackInterfaceRoomListLoadingStateListener{}).register()
@@ -379,6 +383,15 @@ func uniffiCheckChecksums() {
 		if checksum != 16581 {
 			// If this happens try cleaning and rebuilding your project
 			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_func_generate_webview_url: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_func_get_element_call_required_permissions(uniffiStatus)
+		})
+		if checksum != 51289 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_func_get_element_call_required_permissions: UniFFI API checksum mismatch")
 		}
 	}
 	{
@@ -626,6 +639,15 @@ func uniffiCheckChecksums() {
 	}
 	{
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_client_encryption(uniffiStatus)
+		})
+		if checksum != 55944 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_client_encryption: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_matrix_sdk_ffi_checksum_method_client_get_dm_room(uniffiStatus)
 		})
 		if checksum != 2581 {
@@ -646,7 +668,7 @@ func uniffiCheckChecksums() {
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_matrix_sdk_ffi_checksum_method_client_get_media_file(uniffiStatus)
 		})
-		if checksum != 23010 {
+		if checksum != 60005 {
 			// If this happens try cleaning and rebuilding your project
 			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_client_get_media_file: UniFFI API checksum mismatch")
 		}
@@ -790,7 +812,7 @@ func uniffiCheckChecksums() {
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_matrix_sdk_ffi_checksum_method_client_set_delegate(uniffiStatus)
 		})
-		if checksum != 32036 {
+		if checksum != 29180 {
 			// If this happens try cleaning and rebuilding your project
 			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_client_set_delegate: UniFFI API checksum mismatch")
 		}
@@ -986,6 +1008,123 @@ func uniffiCheckChecksums() {
 	}
 	{
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_encryption_backup_exists_on_server(uniffiStatus)
+		})
+		if checksum != 17130 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_encryption_backup_exists_on_server: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_encryption_backup_state(uniffiStatus)
+		})
+		if checksum != 13611 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_encryption_backup_state: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_encryption_backup_state_listener(uniffiStatus)
+		})
+		if checksum != 29 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_encryption_backup_state_listener: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_encryption_disable_recovery(uniffiStatus)
+		})
+		if checksum != 56498 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_encryption_disable_recovery: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_encryption_enable_backups(uniffiStatus)
+		})
+		if checksum != 38094 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_encryption_enable_backups: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_encryption_enable_recovery(uniffiStatus)
+		})
+		if checksum != 13489 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_encryption_enable_recovery: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_encryption_fix_recovery_issues(uniffiStatus)
+		})
+		if checksum != 24283 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_encryption_fix_recovery_issues: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_encryption_is_last_device(uniffiStatus)
+		})
+		if checksum != 30199 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_encryption_is_last_device: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_encryption_recover_and_reset(uniffiStatus)
+		})
+		if checksum != 16535 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_encryption_recover_and_reset: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_encryption_recovery_state(uniffiStatus)
+		})
+		if checksum != 7187 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_encryption_recovery_state: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_encryption_recovery_state_listener(uniffiStatus)
+		})
+		if checksum != 11439 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_encryption_recovery_state_listener: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_encryption_reset_recovery_key(uniffiStatus)
+		})
+		if checksum != 55362 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_encryption_reset_recovery_key: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_encryption_wait_for_backup_upload_steady_state(uniffiStatus)
+		})
+		if checksum != 37083 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_encryption_wait_for_backup_upload_steady_state: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_matrix_sdk_ffi_checksum_method_eventtimelineitem_can_be_replied_to(uniffiStatus)
 		})
 		if checksum != 42286 {
@@ -1159,9 +1298,18 @@ func uniffiCheckChecksums() {
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_matrix_sdk_ffi_checksum_method_mediafilehandle_path(uniffiStatus)
 		})
-		if checksum != 57070 {
+		if checksum != 2500 {
 			// If this happens try cleaning and rebuilding your project
 			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_mediafilehandle_path: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_mediafilehandle_persist(uniffiStatus)
+		})
+		if checksum != 4346 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_mediafilehandle_persist: UniFFI API checksum mismatch")
 		}
 	}
 	{
@@ -1234,6 +1382,15 @@ func uniffiCheckChecksums() {
 		if checksum != 12382 {
 			// If this happens try cleaning and rebuilding your project
 			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_notificationclientbuilder_finish: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_notificationsettings_can_homeserver_push_encrypted_event_to_device(uniffiStatus)
+		})
+		if checksum != 22382 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_notificationsettings_can_homeserver_push_encrypted_event_to_device: UniFFI API checksum mismatch")
 		}
 	}
 	{
@@ -1540,6 +1697,15 @@ func uniffiCheckChecksums() {
 		if checksum != 38490 {
 			// If this happens try cleaning and rebuilding your project
 			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_room_edit: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_room_edit_poll(uniffiStatus)
+		})
+		if checksum != 18073 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_room_edit_poll: UniFFI API checksum mismatch")
 		}
 	}
 	{
@@ -2885,6 +3051,24 @@ func uniffiCheckChecksums() {
 	}
 	{
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_backupstatelistener_on_update(uniffiStatus)
+		})
+		if checksum != 32936 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_backupstatelistener_on_update: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_backupsteadystatelistener_on_update(uniffiStatus)
+		})
+		if checksum != 21611 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_backupsteadystatelistener_on_update: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_matrix_sdk_ffi_checksum_method_clientdelegate_did_receive_auth_error(uniffiStatus)
 		})
 		if checksum != 54393 {
@@ -2921,6 +3105,15 @@ func uniffiCheckChecksums() {
 	}
 	{
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_enablerecoveryprogresslistener_on_update(uniffiStatus)
+		})
+		if checksum != 5434 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_enablerecoveryprogresslistener_on_update: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_matrix_sdk_ffi_checksum_method_notificationsettingsdelegate_settings_did_change(uniffiStatus)
 		})
 		if checksum != 4921 {
@@ -2935,6 +3128,15 @@ func uniffiCheckChecksums() {
 		if checksum != 12165 {
 			// If this happens try cleaning and rebuilding your project
 			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_progresswatcher_transmission_progress: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_recoverystatelistener_on_update(uniffiStatus)
+		})
+		if checksum != 3601 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_recoverystatelistener_on_update: UniFFI API checksum mismatch")
 		}
 	}
 	{
@@ -3679,6 +3881,15 @@ func (_self *Client) DisplayName() (string, error) {
 	}
 }
 
+func (_self *Client) Encryption() *Encryption {
+	_pointer := _self.ffiObject.incrementPointer("*Client")
+	defer _self.ffiObject.decrementPointer()
+	return FfiConverterEncryptionINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) unsafe.Pointer {
+		return C.uniffi_matrix_sdk_ffi_fn_method_client_encryption(
+			_pointer, _uniffiStatus)
+	}))
+}
+
 func (_self *Client) GetDmRoom(userId string) (**Room, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Client")
 	defer _self.ffiObject.decrementPointer()
@@ -3709,12 +3920,12 @@ func (_self *Client) GetMediaContent(mediaSource *MediaSource) ([]byte, error) {
 	}
 }
 
-func (_self *Client) GetMediaFile(mediaSource *MediaSource, body *string, mimeType string, tempDir *string) (*MediaFileHandle, error) {
+func (_self *Client) GetMediaFile(mediaSource *MediaSource, body *string, mimeType string, useCache bool, tempDir *string) (*MediaFileHandle, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Client")
 	defer _self.ffiObject.decrementPointer()
 	_uniffiRV, _uniffiErr := rustCallWithError(FfiConverterTypeClientError{}, func(_uniffiStatus *C.RustCallStatus) unsafe.Pointer {
 		return C.uniffi_matrix_sdk_ffi_fn_method_client_get_media_file(
-			_pointer, FfiConverterMediaSourceINSTANCE.Lower(mediaSource), FfiConverterOptionalStringINSTANCE.Lower(body), FfiConverterStringINSTANCE.Lower(mimeType), FfiConverterOptionalStringINSTANCE.Lower(tempDir), _uniffiStatus)
+			_pointer, FfiConverterMediaSourceINSTANCE.Lower(mediaSource), FfiConverterOptionalStringINSTANCE.Lower(body), FfiConverterStringINSTANCE.Lower(mimeType), FfiConverterBoolINSTANCE.Lower(useCache), FfiConverterOptionalStringINSTANCE.Lower(tempDir), _uniffiStatus)
 	})
 	if _uniffiErr != nil {
 		var _uniffiDefaultValue *MediaFileHandle
@@ -3911,14 +4122,13 @@ func (_self *Client) SetAccountData(eventType string, content string) error {
 	return _uniffiErr
 }
 
-func (_self *Client) SetDelegate(delegate *ClientDelegate) {
+func (_self *Client) SetDelegate(delegate *ClientDelegate) **TaskHandle {
 	_pointer := _self.ffiObject.incrementPointer("*Client")
 	defer _self.ffiObject.decrementPointer()
-	rustCall(func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_client_set_delegate(
+	return FfiConverterOptionalTaskHandleINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) RustBufferI {
+		return C.uniffi_matrix_sdk_ffi_fn_method_client_set_delegate(
 			_pointer, FfiConverterOptionalCallbackInterfaceClientDelegateINSTANCE.Lower(delegate), _uniffiStatus)
-		return false
-	})
+	}))
 }
 
 func (_self *Client) SetDisplayName(name string) error {
@@ -4234,6 +4444,307 @@ func (_ FfiDestroyerClientBuilder) Destroy(value *ClientBuilder) {
 	value.Destroy()
 }
 
+type Encryption struct {
+	ffiObject FfiObject
+}
+
+func (_self *Encryption) BackupExistsOnServer() (bool, error) {
+	_pointer := _self.ffiObject.incrementPointer("*Encryption")
+	defer _self.ffiObject.decrementPointer()
+	return uniffiRustCallAsyncWithErrorAndResult(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_encryption_backup_exists_on_server(
+				_pointer,
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_i8(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) C.int8_t {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_i8(unsafe.Pointer(handle), status)
+		},
+		FfiConverterBoolINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
+		})
+}
+func (_self *Encryption) BackupState() BackupState {
+	_pointer := _self.ffiObject.incrementPointer("*Encryption")
+	defer _self.ffiObject.decrementPointer()
+	return FfiConverterTypeBackupStateINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) RustBufferI {
+		return C.uniffi_matrix_sdk_ffi_fn_method_encryption_backup_state(
+			_pointer, _uniffiStatus)
+	}))
+}
+
+func (_self *Encryption) BackupStateListener(listener BackupStateListener) *TaskHandle {
+	_pointer := _self.ffiObject.incrementPointer("*Encryption")
+	defer _self.ffiObject.decrementPointer()
+	return FfiConverterTaskHandleINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) unsafe.Pointer {
+		return C.uniffi_matrix_sdk_ffi_fn_method_encryption_backup_state_listener(
+			_pointer, FfiConverterCallbackInterfaceBackupStateListenerINSTANCE.Lower(listener), _uniffiStatus)
+	}))
+}
+
+func (_self *Encryption) DisableRecovery() error {
+	_pointer := _self.ffiObject.incrementPointer("*Encryption")
+	defer _self.ffiObject.decrementPointer()
+	return uniffiRustCallAsyncWithError(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_encryption_disable_recovery(
+				_pointer,
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_void(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) {
+			// completeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_complete_void(unsafe.Pointer(handle), status)
+		},
+		func(bool) {}, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
+		})
+}
+func (_self *Encryption) EnableBackups() error {
+	_pointer := _self.ffiObject.incrementPointer("*Encryption")
+	defer _self.ffiObject.decrementPointer()
+	return uniffiRustCallAsyncWithError(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_encryption_enable_backups(
+				_pointer,
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_void(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) {
+			// completeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_complete_void(unsafe.Pointer(handle), status)
+		},
+		func(bool) {}, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
+		})
+}
+func (_self *Encryption) EnableRecovery(waitForBackupsToUpload bool, progressListener EnableRecoveryProgressListener) (string, error) {
+	_pointer := _self.ffiObject.incrementPointer("*Encryption")
+	defer _self.ffiObject.decrementPointer()
+	return uniffiRustCallAsyncWithErrorAndResult(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_encryption_enable_recovery(
+				_pointer, FfiConverterBoolINSTANCE.Lower(waitForBackupsToUpload), FfiConverterCallbackInterfaceEnableRecoveryProgressListenerINSTANCE.Lower(progressListener),
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_rust_buffer(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) RustBufferI {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_rust_buffer(unsafe.Pointer(handle), status)
+		},
+		FfiConverterStringINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
+		})
+}
+func (_self *Encryption) FixRecoveryIssues(recoveryKey string) error {
+	_pointer := _self.ffiObject.incrementPointer("*Encryption")
+	defer _self.ffiObject.decrementPointer()
+	return uniffiRustCallAsyncWithError(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_encryption_fix_recovery_issues(
+				_pointer, FfiConverterStringINSTANCE.Lower(recoveryKey),
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_void(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) {
+			// completeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_complete_void(unsafe.Pointer(handle), status)
+		},
+		func(bool) {}, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
+		})
+}
+func (_self *Encryption) IsLastDevice() (bool, error) {
+	_pointer := _self.ffiObject.incrementPointer("*Encryption")
+	defer _self.ffiObject.decrementPointer()
+	return uniffiRustCallAsyncWithErrorAndResult(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_encryption_is_last_device(
+				_pointer,
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_i8(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) C.int8_t {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_i8(unsafe.Pointer(handle), status)
+		},
+		FfiConverterBoolINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
+		})
+}
+func (_self *Encryption) RecoverAndReset(oldRecoveryKey string) (string, error) {
+	_pointer := _self.ffiObject.incrementPointer("*Encryption")
+	defer _self.ffiObject.decrementPointer()
+	return uniffiRustCallAsyncWithErrorAndResult(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_encryption_recover_and_reset(
+				_pointer, FfiConverterStringINSTANCE.Lower(oldRecoveryKey),
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_rust_buffer(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) RustBufferI {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_rust_buffer(unsafe.Pointer(handle), status)
+		},
+		FfiConverterStringINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
+		})
+}
+func (_self *Encryption) RecoveryState() RecoveryState {
+	_pointer := _self.ffiObject.incrementPointer("*Encryption")
+	defer _self.ffiObject.decrementPointer()
+	return FfiConverterTypeRecoveryStateINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) RustBufferI {
+		return C.uniffi_matrix_sdk_ffi_fn_method_encryption_recovery_state(
+			_pointer, _uniffiStatus)
+	}))
+}
+
+func (_self *Encryption) RecoveryStateListener(listener RecoveryStateListener) *TaskHandle {
+	_pointer := _self.ffiObject.incrementPointer("*Encryption")
+	defer _self.ffiObject.decrementPointer()
+	return FfiConverterTaskHandleINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) unsafe.Pointer {
+		return C.uniffi_matrix_sdk_ffi_fn_method_encryption_recovery_state_listener(
+			_pointer, FfiConverterCallbackInterfaceRecoveryStateListenerINSTANCE.Lower(listener), _uniffiStatus)
+	}))
+}
+
+func (_self *Encryption) ResetRecoveryKey() (string, error) {
+	_pointer := _self.ffiObject.incrementPointer("*Encryption")
+	defer _self.ffiObject.decrementPointer()
+	return uniffiRustCallAsyncWithErrorAndResult(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_encryption_reset_recovery_key(
+				_pointer,
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_rust_buffer(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) RustBufferI {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_rust_buffer(unsafe.Pointer(handle), status)
+		},
+		FfiConverterStringINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
+		})
+}
+func (_self *Encryption) WaitForBackupUploadSteadyState(progressListener *BackupSteadyStateListener) error {
+	_pointer := _self.ffiObject.incrementPointer("*Encryption")
+	defer _self.ffiObject.decrementPointer()
+	return uniffiRustCallAsyncWithError(
+		FfiConverterTypeSteadyStateError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_encryption_wait_for_backup_upload_steady_state(
+				_pointer, FfiConverterOptionalCallbackInterfaceBackupSteadyStateListenerINSTANCE.Lower(progressListener),
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_void(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) {
+			// completeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_complete_void(unsafe.Pointer(handle), status)
+		},
+		func(bool) {}, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
+		})
+}
+
+func (object *Encryption) Destroy() {
+	runtime.SetFinalizer(object, nil)
+	object.ffiObject.destroy()
+}
+
+type FfiConverterEncryption struct{}
+
+var FfiConverterEncryptionINSTANCE = FfiConverterEncryption{}
+
+func (c FfiConverterEncryption) Lift(pointer unsafe.Pointer) *Encryption {
+	result := &Encryption{
+		newFfiObject(
+			pointer,
+			func(pointer unsafe.Pointer, status *C.RustCallStatus) {
+				C.uniffi_matrix_sdk_ffi_fn_free_encryption(pointer, status)
+			}),
+	}
+	runtime.SetFinalizer(result, (*Encryption).Destroy)
+	return result
+}
+
+func (c FfiConverterEncryption) Read(reader io.Reader) *Encryption {
+	return c.Lift(unsafe.Pointer(uintptr(readUint64(reader))))
+}
+
+func (c FfiConverterEncryption) Lower(value *Encryption) unsafe.Pointer {
+	// TODO: this is bad - all synchronization from ObjectRuntime.go is discarded here,
+	// because the pointer will be decremented immediately after this function returns,
+	// and someone will be left holding onto a non-locked pointer.
+	pointer := value.ffiObject.incrementPointer("*Encryption")
+	defer value.ffiObject.decrementPointer()
+	return pointer
+}
+
+func (c FfiConverterEncryption) Write(writer io.Writer, value *Encryption) {
+	writeUint64(writer, uint64(uintptr(c.Lower(value))))
+}
+
+type FfiDestroyerEncryption struct{}
+
+func (_ FfiDestroyerEncryption) Destroy(value *Encryption) {
+	value.Destroy()
+}
+
 type EventTimelineItem struct {
 	ffiObject FfiObject
 }
@@ -4505,13 +5016,34 @@ type MediaFileHandle struct {
 	ffiObject FfiObject
 }
 
-func (_self *MediaFileHandle) Path() string {
+func (_self *MediaFileHandle) Path() (string, error) {
 	_pointer := _self.ffiObject.incrementPointer("*MediaFileHandle")
 	defer _self.ffiObject.decrementPointer()
-	return FfiConverterStringINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) RustBufferI {
+	_uniffiRV, _uniffiErr := rustCallWithError(FfiConverterTypeClientError{}, func(_uniffiStatus *C.RustCallStatus) RustBufferI {
 		return C.uniffi_matrix_sdk_ffi_fn_method_mediafilehandle_path(
 			_pointer, _uniffiStatus)
-	}))
+	})
+	if _uniffiErr != nil {
+		var _uniffiDefaultValue string
+		return _uniffiDefaultValue, _uniffiErr
+	} else {
+		return FfiConverterStringINSTANCE.Lift(_uniffiRV), _uniffiErr
+	}
+}
+
+func (_self *MediaFileHandle) Persist(path string) (bool, error) {
+	_pointer := _self.ffiObject.incrementPointer("*MediaFileHandle")
+	defer _self.ffiObject.decrementPointer()
+	_uniffiRV, _uniffiErr := rustCallWithError(FfiConverterTypeClientError{}, func(_uniffiStatus *C.RustCallStatus) C.int8_t {
+		return C.uniffi_matrix_sdk_ffi_fn_method_mediafilehandle_persist(
+			_pointer, FfiConverterStringINSTANCE.Lower(path), _uniffiStatus)
+	})
+	if _uniffiErr != nil {
+		var _uniffiDefaultValue bool
+		return _uniffiDefaultValue, _uniffiErr
+	} else {
+		return FfiConverterBoolINSTANCE.Lift(_uniffiRV), _uniffiErr
+	}
 }
 
 func (object *MediaFileHandle) Destroy() {
@@ -4862,6 +5394,29 @@ type NotificationSettings struct {
 	ffiObject FfiObject
 }
 
+func (_self *NotificationSettings) CanHomeserverPushEncryptedEventToDevice() bool {
+	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
+	defer _self.ffiObject.decrementPointer()
+	return uniffiRustCallAsyncWithResult(func(status *C.RustCallStatus) *C.void {
+		// rustFutureFunc
+		return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_can_homeserver_push_encrypted_event_to_device(
+			_pointer,
+			status,
+		))
+	},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_i8(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) C.int8_t {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_i8(unsafe.Pointer(handle), status)
+		},
+		FfiConverterBoolINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
+		})
+}
 func (_self *NotificationSettings) ContainsKeywordsRules() bool {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
@@ -5613,6 +6168,17 @@ func (_self *Room) Edit(newContent *RoomMessageEventContentWithoutRelation, edit
 	_, _uniffiErr := rustCallWithError(FfiConverterTypeClientError{}, func(_uniffiStatus *C.RustCallStatus) bool {
 		C.uniffi_matrix_sdk_ffi_fn_method_room_edit(
 			_pointer, FfiConverterRoomMessageEventContentWithoutRelationINSTANCE.Lower(newContent), FfiConverterEventTimelineItemINSTANCE.Lower(editItem), _uniffiStatus)
+		return false
+	})
+	return _uniffiErr
+}
+
+func (_self *Room) EditPoll(question string, answers []string, maxSelections uint8, pollKind PollKind, editItem *EventTimelineItem) error {
+	_pointer := _self.ffiObject.incrementPointer("*Room")
+	defer _self.ffiObject.decrementPointer()
+	_, _uniffiErr := rustCallWithError(FfiConverterTypeClientError{}, func(_uniffiStatus *C.RustCallStatus) bool {
+		C.uniffi_matrix_sdk_ffi_fn_method_room_edit_poll(
+			_pointer, FfiConverterStringINSTANCE.Lower(question), FfiConverterSequenceStringINSTANCE.Lower(answers), FfiConverterUint8INSTANCE.Lower(maxSelections), FfiConverterTypePollKindINSTANCE.Lower(pollKind), FfiConverterEventTimelineItemINSTANCE.Lower(editItem), _uniffiStatus)
 		return false
 	})
 	return _uniffiErr
@@ -9223,6 +9789,7 @@ type NotificationItem struct {
 	SenderInfo NotificationSenderInfo
 	RoomInfo   NotificationRoomInfo
 	IsNoisy    *bool
+	HasMention *bool
 }
 
 func (r *NotificationItem) Destroy() {
@@ -9230,6 +9797,7 @@ func (r *NotificationItem) Destroy() {
 	FfiDestroyerTypeNotificationSenderInfo{}.Destroy(r.SenderInfo)
 	FfiDestroyerTypeNotificationRoomInfo{}.Destroy(r.RoomInfo)
 	FfiDestroyerOptionalBool{}.Destroy(r.IsNoisy)
+	FfiDestroyerOptionalBool{}.Destroy(r.HasMention)
 }
 
 type FfiConverterTypeNotificationItem struct{}
@@ -9246,6 +9814,7 @@ func (c FfiConverterTypeNotificationItem) Read(reader io.Reader) NotificationIte
 		FfiConverterTypeNotificationSenderInfoINSTANCE.Read(reader),
 		FfiConverterTypeNotificationRoomInfoINSTANCE.Read(reader),
 		FfiConverterOptionalBoolINSTANCE.Read(reader),
+		FfiConverterOptionalBoolINSTANCE.Read(reader),
 	}
 }
 
@@ -9258,6 +9827,7 @@ func (c FfiConverterTypeNotificationItem) Write(writer io.Writer, value Notifica
 	FfiConverterTypeNotificationSenderInfoINSTANCE.Write(writer, value.SenderInfo)
 	FfiConverterTypeNotificationRoomInfoINSTANCE.Write(writer, value.RoomInfo)
 	FfiConverterOptionalBoolINSTANCE.Write(writer, value.IsNoisy)
+	FfiConverterOptionalBoolINSTANCE.Write(writer, value.HasMention)
 }
 
 type FfiDestroyerTypeNotificationItem struct{}
@@ -10515,11 +11085,9 @@ func (_ FfiDestroyerTypeUnstableAudioDetailsContent) Destroy(value UnstableAudio
 }
 
 type UnstableVoiceContent struct {
-	DoNotUse bool
 }
 
 func (r *UnstableVoiceContent) Destroy() {
-	FfiDestroyerBool{}.Destroy(r.DoNotUse)
 }
 
 type FfiConverterTypeUnstableVoiceContent struct{}
@@ -10531,9 +11099,7 @@ func (c FfiConverterTypeUnstableVoiceContent) Lift(rb RustBufferI) UnstableVoice
 }
 
 func (c FfiConverterTypeUnstableVoiceContent) Read(reader io.Reader) UnstableVoiceContent {
-	return UnstableVoiceContent{
-		FfiConverterBoolINSTANCE.Read(reader),
-	}
+	return UnstableVoiceContent{}
 }
 
 func (c FfiConverterTypeUnstableVoiceContent) Lower(value UnstableVoiceContent) RustBuffer {
@@ -10541,7 +11107,6 @@ func (c FfiConverterTypeUnstableVoiceContent) Lower(value UnstableVoiceContent) 
 }
 
 func (c FfiConverterTypeUnstableVoiceContent) Write(writer io.Writer, value UnstableVoiceContent) {
-	FfiConverterBoolINSTANCE.Write(writer, value.DoNotUse)
 }
 
 type FfiDestroyerTypeUnstableVoiceContent struct{}
@@ -10714,6 +11279,7 @@ type VirtualElementCallWidgetOptions struct {
 	ConfineToRoom  *bool
 	Font           *string
 	AnalyticsId    *string
+	Encryption     EncryptionSystem
 }
 
 func (r *VirtualElementCallWidgetOptions) Destroy() {
@@ -10728,6 +11294,7 @@ func (r *VirtualElementCallWidgetOptions) Destroy() {
 	FfiDestroyerOptionalBool{}.Destroy(r.ConfineToRoom)
 	FfiDestroyerOptionalString{}.Destroy(r.Font)
 	FfiDestroyerOptionalString{}.Destroy(r.AnalyticsId)
+	FfiDestroyerTypeEncryptionSystem{}.Destroy(r.Encryption)
 }
 
 type FfiConverterTypeVirtualElementCallWidgetOptions struct{}
@@ -10751,6 +11318,7 @@ func (c FfiConverterTypeVirtualElementCallWidgetOptions) Read(reader io.Reader) 
 		FfiConverterOptionalBoolINSTANCE.Read(reader),
 		FfiConverterOptionalStringINSTANCE.Read(reader),
 		FfiConverterOptionalStringINSTANCE.Read(reader),
+		FfiConverterTypeEncryptionSystemINSTANCE.Read(reader),
 	}
 }
 
@@ -10770,6 +11338,7 @@ func (c FfiConverterTypeVirtualElementCallWidgetOptions) Write(writer io.Writer,
 	FfiConverterOptionalBoolINSTANCE.Write(writer, value.ConfineToRoom)
 	FfiConverterOptionalStringINSTANCE.Write(writer, value.Font)
 	FfiConverterOptionalStringINSTANCE.Write(writer, value.AnalyticsId)
+	FfiConverterTypeEncryptionSystemINSTANCE.Write(writer, value.Encryption)
 }
 
 type FfiDestroyerTypeVirtualElementCallWidgetOptions struct{}
@@ -11379,6 +11948,147 @@ type FfiDestroyerTypeBackPaginationStatus struct{}
 func (_ FfiDestroyerTypeBackPaginationStatus) Destroy(value BackPaginationStatus) {
 }
 
+type BackupState uint
+
+const (
+	BackupStateUnknown     BackupState = 1
+	BackupStateCreating    BackupState = 2
+	BackupStateEnabling    BackupState = 3
+	BackupStateResuming    BackupState = 4
+	BackupStateEnabled     BackupState = 5
+	BackupStateDownloading BackupState = 6
+	BackupStateDisabling   BackupState = 7
+)
+
+type FfiConverterTypeBackupState struct{}
+
+var FfiConverterTypeBackupStateINSTANCE = FfiConverterTypeBackupState{}
+
+func (c FfiConverterTypeBackupState) Lift(rb RustBufferI) BackupState {
+	return LiftFromRustBuffer[BackupState](c, rb)
+}
+
+func (c FfiConverterTypeBackupState) Lower(value BackupState) RustBuffer {
+	return LowerIntoRustBuffer[BackupState](c, value)
+}
+func (FfiConverterTypeBackupState) Read(reader io.Reader) BackupState {
+	id := readInt32(reader)
+	return BackupState(id)
+}
+
+func (FfiConverterTypeBackupState) Write(writer io.Writer, value BackupState) {
+	writeInt32(writer, int32(value))
+}
+
+type FfiDestroyerTypeBackupState struct{}
+
+func (_ FfiDestroyerTypeBackupState) Destroy(value BackupState) {
+}
+
+type BackupUploadState interface {
+	Destroy()
+}
+type BackupUploadStateWaiting struct {
+}
+
+func (e BackupUploadStateWaiting) Destroy() {
+}
+
+type BackupUploadStateCheckingIfUploadNeeded struct {
+	BackedUpCount uint32
+	TotalCount    uint32
+}
+
+func (e BackupUploadStateCheckingIfUploadNeeded) Destroy() {
+	FfiDestroyerUint32{}.Destroy(e.BackedUpCount)
+	FfiDestroyerUint32{}.Destroy(e.TotalCount)
+}
+
+type BackupUploadStateUploading struct {
+	BackedUpCount uint32
+	TotalCount    uint32
+}
+
+func (e BackupUploadStateUploading) Destroy() {
+	FfiDestroyerUint32{}.Destroy(e.BackedUpCount)
+	FfiDestroyerUint32{}.Destroy(e.TotalCount)
+}
+
+type BackupUploadStateError struct {
+}
+
+func (e BackupUploadStateError) Destroy() {
+}
+
+type BackupUploadStateDone struct {
+}
+
+func (e BackupUploadStateDone) Destroy() {
+}
+
+type FfiConverterTypeBackupUploadState struct{}
+
+var FfiConverterTypeBackupUploadStateINSTANCE = FfiConverterTypeBackupUploadState{}
+
+func (c FfiConverterTypeBackupUploadState) Lift(rb RustBufferI) BackupUploadState {
+	return LiftFromRustBuffer[BackupUploadState](c, rb)
+}
+
+func (c FfiConverterTypeBackupUploadState) Lower(value BackupUploadState) RustBuffer {
+	return LowerIntoRustBuffer[BackupUploadState](c, value)
+}
+func (FfiConverterTypeBackupUploadState) Read(reader io.Reader) BackupUploadState {
+	id := readInt32(reader)
+	switch id {
+	case 1:
+		return BackupUploadStateWaiting{}
+	case 2:
+		return BackupUploadStateCheckingIfUploadNeeded{
+			FfiConverterUint32INSTANCE.Read(reader),
+			FfiConverterUint32INSTANCE.Read(reader),
+		}
+	case 3:
+		return BackupUploadStateUploading{
+			FfiConverterUint32INSTANCE.Read(reader),
+			FfiConverterUint32INSTANCE.Read(reader),
+		}
+	case 4:
+		return BackupUploadStateError{}
+	case 5:
+		return BackupUploadStateDone{}
+	default:
+		panic(fmt.Sprintf("invalid enum value %v in FfiConverterTypeBackupUploadState.Read()", id))
+	}
+}
+
+func (FfiConverterTypeBackupUploadState) Write(writer io.Writer, value BackupUploadState) {
+	switch variant_value := value.(type) {
+	case BackupUploadStateWaiting:
+		writeInt32(writer, 1)
+	case BackupUploadStateCheckingIfUploadNeeded:
+		writeInt32(writer, 2)
+		FfiConverterUint32INSTANCE.Write(writer, variant_value.BackedUpCount)
+		FfiConverterUint32INSTANCE.Write(writer, variant_value.TotalCount)
+	case BackupUploadStateUploading:
+		writeInt32(writer, 3)
+		FfiConverterUint32INSTANCE.Write(writer, variant_value.BackedUpCount)
+		FfiConverterUint32INSTANCE.Write(writer, variant_value.TotalCount)
+	case BackupUploadStateError:
+		writeInt32(writer, 4)
+	case BackupUploadStateDone:
+		writeInt32(writer, 5)
+	default:
+		_ = variant_value
+		panic(fmt.Sprintf("invalid enum value `%v` in FfiConverterTypeBackupUploadState.Write", value))
+	}
+}
+
+type FfiDestroyerTypeBackupUploadState struct{}
+
+func (_ FfiDestroyerTypeBackupUploadState) Destroy(value BackupUploadState) {
+	value.Destroy()
+}
+
 type ClientError struct {
 	err error
 }
@@ -11458,6 +12168,96 @@ func (c FfiConverterTypeClientError) Write(writer io.Writer, value *ClientError)
 	}
 }
 
+type EnableRecoveryProgress interface {
+	Destroy()
+}
+type EnableRecoveryProgressCreatingBackup struct {
+}
+
+func (e EnableRecoveryProgressCreatingBackup) Destroy() {
+}
+
+type EnableRecoveryProgressCreatingRecoveryKey struct {
+}
+
+func (e EnableRecoveryProgressCreatingRecoveryKey) Destroy() {
+}
+
+type EnableRecoveryProgressBackingUp struct {
+	BackedUpCount uint32
+	TotalCount    uint32
+}
+
+func (e EnableRecoveryProgressBackingUp) Destroy() {
+	FfiDestroyerUint32{}.Destroy(e.BackedUpCount)
+	FfiDestroyerUint32{}.Destroy(e.TotalCount)
+}
+
+type EnableRecoveryProgressDone struct {
+	RecoveryKey string
+}
+
+func (e EnableRecoveryProgressDone) Destroy() {
+	FfiDestroyerString{}.Destroy(e.RecoveryKey)
+}
+
+type FfiConverterTypeEnableRecoveryProgress struct{}
+
+var FfiConverterTypeEnableRecoveryProgressINSTANCE = FfiConverterTypeEnableRecoveryProgress{}
+
+func (c FfiConverterTypeEnableRecoveryProgress) Lift(rb RustBufferI) EnableRecoveryProgress {
+	return LiftFromRustBuffer[EnableRecoveryProgress](c, rb)
+}
+
+func (c FfiConverterTypeEnableRecoveryProgress) Lower(value EnableRecoveryProgress) RustBuffer {
+	return LowerIntoRustBuffer[EnableRecoveryProgress](c, value)
+}
+func (FfiConverterTypeEnableRecoveryProgress) Read(reader io.Reader) EnableRecoveryProgress {
+	id := readInt32(reader)
+	switch id {
+	case 1:
+		return EnableRecoveryProgressCreatingBackup{}
+	case 2:
+		return EnableRecoveryProgressCreatingRecoveryKey{}
+	case 3:
+		return EnableRecoveryProgressBackingUp{
+			FfiConverterUint32INSTANCE.Read(reader),
+			FfiConverterUint32INSTANCE.Read(reader),
+		}
+	case 4:
+		return EnableRecoveryProgressDone{
+			FfiConverterStringINSTANCE.Read(reader),
+		}
+	default:
+		panic(fmt.Sprintf("invalid enum value %v in FfiConverterTypeEnableRecoveryProgress.Read()", id))
+	}
+}
+
+func (FfiConverterTypeEnableRecoveryProgress) Write(writer io.Writer, value EnableRecoveryProgress) {
+	switch variant_value := value.(type) {
+	case EnableRecoveryProgressCreatingBackup:
+		writeInt32(writer, 1)
+	case EnableRecoveryProgressCreatingRecoveryKey:
+		writeInt32(writer, 2)
+	case EnableRecoveryProgressBackingUp:
+		writeInt32(writer, 3)
+		FfiConverterUint32INSTANCE.Write(writer, variant_value.BackedUpCount)
+		FfiConverterUint32INSTANCE.Write(writer, variant_value.TotalCount)
+	case EnableRecoveryProgressDone:
+		writeInt32(writer, 4)
+		FfiConverterStringINSTANCE.Write(writer, variant_value.RecoveryKey)
+	default:
+		_ = variant_value
+		panic(fmt.Sprintf("invalid enum value `%v` in FfiConverterTypeEnableRecoveryProgress.Write", value))
+	}
+}
+
+type FfiDestroyerTypeEnableRecoveryProgress struct{}
+
+func (_ FfiDestroyerTypeEnableRecoveryProgress) Destroy(value EnableRecoveryProgress) {
+	value.Destroy()
+}
+
 type EncryptedMessage interface {
 	Destroy()
 }
@@ -11531,6 +12331,77 @@ func (FfiConverterTypeEncryptedMessage) Write(writer io.Writer, value EncryptedM
 type FfiDestroyerTypeEncryptedMessage struct{}
 
 func (_ FfiDestroyerTypeEncryptedMessage) Destroy(value EncryptedMessage) {
+	value.Destroy()
+}
+
+type EncryptionSystem interface {
+	Destroy()
+}
+type EncryptionSystemUnencrypted struct {
+}
+
+func (e EncryptionSystemUnencrypted) Destroy() {
+}
+
+type EncryptionSystemPerParticipantKeys struct {
+}
+
+func (e EncryptionSystemPerParticipantKeys) Destroy() {
+}
+
+type EncryptionSystemSharedSecret struct {
+	Secret string
+}
+
+func (e EncryptionSystemSharedSecret) Destroy() {
+	FfiDestroyerString{}.Destroy(e.Secret)
+}
+
+type FfiConverterTypeEncryptionSystem struct{}
+
+var FfiConverterTypeEncryptionSystemINSTANCE = FfiConverterTypeEncryptionSystem{}
+
+func (c FfiConverterTypeEncryptionSystem) Lift(rb RustBufferI) EncryptionSystem {
+	return LiftFromRustBuffer[EncryptionSystem](c, rb)
+}
+
+func (c FfiConverterTypeEncryptionSystem) Lower(value EncryptionSystem) RustBuffer {
+	return LowerIntoRustBuffer[EncryptionSystem](c, value)
+}
+func (FfiConverterTypeEncryptionSystem) Read(reader io.Reader) EncryptionSystem {
+	id := readInt32(reader)
+	switch id {
+	case 1:
+		return EncryptionSystemUnencrypted{}
+	case 2:
+		return EncryptionSystemPerParticipantKeys{}
+	case 3:
+		return EncryptionSystemSharedSecret{
+			FfiConverterStringINSTANCE.Read(reader),
+		}
+	default:
+		panic(fmt.Sprintf("invalid enum value %v in FfiConverterTypeEncryptionSystem.Read()", id))
+	}
+}
+
+func (FfiConverterTypeEncryptionSystem) Write(writer io.Writer, value EncryptionSystem) {
+	switch variant_value := value.(type) {
+	case EncryptionSystemUnencrypted:
+		writeInt32(writer, 1)
+	case EncryptionSystemPerParticipantKeys:
+		writeInt32(writer, 2)
+	case EncryptionSystemSharedSecret:
+		writeInt32(writer, 3)
+		FfiConverterStringINSTANCE.Write(writer, variant_value.Secret)
+	default:
+		_ = variant_value
+		panic(fmt.Sprintf("invalid enum value `%v` in FfiConverterTypeEncryptionSystem.Write", value))
+	}
+}
+
+type FfiDestroyerTypeEncryptionSystem struct{}
+
+func (_ FfiDestroyerTypeEncryptionSystem) Destroy(value EncryptionSystem) {
 	value.Destroy()
 }
 
@@ -13075,12 +13946,12 @@ func (_ FfiDestroyerTypeOtherState) Destroy(value OtherState) {
 type PaginationOptions interface {
 	Destroy()
 }
-type PaginationOptionsSingleRequest struct {
+type PaginationOptionsSimpleRequest struct {
 	EventLimit   uint16
 	WaitForToken bool
 }
 
-func (e PaginationOptionsSingleRequest) Destroy() {
+func (e PaginationOptionsSimpleRequest) Destroy() {
 	FfiDestroyerUint16{}.Destroy(e.EventLimit)
 	FfiDestroyerBool{}.Destroy(e.WaitForToken)
 }
@@ -13112,7 +13983,7 @@ func (FfiConverterTypePaginationOptions) Read(reader io.Reader) PaginationOption
 	id := readInt32(reader)
 	switch id {
 	case 1:
-		return PaginationOptionsSingleRequest{
+		return PaginationOptionsSimpleRequest{
 			FfiConverterUint16INSTANCE.Read(reader),
 			FfiConverterBoolINSTANCE.Read(reader),
 		}
@@ -13129,7 +14000,7 @@ func (FfiConverterTypePaginationOptions) Read(reader io.Reader) PaginationOption
 
 func (FfiConverterTypePaginationOptions) Write(writer io.Writer, value PaginationOptions) {
 	switch variant_value := value.(type) {
-	case PaginationOptionsSingleRequest:
+	case PaginationOptionsSimpleRequest:
 		writeInt32(writer, 1)
 		FfiConverterUint16INSTANCE.Write(writer, variant_value.EventLimit)
 		FfiConverterBoolINSTANCE.Write(writer, variant_value.WaitForToken)
@@ -13665,6 +14536,40 @@ type FfiDestroyerTypePusherKind struct{}
 
 func (_ FfiDestroyerTypePusherKind) Destroy(value PusherKind) {
 	value.Destroy()
+}
+
+type RecoveryState uint
+
+const (
+	RecoveryStateUnknown    RecoveryState = 1
+	RecoveryStateEnabled    RecoveryState = 2
+	RecoveryStateDisabled   RecoveryState = 3
+	RecoveryStateIncomplete RecoveryState = 4
+)
+
+type FfiConverterTypeRecoveryState struct{}
+
+var FfiConverterTypeRecoveryStateINSTANCE = FfiConverterTypeRecoveryState{}
+
+func (c FfiConverterTypeRecoveryState) Lift(rb RustBufferI) RecoveryState {
+	return LiftFromRustBuffer[RecoveryState](c, rb)
+}
+
+func (c FfiConverterTypeRecoveryState) Lower(value RecoveryState) RustBuffer {
+	return LowerIntoRustBuffer[RecoveryState](c, value)
+}
+func (FfiConverterTypeRecoveryState) Read(reader io.Reader) RecoveryState {
+	id := readInt32(reader)
+	return RecoveryState(id)
+}
+
+func (FfiConverterTypeRecoveryState) Write(writer io.Writer, value RecoveryState) {
+	writeInt32(writer, int32(value))
+}
+
+type FfiDestroyerTypeRecoveryState struct{}
+
+func (_ FfiDestroyerTypeRecoveryState) Destroy(value RecoveryState) {
 }
 
 type RepliedToEventDetails interface {
@@ -15091,6 +15996,116 @@ type FfiDestroyerTypeStateEventType struct{}
 func (_ FfiDestroyerTypeStateEventType) Destroy(value StateEventType) {
 }
 
+type SteadyStateError struct {
+	err error
+}
+
+func (err SteadyStateError) Error() string {
+	return fmt.Sprintf("SteadyStateError: %s", err.err.Error())
+}
+
+func (err SteadyStateError) Unwrap() error {
+	return err.err
+}
+
+// Err* are used for checking error type with `errors.Is`
+var ErrSteadyStateErrorBackupDisabled = fmt.Errorf("SteadyStateErrorBackupDisabled")
+var ErrSteadyStateErrorConnection = fmt.Errorf("SteadyStateErrorConnection")
+var ErrSteadyStateErrorLaged = fmt.Errorf("SteadyStateErrorLaged")
+
+// Variant structs
+type SteadyStateErrorBackupDisabled struct {
+}
+
+func NewSteadyStateErrorBackupDisabled() *SteadyStateError {
+	return &SteadyStateError{
+		err: &SteadyStateErrorBackupDisabled{},
+	}
+}
+
+func (err SteadyStateErrorBackupDisabled) Error() string {
+	return fmt.Sprint("BackupDisabled")
+}
+
+func (self SteadyStateErrorBackupDisabled) Is(target error) bool {
+	return target == ErrSteadyStateErrorBackupDisabled
+}
+
+type SteadyStateErrorConnection struct {
+}
+
+func NewSteadyStateErrorConnection() *SteadyStateError {
+	return &SteadyStateError{
+		err: &SteadyStateErrorConnection{},
+	}
+}
+
+func (err SteadyStateErrorConnection) Error() string {
+	return fmt.Sprint("Connection")
+}
+
+func (self SteadyStateErrorConnection) Is(target error) bool {
+	return target == ErrSteadyStateErrorConnection
+}
+
+type SteadyStateErrorLaged struct {
+}
+
+func NewSteadyStateErrorLaged() *SteadyStateError {
+	return &SteadyStateError{
+		err: &SteadyStateErrorLaged{},
+	}
+}
+
+func (err SteadyStateErrorLaged) Error() string {
+	return fmt.Sprint("Laged")
+}
+
+func (self SteadyStateErrorLaged) Is(target error) bool {
+	return target == ErrSteadyStateErrorLaged
+}
+
+type FfiConverterTypeSteadyStateError struct{}
+
+var FfiConverterTypeSteadyStateErrorINSTANCE = FfiConverterTypeSteadyStateError{}
+
+func (c FfiConverterTypeSteadyStateError) Lift(eb RustBufferI) error {
+	return LiftFromRustBuffer[error](c, eb)
+}
+
+func (c FfiConverterTypeSteadyStateError) Lower(value *SteadyStateError) RustBuffer {
+	return LowerIntoRustBuffer[*SteadyStateError](c, value)
+}
+
+func (c FfiConverterTypeSteadyStateError) Read(reader io.Reader) error {
+	errorID := readUint32(reader)
+
+	switch errorID {
+	case 1:
+		return &SteadyStateError{&SteadyStateErrorBackupDisabled{}}
+	case 2:
+		return &SteadyStateError{&SteadyStateErrorConnection{}}
+	case 3:
+		return &SteadyStateError{&SteadyStateErrorLaged{}}
+	default:
+		panic(fmt.Sprintf("Unknown error code %d in FfiConverterTypeSteadyStateError.Read()", errorID))
+	}
+}
+
+func (c FfiConverterTypeSteadyStateError) Write(writer io.Writer, value *SteadyStateError) {
+	switch variantValue := value.err.(type) {
+	case *SteadyStateErrorBackupDisabled:
+		writeInt32(writer, 1)
+	case *SteadyStateErrorConnection:
+		writeInt32(writer, 2)
+	case *SteadyStateErrorLaged:
+		writeInt32(writer, 3)
+	default:
+		_ = variantValue
+		panic(fmt.Sprintf("invalid error value `%v` in FfiConverterTypeSteadyStateError.Write", value))
+	}
+}
+
 type SyncServiceState uint
 
 const (
@@ -15266,6 +16281,7 @@ type TimelineItemContentKindPoll struct {
 	Answers       []PollAnswer
 	Votes         map[string][]string
 	EndTime       *uint64
+	HasBeenEdited bool
 }
 
 func (e TimelineItemContentKindPoll) Destroy() {
@@ -15275,6 +16291,7 @@ func (e TimelineItemContentKindPoll) Destroy() {
 	FfiDestroyerSequenceTypePollAnswer{}.Destroy(e.Answers)
 	FfiDestroyerMapStringSequenceString{}.Destroy(e.Votes)
 	FfiDestroyerOptionalUint64{}.Destroy(e.EndTime)
+	FfiDestroyerBool{}.Destroy(e.HasBeenEdited)
 }
 
 type TimelineItemContentKindUnableToDecrypt struct {
@@ -15373,6 +16390,7 @@ func (FfiConverterTypeTimelineItemContentKind) Read(reader io.Reader) TimelineIt
 			FfiConverterSequenceTypePollAnswerINSTANCE.Read(reader),
 			FfiConverterMapStringSequenceStringINSTANCE.Read(reader),
 			FfiConverterOptionalUint64INSTANCE.Read(reader),
+			FfiConverterBoolINSTANCE.Read(reader),
 		}
 	case 5:
 		return TimelineItemContentKindUnableToDecrypt{
@@ -15430,6 +16448,7 @@ func (FfiConverterTypeTimelineItemContentKind) Write(writer io.Writer, value Tim
 		FfiConverterSequenceTypePollAnswerINSTANCE.Write(writer, variant_value.Answers)
 		FfiConverterMapStringSequenceStringINSTANCE.Write(writer, variant_value.Votes)
 		FfiConverterOptionalUint64INSTANCE.Write(writer, variant_value.EndTime)
+		FfiConverterBoolINSTANCE.Write(writer, variant_value.HasBeenEdited)
 	case TimelineItemContentKindUnableToDecrypt:
 		writeInt32(writer, 5)
 		FfiConverterTypeEncryptedMessageINSTANCE.Write(writer, variant_value.Msg)
@@ -15777,6 +16796,132 @@ type FfiDestroyerCallbackInterfaceBackPaginationStatusListener struct{}
 func (FfiDestroyerCallbackInterfaceBackPaginationStatusListener) Destroy(value BackPaginationStatusListener) {
 }
 
+// Declaration and FfiConverters for BackupStateListener Callback Interface
+type BackupStateListener interface {
+	OnUpdate(status BackupState)
+}
+
+// foreignCallbackCallbackInterfaceBackupStateListener cannot be callable be a compiled function at a same time
+type foreignCallbackCallbackInterfaceBackupStateListener struct{}
+
+//export matrix_sdk_ffi_cgo_BackupStateListener
+func matrix_sdk_ffi_cgo_BackupStateListener(handle C.uint64_t, method C.int32_t, argsPtr *C.uint8_t, argsLen C.int32_t, outBuf *C.RustBuffer) C.int32_t {
+	cb := FfiConverterCallbackInterfaceBackupStateListenerINSTANCE.Lift(uint64(handle))
+	switch method {
+	case 0:
+		// 0 means Rust is done with the callback, and the callback
+		// can be dropped by the foreign language.
+		*outBuf = FfiConverterCallbackInterfaceBackupStateListenerINSTANCE.drop(uint64(handle))
+		// See docs of ForeignCallback in `uniffi/src/ffi/foreigncallbacks.rs`
+		return C.int32_t(uniffiIdxCallbackFree)
+
+	case 1:
+		var result uniffiCallbackResult
+		args := unsafe.Slice((*byte)(argsPtr), argsLen)
+		result = foreignCallbackCallbackInterfaceBackupStateListener{}.InvokeOnUpdate(cb, args, outBuf)
+		return C.int32_t(result)
+
+	default:
+		// This should never happen, because an out of bounds method index won't
+		// ever be used. Once we can catch errors, we should return an InternalException.
+		// https://github.com/mozilla/uniffi-rs/issues/351
+		return C.int32_t(uniffiCallbackUnexpectedResultError)
+	}
+}
+
+func (foreignCallbackCallbackInterfaceBackupStateListener) InvokeOnUpdate(callback BackupStateListener, args []byte, outBuf *C.RustBuffer) uniffiCallbackResult {
+	reader := bytes.NewReader(args)
+	callback.OnUpdate(FfiConverterTypeBackupStateINSTANCE.Read(reader))
+
+	return uniffiCallbackResultSuccess
+}
+
+type FfiConverterCallbackInterfaceBackupStateListener struct {
+	FfiConverterCallbackInterface[BackupStateListener]
+}
+
+var FfiConverterCallbackInterfaceBackupStateListenerINSTANCE = &FfiConverterCallbackInterfaceBackupStateListener{
+	FfiConverterCallbackInterface: FfiConverterCallbackInterface[BackupStateListener]{
+		handleMap: newConcurrentHandleMap[BackupStateListener](),
+	},
+}
+
+// This is a static function because only 1 instance is supported for registering
+func (c *FfiConverterCallbackInterfaceBackupStateListener) register() {
+	rustCall(func(status *C.RustCallStatus) int32 {
+		C.uniffi_matrix_sdk_ffi_fn_init_callback_backupstatelistener(C.ForeignCallback(C.matrix_sdk_ffi_cgo_BackupStateListener), status)
+		return 0
+	})
+}
+
+type FfiDestroyerCallbackInterfaceBackupStateListener struct{}
+
+func (FfiDestroyerCallbackInterfaceBackupStateListener) Destroy(value BackupStateListener) {
+}
+
+// Declaration and FfiConverters for BackupSteadyStateListener Callback Interface
+type BackupSteadyStateListener interface {
+	OnUpdate(status BackupUploadState)
+}
+
+// foreignCallbackCallbackInterfaceBackupSteadyStateListener cannot be callable be a compiled function at a same time
+type foreignCallbackCallbackInterfaceBackupSteadyStateListener struct{}
+
+//export matrix_sdk_ffi_cgo_BackupSteadyStateListener
+func matrix_sdk_ffi_cgo_BackupSteadyStateListener(handle C.uint64_t, method C.int32_t, argsPtr *C.uint8_t, argsLen C.int32_t, outBuf *C.RustBuffer) C.int32_t {
+	cb := FfiConverterCallbackInterfaceBackupSteadyStateListenerINSTANCE.Lift(uint64(handle))
+	switch method {
+	case 0:
+		// 0 means Rust is done with the callback, and the callback
+		// can be dropped by the foreign language.
+		*outBuf = FfiConverterCallbackInterfaceBackupSteadyStateListenerINSTANCE.drop(uint64(handle))
+		// See docs of ForeignCallback in `uniffi/src/ffi/foreigncallbacks.rs`
+		return C.int32_t(uniffiIdxCallbackFree)
+
+	case 1:
+		var result uniffiCallbackResult
+		args := unsafe.Slice((*byte)(argsPtr), argsLen)
+		result = foreignCallbackCallbackInterfaceBackupSteadyStateListener{}.InvokeOnUpdate(cb, args, outBuf)
+		return C.int32_t(result)
+
+	default:
+		// This should never happen, because an out of bounds method index won't
+		// ever be used. Once we can catch errors, we should return an InternalException.
+		// https://github.com/mozilla/uniffi-rs/issues/351
+		return C.int32_t(uniffiCallbackUnexpectedResultError)
+	}
+}
+
+func (foreignCallbackCallbackInterfaceBackupSteadyStateListener) InvokeOnUpdate(callback BackupSteadyStateListener, args []byte, outBuf *C.RustBuffer) uniffiCallbackResult {
+	reader := bytes.NewReader(args)
+	callback.OnUpdate(FfiConverterTypeBackupUploadStateINSTANCE.Read(reader))
+
+	return uniffiCallbackResultSuccess
+}
+
+type FfiConverterCallbackInterfaceBackupSteadyStateListener struct {
+	FfiConverterCallbackInterface[BackupSteadyStateListener]
+}
+
+var FfiConverterCallbackInterfaceBackupSteadyStateListenerINSTANCE = &FfiConverterCallbackInterfaceBackupSteadyStateListener{
+	FfiConverterCallbackInterface: FfiConverterCallbackInterface[BackupSteadyStateListener]{
+		handleMap: newConcurrentHandleMap[BackupSteadyStateListener](),
+	},
+}
+
+// This is a static function because only 1 instance is supported for registering
+func (c *FfiConverterCallbackInterfaceBackupSteadyStateListener) register() {
+	rustCall(func(status *C.RustCallStatus) int32 {
+		C.uniffi_matrix_sdk_ffi_fn_init_callback_backupsteadystatelistener(C.ForeignCallback(C.matrix_sdk_ffi_cgo_BackupSteadyStateListener), status)
+		return 0
+	})
+}
+
+type FfiDestroyerCallbackInterfaceBackupSteadyStateListener struct{}
+
+func (FfiDestroyerCallbackInterfaceBackupSteadyStateListener) Destroy(value BackupSteadyStateListener) {
+}
+
 // Declaration and FfiConverters for ClientDelegate Callback Interface
 type ClientDelegate interface {
 	DidReceiveAuthError(isSoftLogout bool)
@@ -15936,6 +17081,69 @@ type FfiDestroyerCallbackInterfaceClientSessionDelegate struct{}
 func (FfiDestroyerCallbackInterfaceClientSessionDelegate) Destroy(value ClientSessionDelegate) {
 }
 
+// Declaration and FfiConverters for EnableRecoveryProgressListener Callback Interface
+type EnableRecoveryProgressListener interface {
+	OnUpdate(status EnableRecoveryProgress)
+}
+
+// foreignCallbackCallbackInterfaceEnableRecoveryProgressListener cannot be callable be a compiled function at a same time
+type foreignCallbackCallbackInterfaceEnableRecoveryProgressListener struct{}
+
+//export matrix_sdk_ffi_cgo_EnableRecoveryProgressListener
+func matrix_sdk_ffi_cgo_EnableRecoveryProgressListener(handle C.uint64_t, method C.int32_t, argsPtr *C.uint8_t, argsLen C.int32_t, outBuf *C.RustBuffer) C.int32_t {
+	cb := FfiConverterCallbackInterfaceEnableRecoveryProgressListenerINSTANCE.Lift(uint64(handle))
+	switch method {
+	case 0:
+		// 0 means Rust is done with the callback, and the callback
+		// can be dropped by the foreign language.
+		*outBuf = FfiConverterCallbackInterfaceEnableRecoveryProgressListenerINSTANCE.drop(uint64(handle))
+		// See docs of ForeignCallback in `uniffi/src/ffi/foreigncallbacks.rs`
+		return C.int32_t(uniffiIdxCallbackFree)
+
+	case 1:
+		var result uniffiCallbackResult
+		args := unsafe.Slice((*byte)(argsPtr), argsLen)
+		result = foreignCallbackCallbackInterfaceEnableRecoveryProgressListener{}.InvokeOnUpdate(cb, args, outBuf)
+		return C.int32_t(result)
+
+	default:
+		// This should never happen, because an out of bounds method index won't
+		// ever be used. Once we can catch errors, we should return an InternalException.
+		// https://github.com/mozilla/uniffi-rs/issues/351
+		return C.int32_t(uniffiCallbackUnexpectedResultError)
+	}
+}
+
+func (foreignCallbackCallbackInterfaceEnableRecoveryProgressListener) InvokeOnUpdate(callback EnableRecoveryProgressListener, args []byte, outBuf *C.RustBuffer) uniffiCallbackResult {
+	reader := bytes.NewReader(args)
+	callback.OnUpdate(FfiConverterTypeEnableRecoveryProgressINSTANCE.Read(reader))
+
+	return uniffiCallbackResultSuccess
+}
+
+type FfiConverterCallbackInterfaceEnableRecoveryProgressListener struct {
+	FfiConverterCallbackInterface[EnableRecoveryProgressListener]
+}
+
+var FfiConverterCallbackInterfaceEnableRecoveryProgressListenerINSTANCE = &FfiConverterCallbackInterfaceEnableRecoveryProgressListener{
+	FfiConverterCallbackInterface: FfiConverterCallbackInterface[EnableRecoveryProgressListener]{
+		handleMap: newConcurrentHandleMap[EnableRecoveryProgressListener](),
+	},
+}
+
+// This is a static function because only 1 instance is supported for registering
+func (c *FfiConverterCallbackInterfaceEnableRecoveryProgressListener) register() {
+	rustCall(func(status *C.RustCallStatus) int32 {
+		C.uniffi_matrix_sdk_ffi_fn_init_callback_enablerecoveryprogresslistener(C.ForeignCallback(C.matrix_sdk_ffi_cgo_EnableRecoveryProgressListener), status)
+		return 0
+	})
+}
+
+type FfiDestroyerCallbackInterfaceEnableRecoveryProgressListener struct{}
+
+func (FfiDestroyerCallbackInterfaceEnableRecoveryProgressListener) Destroy(value EnableRecoveryProgressListener) {
+}
+
 // Declaration and FfiConverters for NotificationSettingsDelegate Callback Interface
 type NotificationSettingsDelegate interface {
 	SettingsDidChange()
@@ -16059,6 +17267,69 @@ func (c *FfiConverterCallbackInterfaceProgressWatcher) register() {
 type FfiDestroyerCallbackInterfaceProgressWatcher struct{}
 
 func (FfiDestroyerCallbackInterfaceProgressWatcher) Destroy(value ProgressWatcher) {
+}
+
+// Declaration and FfiConverters for RecoveryStateListener Callback Interface
+type RecoveryStateListener interface {
+	OnUpdate(status RecoveryState)
+}
+
+// foreignCallbackCallbackInterfaceRecoveryStateListener cannot be callable be a compiled function at a same time
+type foreignCallbackCallbackInterfaceRecoveryStateListener struct{}
+
+//export matrix_sdk_ffi_cgo_RecoveryStateListener
+func matrix_sdk_ffi_cgo_RecoveryStateListener(handle C.uint64_t, method C.int32_t, argsPtr *C.uint8_t, argsLen C.int32_t, outBuf *C.RustBuffer) C.int32_t {
+	cb := FfiConverterCallbackInterfaceRecoveryStateListenerINSTANCE.Lift(uint64(handle))
+	switch method {
+	case 0:
+		// 0 means Rust is done with the callback, and the callback
+		// can be dropped by the foreign language.
+		*outBuf = FfiConverterCallbackInterfaceRecoveryStateListenerINSTANCE.drop(uint64(handle))
+		// See docs of ForeignCallback in `uniffi/src/ffi/foreigncallbacks.rs`
+		return C.int32_t(uniffiIdxCallbackFree)
+
+	case 1:
+		var result uniffiCallbackResult
+		args := unsafe.Slice((*byte)(argsPtr), argsLen)
+		result = foreignCallbackCallbackInterfaceRecoveryStateListener{}.InvokeOnUpdate(cb, args, outBuf)
+		return C.int32_t(result)
+
+	default:
+		// This should never happen, because an out of bounds method index won't
+		// ever be used. Once we can catch errors, we should return an InternalException.
+		// https://github.com/mozilla/uniffi-rs/issues/351
+		return C.int32_t(uniffiCallbackUnexpectedResultError)
+	}
+}
+
+func (foreignCallbackCallbackInterfaceRecoveryStateListener) InvokeOnUpdate(callback RecoveryStateListener, args []byte, outBuf *C.RustBuffer) uniffiCallbackResult {
+	reader := bytes.NewReader(args)
+	callback.OnUpdate(FfiConverterTypeRecoveryStateINSTANCE.Read(reader))
+
+	return uniffiCallbackResultSuccess
+}
+
+type FfiConverterCallbackInterfaceRecoveryStateListener struct {
+	FfiConverterCallbackInterface[RecoveryStateListener]
+}
+
+var FfiConverterCallbackInterfaceRecoveryStateListenerINSTANCE = &FfiConverterCallbackInterfaceRecoveryStateListener{
+	FfiConverterCallbackInterface: FfiConverterCallbackInterface[RecoveryStateListener]{
+		handleMap: newConcurrentHandleMap[RecoveryStateListener](),
+	},
+}
+
+// This is a static function because only 1 instance is supported for registering
+func (c *FfiConverterCallbackInterfaceRecoveryStateListener) register() {
+	rustCall(func(status *C.RustCallStatus) int32 {
+		C.uniffi_matrix_sdk_ffi_fn_init_callback_recoverystatelistener(C.ForeignCallback(C.matrix_sdk_ffi_cgo_RecoveryStateListener), status)
+		return 0
+	})
+}
+
+type FfiDestroyerCallbackInterfaceRecoveryStateListener struct{}
+
+func (FfiDestroyerCallbackInterfaceRecoveryStateListener) Destroy(value RecoveryStateListener) {
 }
 
 // Declaration and FfiConverters for RoomInfoListener Callback Interface
@@ -17202,6 +18473,43 @@ func (_ FfiDestroyerOptionalRoomMember) Destroy(value **RoomMember) {
 	}
 }
 
+type FfiConverterOptionalTaskHandle struct{}
+
+var FfiConverterOptionalTaskHandleINSTANCE = FfiConverterOptionalTaskHandle{}
+
+func (c FfiConverterOptionalTaskHandle) Lift(rb RustBufferI) **TaskHandle {
+	return LiftFromRustBuffer[**TaskHandle](c, rb)
+}
+
+func (_ FfiConverterOptionalTaskHandle) Read(reader io.Reader) **TaskHandle {
+	if readInt8(reader) == 0 {
+		return nil
+	}
+	temp := FfiConverterTaskHandleINSTANCE.Read(reader)
+	return &temp
+}
+
+func (c FfiConverterOptionalTaskHandle) Lower(value **TaskHandle) RustBuffer {
+	return LowerIntoRustBuffer[**TaskHandle](c, value)
+}
+
+func (_ FfiConverterOptionalTaskHandle) Write(writer io.Writer, value **TaskHandle) {
+	if value == nil {
+		writeInt8(writer, 0)
+	} else {
+		writeInt8(writer, 1)
+		FfiConverterTaskHandleINSTANCE.Write(writer, *value)
+	}
+}
+
+type FfiDestroyerOptionalTaskHandle struct{}
+
+func (_ FfiDestroyerOptionalTaskHandle) Destroy(value **TaskHandle) {
+	if value != nil {
+		FfiDestroyerTaskHandle{}.Destroy(*value)
+	}
+}
+
 type FfiConverterOptionalTimelineItem struct{}
 
 var FfiConverterOptionalTimelineItemINSTANCE = FfiConverterOptionalTimelineItem{}
@@ -18087,6 +19395,43 @@ type FfiDestroyerOptionalTypeVirtualTimelineItem struct{}
 func (_ FfiDestroyerOptionalTypeVirtualTimelineItem) Destroy(value *VirtualTimelineItem) {
 	if value != nil {
 		FfiDestroyerTypeVirtualTimelineItem{}.Destroy(*value)
+	}
+}
+
+type FfiConverterOptionalCallbackInterfaceBackupSteadyStateListener struct{}
+
+var FfiConverterOptionalCallbackInterfaceBackupSteadyStateListenerINSTANCE = FfiConverterOptionalCallbackInterfaceBackupSteadyStateListener{}
+
+func (c FfiConverterOptionalCallbackInterfaceBackupSteadyStateListener) Lift(rb RustBufferI) *BackupSteadyStateListener {
+	return LiftFromRustBuffer[*BackupSteadyStateListener](c, rb)
+}
+
+func (_ FfiConverterOptionalCallbackInterfaceBackupSteadyStateListener) Read(reader io.Reader) *BackupSteadyStateListener {
+	if readInt8(reader) == 0 {
+		return nil
+	}
+	temp := FfiConverterCallbackInterfaceBackupSteadyStateListenerINSTANCE.Read(reader)
+	return &temp
+}
+
+func (c FfiConverterOptionalCallbackInterfaceBackupSteadyStateListener) Lower(value *BackupSteadyStateListener) RustBuffer {
+	return LowerIntoRustBuffer[*BackupSteadyStateListener](c, value)
+}
+
+func (_ FfiConverterOptionalCallbackInterfaceBackupSteadyStateListener) Write(writer io.Writer, value *BackupSteadyStateListener) {
+	if value == nil {
+		writeInt8(writer, 0)
+	} else {
+		writeInt8(writer, 1)
+		FfiConverterCallbackInterfaceBackupSteadyStateListenerINSTANCE.Write(writer, *value)
+	}
+}
+
+type FfiDestroyerOptionalCallbackInterfaceBackupSteadyStateListener struct{}
+
+func (_ FfiDestroyerOptionalCallbackInterfaceBackupSteadyStateListener) Destroy(value *BackupSteadyStateListener) {
+	if value != nil {
+		FfiDestroyerCallbackInterfaceBackupSteadyStateListener{}.Destroy(*value)
 	}
 }
 
@@ -19427,6 +20772,12 @@ func GenerateWebviewUrl(widgetSettings WidgetSettings, room *Room, props ClientP
 			// freeFunc
 			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
 		})
+}
+
+func GetElementCallRequiredPermissions() WidgetCapabilities {
+	return FfiConverterTypeWidgetCapabilitiesINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) RustBufferI {
+		return C.uniffi_matrix_sdk_ffi_fn_func_get_element_call_required_permissions(_uniffiStatus)
+	}))
 }
 
 func LogEvent(file string, line *uint32, level LogLevel, target string, message string) {

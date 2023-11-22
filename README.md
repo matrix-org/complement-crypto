@@ -95,7 +95,8 @@ Prerequisites:
 This repo has bindings to the `matrix_sdk` crate in rust SDK, in order to mimic Element X.
 
 In order to generate these bindings, follow these instructions:
-- Check out https://github.com/matrix-org/matrix-rust-sdk/tree/kegan/complement-test-fork (TODO: go back to main when `_ffi_matrix_sdk_ffi_rust_future_continuation_callback_set` is defined)
+- Check out https://github.com/matrix-org/matrix-rust-sdk/tree/kegan/poljar-recovery-complement-fork (TODO: go back to main when
+main uses a versioned release e.g 0.25.2)
 - Get the bindings generator:
 ```
 git clone https://github.com/NordSecurity/uniffi-bindgen-go.git

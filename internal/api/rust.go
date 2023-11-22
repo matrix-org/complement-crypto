@@ -194,7 +194,7 @@ func (c *RustClient) MustBackpaginate(t *testing.T, roomID string, count int) {
 	t.Helper()
 	r := c.findRoom(t, roomID)
 	must.NotEqual(t, r, nil, "unknown room")
-	must.NotError(t, "failed to backpaginate", r.PaginateBackwards(matrix_sdk_ffi.PaginationOptionsSingleRequest{
+	must.NotError(t, "failed to backpaginate", r.PaginateBackwards(matrix_sdk_ffi.PaginationOptionsSimpleRequest{
 		EventLimit: uint16(count),
 	}))
 }

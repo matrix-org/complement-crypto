@@ -190,6 +190,11 @@ RustBuffer uniffi_matrix_sdk_ffi_fn_method_client_display_name(
 	RustCallStatus* out_status
 );
 
+void* uniffi_matrix_sdk_ffi_fn_method_client_encryption(
+	void* ptr,
+	RustCallStatus* out_status
+);
+
 RustBuffer uniffi_matrix_sdk_ffi_fn_method_client_get_dm_room(
 	void* ptr,
 	RustBuffer user_id,
@@ -207,6 +212,7 @@ void* uniffi_matrix_sdk_ffi_fn_method_client_get_media_file(
 	void* media_source,
 	RustBuffer body,
 	RustBuffer mime_type,
+	int8_t use_cache,
 	RustBuffer temp_dir,
 	RustCallStatus* out_status
 );
@@ -301,7 +307,7 @@ void uniffi_matrix_sdk_ffi_fn_method_client_set_account_data(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_client_set_delegate(
+RustBuffer uniffi_matrix_sdk_ffi_fn_method_client_set_delegate(
 	void* ptr,
 	RustBuffer delegate,
 	RustCallStatus* out_status
@@ -446,6 +452,83 @@ void* uniffi_matrix_sdk_ffi_fn_method_clientbuilder_username(
 	RustCallStatus* out_status
 );
 
+void uniffi_matrix_sdk_ffi_fn_free_encryption(
+	void* ptr,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_encryption_backup_exists_on_server(
+	void* ptr,
+	RustCallStatus* out_status
+);
+
+RustBuffer uniffi_matrix_sdk_ffi_fn_method_encryption_backup_state(
+	void* ptr,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_encryption_backup_state_listener(
+	void* ptr,
+	uint64_t listener,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_encryption_disable_recovery(
+	void* ptr,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_encryption_enable_backups(
+	void* ptr,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_encryption_enable_recovery(
+	void* ptr,
+	int8_t wait_for_backups_to_upload,
+	uint64_t progress_listener,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_encryption_fix_recovery_issues(
+	void* ptr,
+	RustBuffer recovery_key,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_encryption_is_last_device(
+	void* ptr,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_encryption_recover_and_reset(
+	void* ptr,
+	RustBuffer old_recovery_key,
+	RustCallStatus* out_status
+);
+
+RustBuffer uniffi_matrix_sdk_ffi_fn_method_encryption_recovery_state(
+	void* ptr,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_encryption_recovery_state_listener(
+	void* ptr,
+	uint64_t listener,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_encryption_reset_recovery_key(
+	void* ptr,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_encryption_wait_for_backup_upload_steady_state(
+	void* ptr,
+	RustBuffer progress_listener,
+	RustCallStatus* out_status
+);
+
 void uniffi_matrix_sdk_ffi_fn_free_eventtimelineitem(
 	void* ptr,
 	RustCallStatus* out_status
@@ -561,6 +644,12 @@ RustBuffer uniffi_matrix_sdk_ffi_fn_method_mediafilehandle_path(
 	RustCallStatus* out_status
 );
 
+int8_t uniffi_matrix_sdk_ffi_fn_method_mediafilehandle_persist(
+	void* ptr,
+	RustBuffer path,
+	RustCallStatus* out_status
+);
+
 void uniffi_matrix_sdk_ffi_fn_free_message(
 	void* ptr,
 	RustCallStatus* out_status
@@ -619,6 +708,11 @@ void* uniffi_matrix_sdk_ffi_fn_method_notificationclientbuilder_finish(
 );
 
 void uniffi_matrix_sdk_ffi_fn_free_notificationsettings(
+	void* ptr,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_notificationsettings_can_homeserver_push_encrypted_event_to_device(
 	void* ptr,
 	RustCallStatus* out_status
 );
@@ -836,6 +930,16 @@ RustBuffer uniffi_matrix_sdk_ffi_fn_method_room_display_name(
 void uniffi_matrix_sdk_ffi_fn_method_room_edit(
 	void* ptr,
 	void* new_content,
+	void* edit_item,
+	RustCallStatus* out_status
+);
+
+void uniffi_matrix_sdk_ffi_fn_method_room_edit_poll(
+	void* ptr,
+	RustBuffer question,
+	RustBuffer answers,
+	uint8_t max_selections,
+	RustBuffer poll_kind,
 	void* edit_item,
 	RustCallStatus* out_status
 );
@@ -1751,6 +1855,16 @@ void uniffi_matrix_sdk_ffi_fn_init_callback_backpaginationstatuslistener(
 	RustCallStatus* out_status
 );
 
+void uniffi_matrix_sdk_ffi_fn_init_callback_backupstatelistener(
+	ForeignCallback callback_stub,
+	RustCallStatus* out_status
+);
+
+void uniffi_matrix_sdk_ffi_fn_init_callback_backupsteadystatelistener(
+	ForeignCallback callback_stub,
+	RustCallStatus* out_status
+);
+
 void uniffi_matrix_sdk_ffi_fn_init_callback_clientdelegate(
 	ForeignCallback callback_stub,
 	RustCallStatus* out_status
@@ -1761,12 +1875,22 @@ void uniffi_matrix_sdk_ffi_fn_init_callback_clientsessiondelegate(
 	RustCallStatus* out_status
 );
 
+void uniffi_matrix_sdk_ffi_fn_init_callback_enablerecoveryprogresslistener(
+	ForeignCallback callback_stub,
+	RustCallStatus* out_status
+);
+
 void uniffi_matrix_sdk_ffi_fn_init_callback_notificationsettingsdelegate(
 	ForeignCallback callback_stub,
 	RustCallStatus* out_status
 );
 
 void uniffi_matrix_sdk_ffi_fn_init_callback_progresswatcher(
+	ForeignCallback callback_stub,
+	RustCallStatus* out_status
+);
+
+void uniffi_matrix_sdk_ffi_fn_init_callback_recoverystatelistener(
 	ForeignCallback callback_stub,
 	RustCallStatus* out_status
 );
@@ -1824,6 +1948,10 @@ void* uniffi_matrix_sdk_ffi_fn_func_generate_webview_url(
 	RustBuffer widget_settings,
 	void* room,
 	RustBuffer props,
+	RustCallStatus* out_status
+);
+
+RustBuffer uniffi_matrix_sdk_ffi_fn_func_get_element_call_required_permissions(
 	RustCallStatus* out_status
 );
 
@@ -2199,6 +2327,10 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_func_generate_webview_url(
 	RustCallStatus* out_status
 );
 
+uint16_t uniffi_matrix_sdk_ffi_checksum_func_get_element_call_required_permissions(
+	RustCallStatus* out_status
+);
+
 uint16_t uniffi_matrix_sdk_ffi_checksum_func_log_event(
 	RustCallStatus* out_status
 );
@@ -2304,6 +2436,10 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_client_device_id(
 );
 
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_client_display_name(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_client_encryption(
 	RustCallStatus* out_status
 );
 
@@ -2467,6 +2603,58 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_clientbuilder_username(
 	RustCallStatus* out_status
 );
 
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_encryption_backup_exists_on_server(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_encryption_backup_state(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_encryption_backup_state_listener(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_encryption_disable_recovery(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_encryption_enable_backups(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_encryption_enable_recovery(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_encryption_fix_recovery_issues(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_encryption_is_last_device(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_encryption_recover_and_reset(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_encryption_recovery_state(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_encryption_recovery_state_listener(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_encryption_reset_recovery_key(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_encryption_wait_for_backup_upload_steady_state(
+	RustCallStatus* out_status
+);
+
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_eventtimelineitem_can_be_replied_to(
 	RustCallStatus* out_status
 );
@@ -2547,6 +2735,10 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_mediafilehandle_path(
 	RustCallStatus* out_status
 );
 
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_mediafilehandle_persist(
+	RustCallStatus* out_status
+);
+
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_message_body(
 	RustCallStatus* out_status
 );
@@ -2576,6 +2768,10 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_notificationclientbuilder_filter_
 );
 
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_notificationclientbuilder_finish(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_notificationsettings_can_homeserver_push_encrypted_event_to_device(
 	RustCallStatus* out_status
 );
 
@@ -2712,6 +2908,10 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_display_name(
 );
 
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_edit(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_edit_poll(
 	RustCallStatus* out_status
 );
 
@@ -3311,6 +3511,14 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_backpaginationstatuslistener_on_u
 	RustCallStatus* out_status
 );
 
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_backupstatelistener_on_update(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_backupsteadystatelistener_on_update(
+	RustCallStatus* out_status
+);
+
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_clientdelegate_did_receive_auth_error(
 	RustCallStatus* out_status
 );
@@ -3327,11 +3535,19 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_clientsessiondelegate_save_sessio
 	RustCallStatus* out_status
 );
 
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_enablerecoveryprogresslistener_on_update(
+	RustCallStatus* out_status
+);
+
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_notificationsettingsdelegate_settings_did_change(
 	RustCallStatus* out_status
 );
 
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_progresswatcher_transmission_progress(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_recoverystatelistener_on_update(
 	RustCallStatus* out_status
 );
 
@@ -3397,10 +3613,14 @@ uint32_t ffi_matrix_sdk_ffi_uniffi_contract_version(
 
 
 int32_t matrix_sdk_ffi_cgo_BackPaginationStatusListener(uint64_t, int32_t, uint8_t *, int32_t, RustBuffer *);
+int32_t matrix_sdk_ffi_cgo_BackupStateListener(uint64_t, int32_t, uint8_t *, int32_t, RustBuffer *);
+int32_t matrix_sdk_ffi_cgo_BackupSteadyStateListener(uint64_t, int32_t, uint8_t *, int32_t, RustBuffer *);
 int32_t matrix_sdk_ffi_cgo_ClientDelegate(uint64_t, int32_t, uint8_t *, int32_t, RustBuffer *);
 int32_t matrix_sdk_ffi_cgo_ClientSessionDelegate(uint64_t, int32_t, uint8_t *, int32_t, RustBuffer *);
+int32_t matrix_sdk_ffi_cgo_EnableRecoveryProgressListener(uint64_t, int32_t, uint8_t *, int32_t, RustBuffer *);
 int32_t matrix_sdk_ffi_cgo_NotificationSettingsDelegate(uint64_t, int32_t, uint8_t *, int32_t, RustBuffer *);
 int32_t matrix_sdk_ffi_cgo_ProgressWatcher(uint64_t, int32_t, uint8_t *, int32_t, RustBuffer *);
+int32_t matrix_sdk_ffi_cgo_RecoveryStateListener(uint64_t, int32_t, uint8_t *, int32_t, RustBuffer *);
 int32_t matrix_sdk_ffi_cgo_RoomInfoListener(uint64_t, int32_t, uint8_t *, int32_t, RustBuffer *);
 int32_t matrix_sdk_ffi_cgo_RoomListEntriesListener(uint64_t, int32_t, uint8_t *, int32_t, RustBuffer *);
 int32_t matrix_sdk_ffi_cgo_RoomListLoadingStateListener(uint64_t, int32_t, uint8_t *, int32_t, RustBuffer *);
