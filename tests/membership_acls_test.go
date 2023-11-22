@@ -22,42 +22,18 @@ import (
 // future to assert things like "there is a ciphertext".
 func TestAliceBobEncryptionWorks(t *testing.T) {
 	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
-		// Setup Code
-		// ----------
-		deployment := Deploy(t)
-		// pre-register alice and bob
-		csapiAlice := deployment.Register(t, clientTypeA.HS, helpers.RegistrationOpts{
-			LocalpartSuffix: "alice",
-			Password:        "complement-crypto-password",
-		})
-		csapiBob := deployment.Register(t, clientTypeB.HS, helpers.RegistrationOpts{
-			LocalpartSuffix: "bob",
-			Password:        "complement-crypto-password",
-		})
-		roomID := csapiAlice.MustCreateRoom(t, map[string]interface{}{
-			"name":   "TestAliceBobEncryptionWorks",
-			"preset": "trusted_private_chat",
-			"invite": []string{csapiBob.UserID},
-			"initial_state": []map[string]interface{}{
-				{
-					"type":      "m.room.encryption",
-					"state_key": "",
-					"content": map[string]interface{}{
-						"algorithm": "m.megolm.v1.aes-sha2",
-					},
-				},
-			},
-		})
-		csapiBob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
-		ss := deployment.SlidingSyncURL(t)
+		tc := CreateTestContext(t, clientTypeA, clientTypeB)
+		// Alice invites Bob to the encrypted room
+		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "trusted_private_chat", []string{tc.Bob.UserID})
+		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 
 		// SDK testing below
 		// -----------------
 
 		// login both clients first, so OTKs etc are uploaded.
-		alice := MustLoginClient(t, clientTypeA, api.FromComplementClient(csapiAlice, "complement-crypto-password"), ss)
+		alice := tc.MustLoginClient(t, tc.Alice, clientTypeA)
 		defer alice.Close(t)
-		bob := MustLoginClient(t, clientTypeB, api.FromComplementClient(csapiBob, "complement-crypto-password"), ss)
+		bob := tc.MustLoginClient(t, tc.Bob, clientTypeB)
 		defer bob.Close(t)
 
 		// Alice starts syncing
@@ -96,45 +72,18 @@ func TestAliceBobEncryptionWorks(t *testing.T) {
 // - Ensure Bob can see the decrypted content.
 func TestCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T) {
 	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
-		// Setup Code
-		// ----------
-		deployment := Deploy(t)
-		// pre-register alice and bob
-		csapiAlice := deployment.Register(t, clientTypeA.HS, helpers.RegistrationOpts{
-			LocalpartSuffix: "alice",
-			Password:        "complement-crypto-password",
-		})
-		csapiBob := deployment.Register(t, clientTypeB.HS, helpers.RegistrationOpts{
-			LocalpartSuffix: "bob",
-			Password:        "complement-crypto-password",
-		})
+		tc := CreateTestContext(t, clientTypeA, clientTypeB)
 		// Alice invites Bob to the encrypted room
-		roomID := csapiAlice.MustCreateRoom(t, map[string]interface{}{
-			"name":   "TestCanDecryptMessagesAfterInviteButBeforeJoin",
-			"preset": "trusted_private_chat",
-			"invite": []string{csapiBob.UserID},
-			"initial_state": []map[string]interface{}{
-				{
-					"type":      "m.room.encryption",
-					"state_key": "",
-					"content": map[string]interface{}{
-						"algorithm": "m.megolm.v1.aes-sha2",
-					},
-				},
-			},
-		})
-		ss := deployment.SlidingSyncURL(t)
+		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "trusted_private_chat", []string{tc.Bob.UserID})
 
 		// SDK testing below
 		// -----------------
 
 		// Bob logs in BEFORE Alice. This is important because the act of logging in should cause
 		// Bob to upload OTKs which will be needed to send the encrypted event.
-		bob := MustLoginClient(t, clientTypeB, api.FromComplementClient(csapiBob, "complement-crypto-password"), ss)
+		bob := tc.MustLoginClient(t, tc.Bob, clientTypeB)
 		defer bob.Close(t)
-
-		// Alice logs in.
-		alice := MustLoginClient(t, clientTypeA, api.FromComplementClient(csapiAlice, "complement-crypto-password"), ss)
+		alice := tc.MustLoginClient(t, tc.Alice, clientTypeA)
 		defer alice.Close(t)
 
 		// Alice and Bob start syncing.
@@ -156,7 +105,7 @@ func TestCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T) {
 		alice.SendMessage(t, roomID, wantMsgBody)
 
 		// Bob joins the room (via Complement, but it shouldn't matter)
-		csapiBob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 
 		isEncrypted, err = bob.IsRoomEncrypted(t, roomID)
 		must.NotError(t, "failed to check if room is encrypted", err)
@@ -184,40 +133,17 @@ func TestCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T) {
 // despite being able to see the events. Subsequent messages are decryptable.
 func TestBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
-		// Setup Code
-		// ----------
-		deployment := Deploy(t)
-		// pre-register alice and bob
-		csapiAlice := deployment.Register(t, clientTypeA.HS, helpers.RegistrationOpts{
-			LocalpartSuffix: "alice",
-			Password:        "complement-crypto-password",
-		})
-		csapiBob := deployment.Register(t, clientTypeB.HS, helpers.RegistrationOpts{
-			LocalpartSuffix: "bob",
-			Password:        "complement-crypto-password",
-		})
-		roomID := csapiAlice.MustCreateRoom(t, map[string]interface{}{
-			"name":   "TestBobCanSeeButNotDecryptHistoryInPublicRoom",
-			"preset": "public_chat", // shared history visibility
-			"initial_state": []map[string]interface{}{
-				{
-					"type":      "m.room.encryption",
-					"state_key": "",
-					"content": map[string]interface{}{
-						"algorithm": "m.megolm.v1.aes-sha2",
-					},
-				},
-			},
-		})
-		ss := deployment.SlidingSyncURL(t)
+		tc := CreateTestContext(t, clientTypeA, clientTypeB)
+		// shared history visibility
+		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "public_chat", nil)
 
 		// SDK testing below
 		// -----------------
 
 		// login both clients first, so OTKs etc are uploaded.
-		alice := MustLoginClient(t, clientTypeA, api.FromComplementClient(csapiAlice, "complement-crypto-password"), ss)
+		alice := tc.MustLoginClient(t, tc.Alice, clientTypeA)
 		defer alice.Close(t)
-		bob := MustLoginClient(t, clientTypeB, api.FromComplementClient(csapiBob, "complement-crypto-password"), ss)
+		bob := tc.MustLoginClient(t, tc.Bob, clientTypeB)
 		defer bob.Close(t)
 
 		// Alice and Bob start syncing
@@ -234,7 +160,7 @@ func TestBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 		waiter.Wait(t, 5*time.Second)
 
 		// now bob joins the room
-		csapiBob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 		time.Sleep(time.Second) // wait for it to appear on the client else rust crashes if it cannot find the room FIXME
 		waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(bob.UserID(), "join"))
 		waiter.Wait(t, 5*time.Second)
@@ -252,43 +178,19 @@ func TestBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 // Bob leaves the room. Some messages are sent. Bob rejoins and cannot decrypt the messages sent whilst he was gone (ensuring we cycle keys).
 func TestOnRejoinBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
-		// Setup Code
-		// ----------
-		deployment := Deploy(t)
-		// pre-register alice and bob
-		csapiAlice := deployment.Register(t, clientTypeA.HS, helpers.RegistrationOpts{
-			LocalpartSuffix: "alice",
-			Password:        "complement-crypto-password",
-		})
-		csapiBob := deployment.Register(t, clientTypeB.HS, helpers.RegistrationOpts{
-			LocalpartSuffix: "bob",
-			Password:        "complement-crypto-password",
-		})
-		roomID := csapiAlice.MustCreateRoom(t, map[string]interface{}{
-			"name":   "TestOnRejoinBobCanSeeButNotDecryptHistoryInPublicRoom",
-			"preset": "public_chat", // shared history visibility
-			"initial_state": []map[string]interface{}{
-				{
-					"type":      "m.room.encryption",
-					"state_key": "",
-					"content": map[string]interface{}{
-						"algorithm": "m.megolm.v1.aes-sha2",
-					},
-				},
-			},
-		})
-		csapiBob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
-		ss := deployment.SlidingSyncURL(t)
+		tc := CreateTestContext(t, clientTypeA, clientTypeB)
+		// shared history visibility
+		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "public_chat", nil)
+		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 
 		// SDK testing below
 		// -----------------
 
 		// login both clients first, so OTKs etc are uploaded.
-		// Similarly to TestAliceBobEncryptionWorks, log Bob in first.
-		bob := MustLoginClient(t, clientTypeB, api.FromComplementClient(csapiBob, "complement-crypto-password"), ss)
+		bob := tc.MustLoginClient(t, tc.Bob, clientTypeB)
 		defer bob.Close(t)
 		time.Sleep(500 * time.Millisecond)
-		alice := MustLoginClient(t, clientTypeA, api.FromComplementClient(csapiAlice, "complement-crypto-password"), ss)
+		alice := tc.MustLoginClient(t, tc.Alice, clientTypeA)
 		defer alice.Close(t)
 
 		// Alice and Bob start syncing. Both are in the same room
@@ -306,7 +208,7 @@ func TestOnRejoinBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 
 		// now bob leaves the room, wait for alice to see it
 		waiter = alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(bob.UserID(), "leave"))
-		csapiBob.MustLeaveRoom(t, roomID)
+		tc.Bob.MustLeaveRoom(t, roomID)
 		waiter.Wait(t, 5*time.Second)
 
 		// now alice sends another message, which should use a key that bob does not have. Wait for the remote echo to come back.
@@ -317,7 +219,7 @@ func TestOnRejoinBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 		waiter.Wait(t, 5*time.Second)
 
 		// now bob rejoins the room, wait until he sees it.
-		csapiBob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 		waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(bob.UserID(), "join"))
 		waiter.Wait(t, 5*time.Second)
 		// this is required for some reason else tests fail
@@ -346,42 +248,20 @@ func TestOnRejoinBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 // logged out are not decryptable.
 func TestOnNewDeviceBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
-		// Setup Code
-		// ----------
-		deployment := Deploy(t)
-		// pre-register alice and bob
-		csapiAlice := deployment.Register(t, clientTypeA.HS, helpers.RegistrationOpts{
-			LocalpartSuffix: "alice",
-			Password:        "complement-crypto-password",
-		})
-		csapiBob := deployment.Register(t, clientTypeB.HS, helpers.RegistrationOpts{
-			LocalpartSuffix: "bob",
-			Password:        "complement-crypto-password",
-		})
-		roomID := csapiAlice.MustCreateRoom(t, map[string]interface{}{
-			"name":   "TestOnNewDeviceBobCanSeeButNotDecryptHistoryInPublicRoom",
-			"preset": "public_chat", // shared history visibility
-			"initial_state": []map[string]interface{}{
-				{
-					"type":      "m.room.encryption",
-					"state_key": "",
-					"content": map[string]interface{}{
-						"algorithm": "m.megolm.v1.aes-sha2",
-					},
-				},
-			},
-		})
-		csapiBob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
-		ss := deployment.SlidingSyncURL(t)
+		tc := CreateTestContext(t, clientTypeA, clientTypeB)
+		// shared history visibility
+		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "public_chat", nil)
+		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 
 		// SDK testing below
 		// -----------------
 
 		// login both clients first, so OTKs etc are uploaded.
 		// Similarly to TestAliceBobEncryptionWorks, log Bob in first.
-		bob := MustLoginClient(t, clientTypeB, api.FromComplementClient(csapiBob, "complement-crypto-password"), ss)
+		bob := tc.MustLoginClient(t, tc.Bob, clientTypeB)
 		defer bob.Close(t)
-		alice := MustLoginClient(t, clientTypeA, api.FromComplementClient(csapiAlice, "complement-crypto-password"), ss)
+		time.Sleep(500 * time.Millisecond)
+		alice := tc.MustLoginClient(t, tc.Alice, clientTypeA)
 		defer alice.Close(t)
 
 		// Alice and Bob start syncing. Both are in the same room
@@ -398,11 +278,11 @@ func TestOnNewDeviceBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 		waiter.Wait(t, 5*time.Second)
 
 		// now bob logs in on a new device. He should NOT be able to decrypt this event (though can see it due to history visibility)
-		csapiBob2 := deployment.Login(t, clientTypeB.HS, csapiBob, helpers.LoginOpts{
+		csapiBob2 := tc.Deployment.Login(t, clientTypeB.HS, tc.Bob, helpers.LoginOpts{
 			DeviceID: "NEW_DEVICE",
 			Password: "complement-crypto-password",
 		})
-		bob2 := MustLoginClient(t, clientTypeB, api.FromComplementClient(csapiBob2, "complement-crypto-password"), ss)
+		bob2 := tc.MustLoginClient(t, csapiBob2, clientTypeB)
 		bob2StopSyncing := bob2.StartSyncing(t)
 		bob2StoppedSyncing := false
 		defer func() {
@@ -441,7 +321,7 @@ func TestOnNewDeviceBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 		waiter.Wait(t, 5*time.Second)
 
 		// now bob logs in again
-		bob2 = MustLoginClient(t, clientTypeB, api.FromComplementClient(csapiBob2, "complement-crypto-password"), ss)
+		bob2 = tc.MustLoginClient(t, csapiBob2, clientTypeB)
 		bob2StopSyncingAgain := bob2.StartSyncing(t)
 		defer bob2StopSyncingAgain()
 
@@ -456,41 +336,13 @@ func TestOnNewDeviceBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 // Alice invites Bob, Bob changes their device, then Bob joins. Bob should be able to see Alice's message.
 func TestChangingDeviceAfterInviteReEncrypts(t *testing.T) {
 	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
-		// Setup Code
-		// ----------
-		deployment := Deploy(t)
-		// pre-register alice and bob
-		csapiAlice := deployment.Register(t, clientTypeA.HS, helpers.RegistrationOpts{
-			LocalpartSuffix: "alice",
-			Password:        "complement-crypto-password",
-		})
-		csapiBob := deployment.Register(t, clientTypeB.HS, helpers.RegistrationOpts{
-			LocalpartSuffix: "bob",
-			Password:        "complement-crypto-password",
-		})
-		roomID := csapiAlice.MustCreateRoom(t, map[string]interface{}{
-			"name":   "TestChangingDeviceAfterInviteReEncrypts",
-			"preset": "public_chat", // shared history visibility
-			"initial_state": []map[string]interface{}{
-				{
-					"type":      "m.room.encryption",
-					"state_key": "",
-					"content": map[string]interface{}{
-						"algorithm": "m.megolm.v1.aes-sha2",
-					},
-				},
-			},
-		})
-		ss := deployment.SlidingSyncURL(t)
+		tc := CreateTestContext(t, clientTypeA, clientTypeB)
+		// shared history visibility
+		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "public_chat", nil)
 
-		// SDK testing below
-		// -----------------
-
-		// login both clients first, so OTKs etc are uploaded.
-		// Similarly to TestAliceBobEncryptionWorks, log Bob in first.
-		bob := MustLoginClient(t, clientTypeB, api.FromComplementClient(csapiBob, "complement-crypto-password"), ss)
+		bob := tc.MustLoginClient(t, tc.Bob, clientTypeB)
 		defer bob.Close(t)
-		alice := MustLoginClient(t, clientTypeA, api.FromComplementClient(csapiAlice, "complement-crypto-password"), ss)
+		alice := tc.MustLoginClient(t, tc.Alice, clientTypeA)
 		defer alice.Close(t)
 
 		// Alice and Bob start syncing. Alice is in her own room.
@@ -500,23 +352,23 @@ func TestChangingDeviceAfterInviteReEncrypts(t *testing.T) {
 		defer bobStopSyncing()
 
 		// Alice invites Bob and then she sends an event
-		csapiAlice.MustInviteRoom(t, roomID, csapiBob.UserID)
+		tc.Alice.MustInviteRoom(t, roomID, tc.Bob.UserID)
 		time.Sleep(time.Second) // let device keys propagate
 		body := "Alice should re-encrypt this message for bob's new device"
 		evID := alice.SendMessage(t, roomID, body)
 
 		// now Bob logs in on a different device and accepts the invite. The different device should be able to decrypt the message.
-		csapiBob2 := deployment.Login(t, clientTypeB.HS, csapiBob, helpers.LoginOpts{
+		csapiBob2 := tc.Deployment.Login(t, clientTypeB.HS, tc.Bob, helpers.LoginOpts{
 			DeviceID: "NEW_DEVICE",
 			Password: "complement-crypto-password",
 		})
-		bob2 := MustLoginClient(t, clientTypeB, api.FromComplementClient(csapiBob2, "complement-crypto-password"), ss)
+		bob2 := tc.MustLoginClient(t, csapiBob2, clientTypeB)
 		bob2StopSyncing := bob2.StartSyncing(t)
 		defer bob2StopSyncing()
 
 		time.Sleep(time.Second) // let device keys propagate
 
-		csapiBob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 
 		time.Sleep(time.Second) // let the client load the events
 		bob2.MustBackpaginate(t, roomID, 5)

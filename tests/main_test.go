@@ -10,6 +10,8 @@ import (
 	"github.com/matrix-org/complement"
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/deploy"
+	"github.com/matrix-org/complement/client"
+	"github.com/matrix-org/complement/helpers"
 	"github.com/matrix-org/complement/must"
 )
 
@@ -99,4 +101,54 @@ func MustLoginClient(t *testing.T, clientType api.ClientType, opts api.ClientCre
 		t.Fatalf("unknown client type %v", clientType)
 	}
 	panic("unreachable")
+}
+
+type TestContext struct {
+	Deployment *deploy.SlidingSyncDeployment
+	Alice      *client.CSAPI
+	Bob        *client.CSAPI
+}
+
+func CreateTestContext(t *testing.T, clientTypeA, clientTypeB api.ClientType) *TestContext {
+	deployment := Deploy(t)
+	// pre-register alice and bob
+	csapiAlice := deployment.Register(t, clientTypeA.HS, helpers.RegistrationOpts{
+		LocalpartSuffix: "alice",
+		Password:        "complement-crypto-password",
+	})
+	csapiBob := deployment.Register(t, clientTypeB.HS, helpers.RegistrationOpts{
+		LocalpartSuffix: "bob",
+		Password:        "complement-crypto-password",
+	})
+	return &TestContext{
+		Deployment: deployment,
+		Alice:      csapiAlice,
+		Bob:        csapiBob,
+	}
+}
+
+func (c *TestContext) CreateNewEncryptedRoom(t *testing.T, creator *client.CSAPI, preset string, invite []string) (roomID string) {
+	t.Helper()
+	if invite == nil {
+		invite = []string{} // else synapse 500s
+	}
+	return creator.MustCreateRoom(t, map[string]interface{}{
+		"name":   t.Name(),
+		"preset": preset,
+		"invite": invite,
+		"initial_state": []map[string]interface{}{
+			{
+				"type":      "m.room.encryption",
+				"state_key": "",
+				"content": map[string]interface{}{
+					"algorithm": "m.megolm.v1.aes-sha2",
+				},
+			},
+		},
+	})
+}
+
+func (c *TestContext) MustLoginClient(t *testing.T, cli *client.CSAPI, clientType api.ClientType) api.Client {
+	t.Helper()
+	return MustLoginClient(t, clientType, api.FromComplementClient(cli, "complement-crypto-password"), c.Deployment.SlidingSyncURL(t))
 }
