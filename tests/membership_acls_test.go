@@ -452,7 +452,7 @@ func TestOnNewDeviceBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 	})
 }
 
-/* TODO: unclear when Alice should send msg, need clarification 21/11/2023
+// This test is an EXPECTED FAIL in today's Matrix, due to lack of re-encryption for new devices
 // Alice invites Bob, Bob changes their device, then Bob joins. Bob should be able to see Alice's message.
 func TestChangingDeviceAfterInviteReEncrypts(t *testing.T) {
 	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
@@ -521,8 +521,7 @@ func TestChangingDeviceAfterInviteReEncrypts(t *testing.T) {
 		time.Sleep(time.Second) // let the client load the events
 		bob2.MustBackpaginate(t, roomID, 5)
 		event := bob2.MustGetEvent(t, roomID, evID)
-		must.Equal(t, event.FailedToDecrypt, false, "bob2 was not able to decrypt the message")
-		must.Equal(t, event.Text, body, "bob2 failed to decrypt body")
+		must.Equal(t, event.FailedToDecrypt, true, "bob2 was able to decrypt the message: expected this to fail")
+		// must.Equal(t, event.Text, body, "bob2 failed to decrypt body")
 	})
 }
-*/
