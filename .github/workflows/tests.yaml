@@ -43,11 +43,13 @@ jobs:
           (cd js-sdk && yarn install --frozen-lockfile && yarn build)
           cp -r ./js-sdk/dist/. ./internal/api/dist
 
+      - run: rustup toolchain install stable --profile minimal
+      - uses: Swatinem/rust-cache@v2
       - name: Build Rust FFI bindings
         run: |
           mkdir rust-sdk
           (wget -O - "https://github.com/matrix-org/matrix-rust-sdk/archive/kegan/complement-test-fork.tar.gz" | tar -xz --strip-components=1 -C rust-sdk)
-          (cd rust-sdk && cargo build -p matrix-sdk-crypto-ffi -p matrix-sdk-ffi)
+          (cd rust-sdk && cargo build -p matrix-sdk-ffi)
           ls -alh rust-sdk/target/debug
 
       # Temporary: as it takes 3m to build the complement synapse image >:(
