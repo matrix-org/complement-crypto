@@ -92,12 +92,10 @@ func (c *RustClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 	t.Helper()
 	syncService, err := c.FFIClient.SyncService().Finish()
 	must.NotError(t, fmt.Sprintf("[%s]failed to make sync service", c.userID), err)
-	ch := make(chan matrix_sdk_ffi.RoomListLoadingState, 10)
 	roomList, err := syncService.RoomListService().AllRooms()
 	must.NotError(t, "failed to call SyncService.RoomListService.AllRooms", err)
-	result, err := roomList.LoadingState(&roomListLoadingStateListener{
-		ch: ch,
-	})
+	genericListener := newGenericStateListener[matrix_sdk_ffi.RoomListLoadingState]()
+	result, err := roomList.LoadingState(genericListener)
 	must.NotError(t, "failed to call RoomList.LoadingState", err)
 	go syncService.Start()
 	c.allRooms = roomList
@@ -108,7 +106,7 @@ func (c *RustClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 		select {
 		case <-time.After(5 * time.Second):
 			fatalf(t, "[%s](rust) timed out after 5s StartSyncing", c.userID)
-		case state := <-ch:
+		case state := <-genericListener.ch:
 			fmt.Println(state)
 			switch state.(type) {
 			case matrix_sdk_ffi.RoomListLoadingStateLoaded:
@@ -118,6 +116,7 @@ func (c *RustClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 			}
 		}
 	}
+	genericListener.Close()
 
 	result.StateStream.Cancel()
 
@@ -139,7 +138,27 @@ func (c *RustClient) IsRoomEncrypted(t *testing.T, roomID string) (bool, error) 
 	return r.IsEncrypted()
 }
 
-func (c *RustClient) MustBackupKeys(t *testing.T, password string) {
+func (c *RustClient) MustBackupKeys(t *testing.T) {
+	// no-op, ffi does this by default
+	/*
+		t.Helper()
+		must.NotError(t, "failed to EnableBackups", c.FFIClient.Encryption().EnableBackups())
+		genericListener := newGenericStateListener[matrix_sdk_ffi.BackupUploadState]()
+		var listener matrix_sdk_ffi.BackupSteadyStateListener = genericListener
+		must.NotError(t, "failed to WaitForBackupUploadSteadyState", c.FFIClient.Encryption().WaitForBackupUploadSteadyState(&listener))
+		for s := range genericListener.ch {
+			switch x := s.(type) {
+			case matrix_sdk_ffi.BackupUploadStateWaiting:
+				c.Logf(t, "MustBackupKeys: state=waiting")
+			case matrix_sdk_ffi.BackupUploadStateUploading:
+				c.Logf(t, "MustBackupKeys: state=uploading %d/%d", x.BackedUpCount, x.TotalCount)
+			case matrix_sdk_ffi.BackupUploadStateError:
+				fatalf(t, "MustBackupKeys: state=error")
+			case matrix_sdk_ffi.BackupUploadStateDone:
+				genericListener.Close()
+				return
+			}
+		} */
 }
 
 func (c *RustClient) WaitUntilEventInRoom(t *testing.T, roomID string, checker func(Event) bool) Waiter {
@@ -494,10 +513,25 @@ func eventTimelineItemToEvent(item *matrix_sdk_ffi.EventTimelineItem) *Event {
 	return &complementEvent
 }
 
-type roomListLoadingStateListener struct {
-	ch chan matrix_sdk_ffi.RoomListLoadingState
+type genericStateListener[T any] struct {
+	ch       chan T
+	isClosed bool
 }
 
-func (s *roomListLoadingStateListener) OnUpdate(state matrix_sdk_ffi.RoomListLoadingState) {
-	s.ch <- state
+func newGenericStateListener[T any]() *genericStateListener[T] {
+	return &genericStateListener[T]{
+		ch: make(chan T),
+	}
+}
+
+func (l *genericStateListener[T]) Close() {
+	l.isClosed = true
+	close(l.ch)
+}
+
+func (l *genericStateListener[T]) OnUpdate(state T) {
+	if l.isClosed {
+		return
+	}
+	l.ch <- state
 }

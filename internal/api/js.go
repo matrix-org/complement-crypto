@@ -298,7 +298,7 @@ func (c *JSClient) MustBackpaginate(t *testing.T, roomID string, count int) {
 	))
 }
 
-func (c *JSClient) MustBackupKeys(t *testing.T, password string) {
+func (c *JSClient) MustBackupKeys(t *testing.T) {
 
 }
 
