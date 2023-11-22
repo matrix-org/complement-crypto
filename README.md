@@ -96,17 +96,17 @@ This repo has bindings to the `matrix_sdk` crate in rust SDK, in order to mimic 
 
 In order to generate these bindings, follow these instructions:
 - Check out https://github.com/matrix-org/matrix-rust-sdk/tree/kegan/complement-test-fork (TODO: go back to main when `_ffi_matrix_sdk_ffi_rust_future_continuation_callback_set` is defined)
-- Get the bindings generator: (TODO: recheck if https://github.com/NordSecurity/uniffi-bindgen-go/pull/26 lands)
+- Get the bindings generator:
 ```
-git clone https://github.com/dignifiedquire/uniffi-bindgen-go.git
+git clone https://github.com/NordSecurity/uniffi-bindgen-go.git
 cd uniffi-bindgen-go
-git checkout upgrade-uniffi-25
+git checkout v0.2.0+v0.25.0
 git submodule init
 git submodule update
 cd ..
 cargo install uniffi-bindgen-go --path ./uniffi-bindgen-go/bindgen
 ```
-- Compile the rust SDK: `cargo build -p matrix-sdk-crypto-ffi -p matrix-sdk-ffi`. Check that `target/debug/libmatrix_sdk_ffi.a` exists.
+- Compile the rust SDK: `cargo build -p matrix-sdk-ffi`. Check that `target/debug/libmatrix_sdk_ffi.a` exists.
 - Generate the Go bindings to `./rust`: `uniffi-bindgen-go -l ../matrix-rust-sdk/target/debug/libmatrix_sdk_ffi.a -o ./rust ../matrix-rust-sdk/bindings/matrix-sdk-ffi/src/api.udl`
 - Patch up the generated code as it's not quite right:
     * Add `// #cgo LDFLAGS: -lmatrix_sdk_ffi` immediately after `// #include <matrix_sdk_ffi.h>` at the top of `matrix_sdk_ffi.go`.
