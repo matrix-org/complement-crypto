@@ -298,6 +298,10 @@ func (c *JSClient) MustBackpaginate(t *testing.T, roomID string, count int) {
 	))
 }
 
+func (c *JSClient) MustBackupKeys(t *testing.T, password string) {
+
+}
+
 func (c *JSClient) WaitUntilEventInRoom(t *testing.T, roomID string, checker func(e Event) bool) Waiter {
 	t.Helper()
 	return &jsTimelineWaiter{

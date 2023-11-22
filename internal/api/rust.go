@@ -139,6 +139,9 @@ func (c *RustClient) IsRoomEncrypted(t *testing.T, roomID string) (bool, error) 
 	return r.IsEncrypted()
 }
 
+func (c *RustClient) MustBackupKeys(t *testing.T, password string) {
+}
+
 func (c *RustClient) WaitUntilEventInRoom(t *testing.T, roomID string, checker func(Event) bool) Waiter {
 	t.Helper()
 	c.ensureListening(t, roomID)

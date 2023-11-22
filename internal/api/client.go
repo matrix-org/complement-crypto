@@ -45,6 +45,8 @@ type Client interface {
 	MustBackpaginate(t *testing.T, roomID string, count int)
 	// MustGetEvent will return the client's view of this event, or fail the test if the event cannot be found.
 	MustGetEvent(t *testing.T, roomID, eventID string) Event
+	// MustBackupKeys will backup E2EE keys using the password provided, else fail the test.
+	MustBackupKeys(t *testing.T, password string)
 	// Log something to stdout and the underlying client log file
 	Logf(t *testing.T, format string, args ...interface{})
 	// The user for this client
@@ -94,6 +96,12 @@ func (c *LoggedClient) MustBackpaginate(t *testing.T, roomID string, count int) 
 	t.Helper()
 	c.Logf(t, "%s MustBackpaginate %d %s", c.logPrefix(), count, roomID)
 	c.Client.MustBackpaginate(t, roomID, count)
+}
+
+func (c *LoggedClient) MustBackupKeys(t *testing.T, password string) {
+	t.Helper()
+	c.Logf(t, "%s MustBackupKeys password=%s", c.logPrefix(), password)
+	c.Client.MustBackupKeys(t, password)
 }
 
 func (c *LoggedClient) logPrefix() string {
