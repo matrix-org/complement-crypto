@@ -45,6 +45,8 @@ jobs:
 
       - run: rustup toolchain install stable --profile minimal
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-all-crates: "true"
       - name: Build Rust FFI bindings
         run: |
           mkdir rust-sdk
