@@ -148,6 +148,14 @@ func (c *TestContext) CreateNewEncryptedRoom(t *testing.T, creator *client.CSAPI
 	})
 }
 
+func (c *TestContext) MustLoginDevice(t *testing.T, existing *client.CSAPI, clientType api.ClientType, deviceID string) (*client.CSAPI, api.Client) {
+	newClient := c.Deployment.Login(t, clientType.HS, existing, helpers.LoginOpts{
+		DeviceID: deviceID,
+		Password: "complement-crypto-password",
+	})
+	return newClient, c.MustLoginClient(t, newClient, clientType)
+}
+
 func (c *TestContext) MustLoginClient(t *testing.T, cli *client.CSAPI, clientType api.ClientType) api.Client {
 	t.Helper()
 	return MustLoginClient(t, clientType, api.FromComplementClient(cli, "complement-crypto-password"), c.Deployment.SlidingSyncURL(t))

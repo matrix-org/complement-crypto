@@ -299,7 +299,11 @@ func (c *JSClient) MustBackpaginate(t *testing.T, roomID string, count int) {
 }
 
 func (c *JSClient) MustBackupKeys(t *testing.T) {
+	// TODO
+}
 
+func (c *JSClient) MustLoadBackup(t *testing.T) {
+	// TODO
 }
 
 func (c *JSClient) WaitUntilEventInRoom(t *testing.T, roomID string, checker func(e Event) bool) Waiter {

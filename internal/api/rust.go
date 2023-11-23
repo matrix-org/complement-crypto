@@ -159,6 +159,12 @@ func (c *RustClient) MustBackupKeys(t *testing.T) {
 				return
 			}
 		} */
+	c.FFIClient.Encryption().EnableRecovery(true, nil)
+}
+
+func (c *RustClient) MustLoadBackup(t *testing.T) {
+	t.Helper()
+	// TODO
 }
 
 func (c *RustClient) WaitUntilEventInRoom(t *testing.T, roomID string, checker func(Event) bool) Waiter {

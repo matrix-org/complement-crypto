@@ -47,6 +47,8 @@ type Client interface {
 	MustGetEvent(t *testing.T, roomID, eventID string) Event
 	// MustBackupKeys will backup E2EE keys, else fail the test.
 	MustBackupKeys(t *testing.T)
+	// MustLoadBackup will recover E2EE keys from the latest backup, else fail the test.
+	MustLoadBackup(t *testing.T)
 	// Log something to stdout and the underlying client log file
 	Logf(t *testing.T, format string, args ...interface{})
 	// The user for this client
@@ -102,6 +104,12 @@ func (c *LoggedClient) MustBackupKeys(t *testing.T) {
 	t.Helper()
 	c.Logf(t, "%s MustBackupKeys", c.logPrefix())
 	c.Client.MustBackupKeys(t)
+}
+
+func (c *LoggedClient) MustLoadBackup(t *testing.T) {
+	t.Helper()
+	c.Logf(t, "%s MustLoadBackup", c.logPrefix())
+	c.Client.MustLoadBackup(t)
 }
 
 func (c *LoggedClient) logPrefix() string {

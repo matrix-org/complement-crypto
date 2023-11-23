@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
-	"github.com/matrix-org/complement/helpers"
 	"github.com/matrix-org/complement/must"
 )
 
@@ -278,11 +277,7 @@ func TestOnNewDeviceBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 		waiter.Wait(t, 5*time.Second)
 
 		// now bob logs in on a new device. He should NOT be able to decrypt this event (though can see it due to history visibility)
-		csapiBob2 := tc.Deployment.Login(t, clientTypeB.HS, tc.Bob, helpers.LoginOpts{
-			DeviceID: "NEW_DEVICE",
-			Password: "complement-crypto-password",
-		})
-		bob2 := tc.MustLoginClient(t, csapiBob2, clientTypeB)
+		csapiBob2, bob2 := tc.MustLoginDevice(t, tc.Bob, clientTypeB, "NEW_DEVICE")
 		bob2StopSyncing := bob2.StartSyncing(t)
 		bob2StoppedSyncing := false
 		defer func() {
@@ -358,11 +353,7 @@ func TestChangingDeviceAfterInviteReEncrypts(t *testing.T) {
 		evID := alice.SendMessage(t, roomID, body)
 
 		// now Bob logs in on a different device and accepts the invite. The different device should be able to decrypt the message.
-		csapiBob2 := tc.Deployment.Login(t, clientTypeB.HS, tc.Bob, helpers.LoginOpts{
-			DeviceID: "NEW_DEVICE",
-			Password: "complement-crypto-password",
-		})
-		bob2 := tc.MustLoginClient(t, csapiBob2, clientTypeB)
+		_, bob2 := tc.MustLoginDevice(t, tc.Bob, clientTypeB, "NEW_DEVICE")
 		bob2StopSyncing := bob2.StartSyncing(t)
 		defer bob2StopSyncing()
 
