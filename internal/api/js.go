@@ -298,11 +298,12 @@ func (c *JSClient) MustBackpaginate(t *testing.T, roomID string, count int) {
 	))
 }
 
-func (c *JSClient) MustBackupKeys(t *testing.T) {
+func (c *JSClient) MustBackupKeys(t *testing.T) (recoveryKey string) {
 	// TODO
+	return
 }
 
-func (c *JSClient) MustLoadBackup(t *testing.T) {
+func (c *JSClient) MustLoadBackup(t *testing.T, recoveryKey string) {
 	// TODO
 }
 

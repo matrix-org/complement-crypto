@@ -138,33 +138,31 @@ func (c *RustClient) IsRoomEncrypted(t *testing.T, roomID string) (bool, error) 
 	return r.IsEncrypted()
 }
 
-func (c *RustClient) MustBackupKeys(t *testing.T) {
-	// no-op, ffi does this by default
-	/*
-		t.Helper()
-		must.NotError(t, "failed to EnableBackups", c.FFIClient.Encryption().EnableBackups())
-		genericListener := newGenericStateListener[matrix_sdk_ffi.BackupUploadState]()
-		var listener matrix_sdk_ffi.BackupSteadyStateListener = genericListener
-		must.NotError(t, "failed to WaitForBackupUploadSteadyState", c.FFIClient.Encryption().WaitForBackupUploadSteadyState(&listener))
-		for s := range genericListener.ch {
-			switch x := s.(type) {
-			case matrix_sdk_ffi.BackupUploadStateWaiting:
-				c.Logf(t, "MustBackupKeys: state=waiting")
-			case matrix_sdk_ffi.BackupUploadStateUploading:
-				c.Logf(t, "MustBackupKeys: state=uploading %d/%d", x.BackedUpCount, x.TotalCount)
-			case matrix_sdk_ffi.BackupUploadStateError:
-				fatalf(t, "MustBackupKeys: state=error")
-			case matrix_sdk_ffi.BackupUploadStateDone:
-				genericListener.Close()
-				return
-			}
-		} */
-	c.FFIClient.Encryption().EnableRecovery(true, nil)
+func (c *RustClient) MustBackupKeys(t *testing.T) (recoveryKey string) {
+	t.Helper()
+	genericListener := newGenericStateListener[matrix_sdk_ffi.EnableRecoveryProgress]()
+	var listener matrix_sdk_ffi.EnableRecoveryProgressListener = genericListener
+	recoveryKey, err := c.FFIClient.Encryption().EnableRecovery(true, listener)
+	for s := range genericListener.ch {
+		switch x := s.(type) {
+		case matrix_sdk_ffi.EnableRecoveryProgressCreatingBackup:
+			t.Logf("MustBackupKeys: state=CreatingBackup")
+		case matrix_sdk_ffi.EnableRecoveryProgressBackingUp:
+			t.Logf("MustBackupKeys: state=BackingUp %v/%v", x.BackedUpCount, x.TotalCount)
+		case matrix_sdk_ffi.EnableRecoveryProgressCreatingRecoveryKey:
+			t.Logf("MustBackupKeys: state=CreatingRecoveryKey")
+		case matrix_sdk_ffi.EnableRecoveryProgressDone:
+			t.Logf("MustBackupKeys: state=Done")
+			genericListener.Close() // break the loop
+		}
+	}
+	must.NotError(t, "Encryption.EnableRecovery", err)
+	return recoveryKey
 }
 
-func (c *RustClient) MustLoadBackup(t *testing.T) {
+func (c *RustClient) MustLoadBackup(t *testing.T, recoveryKey string) {
 	t.Helper()
-	// TODO
+	must.NotError(t, "FixRecoveryIssues", c.FFIClient.Encryption().FixRecoveryIssues(recoveryKey))
 }
 
 func (c *RustClient) WaitUntilEventInRoom(t *testing.T, roomID string, checker func(Event) bool) Waiter {
