@@ -45,13 +45,13 @@ Membership ACLs:
 - [x] EXPECTED FAIL: Alice invites Bob, Alice sends a message, Bob changes their device, then Bob joins. Bob should be able to see Alice's message.
 
 Key backups:
-- [ ] New device for Alice cannot decrypt previous messages.
-- [ ] Backups can be made on Alice's first device.
-- [ ] Alice's new device can download the backup and decrypt the messages.
+- [x] RUST ONLY: New device for Alice cannot decrypt previous messages. Backups can be made on Alice's first device. Alice's new device can download the backup and decrypt the messages.
+- [ ] Inputting the wrong recovery key fails to decrypt the backup.
 
 One-time Keys:
-- [ ] When Alice runs out of OTKs, other users use the fallback key.
-- [ ] Ensure things don't explode if OTKs are reused (TODO: what should happen here?)
+- [ ] When Alice runs out of OTKs, local users use the fallback key.
+- [ ] When Alice runs out of OTKs, federated users use the fallback key.
+- [ ] When a OTK is reused, Alice... (TODO: ??? rejects both, rejects latest, rejects neither?)
 
 Key Verification: (Short Authentication String)
 - [ ] Happy case Alice <-> Bob key verification.
@@ -65,13 +65,15 @@ Key Verification: (Short Authentication String)
 
 Network connectivity:
 - [ ] If a client cannot upload OTKs, it retries.
-- [ ] If a client cannot claim OTKs, it retries.
+- [ ] If a client cannot claim local OTKs, it retries.
+- [ ] If a client cannot claim remote OTKs, it retries.
 - [ ] If a server cannot send device list updates over federation, it retries.
 - [ ] If a client cannot query device keys for a user, it retries.
 - [ ] If a server cannot query device keys on another server, it retries.
 - [ ] If a client cannot send a to-device msg, it retries.
 - [ ] If a server cannot send a to-device msg to another server, it retries.
 - [ ] Repeat all of the above, but restart the client|server after the initial connection failure. This checks that retries aren't just stored in memory but persisted to disk.
+
 
 Network connectivity tests are extremely time sensitive as retries are often using timeouts in clients.
 
