@@ -74,8 +74,14 @@ Network connectivity:
 - [x] If a server cannot send a to-device msg to another server, it retries. https://github.com/matrix-org/complement/pull/694
 - [ ] Repeat all of the above, but restart the client|server after the initial connection failure. This checks that retries aren't just stored in memory but persisted to disk.
 
-
 Network connectivity tests are extremely time sensitive as retries are often using timeouts in clients.
+
+Regression tests:
+ - [ ] Receive a to-device event with a room key, then fail requests to `/keys/query`. Ensure you can still see encrypted messages in that room. Regression test for https://github.com/vector-im/element-web/issues/24682
+ - [ ] Receive many to-device events followed by a room key, then quickly restart the client. Ensure you can still see encrypted messages in that room. Tests that to-device events are persisted locally or the since token is not advanced before processing to avoid dropped to-device events. Regression test for https://github.com/vector-im/element-web/issues/23113
+ - [ ] Tests for [MSC3061](https://github.com/matrix-org/matrix-spec-proposals/pull/3061): Sharing room keys for past messages. Rust SDK: https://github.com/matrix-org/matrix-rust-sdk/issues/580
+
+ These tests may require reverse proxy interception to let some requests pass through but not others.
 
 ### Regenerate JS SDK
 
