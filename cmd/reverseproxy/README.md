@@ -16,3 +16,5 @@ $ docker run --rm -e "REVERSE_PROXY_CONTROLLER_URL=http://somewhere-tests-are-li
 Then tell clients to connect to the reverse proxy on the respective port.
 
 This is handled for you by complement-crypto by default.
+
+This docker image is uploaded to `ghcr.io/matrix-org/complement-crypto-reverse-proxy:latest`.
