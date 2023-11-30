@@ -1,4 +1,4 @@
-from add_header import AddHeader
+from status_code import StatusCode
 
 
-addons = [AddHeader()]
+addons = [StatusCode()]

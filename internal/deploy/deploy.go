@@ -107,6 +107,7 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 			Env:          map[string]string{},
 			Cmd: []string{
 				"mitmdump", "--mode", "reverse:http://hs1:8008@3000", "--mode", "reverse:http://hs2:8008@3001", "-s", "/addons/__init__.py",
+				//"--set", "statuscode=400",
 			},
 			// WaitingFor: wait.ForLog("listening"),
 			Networks: []string{networkName},
