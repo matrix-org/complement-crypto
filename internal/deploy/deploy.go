@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"sync"
 	"testing"
 	"time"
 
@@ -24,6 +25,8 @@ type SlidingSyncDeployment struct {
 	slidingSync    testcontainers.Container
 	reverseProxy   testcontainers.Container
 	slidingSyncURL string
+	proxyURLToHS   map[string]string
+	mu             sync.RWMutex
 	tcpdump        *exec.Cmd
 }
 
@@ -34,6 +37,12 @@ func (d *SlidingSyncDeployment) SlidingSyncURL(t *testing.T) string {
 		return ""
 	}
 	return d.slidingSyncURL
+}
+
+func (d *SlidingSyncDeployment) ReverseProxyURLForHS(hsName string) string {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	return d.proxyURLToHS[hsName]
 }
 
 func (d *SlidingSyncDeployment) Teardown(writeLogs bool) {
@@ -54,6 +63,12 @@ func (d *SlidingSyncDeployment) Teardown(writeLogs bool) {
 		}
 	}
 	if d.reverseProxy != nil {
+		if writeLogs {
+			err := writeContainerLogs(d.reverseProxy, "container-mitmproxy.log")
+			if err != nil {
+				log.Printf("failed to write sliding sync logs: %s", err)
+			}
+		}
 		if err := d.reverseProxy.Terminate(context.Background()); err != nil {
 			log.Fatalf("failed to stop reverse proxy: %s", err)
 		}
@@ -176,6 +191,10 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 		reverseProxy:   mitmproxyContainer,
 		slidingSyncURL: ssURL,
 		tcpdump:        cmd,
+		proxyURLToHS: map[string]string{
+			"hs1": rpHS1URL,
+			"hs2": rpHS2URL,
+		},
 	}
 }
 
