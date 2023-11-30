@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -88,7 +89,15 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 	deployment := complement.Deploy(t, 2)
 	networkName := deployment.Network()
 
-	// make a reverse proxy.
+	workingDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to find working directory: %s", err)
+	}
+
+	// Make the mitmproxy and hardcode CONTAINER PORTS for hs1/hs2. HOST PORTS are still dynamically allocated.
+	// By running this container on the same network as the homeservers, we can leverage DNS hence hs1/hs2 URLs.
+	// We also need to preload addons into the proxy, so we bind mount the addons directory. This also allows
+	// test authors to easily add custom addons.
 	hs1ExposedPort := "3000/tcp"
 	hs2ExposedPort := "3001/tcp"
 	mitmproxyContainer, err := testcontainers.GenericContainer(context.Background(), testcontainers.GenericContainerRequest{
@@ -97,13 +106,16 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 			ExposedPorts: []string{hs1ExposedPort, hs2ExposedPort},
 			Env:          map[string]string{},
 			Cmd: []string{
-				"mitmdump", "--mode", "reverse:http://hs1:8008@3000", "--mode", "reverse:http://hs2:8008@3001",
+				"mitmdump", "--mode", "reverse:http://hs1:8008@3000", "--mode", "reverse:http://hs2:8008@3001", "-s", "/addons/__init__.py",
 			},
 			// WaitingFor: wait.ForLog("listening"),
 			Networks: []string{networkName},
 			NetworkAliases: map[string][]string{
 				networkName: {"mitmproxy"},
 			},
+			Mounts: testcontainers.Mounts(
+				testcontainers.BindMount(filepath.Join(workingDir, "addons"), "/addons"),
+			),
 		},
 		Started: true,
 	})
