@@ -1,10 +1,13 @@
 package deploy
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
@@ -20,12 +23,16 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
+// must match the value in tests/addons/__init__.py
+const magicMITMURL = "http://mitm.local"
+
 type SlidingSyncDeployment struct {
 	complement.Deployment
 	postgres       testcontainers.Container
 	slidingSync    testcontainers.Container
 	reverseProxy   testcontainers.Container
 	slidingSyncURL string
+	controllerURL  string
 	proxyURLToHS   map[string]string
 	mu             sync.RWMutex
 	tcpdump        *exec.Cmd
@@ -38,6 +45,28 @@ func (d *SlidingSyncDeployment) SlidingSyncURL(t *testing.T) string {
 		return ""
 	}
 	return d.slidingSyncURL
+}
+
+func (d *SlidingSyncDeployment) SetMITMFilters(t *testing.T, filters map[string]string) {
+	t.Helper()
+	proxyURL, err := url.Parse(d.controllerURL)
+	must.NotError(t, "failed to parse controller URL", err)
+	cli := &http.Client{
+		Timeout: 5 * time.Second,
+		Transport: &http.Transport{
+			Proxy: http.ProxyURL(proxyURL),
+		},
+	}
+	jsonBody, err := json.Marshal(map[string]interface{}{
+		"filters": filters,
+	})
+	must.NotError(t, "failed to marshal filters", err)
+	req, err := http.NewRequest("POST", magicMITMURL, bytes.NewBuffer(jsonBody))
+	must.NotError(t, "failed to prepare request", err)
+	req.Header.Set("Content-Type", "application/json")
+	res, err := cli.Do(req)
+	must.NotError(t, "failed to do request", err)
+	must.Equal(t, 200, res.StatusCode, "controller returned wrong HTTP status")
 }
 
 func (d *SlidingSyncDeployment) ReverseProxyURLForHS(hsName string) string {
@@ -100,14 +129,18 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 	// test authors to easily add custom addons.
 	hs1ExposedPort := "3000/tcp"
 	hs2ExposedPort := "3001/tcp"
+	controllerExposedPort := "8080/tcp" // default mitmproxy uses
 	mitmproxyContainer, err := testcontainers.GenericContainer(context.Background(), testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:        "mitmproxy/mitmproxy:10.1.5",
-			ExposedPorts: []string{hs1ExposedPort, hs2ExposedPort},
+			ExposedPorts: []string{hs1ExposedPort, hs2ExposedPort, controllerExposedPort},
 			Env:          map[string]string{},
 			Cmd: []string{
-				"mitmdump", "--mode", "reverse:http://hs1:8008@3000", "--mode", "reverse:http://hs2:8008@3001", "-s", "/addons/__init__.py",
-				//"--set", "statuscode=400",
+				"mitmdump",
+				"--mode", "reverse:http://hs1:8008@3000",
+				"--mode", "reverse:http://hs2:8008@3001",
+				"--mode", "regular",
+				"-s", "/addons/__init__.py",
 			},
 			// WaitingFor: wait.ForLog("listening"),
 			Networks: []string{networkName},
@@ -123,6 +156,7 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 	must.NotError(t, "failed to start reverse proxy container", err)
 	rpHS1URL := externalURL(t, mitmproxyContainer, hs1ExposedPort)
 	rpHS2URL := externalURL(t, mitmproxyContainer, hs2ExposedPort)
+	controllerURL := externalURL(t, mitmproxyContainer, controllerExposedPort)
 
 	// Make a postgres container
 	postgresContainer, err := testcontainers.GenericContainer(context.Background(), testcontainers.GenericContainerRequest{
@@ -181,7 +215,7 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 	t.Logf("  synapse:      hs1          %s", csapi1.BaseURL)
 	t.Logf("  synapse:      hs2          %s", csapi2.BaseURL)
 	t.Logf("  postgres:     postgres")
-	t.Logf("  mitmproxy:    mitmproxy hs1=%s hs2=%s", rpHS1URL, rpHS2URL)
+	t.Logf("  mitmproxy:    mitmproxy hs1=%s hs2=%s controller=%s", rpHS1URL, rpHS2URL, controllerURL)
 	var cmd *exec.Cmd
 	if shouldTCPDump {
 		t.Log("Running tcpdump...")
@@ -204,6 +238,7 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 		reverseProxy:   mitmproxyContainer,
 		slidingSyncURL: ssURL,
 		tcpdump:        cmd,
+		controllerURL:  controllerURL,
 		proxyURLToHS: map[string]string{
 			"hs1": rpHS1URL,
 			"hs2": rpHS2URL,
