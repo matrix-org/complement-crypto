@@ -26,6 +26,8 @@ class StatusCode:
         logging.info(f"statuscode will return HTTP {self.return_status_code}")
 
     def response(self, flow):
+        if not flow.request.pretty_host.startswith("hs"):
+            return # ignore responses sent by the controller
         if self.return_status_code == 0:
-            return
+            return # ignore responses if we aren't told a code
         flow.response = Response.make(self.return_status_code)

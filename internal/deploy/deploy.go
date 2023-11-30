@@ -32,7 +32,7 @@ type SlidingSyncDeployment struct {
 	slidingSync    testcontainers.Container
 	reverseProxy   testcontainers.Container
 	slidingSyncURL string
-	controllerURL  string
+	mitmClient     *http.Client
 	proxyURLToHS   map[string]string
 	mu             sync.RWMutex
 	tcpdump        *exec.Cmd
@@ -47,26 +47,18 @@ func (d *SlidingSyncDeployment) SlidingSyncURL(t *testing.T) string {
 	return d.slidingSyncURL
 }
 
-func (d *SlidingSyncDeployment) SetMITMOptions(t *testing.T, options map[string]string) {
+func (d *SlidingSyncDeployment) SetMITMOptions(t *testing.T, options map[string]interface{}) {
 	t.Helper()
-	proxyURL, err := url.Parse(d.controllerURL)
-	must.NotError(t, "failed to parse controller URL", err)
-	cli := &http.Client{
-		Timeout: 5 * time.Second,
-		Transport: &http.Transport{
-			Proxy: http.ProxyURL(proxyURL),
-		},
-	}
 	jsonBody, err := json.Marshal(map[string]interface{}{
 		"options": options,
 	})
 	must.NotError(t, "failed to marshal options", err)
-	req, err := http.NewRequest("POST", magicMITMURL, bytes.NewBuffer(jsonBody))
+	req, err := http.NewRequest("POST", magicMITMURL+"/options", bytes.NewBuffer(jsonBody))
 	must.NotError(t, "failed to prepare request", err)
 	req.Header.Set("Content-Type", "application/json")
-	res, err := cli.Do(req)
+	res, err := d.mitmClient.Do(req)
 	must.NotError(t, "failed to do request", err)
-	must.Equal(t, 200, res.StatusCode, "controller returned wrong HTTP status")
+	must.Equal(t, res.StatusCode, 200, "controller returned wrong HTTP status")
 }
 
 func (d *SlidingSyncDeployment) ReverseProxyURLForHS(hsName string) string {
@@ -231,6 +223,8 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 		// TODO needs sudo
 		t.Logf("Started tcpdumping: PID %d", cmd.Process.Pid)
 	}
+	proxyURL, err := url.Parse(controllerURL)
+	must.NotError(t, "failed to parse controller URL", err)
 	return &SlidingSyncDeployment{
 		Deployment:     deployment,
 		slidingSync:    ssContainer,
@@ -238,7 +232,12 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 		reverseProxy:   mitmproxyContainer,
 		slidingSyncURL: ssURL,
 		tcpdump:        cmd,
-		controllerURL:  controllerURL,
+		mitmClient: &http.Client{
+			Timeout: 5 * time.Second,
+			Transport: &http.Transport{
+				Proxy: http.ProxyURL(proxyURL),
+			},
+		},
 		proxyURLToHS: map[string]string{
 			"hs1": rpHS1URL,
 			"hs2": rpHS2URL,

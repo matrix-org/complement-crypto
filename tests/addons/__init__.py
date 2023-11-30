@@ -7,13 +7,12 @@ from status_code import StatusCode
 
 app = Flask("mitmoptset")
 
-@app.route("/", methods=["POST"])
+@app.route("/options", methods=["POST"])
 def set_options() -> str:
     body = request.json
     options = body.get("options", {})
     print(f"setting options {options}")
-    for k, v in options:
-        ctx.options[k] = v
+    ctx.options.update(**options)
     return {}
 
 addons = [
