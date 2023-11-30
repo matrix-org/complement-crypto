@@ -33,7 +33,12 @@ class StatusCode:
             self.reset()
             return
         self.config = ctx.options.statuscode
-        print(f"statuscode will return HTTP {self.config['return_status']} filter={self.config.get('filter', {})}")
+        new_filter = self.config.get('filter', None)
+        print(f"statuscode will return HTTP {self.config['return_status']} filter={new_filter}")
+        if new_filter:
+            self.filter = flowfilter.parse(new_filter)
+        else:
+            self.filter = self.matchall
 
     def response(self, flow):
         # always ignore the controller
@@ -43,5 +48,3 @@ class StatusCode:
             return # ignore responses if we aren't told a code
         if flowfilter.match(self.filter, flow):
             flow.response = Response.make(self.config["return_status"])
-        else:
-            print("flow does not match filter")
