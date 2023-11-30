@@ -1,21 +1,9 @@
-import logging, os
-from mitmproxy import ctx
 from mitmproxy.addons import asgiapp
-from flask import Flask, request
 
 from status_code import StatusCode
-
-app = Flask("mitmoptset")
-
-@app.route("/options", methods=["POST"])
-def set_options() -> str:
-    body = request.json
-    options = body.get("options", {})
-    print(f"setting options {options}")
-    ctx.options.update(**options)
-    return {}
+from controller import MITM_DOMAIN_NAME, app
 
 addons = [
-    asgiapp.WSGIApp(app, "mitm.local", 80), # requests to this host will be routed to the flask app
+    asgiapp.WSGIApp(app, MITM_DOMAIN_NAME, 80), # requests to this host will be routed to the flask app
     StatusCode(),
 ]

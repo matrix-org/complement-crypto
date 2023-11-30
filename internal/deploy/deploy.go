@@ -47,13 +47,34 @@ func (d *SlidingSyncDeployment) SlidingSyncURL(t *testing.T) string {
 	return d.slidingSyncURL
 }
 
-func (d *SlidingSyncDeployment) SetMITMOptions(t *testing.T, options map[string]interface{}) {
+// WithMITMOptions changes the options of mitmproxy and executes inner() whilst those options are in effect.
+// As the options on mitmproxy are a shared resource, this function has transaction-like semantics, ensuring
+// the lock is released when inner() returns. This is similar to the `with` keyword in python.
+func (d *SlidingSyncDeployment) WithMITMOptions(t *testing.T, options map[string]interface{}, inner func()) {
 	t.Helper()
+	lockID := d.lockOptions(t, options)
+	defer d.unlockOptions(t, lockID)
+	inner()
+}
+
+func (d *SlidingSyncDeployment) lockOptions(t *testing.T, options map[string]interface{}) (lockID []byte) {
 	jsonBody, err := json.Marshal(map[string]interface{}{
 		"options": options,
 	})
 	must.NotError(t, "failed to marshal options", err)
-	req, err := http.NewRequest("POST", magicMITMURL+"/options", bytes.NewBuffer(jsonBody))
+	req, err := http.NewRequest("POST", magicMITMURL+"/options/lock", bytes.NewBuffer(jsonBody))
+	must.NotError(t, "failed to prepare request", err)
+	req.Header.Set("Content-Type", "application/json")
+	res, err := d.mitmClient.Do(req)
+	must.NotError(t, "failed to do request", err)
+	must.Equal(t, res.StatusCode, 200, "controller returned wrong HTTP status")
+	lockID, err = io.ReadAll(res.Body)
+	must.NotError(t, "failed to read response", err)
+	return lockID
+}
+
+func (d *SlidingSyncDeployment) unlockOptions(t *testing.T, lockID []byte) {
+	req, err := http.NewRequest("POST", magicMITMURL+"/options/unlock", bytes.NewBuffer(lockID))
 	must.NotError(t, "failed to prepare request", err)
 	req.Header.Set("Content-Type", "application/json")
 	res, err := d.mitmClient.Do(req)
