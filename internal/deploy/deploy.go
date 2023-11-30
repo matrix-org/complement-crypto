@@ -20,12 +20,11 @@ import (
 
 type SlidingSyncDeployment struct {
 	complement.Deployment
-	ReverseProxyController *ReverseProxyController
-	postgres               testcontainers.Container
-	slidingSync            testcontainers.Container
-	reverseProxy           testcontainers.Container
-	slidingSyncURL         string
-	tcpdump                *exec.Cmd
+	postgres       testcontainers.Container
+	slidingSync    testcontainers.Container
+	reverseProxy   testcontainers.Container
+	slidingSyncURL string
+	tcpdump        *exec.Cmd
 }
 
 func (d *SlidingSyncDeployment) SlidingSyncURL(t *testing.T) string {
@@ -55,7 +54,6 @@ func (d *SlidingSyncDeployment) Teardown(writeLogs bool) {
 		}
 	}
 	if d.reverseProxy != nil {
-		d.ReverseProxyController.Terminate()
 		if err := d.reverseProxy.Terminate(context.Background()); err != nil {
 			log.Fatalf("failed to stop reverse proxy: %s", err)
 		}
@@ -75,34 +73,28 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 	deployment := complement.Deploy(t, 2)
 	networkName := deployment.Network()
 
-	controller := NewReverseProxyController()
-	controllerPort, err := controller.Listen()
-	if err != nil {
-		t.Fatalf("reverse proxy controller failed to listen: %v", err)
-	}
-
 	// make a reverse proxy.
 	hs1ExposedPort := "3000/tcp"
 	hs2ExposedPort := "3001/tcp"
-	rpContainer, err := testcontainers.GenericContainer(context.Background(), testcontainers.GenericContainerRequest{
+	mitmproxyContainer, err := testcontainers.GenericContainer(context.Background(), testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        "ghcr.io/matrix-org/complement-crypto-reverse-proxy:latest",
+			Image:        "mitmproxy/mitmproxy:10.1.5",
 			ExposedPorts: []string{hs1ExposedPort, hs2ExposedPort},
-			Env: map[string]string{
-				"REVERSE_PROXY_CONTROLLER_URL": fmt.Sprintf("http://host.docker.internal:", controllerPort),
-				"REVERSE_PROXY_HOSTS":          "http://hs1,3000;http://hs2,3001",
+			Env:          map[string]string{},
+			Cmd: []string{
+				"mitmdump", "--mode", "reverse:http://hs1:8008@3000", "--mode", "reverse:http://hs2:8008@3001",
 			},
-			WaitingFor: wait.ForLog("listening"),
-			Networks:   []string{networkName},
+			// WaitingFor: wait.ForLog("listening"),
+			Networks: []string{networkName},
 			NetworkAliases: map[string][]string{
-				networkName: {"reverseproxy"},
+				networkName: {"mitmproxy"},
 			},
 		},
 		Started: true,
 	})
 	must.NotError(t, "failed to start reverse proxy container", err)
-	rpHS1URL := externalURL(t, rpContainer, hs1ExposedPort)
-	rpHS2URL := externalURL(t, rpContainer, hs2ExposedPort)
+	rpHS1URL := externalURL(t, mitmproxyContainer, hs1ExposedPort)
+	rpHS2URL := externalURL(t, mitmproxyContainer, hs2ExposedPort)
 
 	// Make a postgres container
 	postgresContainer, err := testcontainers.GenericContainer(context.Background(), testcontainers.GenericContainerRequest{
@@ -161,7 +153,7 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 	t.Logf("  synapse:      hs1          %s", csapi1.BaseURL)
 	t.Logf("  synapse:      hs2          %s", csapi2.BaseURL)
 	t.Logf("  postgres:     postgres")
-	t.Logf("  reverseproxy: reverseproxy hs1=%s hs2=%s", rpHS1URL, rpHS2URL)
+	t.Logf("  mitmproxy:    mitmproxy hs1=%s hs2=%s", rpHS1URL, rpHS2URL)
 	var cmd *exec.Cmd
 	if shouldTCPDump {
 		t.Log("Running tcpdump...")
@@ -178,13 +170,12 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 		t.Logf("Started tcpdumping: PID %d", cmd.Process.Pid)
 	}
 	return &SlidingSyncDeployment{
-		Deployment:             deployment,
-		ReverseProxyController: controller,
-		slidingSync:            ssContainer,
-		postgres:               postgresContainer,
-		reverseProxy:           rpContainer,
-		slidingSyncURL:         ssURL,
-		tcpdump:                cmd,
+		Deployment:     deployment,
+		slidingSync:    ssContainer,
+		postgres:       postgresContainer,
+		reverseProxy:   mitmproxyContainer,
+		slidingSyncURL: ssURL,
+		tcpdump:        cmd,
 	}
 }
 
