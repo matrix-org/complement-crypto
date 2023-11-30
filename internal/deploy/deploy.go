@@ -47,7 +47,7 @@ func (d *SlidingSyncDeployment) SlidingSyncURL(t *testing.T) string {
 	return d.slidingSyncURL
 }
 
-func (d *SlidingSyncDeployment) SetMITMFilters(t *testing.T, filters map[string]string) {
+func (d *SlidingSyncDeployment) SetMITMOptions(t *testing.T, options map[string]string) {
 	t.Helper()
 	proxyURL, err := url.Parse(d.controllerURL)
 	must.NotError(t, "failed to parse controller URL", err)
@@ -58,9 +58,9 @@ func (d *SlidingSyncDeployment) SetMITMFilters(t *testing.T, filters map[string]
 		},
 	}
 	jsonBody, err := json.Marshal(map[string]interface{}{
-		"filters": filters,
+		"options": options,
 	})
-	must.NotError(t, "failed to marshal filters", err)
+	must.NotError(t, "failed to marshal options", err)
 	req, err := http.NewRequest("POST", magicMITMURL, bytes.NewBuffer(jsonBody))
 	must.NotError(t, "failed to prepare request", err)
 	req.Header.Set("Content-Type", "application/json")

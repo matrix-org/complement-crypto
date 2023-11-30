@@ -35,7 +35,6 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y libolm3 libolm-dev
           go install -v github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
-          docker pull ghcr.io/matrix-org/complement-crypto-reverse-proxy:latest
 
       # Install whatever version of the JS SDK is in package.json
       - name: Build JS SDK

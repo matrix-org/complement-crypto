@@ -8,11 +8,11 @@ from status_code import StatusCode
 app = Flask("mitmoptset")
 
 @app.route("/", methods=["POST"])
-def set_filters() -> str:
+def set_options() -> str:
     body = request.json
-    filters = body.get("filters", {})
-    print(f"setting filters {filters}")
-    for k, v in filters:
+    options = body.get("options", {})
+    print(f"setting options {options}")
+    for k, v in options:
         ctx.options[k] = v
     return {}
 
