@@ -3,7 +3,6 @@ package tests
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"os/exec"
 	"testing"
 	"time"
@@ -38,7 +37,6 @@ func TestClientRetriesSendToDevice(t *testing.T) {
 
 		var evID string
 		var err error
-		os.Setenv("HTTP_PROXY", tc.Deployment.ControllerURL) // TODO FIXME
 		// now gateway timeout the /sendToDevice endpoint
 		tc.Deployment.WithMITMOptions(t, map[string]interface{}{
 			"statuscode": map[string]interface{}{
@@ -46,9 +44,6 @@ func TestClientRetriesSendToDevice(t *testing.T) {
 				"filter":        "~u .*\\/sendToDevice.*",
 			},
 		}, func() {
-			t.Logf("LOCKED")
-			return
-
 			evID, err = alice.TrySendMessage(t, roomID, wantMsgBody)
 			if err != nil {
 				// we allow clients to fail the send if they cannot call /sendToDevice
@@ -58,8 +53,6 @@ func TestClientRetriesSendToDevice(t *testing.T) {
 				t.Logf("TrySendMessage: => %s", evID)
 			}
 		})
-		os.Unsetenv("HTTP_PROXY")
-		return
 
 		if err != nil {
 			// retry now we have connectivity
