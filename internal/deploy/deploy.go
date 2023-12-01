@@ -244,9 +244,10 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 		if err := cmd.Start(); err != nil {
 			t.Fatalf("tcpdump failed: %v", err)
 		}
-		// TODO needs sudo
-		t.Logf("Started tcpdumping: PID %d", cmd.Process.Pid)
+		t.Logf("Started tcpdumping (requires sudo): PID %d", cmd.Process.Pid)
 	}
+	// without this, GHA will fail when trying to hit the controller with "Post "http://mitm.code/options/lock": EOF"
+	// suspected IPv4 vs IPv6 problems in Docker as Flask is listening on v4/v6.
 	controllerURL = strings.Replace(controllerURL, "localhost", "127.0.0.1", 1)
 	proxyURL, err := url.Parse(controllerURL)
 	must.NotError(t, "failed to parse controller URL", err)
