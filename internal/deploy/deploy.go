@@ -187,10 +187,13 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 		"apt", "update",
 	})
 	execInContainer(mitmproxyContainer, []string{
-		"apt", "install", "net-tools", "-y",
+		"apt", "install", "net-tools", "curl", "-y",
 	})
 	execInContainer(mitmproxyContainer, []string{
 		"netstat", "-lp",
+	})
+	execInContainer(mitmproxyContainer, []string{
+		"curl", "-v", "-X", "POST", "-d", "{}", "-x", "http://localhost:8080", "http://mitm.code/options/unlock",
 	})
 	fmt.Println("____________________________")
 
