@@ -1,9 +1,7 @@
 package tests
 
 import (
-	"fmt"
 	"net/http"
-	"os/exec"
 	"testing"
 	"time"
 
@@ -14,11 +12,6 @@ import (
 func TestClientRetriesSendToDevice(t *testing.T) {
 	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
 		tc := CreateTestContext(t, clientTypeA, clientTypeB)
-		t.Logf("checking mitm")
-		cmd := exec.Command("curl", "-v", "-X", "POST", "-d", "{}", "-x", tc.Deployment.ControllerURL, "http://mitm.code/options/unlock")
-		output, cerr := cmd.CombinedOutput()
-		fmt.Println(cerr)
-		fmt.Println(string(output))
 		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "public_chat", nil)
 		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 		alice := tc.MustLoginClient(t, tc.Alice, clientTypeA)

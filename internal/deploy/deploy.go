@@ -250,7 +250,6 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 	controllerURL = strings.Replace(controllerURL, "localhost", "127.0.0.1", 1)
 	proxyURL, err := url.Parse(controllerURL)
 	must.NotError(t, "failed to parse controller URL", err)
-	t.Logf("mitm proxy url => %s", proxyURL.String())
 	return &SlidingSyncDeployment{
 		Deployment:     deployment,
 		slidingSync:    ssContainer,

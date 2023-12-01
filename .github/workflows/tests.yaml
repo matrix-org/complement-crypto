@@ -102,7 +102,7 @@ jobs:
           export LD_LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
           env
           set -o pipefail &&
-          go test -v -json -timeout 5m -run '^TestClientRetriesSendToDevice$' ./tests | gotestfmt
+          go test -v -json -timeout 15m ./tests | gotestfmt
         shell: bash # required for pipefail to be A Thing. pipefail is required to stop gotestfmt swallowing non-zero exit codes
         name: Run Complement Crypto Tests
         env:
