@@ -62,11 +62,12 @@ func (d *SlidingSyncDeployment) lockOptions(t *testing.T, options map[string]int
 		"options": options,
 	})
 	must.NotError(t, "failed to marshal options", err)
-	req, err := http.NewRequest("POST", magicMITMURL+"/options/lock", bytes.NewBuffer(jsonBody))
+	u := magicMITMURL + "/options/lock"
+	req, err := http.NewRequest("POST", u, bytes.NewBuffer(jsonBody))
 	must.NotError(t, "failed to prepare request", err)
 	req.Header.Set("Content-Type", "application/json")
 	res, err := d.mitmClient.Do(req)
-	must.NotError(t, "failed to do request", err)
+	must.NotError(t, "failed to POST "+u, err)
 	must.Equal(t, res.StatusCode, 200, "controller returned wrong HTTP status")
 	lockID, err = io.ReadAll(res.Body)
 	must.NotError(t, "failed to read response", err)
@@ -155,8 +156,8 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 				"--mode", "regular",
 				"-s", "/addons/__init__.py",
 			},
-			//WaitingFor: wait.ForLog("proxy listening"),
-			Networks: []string{networkName},
+			WaitingFor: wait.ForLog("loading complement crypto addons"),
+			Networks:   []string{networkName},
 			NetworkAliases: map[string][]string{
 				networkName: {"mitmproxy"},
 			},
@@ -246,6 +247,7 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 	}
 	proxyURL, err := url.Parse(controllerURL)
 	must.NotError(t, "failed to parse controller URL", err)
+	t.Logf("mitm proxy url => %s", proxyURL.String())
 	return &SlidingSyncDeployment{
 		Deployment:     deployment,
 		slidingSync:    ssContainer,
