@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -172,31 +173,6 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 	rpHS1URL := externalURL(t, mitmproxyContainer, hs1ExposedPort)
 	rpHS2URL := externalURL(t, mitmproxyContainer, hs2ExposedPort)
 	controllerURL := externalURL(t, mitmproxyContainer, controllerExposedPort)
-	time.Sleep(time.Second)
-	execInContainer := func(c testcontainers.Container, cmd []string) {
-		_, r, err := c.Exec(context.Background(), cmd)
-		if err != nil {
-			panic(err)
-		}
-		output, err := io.ReadAll(r)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Println(string(output))
-	}
-	execInContainer(mitmproxyContainer, []string{
-		"apt", "update",
-	})
-	execInContainer(mitmproxyContainer, []string{
-		"apt", "install", "net-tools", "curl", "-y",
-	})
-	execInContainer(mitmproxyContainer, []string{
-		"netstat", "-lp",
-	})
-	execInContainer(mitmproxyContainer, []string{
-		"curl", "-v", "-X", "POST", "-d", "{}", "-x", "http://localhost:8080", "http://mitm.code/options/unlock",
-	})
-	fmt.Println("____________________________")
 
 	// Make a postgres container
 	postgresContainer, err := testcontainers.GenericContainer(context.Background(), testcontainers.GenericContainerRequest{
@@ -271,6 +247,7 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 		// TODO needs sudo
 		t.Logf("Started tcpdumping: PID %d", cmd.Process.Pid)
 	}
+	controllerURL = strings.Replace(controllerURL, "localhost", "127.0.0.1", 1)
 	proxyURL, err := url.Parse(controllerURL)
 	must.NotError(t, "failed to parse controller URL", err)
 	t.Logf("mitm proxy url => %s", proxyURL.String())
