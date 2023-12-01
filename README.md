@@ -16,11 +16,6 @@ Why:
 ### How do I run it?
 It's currently pretty awful to run, as you need toolchains for both Rust and JS. Working on improving this.
 
-You need this image:
-```
-docker pull ghcr.io/matrix-org/complement-crypto-reverse-proxy:latest
-```
-
 You need to build Rust SDK FFI bindings _and_ JS SDK before you can get this to run. You also need a Complement homeserver image. When that is setup:
 
 ```

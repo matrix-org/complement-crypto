@@ -55,10 +55,11 @@ jobs:
           ls -alh rust-sdk/target/debug
 
       # Temporary: as it takes 3m to build the complement synapse image >:(
-      - name: Pull synapse service v1.94.0
+      - name: Pull synapse service v1.94.0 and mitmproxy
         shell: bash
         run: |
           docker pull ghcr.io/matrix-org/synapse-service:v1.94.0
+          docker pull mitmproxy/mitmproxy:10.1.5
           docker tag ghcr.io/matrix-org/synapse-service:v1.94.0 homeserver:latest
 
       # Build homeserver image, honouring branch names
