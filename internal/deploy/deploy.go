@@ -24,7 +24,7 @@ import (
 )
 
 // must match the value in tests/addons/__init__.py
-const magicMITMURL = "http://mitm.local"
+const magicMITMURL = "http://mitm.code"
 
 type SlidingSyncDeployment struct {
 	complement.Deployment

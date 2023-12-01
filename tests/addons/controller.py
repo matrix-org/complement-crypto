@@ -1,8 +1,8 @@
 import random
 from mitmproxy import ctx
 from flask import Flask, request, make_response
-
-MITM_DOMAIN_NAME = "mitm.local"
+# must match code in deploy.go
+MITM_DOMAIN_NAME = "mitm.code"
 app = Flask("mitmoptset")
 
 prev_options = {
