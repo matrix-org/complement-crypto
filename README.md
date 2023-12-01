@@ -2,8 +2,7 @@
 
 Complement for Rust SDK crypto.
 
-**EXPERIMENTAL: As of Nov 2023 this repo is under active development currently so things will break constantly.**
-
+**EXPERIMENTAL: As of Nov/Dec 2023 this repo is under active development currently so things will break constantly.**
 
 ### What is it? Why?
 
@@ -82,7 +81,7 @@ Regression tests:
  - [ ] If you make a new room key, you need to send it to all devices in the room. If you restart the client mid-way through sending, ensure the rest get sent upon restart.
  - [ ] Tests for [MSC3061](https://github.com/matrix-org/matrix-spec-proposals/pull/3061): Sharing room keys for past messages. Rust SDK: https://github.com/matrix-org/matrix-rust-sdk/issues/580
 
- These tests may require reverse proxy interception to let some requests pass through but not others.
+ These tests may require reverse proxy interception to let some requests pass through but not others. For this, we use mitmproxy.
 
 ### Regenerate JS SDK
 
@@ -105,7 +104,7 @@ This repo has bindings to the `matrix_sdk` crate in rust SDK, in order to mimic 
 
 In order to generate these bindings, follow these instructions:
 - Check out https://github.com/matrix-org/matrix-rust-sdk/tree/kegan/poljar-recovery-complement-fork (TODO: go back to main when
-main uses a versioned release e.g 0.25.2)
+main uses a versioned uniffi release e.g 0.25.2)
 - Get the bindings generator:
 ```
 git clone https://github.com/NordSecurity/uniffi-bindgen-go.git
