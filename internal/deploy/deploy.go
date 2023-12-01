@@ -33,6 +33,7 @@ type SlidingSyncDeployment struct {
 	reverseProxy   testcontainers.Container
 	slidingSyncURL string
 	mitmClient     *http.Client
+	ControllerURL  string
 	proxyURLToHS   map[string]string
 	mu             sync.RWMutex
 	tcpdump        *exec.Cmd
@@ -280,6 +281,7 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 		reverseProxy:   mitmproxyContainer,
 		slidingSyncURL: ssURL,
 		tcpdump:        cmd,
+		ControllerURL:  controllerURL,
 		mitmClient: &http.Client{
 			Timeout: 5 * time.Second,
 			Transport: &http.Transport{
