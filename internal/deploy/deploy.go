@@ -155,8 +155,8 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 				"--mode", "regular",
 				"-s", "/addons/__init__.py",
 			},
-			// WaitingFor: wait.ForLog("listening"),
-			Networks: []string{networkName},
+			WaitingFor: wait.ForLog("proxy listening"),
+			Networks:   []string{networkName},
 			NetworkAliases: map[string][]string{
 				networkName: {"mitmproxy"},
 			},
