@@ -231,7 +231,6 @@ func (c *JSClient) MustGetEvent(t *testing.T, roomID, eventID string) Event {
 // Tests should call stopSyncing() at the end of the test.
 func (c *JSClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 	t.Helper()
-	t.Logf("%s is starting to sync", c.userID)
 	chrome.MustExecute(t, c.ctx, fmt.Sprintf(`
 		var fn;
 		fn = function(state) {
@@ -260,7 +259,6 @@ func (c *JSClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 	// There's no callbacks for that yet, so sleep and pray.
 	// See https://github.com/matrix-org/matrix-js-sdk/blob/v29.1.0/src/rust-crypto/rust-crypto.ts#L1483
 	time.Sleep(500 * time.Millisecond)
-	t.Logf("%s is now syncing", c.userID)
 	return func() {
 		chrome.AwaitExecute(t, c.ctx, `window.__client.stopClient();`)
 	}
@@ -283,12 +281,21 @@ func (c *JSClient) IsRoomEncrypted(t *testing.T, roomID string) (bool, error) {
 // room.
 func (c *JSClient) SendMessage(t *testing.T, roomID, text string) (eventID string) {
 	t.Helper()
+	eventID, err := c.TrySendMessage(t, roomID, text)
+	must.NotError(t, "failed to sendMessage", err)
+	return eventID
+}
+
+func (c *JSClient) TrySendMessage(t *testing.T, roomID, text string) (eventID string, err error) {
+	t.Helper()
 	res, err := chrome.AwaitExecuteInto[map[string]interface{}](t, c.ctx, fmt.Sprintf(`window.__client.sendMessage("%s", {
 		"msgtype": "m.text",
 		"body": "%s"
 	});`, roomID, text))
-	must.NotError(t, "failed to sendMessage", err)
-	return (*res)["event_id"].(string)
+	if err != nil {
+		return "", err
+	}
+	return (*res)["event_id"].(string), nil
 }
 
 func (c *JSClient) MustBackpaginate(t *testing.T, roomID string, count int) {

@@ -21,7 +21,7 @@ func MustExecuteInto[T any](t *testing.T, ctx context.Context, js string) T {
 
 func ExecuteInto[T any](t *testing.T, ctx context.Context, js string) (*T, error) {
 	t.Helper()
-	t.Log(js)
+	//t.Log(js)
 	out := new(T)
 	err := chromedp.Run(ctx,
 		chromedp.Evaluate(js, &out),
@@ -34,7 +34,7 @@ func ExecuteInto[T any](t *testing.T, ctx context.Context, js string) (*T, error
 
 func AwaitExecute(t *testing.T, ctx context.Context, js string) error {
 	var r *runtime.RemoteObject // stop large responses causing errors "Object reference chain is too long (-32000)"
-	t.Log(js)
+	//t.Log(js)
 	return chromedp.Run(ctx,
 		chromedp.Evaluate(js, &r, func(p *runtime.EvaluateParams) *runtime.EvaluateParams {
 			return p.WithAwaitPromise(true)
@@ -44,7 +44,7 @@ func AwaitExecute(t *testing.T, ctx context.Context, js string) error {
 
 func AwaitExecuteInto[T any](t *testing.T, ctx context.Context, js string) (*T, error) {
 	t.Helper()
-	t.Log(js)
+	//t.Log(js)
 	out := new(T)
 	err := chromedp.Run(ctx,
 		chromedp.Evaluate(js, &out, func(p *runtime.EvaluateParams) *runtime.EvaluateParams {
@@ -66,7 +66,7 @@ func MustAwaitExecute(t *testing.T, ctx context.Context, js string) {
 func MustExecute(t *testing.T, ctx context.Context, js string) {
 	t.Helper()
 	var r *runtime.RemoteObject // stop large responses causing errors "Object reference chain is too long (-32000)"
-	t.Log(js)
+	//t.Log(js)
 	err := chromedp.Run(ctx,
 		chromedp.Evaluate(js, &r),
 	)

@@ -38,6 +38,8 @@ type Client interface {
 	// SendMessage sends the given text as an m.room.message with msgtype:m.text into the given
 	// room. Returns the event ID of the sent event, so MUST BLOCK until the event has been sent.
 	SendMessage(t *testing.T, roomID, text string) (eventID string)
+	// TrySendMessage tries to send the message, but can fail.
+	TrySendMessage(t *testing.T, roomID, text string) (eventID string, err error)
 	// Wait until an event with the given body is seen. Not all impls expose event IDs
 	// hence needing to use body as a proxy.
 	WaitUntilEventInRoom(t *testing.T, roomID string, checker func(e Event) bool) Waiter
@@ -78,6 +80,14 @@ func (c *LoggedClient) IsRoomEncrypted(t *testing.T, roomID string) (bool, error
 	t.Helper()
 	c.Logf(t, "%s IsRoomEncrypted %s", c.logPrefix(), roomID)
 	return c.Client.IsRoomEncrypted(t, roomID)
+}
+
+func (c *LoggedClient) TrySendMessage(t *testing.T, roomID, text string) (eventID string, err error) {
+	t.Helper()
+	c.Logf(t, "%s TrySendMessage %s => %s", c.logPrefix(), roomID, text)
+	eventID, err = c.Client.TrySendMessage(t, roomID, text)
+	c.Logf(t, "%s TrySendMessage %s => %s", c.logPrefix(), roomID, eventID)
+	return
 }
 
 func (c *LoggedClient) SendMessage(t *testing.T, roomID, text string) (eventID string) {

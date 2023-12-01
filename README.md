@@ -75,7 +75,7 @@ Network connectivity:
 - [x] If a server cannot send device list updates over federation, it retries. https://github.com/matrix-org/complement/pull/695
 - [ ] If a client cannot query device keys for a user, it retries.
 - [ ] If a server cannot query device keys on another server, it retries.
-- [ ] If a client cannot send a to-device msg, it retries.
+- [x] If a client cannot send a to-device msg, it retries.
 - [x] If a server cannot send a to-device msg to another server, it retries. https://github.com/matrix-org/complement/pull/694
 - [ ] Repeat all of the above, but restart the client|server after the initial connection failure. This checks that retries aren't just stored in memory but persisted to disk.
 

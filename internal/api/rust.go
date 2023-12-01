@@ -69,6 +69,14 @@ func NewRustClient(t *testing.T, opts ClientCreationOpts, ssURL string) (Client,
 
 func (c *RustClient) Close(t *testing.T) {
 	t.Helper()
+	c.roomsMu.Lock()
+	for _, rri := range c.rooms {
+		if rri.stream != nil {
+			// ensure we don't see AddTimelineListener callbacks as they can cause panics
+			// if we t.Logf after t has passed/failed.
+			rri.stream.Cancel()
+		}
+	}
 	c.FFIClient.Destroy()
 }
 
@@ -183,6 +191,15 @@ func (c *RustClient) Type() ClientTypeLang {
 // room. Returns the event ID of the sent event.
 func (c *RustClient) SendMessage(t *testing.T, roomID, text string) (eventID string) {
 	t.Helper()
+	eventID, err := c.TrySendMessage(t, roomID, text)
+	if err != nil {
+		fatalf(t, err.Error())
+	}
+	return eventID
+}
+
+func (c *RustClient) TrySendMessage(t *testing.T, roomID, text string) (eventID string, err error) {
+	t.Helper()
 	ch := make(chan bool)
 	// we need a timeline listener before we can send messages, AND that listener must be attached to the
 	// same *Room you call .Send on :S
@@ -205,12 +222,12 @@ func (c *RustClient) SendMessage(t *testing.T, roomID, text string) (eventID str
 	defer cancel()
 	r.Send(matrix_sdk_ffi.MessageEventContentFromHtml(text, text))
 	select {
-	case <-time.After(15 * time.Second):
-		fatalf(t, "SendMessage(rust) %s: timed out after 35s", c.userID)
+	case <-time.After(11 * time.Second):
+		err = fmt.Errorf("SendMessage(rust) %s: timed out after 11s", c.userID)
+		return
 	case <-ch:
 		return
 	}
-	return
 }
 
 func (c *RustClient) MustBackpaginate(t *testing.T, roomID string, count int) {

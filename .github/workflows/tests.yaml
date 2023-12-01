@@ -107,6 +107,7 @@ jobs:
         env:
           COMPLEMENT_BASE_IMAGE: homeserver
           COMPLEMENT_ENABLE_DIRTY_RUNS: 1
+          COMPLEMENT_CRYPTO_WRITE_CONTAINER_LOGS: 1
           COMPLEMENT_SHARE_ENV_PREFIX: PASS_
           PASS_SYNAPSE_COMPLEMENT_DATABASE: sqlite
           DOCKER_BUILDKIT: 1
@@ -118,4 +119,4 @@ jobs:
           name: Logs - ${{ job.status }}
           path: |
             ./tests/rust_sdk_logs*
-            ./tests/js_sdk.log
+            ./tests/*.log
