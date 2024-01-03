@@ -83,7 +83,7 @@ func (c *RustClient) Close(t *testing.T) {
 func (c *RustClient) MustGetEvent(t *testing.T, roomID, eventID string) Event {
 	t.Helper()
 	room := c.findRoom(t, roomID)
-	timelineItem, err := room.GetEventTimelineItemByEventId(eventID)
+	timelineItem, err := room.Timeline().GetEventTimelineItemByEventId(eventID)
 	if err != nil {
 		fatalf(t, "MustGetEvent(rust) %s (%s, %s): %s", c.userID, roomID, eventID, err)
 	}
@@ -170,7 +170,7 @@ func (c *RustClient) MustBackupKeys(t *testing.T) (recoveryKey string) {
 
 func (c *RustClient) MustLoadBackup(t *testing.T, recoveryKey string) {
 	t.Helper()
-	must.NotError(t, "FixRecoveryIssues", c.FFIClient.Encryption().FixRecoveryIssues(recoveryKey))
+	must.NotError(t, "Recover", c.FFIClient.Encryption().Recover(recoveryKey))
 }
 
 func (c *RustClient) WaitUntilEventInRoom(t *testing.T, roomID string, checker func(Event) bool) Waiter {
@@ -220,7 +220,7 @@ func (c *RustClient) TrySendMessage(t *testing.T, roomID, text string) (eventID 
 		}
 	})
 	defer cancel()
-	r.Send(matrix_sdk_ffi.MessageEventContentFromHtml(text, text))
+	r.Timeline().Send(matrix_sdk_ffi.MessageEventContentFromHtml(text, text))
 	select {
 	case <-time.After(11 * time.Second):
 		err = fmt.Errorf("SendMessage(rust) %s: timed out after 11s", c.userID)
@@ -234,7 +234,7 @@ func (c *RustClient) MustBackpaginate(t *testing.T, roomID string, count int) {
 	t.Helper()
 	r := c.findRoom(t, roomID)
 	must.NotEqual(t, r, nil, "unknown room")
-	must.NotError(t, "failed to backpaginate", r.PaginateBackwards(matrix_sdk_ffi.PaginationOptionsSimpleRequest{
+	must.NotError(t, "failed to backpaginate", r.Timeline().PaginateBackwards(matrix_sdk_ffi.PaginationOptionsSimpleRequest{
 		EventLimit: uint16(count),
 	}))
 }
@@ -314,7 +314,7 @@ func (c *RustClient) ensureListening(t *testing.T, roomID string) *matrix_sdk_ff
 
 	c.Logf(t, "[%s]AddTimelineListener[%s]", c.userID, roomID)
 	// we need a timeline listener before we can send messages
-	result := r.AddTimelineListener(&timelineListener{fn: func(diff []*matrix_sdk_ffi.TimelineDiff) {
+	result := r.Timeline().AddListener(&timelineListener{fn: func(diff []*matrix_sdk_ffi.TimelineDiff) {
 		timeline := c.rooms[roomID].timeline
 		var newEvents []*Event
 		c.Logf(t, "[%s]AddTimelineListener[%s] TimelineDiff len=%d", c.userID, roomID, len(diff))

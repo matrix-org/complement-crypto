@@ -201,7 +201,7 @@ RustBuffer uniffi_matrix_sdk_ffi_fn_method_client_get_dm_room(
 	RustCallStatus* out_status
 );
 
-RustBuffer uniffi_matrix_sdk_ffi_fn_method_client_get_media_content(
+void* uniffi_matrix_sdk_ffi_fn_method_client_get_media_content(
 	void* ptr,
 	void* media_source,
 	RustCallStatus* out_status
@@ -217,7 +217,7 @@ void* uniffi_matrix_sdk_ffi_fn_method_client_get_media_file(
 	RustCallStatus* out_status
 );
 
-RustBuffer uniffi_matrix_sdk_ffi_fn_method_client_get_media_thumbnail(
+void* uniffi_matrix_sdk_ffi_fn_method_client_get_media_thumbnail(
 	void* ptr,
 	void* media_source,
 	uint64_t width,
@@ -348,7 +348,7 @@ void uniffi_matrix_sdk_ffi_fn_method_client_upload_avatar(
 	RustCallStatus* out_status
 );
 
-RustBuffer uniffi_matrix_sdk_ffi_fn_method_client_upload_media(
+void* uniffi_matrix_sdk_ffi_fn_method_client_upload_media(
 	void* ptr,
 	RustBuffer mime_type,
 	RustBuffer data,
@@ -490,14 +490,14 @@ void* uniffi_matrix_sdk_ffi_fn_method_encryption_enable_recovery(
 	RustCallStatus* out_status
 );
 
-void* uniffi_matrix_sdk_ffi_fn_method_encryption_fix_recovery_issues(
+void* uniffi_matrix_sdk_ffi_fn_method_encryption_is_last_device(
 	void* ptr,
-	RustBuffer recovery_key,
 	RustCallStatus* out_status
 );
 
-void* uniffi_matrix_sdk_ffi_fn_method_encryption_is_last_device(
+void* uniffi_matrix_sdk_ffi_fn_method_encryption_recover(
 	void* ptr,
+	RustBuffer recovery_key,
 	RustCallStatus* out_status
 );
 
@@ -754,6 +754,11 @@ void* uniffi_matrix_sdk_ffi_fn_method_notificationsettings_is_call_enabled(
 	RustCallStatus* out_status
 );
 
+void* uniffi_matrix_sdk_ffi_fn_method_notificationsettings_is_invite_for_me_enabled(
+	void* ptr,
+	RustCallStatus* out_status
+);
+
 void* uniffi_matrix_sdk_ffi_fn_method_notificationsettings_is_room_mention_enabled(
 	void* ptr,
 	RustCallStatus* out_status
@@ -787,6 +792,12 @@ void* uniffi_matrix_sdk_ffi_fn_method_notificationsettings_set_default_room_noti
 void uniffi_matrix_sdk_ffi_fn_method_notificationsettings_set_delegate(
 	void* ptr,
 	RustBuffer delegate,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_notificationsettings_set_invite_for_me_enabled(
+	void* ptr,
+	int8_t enabled,
 	RustCallStatus* out_status
 );
 
@@ -842,12 +853,6 @@ RustBuffer uniffi_matrix_sdk_ffi_fn_method_room_active_room_call_participants(
 	RustCallStatus* out_status
 );
 
-void* uniffi_matrix_sdk_ffi_fn_method_room_add_timeline_listener(
-	void* ptr,
-	uint64_t listener,
-	RustCallStatus* out_status
-);
-
 RustBuffer uniffi_matrix_sdk_ffi_fn_method_room_alternative_aliases(
 	void* ptr,
 	RustCallStatus* out_status
@@ -855,6 +860,13 @@ RustBuffer uniffi_matrix_sdk_ffi_fn_method_room_alternative_aliases(
 
 RustBuffer uniffi_matrix_sdk_ffi_fn_method_room_avatar_url(
 	void* ptr,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_room_ban_user(
+	void* ptr,
+	RustBuffer user_id,
+	RustBuffer reason,
 	RustCallStatus* out_status
 );
 
@@ -902,75 +914,13 @@ void* uniffi_matrix_sdk_ffi_fn_method_room_can_user_trigger_room_notification(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_room_cancel_send(
-	void* ptr,
-	RustBuffer txn_id,
-	RustCallStatus* out_status
-);
-
 RustBuffer uniffi_matrix_sdk_ffi_fn_method_room_canonical_alias(
 	void* ptr,
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_room_create_poll(
-	void* ptr,
-	RustBuffer question,
-	RustBuffer answers,
-	uint8_t max_selections,
-	RustBuffer poll_kind,
-	RustCallStatus* out_status
-);
-
 RustBuffer uniffi_matrix_sdk_ffi_fn_method_room_display_name(
 	void* ptr,
-	RustCallStatus* out_status
-);
-
-void uniffi_matrix_sdk_ffi_fn_method_room_edit(
-	void* ptr,
-	void* new_content,
-	void* edit_item,
-	RustCallStatus* out_status
-);
-
-void uniffi_matrix_sdk_ffi_fn_method_room_edit_poll(
-	void* ptr,
-	RustBuffer question,
-	RustBuffer answers,
-	uint8_t max_selections,
-	RustBuffer poll_kind,
-	void* edit_item,
-	RustCallStatus* out_status
-);
-
-void uniffi_matrix_sdk_ffi_fn_method_room_end_poll(
-	void* ptr,
-	RustBuffer poll_start_id,
-	RustBuffer text,
-	RustCallStatus* out_status
-);
-
-void uniffi_matrix_sdk_ffi_fn_method_room_fetch_details_for_event(
-	void* ptr,
-	RustBuffer event_id,
-	RustCallStatus* out_status
-);
-
-void* uniffi_matrix_sdk_ffi_fn_method_room_fetch_members(
-	void* ptr,
-	RustCallStatus* out_status
-);
-
-void* uniffi_matrix_sdk_ffi_fn_method_room_get_event_timeline_item_by_event_id(
-	void* ptr,
-	RustBuffer event_id,
-	RustCallStatus* out_status
-);
-
-void* uniffi_matrix_sdk_ffi_fn_method_room_get_timeline_event_content_by_event_id(
-	void* ptr,
-	RustBuffer event_id,
 	RustCallStatus* out_status
 );
 
@@ -1041,6 +991,13 @@ uint64_t uniffi_matrix_sdk_ffi_fn_method_room_joined_members_count(
 	RustCallStatus* out_status
 );
 
+void* uniffi_matrix_sdk_ffi_fn_method_room_kick_user(
+	void* ptr,
+	RustBuffer user_id,
+	RustBuffer reason,
+	RustCallStatus* out_status
+);
+
 void uniffi_matrix_sdk_ffi_fn_method_room_leave(
 	void* ptr,
 	RustCallStatus* out_status
@@ -1084,9 +1041,8 @@ RustBuffer uniffi_matrix_sdk_ffi_fn_method_room_own_user_id(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_room_paginate_backwards(
+void* uniffi_matrix_sdk_ffi_fn_method_room_poll_history(
 	void* ptr,
-	RustBuffer opts,
 	RustCallStatus* out_status
 );
 
@@ -1102,11 +1058,6 @@ void uniffi_matrix_sdk_ffi_fn_method_room_remove_avatar(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_room_remove_timeline(
-	void* ptr,
-	RustCallStatus* out_status
-);
-
 void uniffi_matrix_sdk_ffi_fn_method_room_report_content(
 	void* ptr,
 	RustBuffer event_id,
@@ -1115,99 +1066,8 @@ void uniffi_matrix_sdk_ffi_fn_method_room_report_content(
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_room_retry_decryption(
-	void* ptr,
-	RustBuffer session_ids,
-	RustCallStatus* out_status
-);
-
-void uniffi_matrix_sdk_ffi_fn_method_room_retry_send(
-	void* ptr,
-	RustBuffer txn_id,
-	RustCallStatus* out_status
-);
-
 void* uniffi_matrix_sdk_ffi_fn_method_room_room_info(
 	void* ptr,
-	RustCallStatus* out_status
-);
-
-void uniffi_matrix_sdk_ffi_fn_method_room_send(
-	void* ptr,
-	void* msg,
-	RustCallStatus* out_status
-);
-
-void* uniffi_matrix_sdk_ffi_fn_method_room_send_audio(
-	void* ptr,
-	RustBuffer url,
-	RustBuffer audio_info,
-	RustBuffer progress_watcher,
-	RustCallStatus* out_status
-);
-
-void* uniffi_matrix_sdk_ffi_fn_method_room_send_file(
-	void* ptr,
-	RustBuffer url,
-	RustBuffer file_info,
-	RustBuffer progress_watcher,
-	RustCallStatus* out_status
-);
-
-void* uniffi_matrix_sdk_ffi_fn_method_room_send_image(
-	void* ptr,
-	RustBuffer url,
-	RustBuffer thumbnail_url,
-	RustBuffer image_info,
-	RustBuffer progress_watcher,
-	RustCallStatus* out_status
-);
-
-void uniffi_matrix_sdk_ffi_fn_method_room_send_location(
-	void* ptr,
-	RustBuffer body,
-	RustBuffer geo_uri,
-	RustBuffer description,
-	RustBuffer zoom_level,
-	RustBuffer asset_type,
-	RustCallStatus* out_status
-);
-
-void uniffi_matrix_sdk_ffi_fn_method_room_send_poll_response(
-	void* ptr,
-	RustBuffer poll_start_id,
-	RustBuffer answers,
-	RustCallStatus* out_status
-);
-
-void uniffi_matrix_sdk_ffi_fn_method_room_send_read_receipt(
-	void* ptr,
-	RustBuffer event_id,
-	RustCallStatus* out_status
-);
-
-void uniffi_matrix_sdk_ffi_fn_method_room_send_reply(
-	void* ptr,
-	void* msg,
-	void* reply_item,
-	RustCallStatus* out_status
-);
-
-void* uniffi_matrix_sdk_ffi_fn_method_room_send_video(
-	void* ptr,
-	RustBuffer url,
-	RustBuffer thumbnail_url,
-	RustBuffer video_info,
-	RustBuffer progress_watcher,
-	RustCallStatus* out_status
-);
-
-void* uniffi_matrix_sdk_ffi_fn_method_room_send_voice_message(
-	void* ptr,
-	RustBuffer url,
-	RustBuffer audio_info,
-	RustBuffer waveform,
-	RustBuffer progress_watcher,
 	RustCallStatus* out_status
 );
 
@@ -1223,27 +1083,32 @@ void uniffi_matrix_sdk_ffi_fn_method_room_set_topic(
 	RustCallStatus* out_status
 );
 
-void* uniffi_matrix_sdk_ffi_fn_method_room_subscribe_to_back_pagination_status(
-	void* ptr,
-	uint64_t listener,
-	RustCallStatus* out_status
-);
-
 void* uniffi_matrix_sdk_ffi_fn_method_room_subscribe_to_room_info_updates(
 	void* ptr,
 	uint64_t listener,
 	RustCallStatus* out_status
 );
 
-void uniffi_matrix_sdk_ffi_fn_method_room_toggle_reaction(
+void* uniffi_matrix_sdk_ffi_fn_method_room_timeline(
 	void* ptr,
-	RustBuffer event_id,
-	RustBuffer key,
 	RustCallStatus* out_status
 );
 
 RustBuffer uniffi_matrix_sdk_ffi_fn_method_room_topic(
 	void* ptr,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_room_typing_notice(
+	void* ptr,
+	int8_t is_typing,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_room_unban_user(
+	void* ptr,
+	RustBuffer user_id,
+	RustBuffer reason,
 	RustCallStatus* out_status
 );
 
@@ -1689,6 +1554,190 @@ void uniffi_matrix_sdk_ffi_fn_method_taskhandle_cancel(
 
 int8_t uniffi_matrix_sdk_ffi_fn_method_taskhandle_is_finished(
 	void* ptr,
+	RustCallStatus* out_status
+);
+
+void uniffi_matrix_sdk_ffi_fn_free_timeline(
+	void* ptr,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_timeline_add_listener(
+	void* ptr,
+	uint64_t listener,
+	RustCallStatus* out_status
+);
+
+void uniffi_matrix_sdk_ffi_fn_method_timeline_cancel_send(
+	void* ptr,
+	RustBuffer txn_id,
+	RustCallStatus* out_status
+);
+
+void uniffi_matrix_sdk_ffi_fn_method_timeline_create_poll(
+	void* ptr,
+	RustBuffer question,
+	RustBuffer answers,
+	uint8_t max_selections,
+	RustBuffer poll_kind,
+	RustCallStatus* out_status
+);
+
+void uniffi_matrix_sdk_ffi_fn_method_timeline_edit(
+	void* ptr,
+	void* new_content,
+	void* edit_item,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_timeline_edit_poll(
+	void* ptr,
+	RustBuffer question,
+	RustBuffer answers,
+	uint8_t max_selections,
+	RustBuffer poll_kind,
+	void* edit_item,
+	RustCallStatus* out_status
+);
+
+void uniffi_matrix_sdk_ffi_fn_method_timeline_end_poll(
+	void* ptr,
+	RustBuffer poll_start_id,
+	RustBuffer text,
+	RustCallStatus* out_status
+);
+
+void uniffi_matrix_sdk_ffi_fn_method_timeline_fetch_details_for_event(
+	void* ptr,
+	RustBuffer event_id,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_timeline_fetch_members(
+	void* ptr,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_timeline_get_event_timeline_item_by_event_id(
+	void* ptr,
+	RustBuffer event_id,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_timeline_get_timeline_event_content_by_event_id(
+	void* ptr,
+	RustBuffer event_id,
+	RustCallStatus* out_status
+);
+
+void uniffi_matrix_sdk_ffi_fn_method_timeline_paginate_backwards(
+	void* ptr,
+	RustBuffer opts,
+	RustCallStatus* out_status
+);
+
+void uniffi_matrix_sdk_ffi_fn_method_timeline_retry_decryption(
+	void* ptr,
+	RustBuffer session_ids,
+	RustCallStatus* out_status
+);
+
+void uniffi_matrix_sdk_ffi_fn_method_timeline_retry_send(
+	void* ptr,
+	RustBuffer txn_id,
+	RustCallStatus* out_status
+);
+
+void uniffi_matrix_sdk_ffi_fn_method_timeline_send(
+	void* ptr,
+	void* msg,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_timeline_send_audio(
+	void* ptr,
+	RustBuffer url,
+	RustBuffer audio_info,
+	RustBuffer progress_watcher,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_timeline_send_file(
+	void* ptr,
+	RustBuffer url,
+	RustBuffer file_info,
+	RustBuffer progress_watcher,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_timeline_send_image(
+	void* ptr,
+	RustBuffer url,
+	RustBuffer thumbnail_url,
+	RustBuffer image_info,
+	RustBuffer progress_watcher,
+	RustCallStatus* out_status
+);
+
+void uniffi_matrix_sdk_ffi_fn_method_timeline_send_location(
+	void* ptr,
+	RustBuffer body,
+	RustBuffer geo_uri,
+	RustBuffer description,
+	RustBuffer zoom_level,
+	RustBuffer asset_type,
+	RustCallStatus* out_status
+);
+
+void uniffi_matrix_sdk_ffi_fn_method_timeline_send_poll_response(
+	void* ptr,
+	RustBuffer poll_start_id,
+	RustBuffer answers,
+	RustCallStatus* out_status
+);
+
+void uniffi_matrix_sdk_ffi_fn_method_timeline_send_read_receipt(
+	void* ptr,
+	RustBuffer receipt_type,
+	RustBuffer event_id,
+	RustCallStatus* out_status
+);
+
+void uniffi_matrix_sdk_ffi_fn_method_timeline_send_reply(
+	void* ptr,
+	void* msg,
+	void* reply_item,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_timeline_send_video(
+	void* ptr,
+	RustBuffer url,
+	RustBuffer thumbnail_url,
+	RustBuffer video_info,
+	RustBuffer progress_watcher,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_timeline_send_voice_message(
+	void* ptr,
+	RustBuffer url,
+	RustBuffer audio_info,
+	RustBuffer waveform,
+	RustBuffer progress_watcher,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_timeline_subscribe_to_back_pagination_status(
+	void* ptr,
+	uint64_t listener,
+	RustCallStatus* out_status
+);
+
+void uniffi_matrix_sdk_ffi_fn_method_timeline_toggle_reaction(
+	void* ptr,
+	RustBuffer event_id,
+	RustBuffer key,
 	RustCallStatus* out_status
 );
 
@@ -2627,11 +2676,11 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_encryption_enable_recovery(
 	RustCallStatus* out_status
 );
 
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_encryption_fix_recovery_issues(
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_encryption_is_last_device(
 	RustCallStatus* out_status
 );
 
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_encryption_is_last_device(
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_encryption_recover(
 	RustCallStatus* out_status
 );
 
@@ -2799,6 +2848,10 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_notificationsettings_is_call_enab
 	RustCallStatus* out_status
 );
 
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_notificationsettings_is_invite_for_me_enabled(
+	RustCallStatus* out_status
+);
+
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_notificationsettings_is_room_mention_enabled(
 	RustCallStatus* out_status
 );
@@ -2820,6 +2873,10 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_notificationsettings_set_default_
 );
 
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_notificationsettings_set_delegate(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_notificationsettings_set_invite_for_me_enabled(
 	RustCallStatus* out_status
 );
 
@@ -2851,15 +2908,15 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_active_room_call_participant
 	RustCallStatus* out_status
 );
 
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_add_timeline_listener(
-	RustCallStatus* out_status
-);
-
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_alternative_aliases(
 	RustCallStatus* out_status
 );
 
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_avatar_url(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_ban_user(
 	RustCallStatus* out_status
 );
 
@@ -2891,47 +2948,11 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_can_user_trigger_room_notifi
 	RustCallStatus* out_status
 );
 
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_cancel_send(
-	RustCallStatus* out_status
-);
-
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_canonical_alias(
 	RustCallStatus* out_status
 );
 
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_create_poll(
-	RustCallStatus* out_status
-);
-
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_display_name(
-	RustCallStatus* out_status
-);
-
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_edit(
-	RustCallStatus* out_status
-);
-
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_edit_poll(
-	RustCallStatus* out_status
-);
-
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_end_poll(
-	RustCallStatus* out_status
-);
-
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_fetch_details_for_event(
-	RustCallStatus* out_status
-);
-
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_fetch_members(
-	RustCallStatus* out_status
-);
-
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_get_event_timeline_item_by_event_id(
-	RustCallStatus* out_status
-);
-
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_get_timeline_event_content_by_event_id(
 	RustCallStatus* out_status
 );
 
@@ -2987,6 +3008,10 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_joined_members_count(
 	RustCallStatus* out_status
 );
 
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_kick_user(
+	RustCallStatus* out_status
+);
+
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_leave(
 	RustCallStatus* out_status
 );
@@ -3019,7 +3044,7 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_own_user_id(
 	RustCallStatus* out_status
 );
 
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_paginate_backwards(
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_poll_history(
 	RustCallStatus* out_status
 );
 
@@ -3031,63 +3056,11 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_remove_avatar(
 	RustCallStatus* out_status
 );
 
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_remove_timeline(
-	RustCallStatus* out_status
-);
-
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_report_content(
 	RustCallStatus* out_status
 );
 
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_retry_decryption(
-	RustCallStatus* out_status
-);
-
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_retry_send(
-	RustCallStatus* out_status
-);
-
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_room_info(
-	RustCallStatus* out_status
-);
-
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_send(
-	RustCallStatus* out_status
-);
-
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_send_audio(
-	RustCallStatus* out_status
-);
-
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_send_file(
-	RustCallStatus* out_status
-);
-
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_send_image(
-	RustCallStatus* out_status
-);
-
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_send_location(
-	RustCallStatus* out_status
-);
-
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_send_poll_response(
-	RustCallStatus* out_status
-);
-
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_send_read_receipt(
-	RustCallStatus* out_status
-);
-
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_send_reply(
-	RustCallStatus* out_status
-);
-
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_send_video(
-	RustCallStatus* out_status
-);
-
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_send_voice_message(
 	RustCallStatus* out_status
 );
 
@@ -3099,19 +3072,23 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_set_topic(
 	RustCallStatus* out_status
 );
 
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_subscribe_to_back_pagination_status(
-	RustCallStatus* out_status
-);
-
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_subscribe_to_room_info_updates(
 	RustCallStatus* out_status
 );
 
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_toggle_reaction(
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_timeline(
 	RustCallStatus* out_status
 );
 
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_topic(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_typing_notice(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_unban_user(
 	RustCallStatus* out_status
 );
 
@@ -3388,6 +3365,106 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_taskhandle_cancel(
 );
 
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_taskhandle_is_finished(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_add_listener(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_cancel_send(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_create_poll(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_edit(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_edit_poll(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_end_poll(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_fetch_details_for_event(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_fetch_members(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_get_event_timeline_item_by_event_id(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_get_timeline_event_content_by_event_id(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_paginate_backwards(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_retry_decryption(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_retry_send(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_send(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_send_audio(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_send_file(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_send_image(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_send_location(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_send_poll_response(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_send_read_receipt(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_send_reply(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_send_video(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_send_voice_message(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_subscribe_to_back_pagination_status(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_toggle_reaction(
 	RustCallStatus* out_status
 );
 

@@ -107,9 +107,8 @@ In order to generate these bindings, follow these instructions:
 main uses a versioned uniffi release e.g 0.25.2)
 - Get the bindings generator:
 ```
-git clone https://github.com/NordSecurity/uniffi-bindgen-go.git
+git clone https://github.com/kegsay/uniffi-bindgen-go.git # TODO: fallback to https://github.com/NordSecurity/uniffi-bindgen-go.git once https://github.com/NordSecurity/uniffi-bindgen-go/pull/34 lands
 cd uniffi-bindgen-go
-git checkout v0.2.0+v0.25.0
 git submodule init
 git submodule update
 cd ..
@@ -119,7 +118,6 @@ cargo install uniffi-bindgen-go --path ./uniffi-bindgen-go/bindgen
 - Generate the Go bindings to `./rust`: `uniffi-bindgen-go -l ../matrix-rust-sdk/target/debug/libmatrix_sdk_ffi.a -o ./rust ../matrix-rust-sdk/bindings/matrix-sdk-ffi/src/api.udl`
 - Patch up the generated code as it's not quite right:
     * Add `// #cgo LDFLAGS: -lmatrix_sdk_ffi` immediately after `// #include <matrix_sdk_ffi.h>` at the top of `matrix_sdk_ffi.go`.
-    * Replace field names `Error` with `Error2` to fix `unknown field Error in struct literal`.
 - Sanity check compile `LIBRARY_PATH="$LIBRARY_PATH:/path/to/matrix-rust-sdk/target/debug" go test -c ./tests`
 
 
