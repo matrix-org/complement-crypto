@@ -9,7 +9,7 @@
   "author": "",
   "license": "Apache-2.0",
   "dependencies": {
-    "matrix-js-sdk": "29.1.0",
+    "matrix-js-sdk": "^30.3.0",
     "vite": "^4.5.0"
   }
 }
