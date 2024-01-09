@@ -44,7 +44,7 @@ Membership ACLs:
 - [x] EXPECTED FAIL: Alice invites Bob, Alice sends a message, Bob changes their device, then Bob joins. Bob should be able to see Alice's message.
 
 Key backups:
-- [x] RUST ONLY: New device for Alice cannot decrypt previous messages. Backups can be made on Alice's first device. Alice's new device can download the backup and decrypt the messages.
+- [x] New device for Alice cannot decrypt previous messages. Backups can be made on Alice's first device. Alice's new device can download the backup and decrypt the messages. Check backups work cross-platform (e.g create on rust, restore on JS and vice versa).
 - [ ] Inputting the wrong recovery key fails to decrypt the backup.
 
 One-time Keys:
@@ -97,7 +97,7 @@ TODO: Dockerify this so developers don't _need_ an active npm install?
 ### Regenerate FFI Bindings
 
 Prerequisites:
- - A working Rust installation (min version?)
+ - A working Rust installation (1.72+)
  - A working Go installation (1.19+?)
 
 This repo has bindings to the `matrix_sdk` crate in rust SDK, in order to mimic Element X.
@@ -107,7 +107,7 @@ In order to generate these bindings, follow these instructions:
 main uses a versioned uniffi release e.g 0.25.2)
 - Get the bindings generator:
 ```
-git clone https://github.com/kegsay/uniffi-bindgen-go.git # TODO: fallback to https://github.com/NordSecurity/uniffi-bindgen-go.git once https://github.com/NordSecurity/uniffi-bindgen-go/pull/34 lands
+git clone https://github.com/NordSecurity/uniffi-bindgen-go.git
 cd uniffi-bindgen-go
 git submodule init
 git submodule update
@@ -128,4 +128,5 @@ Inputs:
  - version/commit/branch of JS SDK
  - version/commit/branch of Rust SDK
  - version/commit/branch of synapse?
+ - version/commit/branch of sliding sync proxy?
  - Test only JS, only Rust, mixed.
