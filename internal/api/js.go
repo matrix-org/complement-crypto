@@ -65,6 +65,7 @@ func NewJSClient(t *testing.T, opts ClientCreationOpts) (Client, error) {
 	ctx, cancel := chromedp.NewContext(context.Background(), chromedp.WithBrowserOption(
 		chromedp.WithBrowserLogf(colorifyError), chromedp.WithBrowserErrorf(colorifyError), //chromedp.WithBrowserDebugf(log.Printf),
 	))
+
 	jsc := &JSClient{
 		listeners: make(map[int32]func(roomID string, ev Event)),
 		userID:    opts.UserID,
@@ -79,7 +80,7 @@ func NewJSClient(t *testing.T, opts ClientCreationOpts) (Client, error) {
 					s = string(arg.Value)
 				}
 				// TODO: debug mode only?
-				writeToLog("[%s] console.log %s\n", opts.UserID, s)
+				writeToLog("[%s,%s] console.log %s\n", jsc.baseJSURL, opts.UserID, s)
 
 				if strings.HasPrefix(s, CONSOLE_LOG_CONTROL_STRING) {
 					val := strings.TrimPrefix(s, CONSOLE_LOG_CONTROL_STRING)
@@ -141,7 +142,35 @@ func NewJSClient(t *testing.T, opts ClientCreationOpts) (Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialise login info: %s", err)
 	}
-	val := fmt.Sprintf("window.__client = matrix.createClient(%s);", string(createClientOptsJSON))
+	// inject crypto callback functions, which need to be done without json serialisation :/
+	// start with '{' then [1:] the JSON to inject well-formed JS objects
+	args := `{
+			cryptoCallbacks: {
+				cacheSecretStorageKey: (keyId, keyInfo, key) => {
+					console.log("cacheSecretStorageKey: keyId="+keyId+" keyInfo="+JSON.stringify(keyInfo)+" key.length:"+key.length);
+					window._secretStorageKeys[keyId] = {
+						keyInfo: keyInfo,
+						key: key,
+					};
+				},
+				getSecretStorageKey: (keys, name) => { //
+					console.log("getSecretStorageKey: name=" + name + " keys=" + JSON.stringify(keys));
+					const result = [];
+					for (const keyId of Object.keys(keys.keys)) {
+						const ssKey = window._secretStorageKeys[keyId];
+						if (ssKey) {
+							result.push(keyId);
+							result.push(ssKey.key);
+							console.log("getSecretStorageKey: found key ID: " + keyId);
+						} else {
+							console.log("getSecretStorageKey: unknown key ID: " + keyId);
+						}
+					}
+					return Promise.resolve(result);
+				},
+			},
+			` + string(createClientOptsJSON[1:])
+	val := fmt.Sprintf("window._secretStorageKeys = {}; window.__client = matrix.createClient(%s);", args)
 	fmt.Println(val)
 	// TODO: move to chrome package
 	var r *runtime.RemoteObject
@@ -306,12 +335,42 @@ func (c *JSClient) MustBackpaginate(t *testing.T, roomID string, count int) {
 }
 
 func (c *JSClient) MustBackupKeys(t *testing.T) (recoveryKey string) {
-	// TODO
-	return
+	key, err := chrome.AwaitExecuteInto[string](t, c.ctx, `(async () => {
+		// we need to ensure that we have a recovery key first, though we don't actually care about it..?
+		const recoveryKey = await window.__client.getCrypto().createRecoveryKeyFromPassphrase();
+		// now use said key to make backups
+		await window.__client.getCrypto().bootstrapSecretStorage({
+			createSecretStorageKey: async() => { return recoveryKey; },
+			setupNewKeyBackup: true,
+			setupNewSecretStorage: true,
+		});
+		// now we can enable key backups
+		await window.__client.getCrypto().checkKeyBackupAndEnable();
+		return recoveryKey.encodedPrivateKey;
+	})()`)
+	if err != nil {
+		fatalf(t, "MustBackupKeys: %s", err)
+	}
+	time.Sleep(time.Second)
+	return *key
 }
 
 func (c *JSClient) MustLoadBackup(t *testing.T, recoveryKey string) {
-	// TODO
+	chrome.MustAwaitExecute(t, c.ctx, fmt.Sprintf(`(async () => {
+		// add the recovery key to secret storage
+		const recoveryKeyInfo = await window.__client.secretStorage.addKey("m.secret_storage.v1.aes-hmac-sha2", {
+			key: window.decodeRecoveryKey("%s"),
+		});
+		console.log("setting default key ID to " + recoveryKeyInfo.keyId);
+		// FIXME: this needs the client to be syncing already as this promise won't resolve until it comes down /sync, wedging forever
+		await window.__client.secretStorage.setDefaultKeyId(recoveryKeyInfo.keyId);
+		console.log("done!");
+		const keyBackupCheck = await window.__client.getCrypto().checkKeyBackupAndEnable();
+		console.log("key backup: ", JSON.stringify(keyBackupCheck));
+		// FIXME: this just doesn't seem to work, causing 'Error: getSecretStorageKey callback returned invalid data' because the key ID
+		// cannot be found...
+		await window.__client.restoreKeyBackupWithSecretStorage(keyBackupCheck ? keyBackupCheck.backupInfo : null, undefined, undefined);
+	})()`, recoveryKey))
 }
 
 func (c *JSClient) WaitUntilEventInRoom(t *testing.T, roomID string, checker func(e Event) bool) Waiter {

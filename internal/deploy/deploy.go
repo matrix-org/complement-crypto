@@ -235,10 +235,15 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 	var cmd *exec.Cmd
 	if shouldTCPDump {
 		t.Log("Running tcpdump...")
-		su, _ := url.Parse(ssURL)
-		cu1, _ := url.Parse(csapi1.BaseURL)
-		cu2, _ := url.Parse(csapi2.BaseURL)
-		filter := fmt.Sprintf("tcp port %s or port %s or port %s", su.Port(), cu1.Port(), cu2.Port())
+		urlsToTCPDump := []string{
+			ssURL, csapi1.BaseURL, csapi2.BaseURL, rpHS1URL, rpHS2URL, controllerURL,
+		}
+		tcpdumpFilter := []string{}
+		for _, u := range urlsToTCPDump {
+			parsedURL, _ := url.Parse(u)
+			tcpdumpFilter = append(tcpdumpFilter, fmt.Sprintf("port %s", parsedURL.Port()))
+		}
+		filter := fmt.Sprintf("tcp " + strings.Join(tcpdumpFilter, " or "))
 		cmd = exec.Command("tcpdump", "-i", "any", "-s", "0", filter, "-w", "test.pcap")
 		t.Log(cmd.String())
 		if err := cmd.Start(); err != nil {

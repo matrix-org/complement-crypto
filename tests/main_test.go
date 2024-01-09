@@ -157,8 +157,12 @@ func (c *TestContext) MustLoginDevice(t *testing.T, existing *client.CSAPI, clie
 }
 
 func (c *TestContext) MustLoginClient(t *testing.T, cli *client.CSAPI, clientType api.ClientType) api.Client {
+	return LoginClientFromComplementClient(t, c.Deployment, cli, clientType)
+}
+
+func LoginClientFromComplementClient(t *testing.T, dep *deploy.SlidingSyncDeployment, cli *client.CSAPI, clientType api.ClientType) api.Client {
 	t.Helper()
 	cfg := api.FromComplementClient(cli, "complement-crypto-password")
-	cfg.BaseURL = c.Deployment.ReverseProxyURLForHS(clientType.HS)
-	return MustLoginClient(t, clientType, cfg, c.Deployment.SlidingSyncURL(t))
+	cfg.BaseURL = dep.ReverseProxyURLForHS(clientType.HS)
+	return MustLoginClient(t, clientType, cfg, dep.SlidingSyncURL(t))
 }

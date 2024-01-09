@@ -5,58 +5,78 @@ import (
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
+	"github.com/matrix-org/complement/helpers"
 	"github.com/matrix-org/complement/must"
 )
 
+// TODO: client types should be bob 1 and bob 2, NOT alice who is just used to send an encrypted msg.
+// This allows us to test that backups made on FFI can be read on JS and vice versa.
 func TestCanBackupKeys(t *testing.T) {
 	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
 		if clientTypeB.Lang == api.ClientTypeJS {
-			t.Skipf("key backups unsupported (js)")
+			t.Skipf("key backup restoring is unsupported (js)")
 			return
 		}
-		tc := CreateTestContext(t, clientTypeA, clientTypeB)
-		// shared history visibility
-		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "public_chat", nil)
-		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+		if clientTypeA.HS != clientTypeB.HS {
+			t.Skipf("client A and B must be on the same HS as this is testing key backups so A=backup creator B=backup restorer")
+			return
+		}
+		deployment := Deploy(t)
+		csapiAlice := deployment.Register(t, clientTypeA.HS, helpers.RegistrationOpts{
+			LocalpartSuffix: "alice",
+			Password:        "complement-crypto-password",
+		})
+		roomID := csapiAlice.MustCreateRoom(t, map[string]interface{}{
+			"name":   t.Name(),
+			"preset": "public_chat", // shared history visibility
+			"invite": []string{},
+			"initial_state": []map[string]interface{}{
+				{
+					"type":      "m.room.encryption",
+					"state_key": "",
+					"content": map[string]interface{}{
+						"algorithm": "m.megolm.v1.aes-sha2",
+					},
+				},
+			},
+		})
 
 		// SDK testing below
 		// -----------------
 
-		// login both clients first, so OTKs etc are uploaded.
-		alice := tc.MustLoginClient(t, tc.Alice, clientTypeA)
-		defer alice.Close(t)
-		bob := tc.MustLoginClient(t, tc.Bob, clientTypeB)
-		defer bob.Close(t)
+		backupCreator := LoginClientFromComplementClient(t, deployment, csapiAlice, clientTypeA)
+		defer backupCreator.Close(t)
+		stopSyncing := backupCreator.StartSyncing(t)
+		defer stopSyncing()
 
-		// Alice and Bob start syncing
-		aliceStopSyncing := alice.StartSyncing(t)
-		defer aliceStopSyncing()
-		bobStopSyncing := bob.StartSyncing(t)
-		defer bobStopSyncing()
-
-		// Alice sends a message which Bob should be able to decrypt
 		body := "An encrypted message"
-		waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(body))
-		evID := alice.SendMessage(t, roomID, body)
-		t.Logf("bob (%s) waiting for event %s", bob.Type(), evID)
+		waiter := backupCreator.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(body))
+		evID := backupCreator.SendMessage(t, roomID, body)
+		t.Logf("backupCreator (%s) waiting for event %s", backupCreator.Type(), evID)
 		waiter.Wait(t, 5*time.Second)
 
-		// Now Bob backs up his keys. Some clients may automatically do this, but let's be explicit about it.
-		recoveryKey := bob.MustBackupKeys(t)
+		// Now backupCreator backs up his keys. Some clients may automatically do this, but let's be explicit about it.
+		recoveryKey := backupCreator.MustBackupKeys(t)
+		t.Logf("recovery key -> %s", recoveryKey)
 
-		// Now Bob logs in on a new device
-		_, bob2 := tc.MustLoginDevice(t, tc.Bob, clientTypeB, "NEW_DEVICE")
+		// Now login on a new device
+		csapiAlice2 := deployment.Login(t, clientTypeB.HS, csapiAlice, helpers.LoginOpts{
+			DeviceID: "BACKUP_RESTORER",
+			Password: "complement-crypto-password",
+		})
+		backupRestorer := LoginClientFromComplementClient(t, deployment, csapiAlice2, clientTypeB)
+		defer backupRestorer.Close(t)
 
-		// Bob loads the key backup using the recovery key
-		bob2.MustLoadBackup(t, recoveryKey)
+		// load the key backup using the recovery key
+		backupRestorer.MustLoadBackup(t, recoveryKey)
 
-		// Bob's new device can decrypt the encrypted message
-		bob2StopSyncing := bob2.StartSyncing(t)
-		defer bob2StopSyncing()
+		// new device can decrypt the encrypted message
+		backupRestorerStopSyncing := backupRestorer.StartSyncing(t)
+		defer backupRestorerStopSyncing()
 		time.Sleep(time.Second)
-		bob2.MustBackpaginate(t, roomID, 5) // get the old message
+		backupRestorer.MustBackpaginate(t, roomID, 5) // get the old message
 
-		ev := bob2.MustGetEvent(t, roomID, evID)
+		ev := backupRestorer.MustGetEvent(t, roomID, evID)
 		must.Equal(t, ev.FailedToDecrypt, false, "bob's new device failed to decrypt the event: bad backup?")
 		must.Equal(t, ev.Text, body, "bob's new device failed to see the clear text message")
 	})

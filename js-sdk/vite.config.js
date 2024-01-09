@@ -2,6 +2,10 @@
 import path from 'path';
 
 export default {
+  // Node.js global to browser globalThis
+  define: {
+    global: 'globalThis',
+},
   build: {
     // disabled because https://github.com/matrix-org/matrix-rust-sdk-crypto-wasm/issues/51
     minify: false,

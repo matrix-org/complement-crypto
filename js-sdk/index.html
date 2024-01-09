@@ -3,6 +3,10 @@
 
 <head>
   <script type="module">
+    import { Buffer } from "buffer";
+    window.Buffer = Buffer;
+    import { decodeRecoveryKey } from "matrix-js-sdk/src/crypto/recoverykey";
+    window.decodeRecoveryKey = decodeRecoveryKey;
     import * as sdk from "matrix-js-sdk";
     window.matrix = sdk;
   </script>

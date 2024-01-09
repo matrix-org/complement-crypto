@@ -103,7 +103,7 @@ Prerequisites:
 This repo has bindings to the `matrix_sdk` crate in rust SDK, in order to mimic Element X.
 
 In order to generate these bindings, follow these instructions:
-- Check out https://github.com/matrix-org/matrix-rust-sdk/tree/kegan/poljar-recovery-complement-fork (TODO: go back to main when
+- Check out https://github.com/matrix-org/matrix-rust-sdk/tree/kegan/complement-crypto (TODO: go back to main when
 main uses a versioned uniffi release e.g 0.25.2)
 - Get the bindings generator:
 ```
@@ -118,6 +118,7 @@ cargo install uniffi-bindgen-go --path ./uniffi-bindgen-go/bindgen
 - Generate the Go bindings to `./rust`: `uniffi-bindgen-go -l ../matrix-rust-sdk/target/debug/libmatrix_sdk_ffi.a -o ./rust ../matrix-rust-sdk/bindings/matrix-sdk-ffi/src/api.udl`
 - Patch up the generated code as it's not quite right:
     * Add `// #cgo LDFLAGS: -lmatrix_sdk_ffi` immediately after `// #include <matrix_sdk_ffi.h>` at the top of `matrix_sdk_ffi.go`.
+    * https://github.com/NordSecurity/uniffi-bindgen-go/issues/36
 - Sanity check compile `LIBRARY_PATH="$LIBRARY_PATH:/path/to/matrix-rust-sdk/target/debug" go test -c ./tests`
 
 
