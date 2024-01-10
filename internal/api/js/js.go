@@ -9,8 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chromedp/cdproto/runtime"
-	"github.com/chromedp/chromedp"
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/api/js/chrome"
 	"github.com/matrix-org/complement/must"
@@ -73,77 +71,65 @@ func NewJSClient(t *testing.T, opts api.ClientCreationOpts) (api.Client, error) 
 		}
 	})
 	if err != nil {
-		return nil, fmt.Errorf("Failed to RunHeadless: %s", err)
+		return nil, fmt.Errorf("failed to RunHeadless: %s", err)
 	}
 	jsc.browser = browser
 
 	// now login
-	createClientOpts := map[string]interface{}{
-		"baseUrl":                opts.BaseURL,
-		"useAuthorizationHeader": true,
-		"userId":                 opts.UserID,
-	}
+	deviceID := "undefined"
 	if opts.DeviceID != "" {
-		createClientOpts["deviceId"] = opts.DeviceID
+		deviceID = `"` + opts.DeviceID + `"`
 	}
-	createClientOptsJSON, err := json.Marshal(createClientOpts)
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialise login info: %s", err)
-	}
-	// inject crypto callback functions, which need to be done without json serialisation :/
-	// start with '{' then [1:] the JSON to inject well-formed JS objects
-	args := `{
-			cryptoCallbacks: {
-				cacheSecretStorageKey: (keyId, keyInfo, key) => {
-					console.log("cacheSecretStorageKey: keyId="+keyId+" keyInfo="+JSON.stringify(keyInfo)+" key.length:"+key.length);
-					window._secretStorageKeys[keyId] = {
-						keyInfo: keyInfo,
-						key: key,
-					};
-				},
-				getSecretStorageKey: (keys, name) => { //
-					console.log("getSecretStorageKey: name=" + name + " keys=" + JSON.stringify(keys));
-					const result = [];
-					for (const keyId of Object.keys(keys.keys)) {
-						const ssKey = window._secretStorageKeys[keyId];
-						if (ssKey) {
-							result.push(keyId);
-							result.push(ssKey.key);
-							console.log("getSecretStorageKey: found key ID: " + keyId);
-						} else {
-							console.log("getSecretStorageKey: unknown key ID: " + keyId);
-						}
-					}
-					return Promise.resolve(result);
-				},
+	chrome.MustRunAsyncFn[chrome.Void](t, browser.Ctx, fmt.Sprintf(`
+	window._secretStorageKeys = {};
+	window.__client = matrix.createClient({
+		baseUrl:                "%s",
+		"useAuthorizationHeader": %s,
+		"userId":                 "%s",
+		"deviceId": %s,
+		cryptoCallbacks: {
+			cacheSecretStorageKey: (keyId, keyInfo, key) => {
+				console.log("cacheSecretStorageKey: keyId="+keyId+" keyInfo="+JSON.stringify(keyInfo)+" key.length:"+key.length);
+				window._secretStorageKeys[keyId] = {
+					keyInfo: keyInfo,
+					key: key,
+				};
 			},
-			` + string(createClientOptsJSON[1:])
-	val := fmt.Sprintf("window._secretStorageKeys = {}; window.__client = matrix.createClient(%s);", args)
-	fmt.Println(val)
-	// TODO: move to chrome package
-	var r *runtime.RemoteObject
-	err = chromedp.Run(browser.Ctx,
-		chromedp.Navigate(browser.BaseURL),
-		chromedp.Evaluate(val, &r),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to go to %s and createClient: %s", browser.BaseURL, err)
-	}
+			getSecretStorageKey: (keys, name) => { //
+				console.log("getSecretStorageKey: name=" + name + " keys=" + JSON.stringify(keys));
+				const result = [];
+				for (const keyId of Object.keys(keys.keys)) {
+					const ssKey = window._secretStorageKeys[keyId];
+					if (ssKey) {
+						result.push(keyId);
+						result.push(ssKey.key);
+						console.log("getSecretStorageKey: found key ID: " + keyId);
+					} else {
+						console.log("getSecretStorageKey: unknown key ID: " + keyId);
+					}
+				}
+				return Promise.resolve(result);
+			},
+		}
+	});`, opts.BaseURL, "true", opts.UserID, deviceID))
 	// cannot use loginWithPassword as this generates a new device ID
-	chrome.MustRunAsyncFn[chrome.Void](t, browser.Ctx, fmt.Sprintf(`await window.__client.login("m.login.password", {
+	chrome.MustRunAsyncFn[chrome.Void](t, browser.Ctx, fmt.Sprintf(`
+	await window.__client.login("m.login.password", {
 		user: "%s",
 		password: "%s",
-		device_id: "%s",
-	});`, opts.UserID, opts.Password, opts.DeviceID))
-	chrome.MustRunAsyncFn[chrome.Void](t, browser.Ctx, `await window.__client.initRustCrypto();`)
+		device_id: %s,
+	});
+	await window.__client.initRustCrypto();`, opts.UserID, opts.Password, deviceID))
 
 	// any events need to log the control string so we get notified
-	chrome.MustRunAsyncFn[chrome.Void](t, browser.Ctx, fmt.Sprintf(`window.__client.on("Event.decrypted", function(event) {
+	chrome.MustRunAsyncFn[chrome.Void](t, browser.Ctx, fmt.Sprintf(`
+	window.__client.on("Event.decrypted", function(event) {
 		console.log("%s"+event.getRoomId()+"||"+JSON.stringify(event.getEffectiveEvent()));
-	});`, CONSOLE_LOG_CONTROL_STRING))
-	chrome.MustRunAsyncFn[chrome.Void](t, browser.Ctx, fmt.Sprintf(`window.__client.on("event", function(event) {
+	});
+	window.__client.on("event", function(event) {
 		console.log("%s"+event.getRoomId()+"||"+JSON.stringify(event.getEffectiveEvent()));
-	});`, CONSOLE_LOG_CONTROL_STRING))
+	});`, CONSOLE_LOG_CONTROL_STRING, CONSOLE_LOG_CONTROL_STRING))
+
 	return &api.LoggedClient{Client: jsc}, nil
 }
 

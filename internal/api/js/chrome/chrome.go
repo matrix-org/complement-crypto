@@ -124,6 +124,15 @@ func RunHeadless(onConsoleLog func(s string)) (*Browser, error) {
 	}
 	go startServer()
 	wg.Wait()
+
+	// navigate to the page
+	err = chromedp.Run(ctx,
+		chromedp.Navigate(baseJSURL),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to navigate to %s: %s", baseJSURL, err)
+	}
+
 	return &Browser{
 		Ctx:     ctx,
 		Cancel:  cancel,
