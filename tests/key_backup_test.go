@@ -9,8 +9,8 @@ import (
 	"github.com/matrix-org/complement/must"
 )
 
-// TODO: client types should be bob 1 and bob 2, NOT alice who is just used to send an encrypted msg.
-// This allows us to test that backups made on FFI can be read on JS and vice versa.
+// Test that backups can be created and stored in secret storage.
+// Test that backups can be restored using secret storage and the recovery key.
 func TestCanBackupKeys(t *testing.T) {
 	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
 		if clientTypeB.Lang == api.ClientTypeJS {

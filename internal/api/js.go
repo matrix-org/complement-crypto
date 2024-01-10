@@ -351,7 +351,10 @@ func (c *JSClient) MustBackupKeys(t *testing.T) (recoveryKey string) {
 	if err != nil {
 		fatalf(t, "MustBackupKeys: %s", err)
 	}
-	time.Sleep(time.Second)
+	// the backup loop which sends keys will wait between 0-10s before uploading keys...
+	// See https://github.com/matrix-org/matrix-js-sdk/blob/49624d5d7308e772ebee84322886a39d2e866869/src/rust-crypto/backup.ts#L319
+	// Ideally this would be configurable..
+	time.Sleep(11 * time.Second)
 	return *key
 }
 
