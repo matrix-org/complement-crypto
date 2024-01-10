@@ -20,14 +20,18 @@ type ComplementCrypto struct {
 	// Default: jj,jr,rj,rr
 	// Description: The client test matrix to run. Every test is run for each given permutation.
 	// The default matrix tests all JS/Rust permutations _ignoring federation_.
+	// ```
 	// Valid values are:
 	//  - `j`: Run a JS SDK client on hs1.
 	//  - `r`: Run a Rust SDK FFI client on hs1.
 	//  - `J`: Run a JS SDK client on hs2.
 	//  - `R`: Run a Rust SDK FFI client on hs2. TODO: needs additional SS proxy / postgres.
+	// ```
 	// For example, for a simple "Alice and Bob" test:
+	// ```
 	//  - `rj,rr`: Run the test twice. Run 1: Alice=rust, Bob=JS. Run 2: Alice=rust, Bob=rust. All on HS1.
 	//  - `jJ`: Run the test once. Run 1: Alice=JS on HS1, Bob=JS on HS2. Tests federation.
+	// ```
 	TestClientMatrix [][2]api.ClientType
 
 	// Name: COMPLEMENT_CRYPTO_TCPDUMP
