@@ -19,7 +19,7 @@ import (
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
 	"github.com/matrix-org/complement-crypto/internal/api"
-	"github.com/matrix-org/complement-crypto/internal/chrome"
+	"github.com/matrix-org/complement-crypto/internal/api/js/chrome"
 	"github.com/matrix-org/complement/must"
 	"github.com/tidwall/gjson"
 )
@@ -336,7 +336,8 @@ func (c *JSClient) MustBackpaginate(t *testing.T, roomID string, count int) {
 }
 
 func (c *JSClient) MustBackupKeys(t *testing.T) (recoveryKey string) {
-	key, err := chrome.AwaitExecuteInto[string](t, c.ctx, `(async () => {
+	t.Helper()
+	key := chrome.MustRunAsyncFn[string](t, c.ctx, `
 		// we need to ensure that we have a recovery key first, though we don't actually care about it..?
 		const recoveryKey = await window.__client.getCrypto().createRecoveryKeyFromPassphrase();
 		// now use said key to make backups
@@ -347,11 +348,7 @@ func (c *JSClient) MustBackupKeys(t *testing.T) (recoveryKey string) {
 		});
 		// now we can enable key backups
 		await window.__client.getCrypto().checkKeyBackupAndEnable();
-		return recoveryKey.encodedPrivateKey;
-	})()`)
-	if err != nil {
-		api.Fatalf(t, "MustBackupKeys: %s", err)
-	}
+		return recoveryKey.encodedPrivateKey;`)
 	// the backup loop which sends keys will wait between 0-10s before uploading keys...
 	// See https://github.com/matrix-org/matrix-js-sdk/blob/49624d5d7308e772ebee84322886a39d2e866869/src/rust-crypto/backup.ts#L319
 	// Ideally this would be configurable..
@@ -360,7 +357,7 @@ func (c *JSClient) MustBackupKeys(t *testing.T) (recoveryKey string) {
 }
 
 func (c *JSClient) MustLoadBackup(t *testing.T, recoveryKey string) {
-	chrome.MustAwaitExecute(t, c.ctx, fmt.Sprintf(`(async () => {
+	chrome.MustRunAsyncFn[chrome.Void](t, c.ctx, fmt.Sprintf(`
 		// we assume the recovery key is the private key for the default key id so
 		// figure out what that key id is.
 		const keyId = await window.__client.secretStorage.getDefaultKeyId();
@@ -374,8 +371,8 @@ func (c *JSClient) MustLoadBackup(t *testing.T, recoveryKey string) {
 		console.log("key backup: ", JSON.stringify(keyBackupCheck));
 		// FIXME: this just doesn't seem to work, causing 'Error: getSecretStorageKey callback returned invalid data' because the key ID
 		// cannot be found...
-		await window.__client.restoreKeyBackupWithSecretStorage(keyBackupCheck ? keyBackupCheck.backupInfo : null, undefined, undefined);
-	})()`, recoveryKey))
+		await window.__client.restoreKeyBackupWithSecretStorage(keyBackupCheck ? keyBackupCheck.backupInfo : null, undefined, undefined);`,
+		recoveryKey))
 }
 
 func (c *JSClient) WaitUntilEventInRoom(t *testing.T, roomID string, checker func(e api.Event) bool) api.Waiter {
