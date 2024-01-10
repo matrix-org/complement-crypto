@@ -10,7 +10,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "buffer": "^6.0.3",
-    "matrix-js-sdk": "https://github.com/matrix-org/matrix-js-sdk#febef3fc7c67ec9e3cb5103f52914013e91cf59c",
+    "matrix-js-sdk": "https://github.com/matrix-org/matrix-js-sdk#8df30ed068997aa74f21aa5be3c8df30f7dd07c5",
     "vite": "^4.5.0"
   }
 }
