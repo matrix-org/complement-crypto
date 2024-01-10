@@ -13,14 +13,11 @@ import (
 // Test that backups can be restored using secret storage and the recovery key.
 func TestCanBackupKeys(t *testing.T) {
 	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
-		if clientTypeB.Lang == api.ClientTypeJS {
-			t.Skipf("key backup restoring is unsupported (js)")
-			return
-		}
 		if clientTypeA.HS != clientTypeB.HS {
 			t.Skipf("client A and B must be on the same HS as this is testing key backups so A=backup creator B=backup restorer")
 			return
 		}
+		t.Logf("backup creator = %s backup restorer = %s", clientTypeA.Lang, clientTypeB.Lang)
 		deployment := Deploy(t)
 		csapiAlice := deployment.Register(t, clientTypeA.HS, helpers.RegistrationOpts{
 			LocalpartSuffix: "alice",

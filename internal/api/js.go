@@ -360,14 +360,15 @@ func (c *JSClient) MustBackupKeys(t *testing.T) (recoveryKey string) {
 
 func (c *JSClient) MustLoadBackup(t *testing.T, recoveryKey string) {
 	chrome.MustAwaitExecute(t, c.ctx, fmt.Sprintf(`(async () => {
-		// add the recovery key to secret storage
-		const recoveryKeyInfo = await window.__client.secretStorage.addKey("m.secret_storage.v1.aes-hmac-sha2", {
+		// we assume the recovery key is the private key for the default key id so
+		// figure out what that key id is.
+		const keyId = await window.__client.secretStorage.getDefaultKeyId();
+		// now add this to the in-memory cache. We don't actually ever return key info so we just pass in {} here.
+		window._secretStorageKeys[keyId] = {
+			keyInfo: {},
 			key: window.decodeRecoveryKey("%s"),
-		});
-		console.log("setting default key ID to " + recoveryKeyInfo.keyId);
-		// FIXME: this needs the client to be syncing already as this promise won't resolve until it comes down /sync, wedging forever
-		await window.__client.secretStorage.setDefaultKeyId(recoveryKeyInfo.keyId);
-		console.log("done!");
+		}
+		console.log("will return recovery key for default key id " + keyId);
 		const keyBackupCheck = await window.__client.getCrypto().checkKeyBackupAndEnable();
 		console.log("key backup: ", JSON.stringify(keyBackupCheck));
 		// FIXME: this just doesn't seem to work, causing 'Error: getSecretStorageKey callback returned invalid data' because the key ID
