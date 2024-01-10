@@ -116,7 +116,6 @@ func (c *RustClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 		case <-time.After(5 * time.Second):
 			api.Fatalf(t, "[%s](rust) timed out after 5s StartSyncing", c.userID)
 		case state := <-genericListener.ch:
-			fmt.Println(state)
 			switch state.(type) {
 			case matrix_sdk_ffi.RoomListLoadingStateLoaded:
 				isSyncing = true
@@ -299,8 +298,12 @@ func (c *RustClient) findRoom(t *testing.T, roomID string) *matrix_sdk_ffi.Room 
 
 func (c *RustClient) Logf(t *testing.T, format string, args ...interface{}) {
 	t.Helper()
-	matrix_sdk_ffi.LogEvent("rust.go", &zero, matrix_sdk_ffi.LogLevelInfo, t.Name(), fmt.Sprintf(format, args...))
+	c.logToFile(t, format, args...)
 	t.Logf(format, args...)
+}
+
+func (c *RustClient) logToFile(t *testing.T, format string, args ...interface{}) {
+	matrix_sdk_ffi.LogEvent("rust.go", &zero, matrix_sdk_ffi.LogLevelInfo, t.Name(), fmt.Sprintf(format, args...))
 }
 
 func (c *RustClient) ensureListening(t *testing.T, roomID string) *matrix_sdk_ffi.Room {
@@ -332,7 +335,7 @@ func (c *RustClient) ensureListening(t *testing.T, roomID string) *matrix_sdk_ff
 					continue
 				}
 				timeline = slices.Insert(timeline, i, timelineItemToEvent(insertData.Item))
-				fmt.Printf("[%s]_______ INSERT %+v\n", c.userID, timeline[i])
+				c.logToFile(t, "[%s]_______ INSERT %+v\n", c.userID, timeline[i])
 				newEvents = append(newEvents, timeline[i])
 			case matrix_sdk_ffi.TimelineChangeAppend:
 				appendItems := d.Append()
@@ -342,7 +345,7 @@ func (c *RustClient) ensureListening(t *testing.T, roomID string) *matrix_sdk_ff
 				for _, item := range *appendItems {
 					ev := timelineItemToEvent(item)
 					timeline = append(timeline, ev)
-					fmt.Printf("[%s]_______ APPEND %+v\n", c.userID, ev)
+					c.logToFile(t, "[%s]_______ APPEND %+v\n", c.userID, ev)
 					newEvents = append(newEvents, ev)
 				}
 			case matrix_sdk_ffi.TimelineChangePushBack: // append but 1 element
@@ -352,7 +355,7 @@ func (c *RustClient) ensureListening(t *testing.T, roomID string) *matrix_sdk_ff
 				}
 				ev := timelineItemToEvent(*pbData)
 				timeline = append(timeline, ev)
-				fmt.Printf("[%s]_______ PUSH BACK %+v\n", c.userID, ev)
+				c.logToFile(t, "[%s]_______ PUSH BACK %+v\n", c.userID, ev)
 				newEvents = append(newEvents, ev)
 			case matrix_sdk_ffi.TimelineChangeSet:
 				setData := d.Set()
@@ -365,7 +368,7 @@ func (c *RustClient) ensureListening(t *testing.T, roomID string) *matrix_sdk_ff
 					continue
 				}
 				timeline[i] = timelineItemToEvent(setData.Item)
-				fmt.Printf("[%s]_______ SET %+v\n", c.userID, timeline[i])
+				c.logToFile(t, "[%s]_______ SET %+v\n", c.userID, timeline[i])
 				newEvents = append(newEvents, timeline[i])
 			default:
 				t.Logf("Unhandled TimelineDiff change %v", d.Change())
@@ -416,7 +419,7 @@ func (w *timelineWaiter) Wait(t *testing.T, s time.Duration) {
 		// check if it exists in the timeline already
 		info := w.client.rooms[w.roomID]
 		if info == nil {
-			fmt.Printf("_____checkForEvent[%s] room does not exist\n", w.client.userID)
+			w.client.logToFile(t, "_____checkForEvent[%s] room does not exist\n", w.client.userID)
 			return false
 		}
 		for _, ev := range info.timeline {
@@ -428,7 +431,7 @@ func (w *timelineWaiter) Wait(t *testing.T, s time.Duration) {
 				return true
 			}
 		}
-		fmt.Printf("_____checkForEvent[%s] checked %d timeline events and no match \n", w.client.userID, len(info.timeline))
+		w.client.logToFile(t, "_____checkForEvent[%s] checked %d timeline events and no match \n", w.client.userID, len(info.timeline))
 		return false
 	}
 
