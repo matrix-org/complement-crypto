@@ -122,6 +122,19 @@ cargo install uniffi-bindgen-go --path ./uniffi-bindgen-go/bindgen
 - Sanity check compile `LIBRARY_PATH="$LIBRARY_PATH:/path/to/matrix-rust-sdk/target/debug" go test -c ./tests`
 
 
+### Architecture
+
+```
+     Host        |       dockerd           
+                 |                          +----------+      +----------+
+                 |                     .--> | ss proxy | <--> | postgres |
+ +----------+    |    +-----------+    |    +-----+----+      +----------+
+ | Go tests | <--|--> | mitmproxy | <--+--> | hs1 |
+ +----------+    |    +-----------+    |    +-----+
+                 |                     `--> | hs2 |
+                 |                          +-----+
+```
+
 ### Github Action (TODO)
 
 Inputs:
