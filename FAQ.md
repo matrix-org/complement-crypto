@@ -42,7 +42,7 @@ Internally, we use Vite to bundle JS SDK into a single page app, which has no UI
 
 #### Add console logs
 
-If you want to add console logging to the JS SDK, it is easiest to _modify the bundled output_ as it is not minified. To do this, `grep` for function names in `internal/api/js/dist/assests/index.....js` then use an editor to add `console.log` lines. These lines will appear in JS SDK log files.
+If you want to add console logging to the JS SDK, it is easiest to _modify the bundled output_ as it is not minified. To do this, `grep` for function names in `internal/api/js/chrome/dist/assests/index.....js` then use an editor to add `console.log` lines. These lines will appear in JS SDK log files.
 
 ### Rust SDK FFI
 

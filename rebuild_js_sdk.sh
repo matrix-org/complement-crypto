@@ -16,5 +16,5 @@ then
 fi
 
 (cd js-sdk && yarn add $1 && yarn install && yarn build)
-rm -rf ./internal/api/js/dist || echo 'no dist directory detected';
-cp -r ./js-sdk/dist/. ./internal/api/js/dist
+rm -rf ./internal/api/js/chrome/dist || echo 'no dist directory detected';
+cp -r ./js-sdk/dist/. ./internal/api/js/chrome/dist
