@@ -31,6 +31,10 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
+      - name: Checkout matrix-rust-sdk
+        run: |
+          mkdir rust-sdk
+          (wget -O - "https://github.com/matrix-org/matrix-rust-sdk/archive/kegan/complement-crypto.tar.gz" | tar -xz --strip-components=1 -C rust-sdk)
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: "rust-sdk"
@@ -48,8 +52,6 @@ jobs:
 
       - name: Build Rust FFI bindings
         run: |
-          mkdir rust-sdk
-          (wget -O - "https://github.com/matrix-org/matrix-rust-sdk/archive/kegan/complement-crypto.tar.gz" | tar -xz --strip-components=1 -C rust-sdk)
           (cd rust-sdk && cargo build -p matrix-sdk-ffi)
           ls -alh rust-sdk/target/debug
 
