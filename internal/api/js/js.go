@@ -183,18 +183,18 @@ func NewJSClient(t *testing.T, opts api.ClientCreationOpts) (api.Client, error) 
 		return nil, fmt.Errorf("failed to go to %s and createClient: %s", baseJSURL, err)
 	}
 	// cannot use loginWithPassword as this generates a new device ID
-	chrome.AwaitExecute(t, ctx, fmt.Sprintf(`window.__client.login("m.login.password", {
+	chrome.MustRunAsyncFn[chrome.Void](t, ctx, fmt.Sprintf(`await window.__client.login("m.login.password", {
 		user: "%s",
 		password: "%s",
 		device_id: "%s",
 	});`, opts.UserID, opts.Password, opts.DeviceID))
-	chrome.AwaitExecute(t, ctx, `window.__client.initRustCrypto();`)
+	chrome.MustRunAsyncFn[chrome.Void](t, ctx, `await window.__client.initRustCrypto();`)
 
 	// any events need to log the control string so we get notified
-	chrome.MustExecute(t, ctx, fmt.Sprintf(`window.__client.on("Event.decrypted", function(event) {
+	chrome.MustRunAsyncFn[chrome.Void](t, ctx, fmt.Sprintf(`window.__client.on("Event.decrypted", function(event) {
 		console.log("%s"+event.getRoomId()+"||"+JSON.stringify(event.getEffectiveEvent()));
 	});`, CONSOLE_LOG_CONTROL_STRING))
-	chrome.MustExecute(t, ctx, fmt.Sprintf(`window.__client.on("event", function(event) {
+	chrome.MustRunAsyncFn[chrome.Void](t, ctx, fmt.Sprintf(`window.__client.on("event", function(event) {
 		console.log("%s"+event.getRoomId()+"||"+JSON.stringify(event.getEffectiveEvent()));
 	});`, CONSOLE_LOG_CONTROL_STRING))
 
@@ -225,16 +225,16 @@ func (c *JSClient) MustGetEvent(t *testing.T, roomID, eventID string) api.Event 
 	//    decrypted: { event }
 	// }
 	// else just returns { event }
-	evSerialised := chrome.MustExecuteInto[string](t, c.ctx, fmt.Sprintf(`
-	JSON.stringify(window.__client.getRoom("%s")?.getLiveTimeline()?.getEvents().filter((ev, i) => {
+	evSerialised := chrome.MustRunAsyncFn[string](t, c.ctx, fmt.Sprintf(`
+	return JSON.stringify(window.__client.getRoom("%s")?.getLiveTimeline()?.getEvents().filter((ev, i) => {
 		console.log("MustGetEvent["+i+"] => " + ev.getId()+ " " + JSON.stringify(ev.toJSON()));
 		return ev.getId() === "%s";
 	})[0].toJSON());
 	`, roomID, eventID))
-	if !gjson.Valid(evSerialised) {
-		api.Fatalf(t, "MustGetEvent(%s, %s) %s (js): invalid event, got %s", roomID, eventID, c.userID, evSerialised)
+	if !gjson.Valid(*evSerialised) {
+		api.Fatalf(t, "MustGetEvent(%s, %s) %s (js): invalid event, got %s", roomID, eventID, c.userID, *evSerialised)
 	}
-	result := gjson.Parse(evSerialised)
+	result := gjson.Parse(*evSerialised)
 	decryptedEvent := result.Get("decrypted")
 	if !decryptedEvent.Exists() {
 		decryptedEvent = result
@@ -261,7 +261,7 @@ func (c *JSClient) MustGetEvent(t *testing.T, roomID, eventID string) api.Event 
 // Tests should call stopSyncing() at the end of the test.
 func (c *JSClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 	t.Helper()
-	chrome.MustExecute(t, c.ctx, fmt.Sprintf(`
+	chrome.MustRunAsyncFn[chrome.Void](t, c.ctx, fmt.Sprintf(`
 		var fn;
 		fn = function(state) {
 			if (state !== "SYNCING") {
@@ -278,7 +278,7 @@ func (c *JSClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 		}
 		close(ch)
 	})
-	chrome.AwaitExecute(t, c.ctx, `window.__client.startClient({});`)
+	chrome.RunAsyncFn[chrome.Void](t, c.ctx, `await window.__client.startClient({});`)
 	select {
 	case <-time.After(5 * time.Second):
 		api.Fatalf(t, "[%s](js) took >5s to StartSyncing", c.userID)
@@ -290,7 +290,7 @@ func (c *JSClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 	// See https://github.com/matrix-org/matrix-js-sdk/blob/v29.1.0/src/rust-crypto/rust-crypto.ts#L1483
 	time.Sleep(500 * time.Millisecond)
 	return func() {
-		chrome.AwaitExecute(t, c.ctx, `window.__client.stopClient();`)
+		chrome.RunAsyncFn[chrome.Void](t, c.ctx, `await window.__client.stopClient();`)
 	}
 }
 
@@ -298,8 +298,8 @@ func (c *JSClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 // provide a bogus room ID.
 func (c *JSClient) IsRoomEncrypted(t *testing.T, roomID string) (bool, error) {
 	t.Helper()
-	isEncrypted, err := chrome.ExecuteInto[bool](
-		t, c.ctx, fmt.Sprintf(`window.__client.isRoomEncrypted("%s")`, roomID),
+	isEncrypted, err := chrome.RunAsyncFn[bool](
+		t, c.ctx, fmt.Sprintf(`return window.__client.isRoomEncrypted("%s")`, roomID),
 	)
 	if err != nil {
 		return false, err
@@ -318,7 +318,8 @@ func (c *JSClient) SendMessage(t *testing.T, roomID, text string) (eventID strin
 
 func (c *JSClient) TrySendMessage(t *testing.T, roomID, text string) (eventID string, err error) {
 	t.Helper()
-	res, err := chrome.AwaitExecuteInto[map[string]interface{}](t, c.ctx, fmt.Sprintf(`window.__client.sendMessage("%s", {
+	res, err := chrome.RunAsyncFn[map[string]interface{}](t, c.ctx, fmt.Sprintf(`
+	return await window.__client.sendMessage("%s", {
 		"msgtype": "m.text",
 		"body": "%s"
 	});`, roomID, text))
@@ -330,8 +331,8 @@ func (c *JSClient) TrySendMessage(t *testing.T, roomID, text string) (eventID st
 
 func (c *JSClient) MustBackpaginate(t *testing.T, roomID string, count int) {
 	t.Helper()
-	chrome.MustAwaitExecute(t, c.ctx, fmt.Sprintf(
-		`window.__client.scrollback(window.__client.getRoom("%s"), %d);`, roomID, count,
+	chrome.MustRunAsyncFn[chrome.Void](t, c.ctx, fmt.Sprintf(
+		`await window.__client.scrollback(window.__client.getRoom("%s"), %d);`, roomID, count,
 	))
 }
 
@@ -369,8 +370,6 @@ func (c *JSClient) MustLoadBackup(t *testing.T, recoveryKey string) {
 		console.log("will return recovery key for default key id " + keyId);
 		const keyBackupCheck = await window.__client.getCrypto().checkKeyBackupAndEnable();
 		console.log("key backup: ", JSON.stringify(keyBackupCheck));
-		// FIXME: this just doesn't seem to work, causing 'Error: getSecretStorageKey callback returned invalid data' because the key ID
-		// cannot be found...
 		await window.__client.restoreKeyBackupWithSecretStorage(keyBackupCheck ? keyBackupCheck.backupInfo : null, undefined, undefined);`,
 		recoveryKey))
 }
@@ -387,7 +386,7 @@ func (c *JSClient) WaitUntilEventInRoom(t *testing.T, roomID string, checker fun
 func (c *JSClient) Logf(t *testing.T, format string, args ...interface{}) {
 	t.Helper()
 	formatted := fmt.Sprintf(t.Name()+": "+format, args...)
-	chrome.MustExecute(t, c.ctx, fmt.Sprintf(`console.log("%s");`, formatted))
+	chrome.MustRunAsyncFn[chrome.Void](t, c.ctx, fmt.Sprintf(`console.log("%s");`, formatted))
 	t.Logf(format, args...)
 }
 
@@ -424,7 +423,7 @@ func (w *jsTimelineWaiter) Wait(t *testing.T, s time.Duration) {
 	defer cancel()
 
 	// check if it already exists by echoing the current timeline. This will call the callback above.
-	chrome.MustExecute(t, w.client.ctx, fmt.Sprintf(
+	chrome.MustRunAsyncFn[chrome.Void](t, w.client.ctx, fmt.Sprintf(
 		`window.__client.getRoom("%s")?.getLiveTimeline()?.getEvents().forEach((e)=>{
 			console.log("%s"+e.getRoomId()+"||"+JSON.stringify(e.getEffectiveEvent()));
 		});`, w.roomID, CONSOLE_LOG_CONTROL_STRING,
