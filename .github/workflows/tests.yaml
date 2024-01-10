@@ -31,6 +31,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
+      - uses: Swatinem/rust-cache@v2
       - name: "Install Complement Dependencies"
         run: |
           sudo apt-get update && sudo apt-get install -y libolm3 libolm-dev
@@ -43,18 +44,6 @@ jobs:
           (cd js-sdk && yarn install --frozen-lockfile && yarn build)
           cp -r ./js-sdk/dist/. ./internal/api/dist
 
-      - name: Set up cargo cache
-        uses: actions/cache@v3
-        continue-on-error: false
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/            
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
       - name: Build Rust FFI bindings
         run: |
           mkdir rust-sdk

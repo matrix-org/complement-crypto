@@ -14,7 +14,7 @@ Why:
 - To enable new kinds of security tests (active attacker tests)
 
 ### How do I run it?
-It's currently pretty awful to run, as you need toolchains for both Rust and JS. Working on improving this. 
+It's currently pretty awful to run, as you need toolchains for both Rust and JS. Working on improving this. All tests are run in Github Actions, so see https://github.com/matrix-org/complement-crypto/blob/main/.github/workflows/tests.yaml for a step-by-step process.
 
 You need to build Rust SDK FFI bindings _and_ JS SDK before you can get this to run. You also need a Complement homeserver image. When that is setup:
 
