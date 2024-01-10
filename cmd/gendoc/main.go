@@ -128,6 +128,7 @@ func main() {
 		"",
 		"## Complement-Crypto Configuration",
 		"Complement-Crypto is configured exclusively through the use of environment variables. These variables are described below. Additional environment variables can be used, and are outlined at https://github.com/matrix-org/complement/blob/main/ENVIRONMENT.md ",
+		"Complement-Crypto always runs in dirty mode (homeservers exist for the entire duration of the test suite) for performance reasons.",
 	}
 	for _, vd := range varDocs {
 		mdFileLines = append(mdFileLines, fmt.Sprintf("\n#### `%v`", vd.Name))
