@@ -1,4 +1,4 @@
 js-sdk/node_modules
 js-sdk/dist
-internal/api/dist
+internal/api/js/dist
 __pycache__

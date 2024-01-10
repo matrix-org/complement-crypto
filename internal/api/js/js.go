@@ -1,4 +1,4 @@
-package api
+package js
 
 import (
 	"context"
@@ -18,6 +18,7 @@ import (
 
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
+	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/chrome"
 	"github.com/matrix-org/complement/must"
 	"github.com/tidwall/gjson"
@@ -55,19 +56,19 @@ type JSClient struct {
 	ctx        context.Context
 	cancel     func()
 	baseJSURL  string
-	listeners  map[int32]func(roomID string, ev Event)
+	listeners  map[int32]func(roomID string, ev api.Event)
 	listenerID atomic.Int32
 	userID     string
 }
 
-func NewJSClient(t *testing.T, opts ClientCreationOpts) (Client, error) {
+func NewJSClient(t *testing.T, opts api.ClientCreationOpts) (api.Client, error) {
 	// start a headless chrome
 	ctx, cancel := chromedp.NewContext(context.Background(), chromedp.WithBrowserOption(
 		chromedp.WithBrowserLogf(colorifyError), chromedp.WithBrowserErrorf(colorifyError), //chromedp.WithBrowserDebugf(log.Printf),
 	))
 
 	jsc := &JSClient{
-		listeners: make(map[int32]func(roomID string, ev Event)),
+		listeners: make(map[int32]func(roomID string, ev api.Event)),
 		userID:    opts.UserID,
 	}
 	// Listen for console logs for debugging AND to communicate live updates
@@ -200,7 +201,7 @@ func NewJSClient(t *testing.T, opts ClientCreationOpts) (Client, error) {
 	jsc.ctx = ctx
 	jsc.cancel = cancel
 	jsc.baseJSURL = baseJSURL
-	return &LoggedClient{Client: jsc}, nil
+	return &api.LoggedClient{Client: jsc}, nil
 }
 
 // Close is called to clean up resources.
@@ -209,14 +210,14 @@ func NewJSClient(t *testing.T, opts ClientCreationOpts) (Client, error) {
 // log messages.
 func (c *JSClient) Close(t *testing.T) {
 	c.cancel()
-	c.listeners = make(map[int32]func(roomID string, ev Event))
+	c.listeners = make(map[int32]func(roomID string, ev api.Event))
 }
 
 func (c *JSClient) UserID() string {
 	return c.userID
 }
 
-func (c *JSClient) MustGetEvent(t *testing.T, roomID, eventID string) Event {
+func (c *JSClient) MustGetEvent(t *testing.T, roomID, eventID string) api.Event {
 	t.Helper()
 	// serialised output (if encrypted):
 	// {
@@ -231,7 +232,7 @@ func (c *JSClient) MustGetEvent(t *testing.T, roomID, eventID string) Event {
 	})[0].toJSON());
 	`, roomID, eventID))
 	if !gjson.Valid(evSerialised) {
-		fatalf(t, "MustGetEvent(%s, %s) %s (js): invalid event, got %s", roomID, eventID, c.userID, evSerialised)
+		api.Fatalf(t, "MustGetEvent(%s, %s) %s (js): invalid event, got %s", roomID, eventID, c.userID, evSerialised)
 	}
 	result := gjson.Parse(evSerialised)
 	decryptedEvent := result.Get("decrypted")
@@ -240,7 +241,7 @@ func (c *JSClient) MustGetEvent(t *testing.T, roomID, eventID string) Event {
 	}
 	encryptedEvent := result.Get("encrypted")
 	//fmt.Printf("DECRYPTED: %s\nENCRYPTED: %s\n\n", decryptedEvent.Raw, encryptedEvent.Raw)
-	ev := Event{
+	ev := api.Event{
 		ID:     decryptedEvent.Get("event_id").Str,
 		Text:   decryptedEvent.Get("content.body").Str,
 		Sender: decryptedEvent.Get("sender").Str,
@@ -271,7 +272,7 @@ func (c *JSClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 		};
 		window.__client.on("sync", fn);`, CONSOLE_LOG_CONTROL_STRING))
 	ch := make(chan struct{})
-	cancel := c.listenForUpdates(func(roomID string, ev Event) {
+	cancel := c.listenForUpdates(func(roomID string, ev api.Event) {
 		if roomID != "sync" {
 			return
 		}
@@ -280,7 +281,7 @@ func (c *JSClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 	chrome.AwaitExecute(t, c.ctx, `window.__client.startClient({});`)
 	select {
 	case <-time.After(5 * time.Second):
-		fatalf(t, "[%s](js) took >5s to StartSyncing", c.userID)
+		api.Fatalf(t, "[%s](js) took >5s to StartSyncing", c.userID)
 	case <-ch:
 	}
 	cancel()
@@ -349,7 +350,7 @@ func (c *JSClient) MustBackupKeys(t *testing.T) (recoveryKey string) {
 		return recoveryKey.encodedPrivateKey;
 	})()`)
 	if err != nil {
-		fatalf(t, "MustBackupKeys: %s", err)
+		api.Fatalf(t, "MustBackupKeys: %s", err)
 	}
 	// the backup loop which sends keys will wait between 0-10s before uploading keys...
 	// See https://github.com/matrix-org/matrix-js-sdk/blob/49624d5d7308e772ebee84322886a39d2e866869/src/rust-crypto/backup.ts#L319
@@ -377,7 +378,7 @@ func (c *JSClient) MustLoadBackup(t *testing.T, recoveryKey string) {
 	})()`, recoveryKey))
 }
 
-func (c *JSClient) WaitUntilEventInRoom(t *testing.T, roomID string, checker func(e Event) bool) Waiter {
+func (c *JSClient) WaitUntilEventInRoom(t *testing.T, roomID string, checker func(e api.Event) bool) api.Waiter {
 	t.Helper()
 	return &jsTimelineWaiter{
 		roomID:  roomID,
@@ -393,11 +394,11 @@ func (c *JSClient) Logf(t *testing.T, format string, args ...interface{}) {
 	t.Logf(format, args...)
 }
 
-func (c *JSClient) Type() ClientTypeLang {
-	return ClientTypeJS
+func (c *JSClient) Type() api.ClientTypeLang {
+	return api.ClientTypeJS
 }
 
-func (c *JSClient) listenForUpdates(callback func(roomID string, ev Event)) (cancel func()) {
+func (c *JSClient) listenForUpdates(callback func(roomID string, ev api.Event)) (cancel func()) {
 	id := c.listenerID.Add(1)
 	c.listeners[id] = callback
 	return func() {
@@ -407,14 +408,14 @@ func (c *JSClient) listenForUpdates(callback func(roomID string, ev Event)) (can
 
 type jsTimelineWaiter struct {
 	roomID  string
-	checker func(e Event) bool
+	checker func(e api.Event) bool
 	client  *JSClient
 }
 
 func (w *jsTimelineWaiter) Wait(t *testing.T, s time.Duration) {
 	t.Helper()
 	updates := make(chan bool, 3)
-	cancel := w.client.listenForUpdates(func(roomID string, ev Event) {
+	cancel := w.client.listenForUpdates(func(roomID string, ev api.Event) {
 		if w.roomID != roomID {
 			return
 		}
@@ -436,16 +437,19 @@ func (w *jsTimelineWaiter) Wait(t *testing.T, s time.Duration) {
 	for {
 		timeLeft := s - time.Since(start)
 		if timeLeft <= 0 {
-			fatalf(t, "%s (js): Wait[%s]: timed out", w.client.userID, w.roomID)
+			api.Fatalf(t, "%s (js): Wait[%s]: timed out", w.client.userID, w.roomID)
 		}
 		select {
 		case <-time.After(timeLeft):
-			fatalf(t, "%s (js): Wait[%s]: timed out", w.client.userID, w.roomID)
+			api.Fatalf(t, "%s (js): Wait[%s]: timed out", w.client.userID, w.roomID)
 		case <-updates:
 			return
 		}
 	}
 }
+
+const ansiRedForeground = "\x1b[31m"
+const ansiResetForeground = "\x1b[39m"
 
 func colorifyError(format string, args ...any) {
 	format = ansiRedForeground + time.Now().Format(time.RFC3339) + " " + format + ansiResetForeground
@@ -460,8 +464,8 @@ type JSEvent struct {
 	ID       string                 `json:"event_id"`
 }
 
-func jsToEvent(j JSEvent) Event {
-	var ev Event
+func jsToEvent(j JSEvent) api.Event {
+	var ev api.Event
 	ev.Sender = j.Sender
 	ev.ID = j.ID
 	switch j.Type {

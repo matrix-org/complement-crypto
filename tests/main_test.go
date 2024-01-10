@@ -7,6 +7,8 @@ import (
 
 	"github.com/matrix-org/complement"
 	"github.com/matrix-org/complement-crypto/internal/api"
+	"github.com/matrix-org/complement-crypto/internal/api/js"
+	"github.com/matrix-org/complement-crypto/internal/api/rust"
 	"github.com/matrix-org/complement-crypto/internal/config"
 	"github.com/matrix-org/complement-crypto/internal/deploy"
 	"github.com/matrix-org/complement/client"
@@ -23,14 +25,14 @@ var (
 func TestMain(m *testing.M) {
 	complementCryptoConfig = config.NewComplementCryptoConfigFromEnvVars()
 	ssMutex = &sync.Mutex{}
-	api.SetupJSLogs("js_sdk.log")                        // rust sdk logs on its own
+	js.SetupJSLogs("js_sdk.log")                         // rust sdk logs on its own
 	complement.TestMainWithCleanup(m, "crypto", func() { // always teardown even if panicking
 		ssMutex.Lock()
 		if ssDeployment != nil {
 			ssDeployment.Teardown(complementCryptoConfig.WriteContainerLogs)
 		}
 		ssMutex.Unlock()
-		api.WriteJSLogs()
+		js.WriteJSLogs()
 	})
 }
 
@@ -56,11 +58,11 @@ func ClientTypeMatrix(t *testing.T, subTest func(tt *testing.T, a, b api.ClientT
 func MustLoginClient(t *testing.T, clientType api.ClientType, opts api.ClientCreationOpts, ssURL string) api.Client {
 	switch clientType.Lang {
 	case api.ClientTypeRust:
-		c, err := api.NewRustClient(t, opts, ssURL)
+		c, err := rust.NewRustClient(t, opts, ssURL)
 		must.NotError(t, "NewRustClient: %s", err)
 		return c
 	case api.ClientTypeJS:
-		c, err := api.NewJSClient(t, opts)
+		c, err := js.NewJSClient(t, opts)
 		must.NotError(t, "NewJSClient: %s", err)
 		return c
 	default:

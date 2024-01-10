@@ -1,4 +1,4 @@
-package api
+package rust
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/rust/matrix_sdk_ffi"
 	"github.com/matrix-org/complement/must"
 	"golang.org/x/exp/slices"
@@ -28,7 +29,7 @@ var zero uint32
 type RustRoomInfo struct {
 	stream   *matrix_sdk_ffi.TaskHandle
 	room     *matrix_sdk_ffi.Room
-	timeline []*Event
+	timeline []*api.Event
 }
 
 type RustClient struct {
@@ -41,7 +42,7 @@ type RustClient struct {
 	userID     string
 }
 
-func NewRustClient(t *testing.T, opts ClientCreationOpts, ssURL string) (Client, error) {
+func NewRustClient(t *testing.T, opts api.ClientCreationOpts, ssURL string) (api.Client, error) {
 	t.Logf("NewRustClient[%s] creating...", opts.UserID)
 	ab := matrix_sdk_ffi.NewClientBuilder().HomeserverUrl(opts.BaseURL).SlidingSyncProxy(&ssURL)
 	client, err := ab.Build()
@@ -64,7 +65,7 @@ func NewRustClient(t *testing.T, opts ClientCreationOpts, ssURL string) (Client,
 		roomsMu:   &sync.RWMutex{},
 	}
 	c.Logf(t, "NewRustClient[%s] created client", opts.UserID)
-	return &LoggedClient{Client: c}, nil
+	return &api.LoggedClient{Client: c}, nil
 }
 
 func (c *RustClient) Close(t *testing.T) {
@@ -80,16 +81,16 @@ func (c *RustClient) Close(t *testing.T) {
 	c.FFIClient.Destroy()
 }
 
-func (c *RustClient) MustGetEvent(t *testing.T, roomID, eventID string) Event {
+func (c *RustClient) MustGetEvent(t *testing.T, roomID, eventID string) api.Event {
 	t.Helper()
 	room := c.findRoom(t, roomID)
 	timelineItem, err := room.Timeline().GetEventTimelineItemByEventId(eventID)
 	if err != nil {
-		fatalf(t, "MustGetEvent(rust) %s (%s, %s): %s", c.userID, roomID, eventID, err)
+		api.Fatalf(t, "MustGetEvent(rust) %s (%s, %s): %s", c.userID, roomID, eventID, err)
 	}
 	ev := eventTimelineItemToEvent(timelineItem)
 	if ev == nil {
-		fatalf(t, "MustGetEvent(rust) %s (%s, %s): found timeline item but failed to convert it to an Event", c.userID, roomID, eventID)
+		api.Fatalf(t, "MustGetEvent(rust) %s (%s, %s): found timeline item but failed to convert it to an Event", c.userID, roomID, eventID)
 	}
 	return *ev
 }
@@ -113,7 +114,7 @@ func (c *RustClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 	for !isSyncing {
 		select {
 		case <-time.After(5 * time.Second):
-			fatalf(t, "[%s](rust) timed out after 5s StartSyncing", c.userID)
+			api.Fatalf(t, "[%s](rust) timed out after 5s StartSyncing", c.userID)
 		case state := <-genericListener.ch:
 			fmt.Println(state)
 			switch state.(type) {
@@ -173,7 +174,7 @@ func (c *RustClient) MustLoadBackup(t *testing.T, recoveryKey string) {
 	must.NotError(t, "Recover", c.FFIClient.Encryption().Recover(recoveryKey))
 }
 
-func (c *RustClient) WaitUntilEventInRoom(t *testing.T, roomID string, checker func(Event) bool) Waiter {
+func (c *RustClient) WaitUntilEventInRoom(t *testing.T, roomID string, checker func(api.Event) bool) api.Waiter {
 	t.Helper()
 	c.ensureListening(t, roomID)
 	return &timelineWaiter{
@@ -183,8 +184,8 @@ func (c *RustClient) WaitUntilEventInRoom(t *testing.T, roomID string, checker f
 	}
 }
 
-func (c *RustClient) Type() ClientTypeLang {
-	return ClientTypeRust
+func (c *RustClient) Type() api.ClientTypeLang {
+	return api.ClientTypeRust
 }
 
 // SendMessage sends the given text as an m.room.message with msgtype:m.text into the given
@@ -193,7 +194,7 @@ func (c *RustClient) SendMessage(t *testing.T, roomID, text string) (eventID str
 	t.Helper()
 	eventID, err := c.TrySendMessage(t, roomID, text)
 	if err != nil {
-		fatalf(t, err.Error())
+		api.Fatalf(t, err.Error())
 	}
 	return eventID
 }
@@ -316,7 +317,7 @@ func (c *RustClient) ensureListening(t *testing.T, roomID string) *matrix_sdk_ff
 	// we need a timeline listener before we can send messages
 	result := r.Timeline().AddListener(&timelineListener{fn: func(diff []*matrix_sdk_ffi.TimelineDiff) {
 		timeline := c.rooms[roomID].timeline
-		var newEvents []*Event
+		var newEvents []*api.Event
 		c.Logf(t, "[%s]AddTimelineListener[%s] TimelineDiff len=%d", c.userID, roomID, len(diff))
 		for _, d := range diff {
 			switch d.Change() {
@@ -378,7 +379,7 @@ func (c *RustClient) ensureListening(t *testing.T, roomID string) *matrix_sdk_ff
 			c.Logf(t, "TimelineDiff change: %+v", e)
 		}
 	}})
-	events := make([]*Event, len(result.Items))
+	events := make([]*api.Event, len(result.Items))
 	for i := range result.Items {
 		events[i] = timelineItemToEvent(result.Items[i])
 	}
@@ -403,7 +404,7 @@ func (c *RustClient) listenForUpdates(callback func(roomID string)) (cancel func
 
 type timelineWaiter struct {
 	roomID  string
-	checker func(e Event) bool
+	checker func(e api.Event) bool
 	client  *RustClient
 }
 
@@ -452,11 +453,11 @@ func (w *timelineWaiter) Wait(t *testing.T, s time.Duration) {
 	for {
 		timeLeft := s - time.Since(start)
 		if timeLeft <= 0 {
-			fatalf(t, "%s (rust): Wait[%s]: timed out", w.client.userID, w.roomID)
+			api.Fatalf(t, "%s (rust): Wait[%s]: timed out", w.client.userID, w.roomID)
 		}
 		select {
 		case <-time.After(timeLeft):
-			fatalf(t, "%s (rust): Wait[%s]: timed out", w.client.userID, w.roomID)
+			api.Fatalf(t, "%s (rust): Wait[%s]: timed out", w.client.userID, w.roomID)
 		case <-updates:
 			return
 		}
@@ -471,7 +472,7 @@ func (l *timelineListener) OnUpdate(diff []*matrix_sdk_ffi.TimelineDiff) {
 	l.fn(diff)
 }
 
-func timelineItemToEvent(item *matrix_sdk_ffi.TimelineItem) *Event {
+func timelineItemToEvent(item *matrix_sdk_ffi.TimelineItem) *api.Event {
 	ev := item.AsEvent()
 	if ev == nil { // e.g day divider
 		return nil
@@ -479,7 +480,7 @@ func timelineItemToEvent(item *matrix_sdk_ffi.TimelineItem) *Event {
 	return eventTimelineItemToEvent(*ev)
 }
 
-func eventTimelineItemToEvent(item *matrix_sdk_ffi.EventTimelineItem) *Event {
+func eventTimelineItemToEvent(item *matrix_sdk_ffi.EventTimelineItem) *api.Event {
 	if item == nil {
 		return nil
 	}
@@ -487,7 +488,7 @@ func eventTimelineItemToEvent(item *matrix_sdk_ffi.EventTimelineItem) *Event {
 	if item.EventId() != nil {
 		eventID = *item.EventId()
 	}
-	complementEvent := Event{
+	complementEvent := api.Event{
 		ID:     eventID,
 		Sender: item.Sender(),
 	}
