@@ -112,8 +112,17 @@ func NewJSClient(t *testing.T, opts api.ClientCreationOpts) (api.Client, error) 
 			},
 		}
 	});`, opts.BaseURL, "true", opts.UserID, deviceID))
+
+	return &api.LoggedClient{Client: jsc}, nil
+}
+
+func (c *JSClient) Login(t *testing.T, opts api.ClientCreationOpts) error {
+	deviceID := "undefined"
+	if opts.DeviceID != "" {
+		deviceID = `"` + opts.DeviceID + `"`
+	}
 	// cannot use loginWithPassword as this generates a new device ID
-	chrome.MustRunAsyncFn[chrome.Void](t, browser.Ctx, fmt.Sprintf(`
+	chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`
 	await window.__client.login("m.login.password", {
 		user: "%s",
 		password: "%s",
@@ -122,7 +131,7 @@ func NewJSClient(t *testing.T, opts api.ClientCreationOpts) (api.Client, error) 
 	await window.__client.initRustCrypto();`, opts.UserID, opts.Password, deviceID))
 
 	// any events need to log the control string so we get notified
-	chrome.MustRunAsyncFn[chrome.Void](t, browser.Ctx, fmt.Sprintf(`
+	chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`
 	window.__client.on("Event.decrypted", function(event) {
 		console.log("%s"+event.getRoomId()+"||"+JSON.stringify(event.getEffectiveEvent()));
 	});
@@ -130,7 +139,7 @@ func NewJSClient(t *testing.T, opts api.ClientCreationOpts) (api.Client, error) 
 		console.log("%s"+event.getRoomId()+"||"+JSON.stringify(event.getEffectiveEvent()));
 	});`, CONSOLE_LOG_CONTROL_STRING, CONSOLE_LOG_CONTROL_STRING))
 
-	return &api.LoggedClient{Client: jsc}, nil
+	return nil
 }
 
 // Close is called to clean up resources.

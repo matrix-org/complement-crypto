@@ -28,6 +28,8 @@ type Client interface {
 	// If we get callbacks/events after this point, tests may panic if the callbacks
 	// log messages.
 	Close(t *testing.T)
+
+	Login(t *testing.T, opts ClientCreationOpts) error
 	// StartSyncing to begin syncing from sync v2 / sliding sync.
 	// Tests should call stopSyncing() at the end of the test.
 	// MUST BLOCK until the initial sync is complete.

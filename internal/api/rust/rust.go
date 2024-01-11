@@ -49,14 +49,6 @@ func NewRustClient(t *testing.T, opts api.ClientCreationOpts, ssURL string) (api
 	if err != nil {
 		return nil, fmt.Errorf("ClientBuilder.Build failed: %s", err)
 	}
-	var deviceID *string
-	if opts.DeviceID != "" {
-		deviceID = &opts.DeviceID
-	}
-	err = client.Login(opts.UserID, opts.Password, nil, deviceID)
-	if err != nil {
-		return nil, fmt.Errorf("Client.Login failed: %s", err)
-	}
 	c := &RustClient{
 		userID:    opts.UserID,
 		FFIClient: client,
@@ -66,6 +58,18 @@ func NewRustClient(t *testing.T, opts api.ClientCreationOpts, ssURL string) (api
 	}
 	c.Logf(t, "NewRustClient[%s] created client", opts.UserID)
 	return &api.LoggedClient{Client: c}, nil
+}
+
+func (c *RustClient) Login(t *testing.T, opts api.ClientCreationOpts) error {
+	var deviceID *string
+	if opts.DeviceID != "" {
+		deviceID = &opts.DeviceID
+	}
+	err := c.FFIClient.Login(opts.UserID, opts.Password, nil, deviceID)
+	if err != nil {
+		return fmt.Errorf("Client.Login failed: %s", err)
+	}
+	return nil
 }
 
 func (c *RustClient) Close(t *testing.T) {

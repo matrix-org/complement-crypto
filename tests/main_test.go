@@ -60,10 +60,12 @@ func MustLoginClient(t *testing.T, clientType api.ClientType, opts api.ClientCre
 	case api.ClientTypeRust:
 		c, err := rust.NewRustClient(t, opts, ssURL)
 		must.NotError(t, "NewRustClient: %s", err)
+		c.Login(t, opts)
 		return c
 	case api.ClientTypeJS:
 		c, err := js.NewJSClient(t, opts)
 		must.NotError(t, "NewJSClient: %s", err)
+		c.Login(t, opts)
 		return c
 	default:
 		t.Fatalf("unknown client type %v", clientType)
