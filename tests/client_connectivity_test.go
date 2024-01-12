@@ -58,7 +58,7 @@ func RunGoProcess(t *testing.T, templateFilename string, templateData any) (*exe
 // Test that if the client is restarted BEFORE getting the /keys/upload response but
 // AFTER the server has processed the request, the keys are not regenerated (which would
 // cause duplicate key IDs with different keys). Requires persistent storage.
-func xTestSigkillBeforeKeysUploadResponse(t *testing.T) {
+func TestSigkillBeforeKeysUploadResponse(t *testing.T) {
 	for _, clientType := range []api.ClientType{{Lang: api.ClientTypeRust, HS: "hs1"}} { // {Lang: api.ClientTypeJS}
 		t.Run(string(clientType.Lang), func(t *testing.T) {
 			var mu sync.Mutex
