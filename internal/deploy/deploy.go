@@ -63,6 +63,7 @@ func (d *SlidingSyncDeployment) lockOptions(t *testing.T, options map[string]int
 	jsonBody, err := json.Marshal(map[string]interface{}{
 		"options": options,
 	})
+	t.Logf("lockOptions: %v", string(jsonBody))
 	must.NotError(t, "failed to marshal options", err)
 	u := magicMITMURL + "/options/lock"
 	req, err := http.NewRequest("POST", u, bytes.NewBuffer(jsonBody))
