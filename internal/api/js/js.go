@@ -6,12 +6,10 @@ import (
 	"os"
 	"strings"
 	"sync/atomic"
-	"testing"
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/api/js/chrome"
-	"github.com/matrix-org/complement/must"
 	"github.com/tidwall/gjson"
 )
 
@@ -47,7 +45,7 @@ type JSClient struct {
 	userID     string
 }
 
-func NewJSClient(t *testing.T, opts api.ClientCreationOpts) (api.Client, error) {
+func NewJSClient(t api.Test, opts api.ClientCreationOpts) (api.Client, error) {
 	jsc := &JSClient{
 		listeners: make(map[int32]func(roomID string, ev api.Event)),
 		userID:    opts.UserID,
@@ -116,7 +114,7 @@ func NewJSClient(t *testing.T, opts api.ClientCreationOpts) (api.Client, error) 
 	return &api.LoggedClient{Client: jsc}, nil
 }
 
-func (c *JSClient) Login(t *testing.T, opts api.ClientCreationOpts) error {
+func (c *JSClient) Login(t api.Test, opts api.ClientCreationOpts) error {
 	deviceID := "undefined"
 	if opts.DeviceID != "" {
 		deviceID = `"` + opts.DeviceID + `"`
@@ -142,11 +140,16 @@ func (c *JSClient) Login(t *testing.T, opts api.ClientCreationOpts) error {
 	return nil
 }
 
+func (c *JSClient) DeletePersistentStorage(t api.Test) {
+	t.Helper()
+	// TODO
+}
+
 // Close is called to clean up resources.
 // Specifically, we need to shut off existing browsers and any FFI bindings.
 // If we get callbacks/events after this point, tests may panic if the callbacks
 // log messages.
-func (c *JSClient) Close(t *testing.T) {
+func (c *JSClient) Close(t api.Test) {
 	c.browser.Cancel()
 	c.listeners = make(map[int32]func(roomID string, ev api.Event))
 }
@@ -155,7 +158,7 @@ func (c *JSClient) UserID() string {
 	return c.userID
 }
 
-func (c *JSClient) MustGetEvent(t *testing.T, roomID, eventID string) api.Event {
+func (c *JSClient) MustGetEvent(t api.Test, roomID, eventID string) api.Event {
 	t.Helper()
 	// serialised output (if encrypted):
 	// {
@@ -197,7 +200,7 @@ func (c *JSClient) MustGetEvent(t *testing.T, roomID, eventID string) api.Event 
 
 // StartSyncing to begin syncing from sync v2 / sliding sync.
 // Tests should call stopSyncing() at the end of the test.
-func (c *JSClient) StartSyncing(t *testing.T) (stopSyncing func()) {
+func (c *JSClient) StartSyncing(t api.Test) (stopSyncing func()) {
 	t.Helper()
 	chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`
 		var fn;
@@ -234,7 +237,7 @@ func (c *JSClient) StartSyncing(t *testing.T) (stopSyncing func()) {
 
 // IsRoomEncrypted returns true if the room is encrypted. May return an error e.g if you
 // provide a bogus room ID.
-func (c *JSClient) IsRoomEncrypted(t *testing.T, roomID string) (bool, error) {
+func (c *JSClient) IsRoomEncrypted(t api.Test, roomID string) (bool, error) {
 	t.Helper()
 	isEncrypted, err := chrome.RunAsyncFn[bool](
 		t, c.browser.Ctx, fmt.Sprintf(`return window.__client.isRoomEncrypted("%s")`, roomID),
@@ -247,14 +250,14 @@ func (c *JSClient) IsRoomEncrypted(t *testing.T, roomID string) (bool, error) {
 
 // SendMessage sends the given text as an m.room.message with msgtype:m.text into the given
 // room.
-func (c *JSClient) SendMessage(t *testing.T, roomID, text string) (eventID string) {
+func (c *JSClient) SendMessage(t api.Test, roomID, text string) (eventID string) {
 	t.Helper()
 	eventID, err := c.TrySendMessage(t, roomID, text)
-	must.NotError(t, "failed to sendMessage", err)
+	api.MustNotError(t, "failed to sendMessage", err)
 	return eventID
 }
 
-func (c *JSClient) TrySendMessage(t *testing.T, roomID, text string) (eventID string, err error) {
+func (c *JSClient) TrySendMessage(t api.Test, roomID, text string) (eventID string, err error) {
 	t.Helper()
 	res, err := chrome.RunAsyncFn[map[string]interface{}](t, c.browser.Ctx, fmt.Sprintf(`
 	return await window.__client.sendMessage("%s", {
@@ -267,14 +270,14 @@ func (c *JSClient) TrySendMessage(t *testing.T, roomID, text string) (eventID st
 	return (*res)["event_id"].(string), nil
 }
 
-func (c *JSClient) MustBackpaginate(t *testing.T, roomID string, count int) {
+func (c *JSClient) MustBackpaginate(t api.Test, roomID string, count int) {
 	t.Helper()
 	chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(
 		`await window.__client.scrollback(window.__client.getRoom("%s"), %d);`, roomID, count,
 	))
 }
 
-func (c *JSClient) MustBackupKeys(t *testing.T) (recoveryKey string) {
+func (c *JSClient) MustBackupKeys(t api.Test) (recoveryKey string) {
 	t.Helper()
 	key := chrome.MustRunAsyncFn[string](t, c.browser.Ctx, `
 		// we need to ensure that we have a recovery key first, though we don't actually care about it..?
@@ -295,7 +298,7 @@ func (c *JSClient) MustBackupKeys(t *testing.T) (recoveryKey string) {
 	return *key
 }
 
-func (c *JSClient) MustLoadBackup(t *testing.T, recoveryKey string) {
+func (c *JSClient) MustLoadBackup(t api.Test, recoveryKey string) {
 	chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`
 		// we assume the recovery key is the private key for the default key id so
 		// figure out what that key id is.
@@ -312,7 +315,7 @@ func (c *JSClient) MustLoadBackup(t *testing.T, recoveryKey string) {
 		recoveryKey))
 }
 
-func (c *JSClient) WaitUntilEventInRoom(t *testing.T, roomID string, checker func(e api.Event) bool) api.Waiter {
+func (c *JSClient) WaitUntilEventInRoom(t api.Test, roomID string, checker func(e api.Event) bool) api.Waiter {
 	t.Helper()
 	return &jsTimelineWaiter{
 		roomID:  roomID,
@@ -321,7 +324,7 @@ func (c *JSClient) WaitUntilEventInRoom(t *testing.T, roomID string, checker fun
 	}
 }
 
-func (c *JSClient) Logf(t *testing.T, format string, args ...interface{}) {
+func (c *JSClient) Logf(t api.Test, format string, args ...interface{}) {
 	t.Helper()
 	formatted := fmt.Sprintf(t.Name()+": "+format, args...)
 	chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`console.log("%s");`, formatted))
@@ -346,7 +349,7 @@ type jsTimelineWaiter struct {
 	client  *JSClient
 }
 
-func (w *jsTimelineWaiter) Wait(t *testing.T, s time.Duration) {
+func (w *jsTimelineWaiter) Wait(t api.Test, s time.Duration) {
 	t.Helper()
 	updates := make(chan bool, 3)
 	cancel := w.client.listenForUpdates(func(roomID string, ev api.Event) {
