@@ -79,7 +79,6 @@ func (c *RustClient) Login(t api.Test, opts api.ClientCreationOpts) error {
 	if err != nil {
 		return fmt.Errorf("Client.Login failed: %s", err)
 	}
-	c.FFIClient.Destroy()
 	return nil
 }
 
