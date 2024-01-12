@@ -14,6 +14,7 @@ import (
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/api/js"
 	"github.com/matrix-org/complement-crypto/internal/api/rust"
+	"github.com/matrix-org/complement/helpers"
 	"github.com/matrix-org/complement/must"
 )
 
@@ -118,25 +119,26 @@ func TestSigkillBeforeKeysUploadResponse(t *testing.T) {
 						BaseURL:  tc.Deployment.ReverseProxyURLForHS(clientType.HS),
 						SSURL:    tc.Deployment.SlidingSyncURL(t),
 					})
-
+				cmd.WaitDelay = 3 * time.Second
 				defer close()
-				var wg sync.WaitGroup
-				wg.Add(1)
-
+				waiter := helpers.NewWaiter()
 				terminateClient = func() {
 					terminated.Store(true)
-					t.Logf("got keys/upload: terminating process")
+					t.Logf("got keys/upload: terminating process %v", cmd.Process.Pid)
 					if err := cmd.Process.Kill(); err != nil {
-						t.Fatalf("failed to kill process: %s", err)
+						t.Errorf("failed to kill process: %s", err)
+						return
 					}
-					cmd.Wait()
+					if err := cmd.Wait(); err != nil {
+						t.Logf("error waiting for process to quit: %v", err)
+					}
 					t.Logf("terminated process")
-					wg.Done()
+					waiter.Finish()
 				}
 				cmd.Stdout = os.Stdout
 				cmd.Stderr = os.Stderr
 				cmd.Start()
-				wg.Wait()
+				waiter.Waitf(t, 5*time.Second, "failed to terminate process")
 				t.Logf("terminated process, making new client")
 				// now make the same client
 				cfg.BaseURL = tc.Deployment.ReverseProxyURLForHS(clientType.HS)
