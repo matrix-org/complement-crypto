@@ -4,16 +4,15 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
-	"os/exec"
 	"sync"
 	"sync/atomic"
 	"testing"
-	"text/template"
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/api/js"
 	"github.com/matrix-org/complement-crypto/internal/api/rust"
+	templates "github.com/matrix-org/complement-crypto/tests/go_templates"
 	"github.com/matrix-org/complement/helpers"
 	"github.com/matrix-org/complement/must"
 )
@@ -27,33 +26,6 @@ type CallbackData struct {
 }
 
 // TODO: move internally
-func RunGoProcess(t *testing.T, templateFilename string, templateData any) (*exec.Cmd, func()) {
-	tmpl, err := template.New(templateFilename).ParseFiles("./templates/" + templateFilename)
-	if err != nil {
-		api.Fatalf(t, "failed to parse template %s : %s", templateFilename, err)
-	}
-	scriptFile, err := os.CreateTemp("./templates", "script_*.go")
-	if err != nil {
-		api.Fatalf(t, "failed to open temporary file: %s", err)
-	}
-	defer scriptFile.Close()
-	if err = tmpl.ExecuteTemplate(scriptFile, templateFilename, templateData); err != nil {
-		api.Fatalf(t, "failed to execute template to file: %s", err)
-	}
-	// TODO: should we build output to the random number?
-	// e.g go build -o ./templates/script ./templates/script_3523965439.go
-	cmd := exec.Command("go", "build", "-o", "./templates/script", scriptFile.Name())
-	t.Logf(cmd.String())
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		t.Fatalf("Failed to build script %s: %s", scriptFile.Name(), err)
-	}
-	return exec.Command("./templates/script"), func() {
-		os.Remove(scriptFile.Name())
-		os.Remove("./templates/script")
-	}
-}
 
 // Test that if the client is restarted BEFORE getting the /keys/upload response but
 // AFTER the server has processed the request, the keys are not regenerated (which would
@@ -105,7 +77,7 @@ func TestSigkillBeforeKeysUploadResponse(t *testing.T) {
 			}, func() {
 				cfg := api.FromComplementClient(tc.Alice, "complement-crypto-password")
 				// run some code in a separate process so we can kill it later
-				cmd, close := RunGoProcess(t, "sigkill_before_keys_upload_response.go",
+				cmd, close := templates.PrepareGoScript(t, "login_rust_client/login_rust_client.go",
 					struct {
 						UserID   string
 						DeviceID string

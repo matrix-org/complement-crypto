@@ -44,7 +44,8 @@ type RustClient struct {
 }
 
 func NewRustClient(t api.Test, opts api.ClientCreationOpts, ssURL string) (api.Client, error) {
-	t.Logf("NewRustClient[%s] creating...", opts.UserID)
+	t.Logf("NewRustClient[%s][%s] creating...", opts.UserID, opts.DeviceID)
+	matrix_sdk_ffi.LogEvent("rust.go", &zero, matrix_sdk_ffi.LogLevelInfo, t.Name(), fmt.Sprintf("NewRustClient[%s][%s] creating...", opts.UserID, opts.DeviceID))
 	ab := matrix_sdk_ffi.NewClientBuilder().HomeserverUrl(opts.BaseURL).SlidingSyncProxy(&ssURL)
 	var username string
 	if opts.PersistentStorage {

@@ -167,7 +167,7 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 				networkName: {"mitmproxy"},
 			},
 			Mounts: testcontainers.Mounts(
-				testcontainers.BindMount(filepath.Join(workingDir, "addons"), "/addons"),
+				testcontainers.BindMount(filepath.Join(workingDir, "mitmproxy_addons"), "/addons"),
 			),
 			HostConfigModifier: func(hc *container.HostConfig) {
 				if runtime.GOOS == "linux" { // Specifically useful for GHA
