@@ -117,7 +117,8 @@ jobs:
           DOCKER_BUILDKIT: 1
       
       - run: |
-        docker ps | grep mitm | grep -Eo '[^ ]*$' | xargs docker logs
+          docker ps | grep mitm | grep -Eo '[^ ]*$' | xargs docker logs
+        name: Debugging 
 
       - name: Upload logs
         uses: actions/upload-artifact@v2
