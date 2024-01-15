@@ -42,8 +42,6 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y libolm3 libolm-dev
           go install -v github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
-          cat /etc/hosts
-          ping -c 1 host.docker.internal
 
       # Install whatever version of the JS SDK is in package.json
       - name: Build JS SDK
