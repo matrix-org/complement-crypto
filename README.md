@@ -1,17 +1,34 @@
 ## Complement-Crypto
+*EXPERIMENTAL: As of Jan 2024 this repo is under active development currently so things will break constantly.*
 
-Complement for Rust SDK crypto.
+Complement Crypto is an end-to-end test suite for next generation Matrix _clients_, designed to test the full spectrum of E2EE APIs. 
 
-**EXPERIMENTAL: As of Jan 2024 this repo is under active development currently so things will break constantly.**
+### Rationale
 
-### What is it? Why?
-
-Complement-Crypto extends the existing Complement test suite to support full end-to-end testing of the Rust SDK. End-to-end testing is defined at the FFI / JS SDK layer through to a real homeserver, a real sliding sync proxy, real federation, to another rust SDK on FFI / JS SDK.
+Complement-Crypto extends the existing Complement test suite to support full end-to-end testing of the Matrix Rust SDK. End-to-end testing is defined at the FFI / JS SDK layer through to a real homeserver, a real sliding sync proxy, real federation, to another rust SDK on FFI / JS SDK.
 
 Why:
-- To detect "unable to decrypt" failures and add regression tests for them.
+- To detect "unable to decrypt" failures and *add regression tests* for them.
 - To ensure cross-client compatibility (e.g mobile clients work with web clients and vice versa).
 - To enable new kinds of security tests (active attacker tests)
+
+Goals:
+- Must work under Github Actions / Gitlab CI/CD.
+- Must be fast (where fast is no slower than the slowest action in CI, in other words it shouldn't be slowing down existing workflows).
+- Must be able to test next-gen clients Element X and Element-Web R (Rust crypto).
+- Must be able to test Synapse.
+- Must be able to test the full spectrum of E2EE tasks (key backups, x-signing, etc)
+- Should be able to test over real federation.
+- Should be able to manipulate network conditions.
+- Should be able to manipulate program state (e.g restart, sigkill, clear storage).
+- Could test other homeservers than Synapse.
+- Could test other clients than rust SDK backed ones.
+- Could provide benchmarking/performance testing.
+
+Anti-Goals:
+- Esoteric test edge cases e.g Synapse worker race conditions, FFI concurrency control issues. For these, a unit test in the respective project would be more appropriate.
+- UI testing. This is not a goal because it slows down tests, is less portable e.g needs emulators and is usually significantly more flakey than no-UI tests.
+
 
 ### How do I run it?
 

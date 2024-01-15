@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"encoding/json"
 	"net/http"
 	"os"
 	"sync"
@@ -10,19 +9,10 @@ import (
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
+	"github.com/matrix-org/complement-crypto/internal/deploy"
 	templates "github.com/matrix-org/complement-crypto/tests/go_templates"
 	"github.com/matrix-org/complement/helpers"
 )
-
-// TODO: move to internal? or addons?!
-type CallbackData struct {
-	Method       string `json:"method"`
-	URL          string `json:"url"`
-	AccessToken  string `json:"access_token"`
-	ResponseCode int    `json:"response_code"`
-}
-
-// TODO: move internally
 
 // Test that if the client is restarted BEFORE getting the /keys/upload response but
 // AFTER the server has processed the request, the keys are not regenerated (which would
@@ -33,60 +23,48 @@ func TestSigkillBeforeKeysUploadResponse(t *testing.T) {
 			var mu sync.Mutex
 			var terminated atomic.Bool
 			var terminateClient func()
-			// TODO: factor out to helper
-			mux := http.NewServeMux()
-			mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-				var data CallbackData
-				if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
-					t.Logf("error decoding json: %s", err)
-					w.WriteHeader(500)
-					return
-				}
-				t.Logf("%v %+v", time.Now(), data)
+			callbackURL, close := deploy.NewCallbackServer(t, func(cd deploy.CallbackData) {
 				if terminated.Load() {
 					// make sure the 2nd upload 200 OKs
-					if data.ResponseCode != 200 {
+					if cd.ResponseCode != 200 {
 						// TODO: Errorf
-						t.Logf("2nd /keys/upload did not 200 OK => got %v", data.ResponseCode)
+						t.Logf("2nd /keys/upload did not 200 OK => got %v", cd.ResponseCode)
 					}
-					w.WriteHeader(200)
-					return // 2nd /keys/upload should go through
+					return
 				}
 				// destroy the client
 				mu.Lock()
 				terminateClient()
 				mu.Unlock()
-				w.WriteHeader(200)
 			})
-			srv := http.Server{
-				Addr:    ":6879",
-				Handler: mux,
-			}
-			defer srv.Close()
-			go srv.ListenAndServe()
+			defer close()
 
 			tc := CreateTestContext(t, clientType, clientType)
 			tc.Deployment.WithMITMOptions(t, map[string]interface{}{
 				"callback": map[string]interface{}{
-					"callback_url": "http://host.docker.internal:6879",
+					"callback_url": callbackURL,
 					"filter":       "~u .*\\/keys\\/upload.*",
 				},
 			}, func() {
 				cfg := api.FromComplementClient(tc.Alice, "complement-crypto-password")
+				cfg.BaseURL = tc.Deployment.ReverseProxyURLForHS(clientType.HS)
+				cfg.PersistentStorage = true
 				// run some code in a separate process so we can kill it later
 				cmd, close := templates.PrepareGoScript(t, "login_rust_client/login_rust_client.go",
 					struct {
-						UserID   string
-						DeviceID string
-						Password string
-						BaseURL  string
-						SSURL    string
+						UserID            string
+						DeviceID          string
+						Password          string
+						BaseURL           string
+						SSURL             string
+						PersistentStorage bool
 					}{
-						UserID:   cfg.UserID,
-						Password: cfg.Password,
-						DeviceID: cfg.DeviceID,
-						BaseURL:  tc.Deployment.ReverseProxyURLForHS(clientType.HS),
-						SSURL:    tc.Deployment.SlidingSyncURL(t),
+						UserID:            cfg.UserID,
+						Password:          cfg.Password,
+						DeviceID:          cfg.DeviceID,
+						BaseURL:           cfg.BaseURL,
+						PersistentStorage: cfg.PersistentStorage,
+						SSURL:             tc.Deployment.SlidingSyncURL(t),
 					})
 				cmd.WaitDelay = 3 * time.Second
 				defer close()
@@ -107,8 +85,6 @@ func TestSigkillBeforeKeysUploadResponse(t *testing.T) {
 				waiter.Waitf(t, 5*time.Second, "failed to terminate process")
 				t.Logf("terminated process, making new client")
 				// now make the same client
-				cfg.BaseURL = tc.Deployment.ReverseProxyURLForHS(clientType.HS)
-				cfg.PersistentStorage = true
 				alice := MustCreateClient(t, clientType, cfg, tc.Deployment.SlidingSyncURL(t))
 				alice.Login(t, cfg) // login should work
 				alice.Close(t)

@@ -16,7 +16,7 @@ func main() {
 		UserID:            "{{.UserID}}",
 		DeviceID:          "{{.DeviceID}}",
 		Password:          "{{.Password}}",
-		PersistentStorage: true,
+		PersistentStorage: {{.PersistentStorage}},
 	}
 	client, err := rust.NewRustClient(t, cfg, "{{.SSURL}}")
 	if err != nil {
