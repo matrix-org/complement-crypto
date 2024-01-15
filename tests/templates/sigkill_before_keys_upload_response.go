@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
@@ -26,18 +24,7 @@ func (t *MockT) Fatalf(f string, args ...any) {
 }
 func (t *MockT) Name() string { return "inline_script" }
 
-func ProcessSignal() {
-	sigch := make(chan os.Signal, 2)
-	signal.Notify(sigch, syscall.SIGUSR2)
-	for {
-		signalType := <-sigch
-		fmt.Println("Received signal SIGUSR2 from channel : ", signalType)
-		panic("terminating...")
-	}
-}
-
 func main() {
-	go ProcessSignal()
 	time.Sleep(time.Second)
 	t := &MockT{}
 	cfg := api.ClientCreationOpts{
