@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -125,12 +126,11 @@ func TestSigkillBeforeKeysUploadResponse(t *testing.T) {
 				terminateClient = func() {
 					terminated.Store(true)
 					t.Logf("got keys/upload: terminating process %v", cmd.Process.Pid)
-					if err := cmd.Process.Kill(); err != nil {
+					kill := exec.Command("kill", "-USR2", strconv.Itoa(cmd.Process.Pid))
+					t.Logf(kill.String())
+					if err := kill.Run(); err != nil {
 						t.Errorf("failed to kill process: %s", err)
 						return
-					}
-					if err := cmd.Wait(); err != nil {
-						t.Logf("error waiting for process to quit: %v", err)
 					}
 					t.Logf("terminated process")
 					waiter.Finish()
