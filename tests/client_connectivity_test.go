@@ -90,7 +90,7 @@ func TestSigkillBeforeKeysUploadResponse(t *testing.T) {
 				w.WriteHeader(200)
 			})
 			srv := http.Server{
-				Addr:    "127.0.0.1:6879",
+				Addr:    ":6879",
 				Handler: mux,
 			}
 			defer srv.Close()
