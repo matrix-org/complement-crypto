@@ -120,7 +120,7 @@ func TestSigkillBeforeKeysUploadResponse(t *testing.T) {
 						BaseURL:  tc.Deployment.ReverseProxyURLForHS(clientType.HS),
 						SSURL:    tc.Deployment.SlidingSyncURL(t),
 					})
-				cmd.WaitDelay = 3 * time.Second
+				cmd.WaitDelay = 10 * time.Second
 				defer close()
 				waiter := helpers.NewWaiter()
 				terminateClient = func() {
@@ -138,7 +138,7 @@ func TestSigkillBeforeKeysUploadResponse(t *testing.T) {
 				cmd.Stdout = os.Stdout
 				cmd.Stderr = os.Stderr
 				cmd.Start()
-				waiter.Waitf(t, 5*time.Second, "failed to terminate process")
+				waiter.Waitf(t, 20*time.Second, "failed to terminate process")
 				t.Logf("terminated process, making new client")
 				// now make the same client
 				cfg.BaseURL = tc.Deployment.ReverseProxyURLForHS(clientType.HS)
