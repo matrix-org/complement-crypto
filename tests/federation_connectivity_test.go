@@ -47,9 +47,13 @@ func TestNewUserCannotGetKeysForOfflineServer(t *testing.T) {
 	csapiBob.MustJoinRoom(t, roomID, []string{"hs1"})
 
 	ss := deployment.SlidingSyncURL(t)
-	alice := MustLoginClient(t, api.ClientType{HS: "hs1", Lang: api.ClientTypeRust}, api.FromComplementClient(csapiAlice, "complement-crypto-password"), ss)
+	alice := MustCreateClient(t,
+		api.ClientType{HS: "hs1", Lang: api.ClientTypeRust},
+		api.FromComplementClient(csapiAlice, "complement-crypto-password"), ss, WithDoLogin(t))
 	defer alice.Close(t)
-	bob := MustLoginClient(t, api.ClientType{HS: "hs2", Lang: api.ClientTypeJS}, api.FromComplementClient(csapiBob, "complement-crypto-password"), ss)
+	bob := MustCreateClient(t,
+		api.ClientType{HS: "hs2", Lang: api.ClientTypeJS},
+		api.FromComplementClient(csapiBob, "complement-crypto-password"), ss, WithDoLogin(t))
 	defer bob.Close(t)
 	aliceStopSyncing := alice.StartSyncing(t)
 	defer aliceStopSyncing()
@@ -71,7 +75,9 @@ func TestNewUserCannotGetKeysForOfflineServer(t *testing.T) {
 
 	// C now joins the room
 	csapiAlice.MustInviteRoom(t, roomID, csapiCharlie.UserID)
-	charlie := MustLoginClient(t, api.ClientType{HS: "hs1", Lang: api.ClientTypeRust}, api.FromComplementClient(csapiCharlie, "complement-crypto-password"), ss)
+	charlie := MustCreateClient(t,
+		api.ClientType{HS: "hs1", Lang: api.ClientTypeRust},
+		api.FromComplementClient(csapiCharlie, "complement-crypto-password"), ss, WithDoLogin(t))
 	defer charlie.Close(t)
 	charlieStopSyncing := charlie.StartSyncing(t)
 	defer charlieStopSyncing()
@@ -163,11 +169,17 @@ func TestExistingSessionCannotGetKeysForOfflineServer(t *testing.T) {
 	csapiBob.MustJoinRoom(t, roomIDbc, []string{"hs1"})
 
 	ss := deployment.SlidingSyncURL(t)
-	alice := MustLoginClient(t, api.ClientType{HS: "hs1", Lang: api.ClientTypeRust}, api.FromComplementClient(csapiAlice, "complement-crypto-password"), ss)
+	alice := MustCreateClient(t,
+		api.ClientType{HS: "hs1", Lang: api.ClientTypeRust},
+		api.FromComplementClient(csapiAlice, "complement-crypto-password"), ss, WithDoLogin(t))
 	defer alice.Close(t)
-	bob := MustLoginClient(t, api.ClientType{HS: "hs2", Lang: api.ClientTypeJS}, api.FromComplementClient(csapiBob, "complement-crypto-password"), ss)
+	bob := MustCreateClient(t,
+		api.ClientType{HS: "hs2", Lang: api.ClientTypeJS},
+		api.FromComplementClient(csapiBob, "complement-crypto-password"), ss, WithDoLogin(t))
 	defer bob.Close(t)
-	charlie := MustLoginClient(t, api.ClientType{HS: "hs1", Lang: api.ClientTypeRust}, api.FromComplementClient(csapiCharlie, "complement-crypto-password"), ss)
+	charlie := MustCreateClient(t,
+		api.ClientType{HS: "hs1", Lang: api.ClientTypeRust},
+		api.FromComplementClient(csapiCharlie, "complement-crypto-password"), ss, WithDoLogin(t))
 	defer charlie.Close(t)
 	aliceStopSyncing := alice.StartSyncing(t)
 	defer aliceStopSyncing()

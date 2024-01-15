@@ -10,11 +10,8 @@ import (
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
-	"github.com/matrix-org/complement-crypto/internal/api/js"
-	"github.com/matrix-org/complement-crypto/internal/api/rust"
 	templates "github.com/matrix-org/complement-crypto/tests/go_templates"
 	"github.com/matrix-org/complement/helpers"
-	"github.com/matrix-org/complement/must"
 )
 
 // TODO: move to internal? or addons?!
@@ -112,29 +109,13 @@ func TestSigkillBeforeKeysUploadResponse(t *testing.T) {
 				// now make the same client
 				cfg.BaseURL = tc.Deployment.ReverseProxyURLForHS(clientType.HS)
 				cfg.PersistentStorage = true
-				alice := mustCreateClient(t, clientType, tc, cfg)
+				alice := MustCreateClient(t, clientType, cfg, tc.Deployment.SlidingSyncURL(t))
 				alice.Login(t, cfg) // login should work
 				alice.Close(t)
 				alice.DeletePersistentStorage(t)
 			})
 		})
 	}
-}
-
-func mustCreateClient(t *testing.T, clientType api.ClientType, tc *TestContext, cfg api.ClientCreationOpts) api.Client {
-	switch clientType.Lang {
-	case api.ClientTypeRust:
-		client, err := rust.NewRustClient(t, cfg, tc.Deployment.SlidingSyncURL(t))
-		must.NotError(t, "NewRustClient: %s", err)
-		return client
-	case api.ClientTypeJS:
-		client, err := js.NewJSClient(t, cfg)
-		must.NotError(t, "NewJSClient: %s", err)
-		return client
-	default:
-		t.Fatalf("unknown client type %v", clientType)
-	}
-	panic("unreachable")
 }
 
 // Test that if a client is unable to call /sendToDevice, it retries.

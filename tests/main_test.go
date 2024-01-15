@@ -55,22 +55,30 @@ func ClientTypeMatrix(t *testing.T, subTest func(tt *testing.T, a, b api.ClientT
 	}
 }
 
-func MustLoginClient(t *testing.T, clientType api.ClientType, opts api.ClientCreationOpts, ssURL string) api.Client {
+func MustCreateClient(t *testing.T, clientType api.ClientType, cfg api.ClientCreationOpts, ssURL string, opts ...func(api.Client, api.ClientCreationOpts)) api.Client {
+	var c api.Client
 	switch clientType.Lang {
 	case api.ClientTypeRust:
-		c, err := rust.NewRustClient(t, opts, ssURL)
+		client, err := rust.NewRustClient(t, cfg, ssURL)
 		must.NotError(t, "NewRustClient: %s", err)
-		c.Login(t, opts)
-		return c
+		c = client
 	case api.ClientTypeJS:
-		c, err := js.NewJSClient(t, opts)
+		client, err := js.NewJSClient(t, cfg)
 		must.NotError(t, "NewJSClient: %s", err)
-		c.Login(t, opts)
-		return c
+		c = client
 	default:
 		t.Fatalf("unknown client type %v", clientType)
 	}
-	panic("unreachable")
+	for _, o := range opts {
+		o(c, cfg)
+	}
+	return c
+}
+
+func WithDoLogin(t *testing.T) func(api.Client, api.ClientCreationOpts) {
+	return func(c api.Client, opts api.ClientCreationOpts) {
+		must.NotError(t, "failed to login", c.Login(t, opts))
+	}
 }
 
 type TestContext struct {
@@ -134,5 +142,7 @@ func LoginClientFromComplementClient(t *testing.T, dep *deploy.SlidingSyncDeploy
 	t.Helper()
 	cfg := api.FromComplementClient(cli, "complement-crypto-password")
 	cfg.BaseURL = dep.ReverseProxyURLForHS(clientType.HS)
-	return MustLoginClient(t, clientType, cfg, dep.SlidingSyncURL(t))
+	client := MustCreateClient(t, clientType, cfg, dep.SlidingSyncURL(t))
+	must.NotError(t, "failed to login client", client.Login(t, cfg))
+	return client
 }
