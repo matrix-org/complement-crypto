@@ -12,11 +12,13 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 	"github.com/matrix-org/complement"
 	"github.com/matrix-org/complement/must"
@@ -167,6 +169,15 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 			Mounts: testcontainers.Mounts(
 				testcontainers.BindMount(filepath.Join(workingDir, "addons"), "/addons"),
 			),
+			HostConfigModifier: func(hc *container.HostConfig) {
+				if runtime.GOOS == "linux" { // Specifically useful for GHA
+					// Ensure that the container can contact the host, so they can
+					// interact with a complement-controlled test server.
+					// Note: this feature of docker landed in Docker 20.10,
+					// see https://github.com/moby/moby/pull/40007
+					hc.ExtraHosts = []string{"host.docker.internal:host-gateway"}
+				}
+			},
 		},
 		Started: true,
 	})
