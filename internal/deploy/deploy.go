@@ -142,6 +142,29 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 		t.Fatalf("failed to find working directory: %s", err)
 	}
 
+	// Make a postgres container
+	postgresContainer, err := testcontainers.GenericContainer(context.Background(), testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:        "postgres:13-alpine",
+			ExposedPorts: []string{"5432/tcp"},
+			Env: map[string]string{
+				"POSTGRES_USER":     "postgres",
+				"POSTGRES_PASSWORD": "postgres",
+				"POSTGRES_DB":       "syncv3",
+			},
+			WaitingFor: wait.ForExec([]string{"pg_isready"}).WithExitCodeMatcher(func(exitCode int) bool {
+				fmt.Println("pg_isready exit code", exitCode)
+				return exitCode == 0
+			}).WithPollInterval(time.Second),
+			Networks: []string{networkName},
+			NetworkAliases: map[string][]string{
+				networkName: {"postgres"},
+			},
+		},
+		Started: true,
+	})
+	must.NotError(t, "failed to start postgres container", err)
+
 	// Make the mitmproxy and hardcode CONTAINER PORTS for hs1/hs2. HOST PORTS are still dynamically allocated.
 	// By running this container on the same network as the homeservers, we can leverage DNS hence hs1/hs2 URLs.
 	// We also need to preload addons into the proxy, so we bind mount the addons directory. This also allows
@@ -185,29 +208,6 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 	rpHS1URL := externalURL(t, mitmproxyContainer, hs1ExposedPort)
 	rpHS2URL := externalURL(t, mitmproxyContainer, hs2ExposedPort)
 	controllerURL := externalURL(t, mitmproxyContainer, controllerExposedPort)
-
-	// Make a postgres container
-	postgresContainer, err := testcontainers.GenericContainer(context.Background(), testcontainers.GenericContainerRequest{
-		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        "postgres:13-alpine",
-			ExposedPorts: []string{"5432/tcp"},
-			Env: map[string]string{
-				"POSTGRES_USER":     "postgres",
-				"POSTGRES_PASSWORD": "postgres",
-				"POSTGRES_DB":       "syncv3",
-			},
-			WaitingFor: wait.ForExec([]string{"pg_isready"}).WithExitCodeMatcher(func(exitCode int) bool {
-				fmt.Println("pg_isready exit code", exitCode)
-				return exitCode == 0
-			}).WithPollInterval(time.Second),
-			Networks: []string{networkName},
-			NetworkAliases: map[string][]string{
-				networkName: {"postgres"},
-			},
-		},
-		Started: true,
-	})
-	must.NotError(t, "failed to start postgres container", err)
 
 	// Make a sliding sync proxy
 	ssExposedPort := "6789/tcp"

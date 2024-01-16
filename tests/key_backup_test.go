@@ -43,7 +43,7 @@ func TestCanBackupKeys(t *testing.T) {
 
 		backupCreator := LoginClientFromComplementClient(t, deployment, csapiAlice, clientTypeA)
 		defer backupCreator.Close(t)
-		stopSyncing := backupCreator.StartSyncing(t)
+		stopSyncing := backupCreator.MustStartSyncing(t)
 		defer stopSyncing()
 
 		body := "An encrypted message"
@@ -68,7 +68,7 @@ func TestCanBackupKeys(t *testing.T) {
 		backupRestorer.MustLoadBackup(t, recoveryKey)
 
 		// new device can decrypt the encrypted message
-		backupRestorerStopSyncing := backupRestorer.StartSyncing(t)
+		backupRestorerStopSyncing := backupRestorer.MustStartSyncing(t)
 		defer backupRestorerStopSyncing()
 		time.Sleep(time.Second)
 		backupRestorer.MustBackpaginate(t, roomID, 5) // get the old message

@@ -120,17 +120,30 @@ func (c *RustClient) MustGetEvent(t api.Test, roomID, eventID string) api.Event 
 	return *ev
 }
 
+func (c *RustClient) MustStartSyncing(t api.Test) (stopSyncing func()) {
+	t.Helper()
+	stopSyncing, err := c.StartSyncing(t)
+	api.MustNotError(t, "StartSyncing", err)
+	return stopSyncing
+}
+
 // StartSyncing to begin syncing from sync v2 / sliding sync.
 // Tests should call stopSyncing() at the end of the test.
-func (c *RustClient) StartSyncing(t api.Test) (stopSyncing func()) {
+func (c *RustClient) StartSyncing(t api.Test) (stopSyncing func(), err error) {
 	t.Helper()
 	syncService, err := c.FFIClient.SyncService().Finish()
-	api.MustNotError(t, fmt.Sprintf("[%s]failed to make sync service", c.userID), err)
+	if err != nil {
+		return nil, fmt.Errorf("[%s]failed to make sync service: %s", c.userID, err)
+	}
 	roomList, err := syncService.RoomListService().AllRooms()
-	api.MustNotError(t, "failed to call SyncService.RoomListService.AllRooms", err)
+	if err != nil {
+		return nil, fmt.Errorf("[%s]failed to call SyncService.RoomListService.AllRooms: %s", c.userID, err)
+	}
 	genericListener := newGenericStateListener[matrix_sdk_ffi.RoomListLoadingState]()
 	result, err := roomList.LoadingState(genericListener)
-	api.MustNotError(t, "failed to call RoomList.LoadingState", err)
+	if err != nil {
+		return nil, fmt.Errorf("[%s]failed to call RoomList.LoadingState: %s", c.userID, err)
+	}
 	go syncService.Start()
 	c.allRooms = roomList
 
@@ -139,7 +152,7 @@ func (c *RustClient) StartSyncing(t api.Test) (stopSyncing func()) {
 	for !isSyncing {
 		select {
 		case <-time.After(5 * time.Second):
-			api.Fatalf(t, "[%s](rust) timed out after 5s StartSyncing", c.userID)
+			return nil, fmt.Errorf("[%s](rust) timed out after 5s StartSyncing", c.userID)
 		case state := <-genericListener.ch:
 			switch state.(type) {
 			case matrix_sdk_ffi.RoomListLoadingStateLoaded:
@@ -156,7 +169,7 @@ func (c *RustClient) StartSyncing(t api.Test) (stopSyncing func()) {
 	return func() {
 		t.Logf("%s: Stopping sync service", c.userID)
 		syncService.Stop()
-	}
+	}, nil
 }
 
 // IsRoomEncrypted returns true if the room is encrypted. May return an error e.g if you

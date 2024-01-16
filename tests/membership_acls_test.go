@@ -36,7 +36,7 @@ func TestAliceBobEncryptionWorks(t *testing.T) {
 		defer bob.Close(t)
 
 		// Alice starts syncing
-		aliceStopSyncing := alice.StartSyncing(t)
+		aliceStopSyncing := alice.MustStartSyncing(t)
 		defer aliceStopSyncing()
 
 		wantMsgBody := "Hello world"
@@ -47,7 +47,7 @@ func TestAliceBobEncryptionWorks(t *testing.T) {
 		must.Equal(t, isEncrypted, true, "room is not encrypted when it should be")
 
 		// Bob starts syncing
-		bobStopSyncing := bob.StartSyncing(t)
+		bobStopSyncing := bob.MustStartSyncing(t)
 		defer bobStopSyncing()
 
 		isEncrypted, err = bob.IsRoomEncrypted(t, roomID)
@@ -88,9 +88,9 @@ func TestCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T) {
 		// Alice and Bob start syncing.
 		// FIXME: Bob must sync before Alice otherwise Alice does not seem to get Bob's device in /keys/query. By putting
 		// Bob first, we ensure that the _first_ device list sync for the room includes Bob.
-		bobStopSyncing := bob.StartSyncing(t)
+		bobStopSyncing := bob.MustStartSyncing(t)
 		defer bobStopSyncing()
-		aliceStopSyncing := alice.StartSyncing(t)
+		aliceStopSyncing := alice.MustStartSyncing(t)
 		defer aliceStopSyncing()
 
 		wantMsgBody := "Message sent when bob is invited not joined"
@@ -146,9 +146,9 @@ func TestBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 		defer bob.Close(t)
 
 		// Alice and Bob start syncing
-		aliceStopSyncing := alice.StartSyncing(t)
+		aliceStopSyncing := alice.MustStartSyncing(t)
 		defer aliceStopSyncing()
-		bobStopSyncing := bob.StartSyncing(t)
+		bobStopSyncing := bob.MustStartSyncing(t)
 		defer bobStopSyncing()
 
 		// Alice sends a message which Bob should not be able to decrypt
@@ -193,9 +193,9 @@ func TestOnRejoinBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 		defer alice.Close(t)
 
 		// Alice and Bob start syncing. Both are in the same room
-		aliceStopSyncing := alice.StartSyncing(t)
+		aliceStopSyncing := alice.MustStartSyncing(t)
 		defer aliceStopSyncing()
-		bobStopSyncing := bob.StartSyncing(t)
+		bobStopSyncing := bob.MustStartSyncing(t)
 		defer bobStopSyncing()
 
 		// Alice sends a message which Bob should be able to decrypt.
@@ -264,9 +264,9 @@ func TestOnNewDeviceBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 		defer alice.Close(t)
 
 		// Alice and Bob start syncing. Both are in the same room
-		aliceStopSyncing := alice.StartSyncing(t)
+		aliceStopSyncing := alice.MustStartSyncing(t)
 		defer aliceStopSyncing()
-		bobStopSyncing := bob.StartSyncing(t)
+		bobStopSyncing := bob.MustStartSyncing(t)
 		defer bobStopSyncing()
 
 		// Alice sends a message which Bob should be able to decrypt.
@@ -278,7 +278,7 @@ func TestOnNewDeviceBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 
 		// now bob logs in on a new device. He should NOT be able to decrypt this event (though can see it due to history visibility)
 		csapiBob2, bob2 := tc.MustLoginDevice(t, tc.Bob, clientTypeB, "NEW_DEVICE")
-		bob2StopSyncing := bob2.StartSyncing(t)
+		bob2StopSyncing := bob2.MustStartSyncing(t)
 		bob2StoppedSyncing := false
 		defer func() {
 			if bob2StoppedSyncing {
@@ -317,7 +317,7 @@ func TestOnNewDeviceBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 
 		// now bob logs in again
 		bob2 = tc.MustLoginClient(t, csapiBob2, clientTypeB)
-		bob2StopSyncingAgain := bob2.StartSyncing(t)
+		bob2StopSyncingAgain := bob2.MustStartSyncing(t)
 		defer bob2StopSyncingAgain()
 
 		time.Sleep(time.Second) // let device keys propagate to alice
@@ -341,9 +341,9 @@ func TestChangingDeviceAfterInviteReEncrypts(t *testing.T) {
 		defer alice.Close(t)
 
 		// Alice and Bob start syncing. Alice is in her own room.
-		aliceStopSyncing := alice.StartSyncing(t)
+		aliceStopSyncing := alice.MustStartSyncing(t)
 		defer aliceStopSyncing()
-		bobStopSyncing := bob.StartSyncing(t)
+		bobStopSyncing := bob.MustStartSyncing(t)
 		defer bobStopSyncing()
 
 		// Alice invites Bob and then she sends an event
@@ -354,7 +354,7 @@ func TestChangingDeviceAfterInviteReEncrypts(t *testing.T) {
 
 		// now Bob logs in on a different device and accepts the invite. The different device should be able to decrypt the message.
 		_, bob2 := tc.MustLoginDevice(t, tc.Bob, clientTypeB, "NEW_DEVICE")
-		bob2StopSyncing := bob2.StartSyncing(t)
+		bob2StopSyncing := bob2.MustStartSyncing(t)
 		defer bob2StopSyncing()
 
 		time.Sleep(time.Second) // let device keys propagate

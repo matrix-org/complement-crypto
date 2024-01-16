@@ -30,10 +30,16 @@ type Client interface {
 	// Remove any persistent storage, if it was enabled.
 	DeletePersistentStorage(t Test)
 	Login(t Test, opts ClientCreationOpts) error
+	// MustStartSyncing to begin syncing from sync v2 / sliding sync.
+	// Tests should call stopSyncing() at the end of the test.
+	// MUST BLOCK until the initial sync is complete.
+	// Fails the test if there was a problem syncing.
+	MustStartSyncing(t Test) (stopSyncing func())
 	// StartSyncing to begin syncing from sync v2 / sliding sync.
 	// Tests should call stopSyncing() at the end of the test.
 	// MUST BLOCK until the initial sync is complete.
-	StartSyncing(t Test) (stopSyncing func())
+	// Returns an error if there was a problem syncing.
+	StartSyncing(t Test) (stopSyncing func(), err error)
 	// IsRoomEncrypted returns true if the room is encrypted. May return an error e.g if you
 	// provide a bogus room ID.
 	IsRoomEncrypted(t Test, roomID string) (bool, error)
@@ -76,10 +82,18 @@ func (c *LoggedClient) Close(t Test) {
 	c.Client.Close(t)
 }
 
-func (c *LoggedClient) StartSyncing(t Test) (stopSyncing func()) {
+func (c *LoggedClient) MustStartSyncing(t Test) (stopSyncing func()) {
+	t.Helper()
+	c.Logf(t, "%s MustStartSyncing starting to sync", c.logPrefix())
+	stopSyncing = c.Client.MustStartSyncing(t)
+	c.Logf(t, "%s MustStartSyncing now syncing", c.logPrefix())
+	return
+}
+
+func (c *LoggedClient) StartSyncing(t Test) (stopSyncing func(), err error) {
 	t.Helper()
 	c.Logf(t, "%s StartSyncing starting to sync", c.logPrefix())
-	stopSyncing = c.Client.StartSyncing(t)
+	stopSyncing, err = c.Client.StartSyncing(t)
 	c.Logf(t, "%s StartSyncing now syncing", c.logPrefix())
 	return
 }

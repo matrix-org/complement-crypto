@@ -9,6 +9,9 @@
     window.decodeRecoveryKey = decodeRecoveryKey;
     import * as sdk from "matrix-js-sdk";
     window.matrix = sdk;
+    import { IndexedDBStore, IndexedDBCryptoStore } from "matrix-js-sdk/src/matrix";
+    window.IndexedDBCryptoStore = IndexedDBCryptoStore;
+    window.IndexedDBStore = IndexedDBStore;
   </script>
 </head>
 

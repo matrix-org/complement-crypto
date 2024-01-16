@@ -55,9 +55,9 @@ func TestNewUserCannotGetKeysForOfflineServer(t *testing.T) {
 		api.ClientType{HS: "hs2", Lang: api.ClientTypeJS},
 		api.FromComplementClient(csapiBob, "complement-crypto-password"), ss, WithDoLogin(t))
 	defer bob.Close(t)
-	aliceStopSyncing := alice.StartSyncing(t)
+	aliceStopSyncing := alice.MustStartSyncing(t)
 	defer aliceStopSyncing()
-	bobStopSyncing := bob.StartSyncing(t)
+	bobStopSyncing := bob.MustStartSyncing(t)
 	defer bobStopSyncing()
 
 	// let clients sync device keys
@@ -79,7 +79,7 @@ func TestNewUserCannotGetKeysForOfflineServer(t *testing.T) {
 		api.ClientType{HS: "hs1", Lang: api.ClientTypeRust},
 		api.FromComplementClient(csapiCharlie, "complement-crypto-password"), ss, WithDoLogin(t))
 	defer charlie.Close(t)
-	charlieStopSyncing := charlie.StartSyncing(t)
+	charlieStopSyncing := charlie.MustStartSyncing(t)
 	defer charlieStopSyncing()
 	csapiCharlie.MustJoinRoom(t, roomID, []string{"hs1"})
 
@@ -181,11 +181,11 @@ func TestExistingSessionCannotGetKeysForOfflineServer(t *testing.T) {
 		api.ClientType{HS: "hs1", Lang: api.ClientTypeRust},
 		api.FromComplementClient(csapiCharlie, "complement-crypto-password"), ss, WithDoLogin(t))
 	defer charlie.Close(t)
-	aliceStopSyncing := alice.StartSyncing(t)
+	aliceStopSyncing := alice.MustStartSyncing(t)
 	defer aliceStopSyncing()
-	bobStopSyncing := bob.StartSyncing(t)
+	bobStopSyncing := bob.MustStartSyncing(t)
 	defer bobStopSyncing()
-	charlieStopSyncing := charlie.StartSyncing(t)
+	charlieStopSyncing := charlie.MustStartSyncing(t)
 	defer charlieStopSyncing()
 
 	// let clients sync device keys

@@ -11,6 +11,8 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
@@ -68,7 +70,7 @@ type Browser struct {
 	Cancel  func()
 }
 
-func RunHeadless(onConsoleLog func(s string)) (*Browser, error) {
+func RunHeadless(onConsoleLog func(s string), requiresPersistance bool, listenPort int) (*Browser, error) {
 	ansiRedForeground := "\x1b[31m"
 	ansiResetForeground := "\x1b[39m"
 
@@ -76,7 +78,19 @@ func RunHeadless(onConsoleLog func(s string)) (*Browser, error) {
 		format = ansiRedForeground + time.Now().Format(time.RFC3339) + " " + format + ansiResetForeground
 		fmt.Printf(format, args...)
 	}
-	ctx, cancel := chromedp.NewContext(context.Background(), chromedp.WithBrowserOption(
+	opts := chromedp.DefaultExecAllocatorOptions[:]
+	if requiresPersistance {
+		os.Mkdir("chromedp", os.ModePerm) // ignore errors to allow repeated runs
+		wd, _ := os.Getwd()
+		userDir := filepath.Join(wd, "chromedp")
+		opts = append(opts,
+			chromedp.UserDataDir(userDir),
+		)
+		fmt.Println(userDir)
+	}
+
+	allocCtx, allocCancel := chromedp.NewExecAllocator(context.Background(), opts...)
+	ctx, cancel := chromedp.NewContext(allocCtx, chromedp.WithBrowserOption(
 		chromedp.WithBrowserLogf(colorifyError), chromedp.WithBrowserErrorf(colorifyError), //chromedp.WithBrowserDebugf(log.Printf),
 	))
 
@@ -106,11 +120,11 @@ func RunHeadless(onConsoleLog func(s string)) (*Browser, error) {
 	wg.Add(1)
 	mux := &http.ServeMux{}
 	mux.Handle("/", http.FileServer(http.FS(c)))
+	srv := &http.Server{
+		Addr:    fmt.Sprintf("127.0.0.1:%d", listenPort),
+		Handler: mux,
+	}
 	startServer := func() {
-		srv := &http.Server{
-			Addr:    "127.0.0.1:0",
-			Handler: mux,
-		}
 		ln, err := net.Listen("tcp", srv.Addr)
 		if err != nil {
 			panic(err)
@@ -133,8 +147,12 @@ func RunHeadless(onConsoleLog func(s string)) (*Browser, error) {
 	}
 
 	return &Browser{
-		Ctx:     ctx,
-		Cancel:  cancel,
+		Ctx: ctx,
+		Cancel: func() {
+			cancel()
+			allocCancel()
+			srv.Close()
+		},
 		BaseURL: baseJSURL,
 	}, nil
 }
