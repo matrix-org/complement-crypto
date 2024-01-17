@@ -29,6 +29,6 @@ The client test matrix to run. Every test is run for each given permutation. The
 - Default: jj,jr,rj,rr
 
 #### `COMPLEMENT_CRYPTO_WRITE_CONTAINER_LOGS`
-If 1, writes container logs to ./tests. Useful as a debugging tool.  
+If 1, writes container logs to ./tests/logs. Useful as a debugging tool.  
 - Type: `bool`
 - Default: 0

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
-	"github.com/matrix-org/complement-crypto/rust/matrix_sdk_ffi"
+	"github.com/matrix-org/complement-crypto/internal/api/rust/matrix_sdk_ffi"
 	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/complement/must"
 	"golang.org/x/exp/slices"

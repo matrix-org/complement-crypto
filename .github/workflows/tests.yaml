@@ -46,9 +46,9 @@ jobs:
       # Install whatever version of the JS SDK is in package.json
       - name: Build JS SDK
         run: |
-          cat ./js-sdk/package.json
-          (cd js-sdk && yarn install --frozen-lockfile && yarn build)
-          cp -r ./js-sdk/dist/. ./internal/api/js/chrome/dist
+          cat ./internal/api/js/js-sdk/package.json
+          (cd ./internal/api/js/js-sdk && yarn install --frozen-lockfile && yarn build)
+          cp -r ./internal/api/js/js-sdk/dist/. ./internal/api/js/chrome/dist
 
       - name: Build Rust FFI bindings
         run: |
