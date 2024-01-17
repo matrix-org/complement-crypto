@@ -97,7 +97,7 @@ func TestSigkillBeforeKeysUploadResponseRust(t *testing.T) {
 	})
 }
 
-func xTestSigkillBeforeKeysUploadResponseJS(t *testing.T) {
+func TestSigkillBeforeKeysUploadResponseJS(t *testing.T) {
 	clientType := api.ClientType{Lang: api.ClientTypeJS, HS: "hs1"}
 	var mu sync.Mutex
 	var terminated atomic.Bool
@@ -110,8 +110,7 @@ func xTestSigkillBeforeKeysUploadResponseJS(t *testing.T) {
 		if terminated.Load() {
 			// make sure the 2nd upload 200 OKs
 			if cd.ResponseCode != 200 {
-				// TODO: Errorf FIXME
-				t.Logf("2nd /keys/upload did not 200 OK => got %v", cd.ResponseCode)
+				api.Errorf(t, "2nd /keys/upload did not 200 OK => got %v", cd.ResponseCode)
 			}
 			seenSecondKeysUploadWaiter.Finish()
 			return

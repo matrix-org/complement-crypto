@@ -84,12 +84,11 @@ func NewJSClient(t api.Test, opts api.ClientCreationOpts) (api.Client, error) {
 		return nil, fmt.Errorf("failed to RunHeadless: %s", err)
 	}
 	jsc.browser = browser
-	/*
-		chrome.MustRunAsyncFn[chrome.Void](t, browser.Ctx, `
+	chrome.MustRunAsyncFn[chrome.Void](t, browser.Ctx, `
 		const databases = await indexedDB.databases();
 		console.log("====STARTUP=============== idb " + JSON.stringify(databases));
 		console.log("=================== localstorage len", window.localStorage.length);
-	`) */
+	`)
 
 	// now login
 	deviceID := "undefined"
@@ -99,12 +98,19 @@ func NewJSClient(t api.Test, opts api.ClientCreationOpts) (api.Client, error) {
 	store := "undefined"
 	cryptoStore := "undefined"
 	if opts.PersistentStorage {
-		store = fmt.Sprintf(`new IndexedDBStore({
+		// TODO: Cannot Must this because of a bug in JS SDK
+		// "Uncaught (in promise) Error: createUser is undefined, it should be set with setUserCreator()!"
+		// https://github.com/matrix-org/matrix-js-sdk/blob/76b9c3950bfdfca922bec7f70502ff2da93bd731/src/store/indexeddb.ts#L143
+		chrome.RunAsyncFn[chrome.Void](t, browser.Ctx, fmt.Sprintf(`
+		window.__store = new IndexedDBStore({
 			indexedDB: window.indexedDB,
 			dbName: "%s",
 			localStorage: window.localStorage,
-		})`, indexedDBName)
-		cryptoStore = fmt.Sprintf(`new IndexedDBCryptoStore(indexedDB, "%s")`, indexedDBCryptoName)
+		});
+		await window.__store.startup();
+		`, indexedDBName))
+		store = "window.__store"
+		//cryptoStore = fmt.Sprintf(`new IndexedDBCryptoStore(indexedDB, "%s")`, indexedDBCryptoName)
 		// remember the port for same-origin to remember the store
 		u, _ := url.Parse(browser.BaseURL)
 		portStr := u.Port()
@@ -215,12 +221,11 @@ func (c *JSClient) DeletePersistentStorage(t api.Test) {
 // If we get callbacks/events after this point, tests may panic if the callbacks
 // log messages.
 func (c *JSClient) Close(t api.Test) {
-	/*
-		chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `
+	chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `
 		const databases = await indexedDB.databases();
 		console.log("====CLOSE======= idb " + JSON.stringify(databases));
 		console.log("=================== localstorage len", window.localStorage.length);
-	`) */
+	`)
 	c.browser.Cancel()
 	c.listeners = make(map[int32]func(roomID string, ev api.Event))
 }
