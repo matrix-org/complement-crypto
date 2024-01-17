@@ -24,7 +24,7 @@ jobs:
         with:
           node-version: 18
           cache: 'yarn'
-          cache-dependency-path: "js-sdk/yarn.lock"
+          cache-dependency-path: "internal/api/js/js-sdk/yarn.lock"
       - name: Setup | Go
         uses: actions/setup-go@v4
       - name: Setup | Rust
