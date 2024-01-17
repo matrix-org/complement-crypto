@@ -60,6 +60,8 @@ type Client interface {
 	MustBackupKeys(t ct.TestLike) (recoveryKey string)
 	// MustLoadBackup will recover E2EE keys from the latest backup, else fail the test.
 	MustLoadBackup(t ct.TestLike, recoveryKey string)
+	// LoadBackup will recover E2EE keys from the latest backup, else return an error.
+	LoadBackup(t ct.TestLike, recoveryKey string) error
 	// Log something to stdout and the underlying client log file
 	Logf(t ct.TestLike, format string, args ...interface{})
 	// The user for this client
@@ -145,6 +147,12 @@ func (c *LoggedClient) MustLoadBackup(t ct.TestLike, recoveryKey string) {
 	t.Helper()
 	c.Logf(t, "%s MustLoadBackup key=%s", c.logPrefix(), recoveryKey)
 	c.Client.MustLoadBackup(t, recoveryKey)
+}
+
+func (c *LoggedClient) LoadBackup(t ct.TestLike, recoveryKey string) error {
+	t.Helper()
+	c.Logf(t, "%s LoadBackup key=%s", c.logPrefix(), recoveryKey)
+	return c.Client.LoadBackup(t, recoveryKey)
 }
 
 func (c *LoggedClient) DeletePersistentStorage(t ct.TestLike) {

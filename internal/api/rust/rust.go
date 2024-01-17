@@ -208,9 +208,14 @@ func (c *RustClient) MustBackupKeys(t ct.TestLike) (recoveryKey string) {
 	return recoveryKey
 }
 
+func (c *RustClient) LoadBackup(t ct.TestLike, recoveryKey string) error {
+	t.Helper()
+	return c.FFIClient.Encryption().Recover(recoveryKey)
+}
+
 func (c *RustClient) MustLoadBackup(t ct.TestLike, recoveryKey string) {
 	t.Helper()
-	must.NotError(t, "Recover", c.FFIClient.Encryption().Recover(recoveryKey))
+	c.LoadBackup(t, recoveryKey)
 }
 
 func (c *RustClient) WaitUntilEventInRoom(t ct.TestLike, roomID string, checker func(api.Event) bool) api.Waiter {

@@ -8,7 +8,7 @@ Membership ACLs:
 
 Key backups:
 - [x] New device for Alice cannot decrypt previous messages. Backups can be made on Alice's first device. Alice's new device can download the backup and decrypt the messages. Check backups work cross-platform (e.g create on rust, restore on JS and vice versa).
-- [ ] Inputting the wrong recovery key fails to decrypt the backup.
+- [x] Inputting the wrong recovery key fails to decrypt the backup.
 
 One-time Keys:
 - [ ] When Alice runs out of OTKs, local users use the fallback key.

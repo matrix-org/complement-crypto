@@ -387,7 +387,11 @@ func (c *JSClient) MustBackupKeys(t ct.TestLike) (recoveryKey string) {
 }
 
 func (c *JSClient) MustLoadBackup(t ct.TestLike, recoveryKey string) {
-	chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`
+	must.NotError(t, "failed to load backup", c.LoadBackup(t, recoveryKey))
+}
+
+func (c *JSClient) LoadBackup(t ct.TestLike, recoveryKey string) error {
+	_, err := chrome.RunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`
 		// we assume the recovery key is the private key for the default key id so
 		// figure out what that key id is.
 		const keyId = await window.__client.secretStorage.getDefaultKeyId();
@@ -401,6 +405,7 @@ func (c *JSClient) MustLoadBackup(t ct.TestLike, recoveryKey string) {
 		console.log("key backup: ", JSON.stringify(keyBackupCheck));
 		await window.__client.restoreKeyBackupWithSecretStorage(keyBackupCheck ? keyBackupCheck.backupInfo : null, undefined, undefined);`,
 		recoveryKey))
+	return err
 }
 
 func (c *JSClient) WaitUntilEventInRoom(t ct.TestLike, roomID string, checker func(e api.Event) bool) api.Waiter {
