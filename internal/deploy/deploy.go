@@ -82,6 +82,7 @@ func (d *SlidingSyncDeployment) lockOptions(t *testing.T, options map[string]int
 }
 
 func (d *SlidingSyncDeployment) unlockOptions(t *testing.T, lockID []byte) {
+	t.Logf("unlockOptions")
 	req, err := http.NewRequest("POST", magicMITMURL+"/options/unlock", bytes.NewBuffer(lockID))
 	must.NotError(t, "failed to prepare request", err)
 	req.Header.Set("Content-Type", "application/json")
@@ -111,7 +112,7 @@ func (d *SlidingSyncDeployment) Teardown(writeLogs bool) {
 				log.Printf("failed to get logs for file %s: %s", filename, err)
 				continue
 			}
-			err = writeContainerLogs(logs, "container-sliding-sync.log")
+			err = writeContainerLogs(logs, filename)
 			if err != nil {
 				log.Printf("failed to write logs to %s: %s", filename, err)
 			}
@@ -250,7 +251,7 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 	ssContainer, err := testcontainers.GenericContainer(ctx,
 		testcontainers.GenericContainerRequest{
 			ContainerRequest: testcontainers.ContainerRequest{
-				Image:        "ghcr.io/matrix-org/sliding-sync:v0.99.12",
+				Image:        "ghcr.io/matrix-org/sliding-sync:v0.99.14",
 				ExposedPorts: []string{ssExposedPort},
 				Env: map[string]string{
 					"SYNCV3_SECRET":   "secret",

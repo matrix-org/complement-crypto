@@ -4,6 +4,8 @@ from mitmproxy import ctx, flowfilter
 from mitmproxy.http import Response
 from controller import MITM_DOMAIN_NAME
 
+# StatusCode will intercept a response and return the provided status code in its place, with
+# no response body. Supports filters: https://docs.mitmproxy.org/stable/concepts-filters/
 class StatusCode:
     def __init__(self):
         self.reset()
@@ -14,6 +16,7 @@ class StatusCode:
     def reset(self):
         self.config = {
             "return_status": 0,
+            "block_request": False,
             "filter": None,
         }
 
@@ -21,7 +24,7 @@ class StatusCode:
         loader.add_option(
             name="statuscode",
             typespec=dict,
-            default={"return_status": 0, "filter": None},
+            default={"return_status": 0, "filter": None, "block_request": False},
             help="Change the response status code, with an optional filter",
         )
 
@@ -39,6 +42,16 @@ class StatusCode:
             self.filter = flowfilter.parse(new_filter)
         else:
             self.filter = self.matchall
+
+    def request(self, flow):
+        # always ignore the controller
+        if flow.request.pretty_host == MITM_DOMAIN_NAME:
+            return
+        if self.config["return_status"] == 0:
+            return # ignore responses if we aren't told a code
+        if self.config["block_request"] and flowfilter.match(self.filter, flow):
+            print(f'statuscode: blocking request and sending back {self.config["return_status"]}')
+            flow.response = Response.make(self.config["return_status"])
 
     def response(self, flow):
         # always ignore the controller
