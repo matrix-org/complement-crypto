@@ -19,7 +19,7 @@ import (
 
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
-	"github.com/matrix-org/complement-crypto/internal/api"
+	"github.com/matrix-org/complement/ct"
 )
 
 //go:embed dist
@@ -36,7 +36,7 @@ type Void *runtime.RemoteObject
 //
 //	result, err := RunAsyncFn[string](t, ctx, "return await getSomeString()")
 //	void, err := RunAsyncFn[chrome.Void](t, ctx, "doSomething(); await doSomethingElse();")
-func RunAsyncFn[T any](t api.Test, ctx context.Context, js string) (*T, error) {
+func RunAsyncFn[T any](t ct.TestLike, ctx context.Context, js string) (*T, error) {
 	t.Helper()
 	out := new(T)
 	err := chromedp.Run(ctx,
@@ -55,11 +55,11 @@ func RunAsyncFn[T any](t api.Test, ctx context.Context, js string) (*T, error) {
 // Run an anonymous async iffe in the browser. Set the type parameter to a basic data type
 // which can be returned as JSON e.g string, map[string]any, []string. If you do not want
 // to return anything, use chrome.Void
-func MustRunAsyncFn[T any](t api.Test, ctx context.Context, js string) *T {
+func MustRunAsyncFn[T any](t ct.TestLike, ctx context.Context, js string) *T {
 	t.Helper()
 	result, err := RunAsyncFn[T](t, ctx, js)
 	if err != nil {
-		api.Fatalf(t, "MustRunAsyncFn: %s", err)
+		ct.Fatalf(t, "MustRunAsyncFn: %s", err)
 	}
 	return result
 }
@@ -86,7 +86,6 @@ func RunHeadless(onConsoleLog func(s string), requiresPersistance bool, listenPo
 		opts = append(opts,
 			chromedp.UserDataDir(userDir),
 		)
-		fmt.Println(userDir)
 	}
 
 	allocCtx, allocCancel := chromedp.NewExecAllocator(context.Background(), opts...)

@@ -11,6 +11,7 @@ import (
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/deploy"
 	templates "github.com/matrix-org/complement-crypto/tests/go_templates"
+	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/complement/helpers"
 	"github.com/matrix-org/complement/must"
 )
@@ -110,7 +111,7 @@ func TestSigkillBeforeKeysUploadResponseJS(t *testing.T) {
 		if terminated.Load() {
 			// make sure the 2nd upload 200 OKs
 			if cd.ResponseCode != 200 {
-				api.Errorf(t, "2nd /keys/upload did not 200 OK => got %v", cd.ResponseCode)
+				ct.Errorf(t, "2nd /keys/upload did not 200 OK => got %v", cd.ResponseCode)
 			}
 			seenSecondKeysUploadWaiter.Finish()
 			return

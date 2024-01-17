@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/matrix-org/complement-crypto/internal/api"
+	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/complement/must"
 )
 
@@ -27,7 +27,7 @@ func NewCallbackServer(t *testing.T, cb func(CallbackData)) (callbackURL string,
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		var data CallbackData
 		if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
-			api.Errorf(t, "error decoding json: %s", err)
+			ct.Errorf(t, "error decoding json: %s", err)
 			w.WriteHeader(500)
 			return
 		}

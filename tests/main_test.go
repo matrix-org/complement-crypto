@@ -25,7 +25,7 @@ var (
 func TestMain(m *testing.M) {
 	complementCryptoConfig = config.NewComplementCryptoConfigFromEnvVars()
 	ssMutex = &sync.Mutex{}
-	js.SetupJSLogs("js_sdk.log")                         // rust sdk logs on its own
+	js.SetupJSLogs("./logs/js_sdk.log")                  // rust sdk logs on its own
 	complement.TestMainWithCleanup(m, "crypto", func() { // always teardown even if panicking
 		ssMutex.Lock()
 		if ssDeployment != nil {

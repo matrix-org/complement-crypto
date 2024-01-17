@@ -13,7 +13,7 @@ import (
 type ComplementCrypto struct {
 	// Name: COMPLEMENT_CRYPTO_WRITE_CONTAINER_LOGS
 	// Default: 0
-	// Description: If 1, writes container logs to ./tests. Useful as a debugging tool.
+	// Description: If 1, writes container logs to ./tests/logs. Useful as a debugging tool.
 	WriteContainerLogs bool
 
 	// Name: COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX

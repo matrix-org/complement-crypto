@@ -18,9 +18,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 	"github.com/matrix-org/complement"
+	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement/must"
 	testcontainers "github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -95,13 +97,53 @@ func (d *SlidingSyncDeployment) ReverseProxyURLForHS(hsName string) string {
 }
 
 func (d *SlidingSyncDeployment) Teardown(writeLogs bool) {
-	if d.slidingSync != nil {
-		if writeLogs {
-			err := writeContainerLogs(d.slidingSync, "container-sliding-sync.log")
+	if writeLogs {
+		containers := map[string]testcontainers.Container{
+			"container-sliding-sync.log": d.slidingSync,
+			"container-mitmproxy.log":    d.reverseProxy,
+		}
+		for filename, c := range containers {
+			if c == nil {
+				continue
+			}
+			logs, err := c.Logs(context.Background())
 			if err != nil {
-				log.Printf("failed to write sliding sync logs: %s", err)
+				log.Printf("failed to get logs for file %s: %s", filename, err)
+				continue
+			}
+			err = writeContainerLogs(logs, "container-sliding-sync.log")
+			if err != nil {
+				log.Printf("failed to write logs to %s: %s", filename, err)
 			}
 		}
+		// and HSes..
+		dockerClient, err := testcontainers.NewDockerClientWithOpts(context.Background())
+		if err != nil {
+			log.Printf("failed to write HS container logs, failed to make docker client: %s", err)
+		} else {
+			filenameToContainerID := map[string]string{
+				"container-hs1.log": d.Deployment.ContainerID(&api.MockT{}, "hs1"),
+				"container-hs2.log": d.Deployment.ContainerID(&api.MockT{}, "hs2"),
+			}
+			for filename, containerID := range filenameToContainerID {
+				logs, err := dockerClient.ContainerLogs(context.Background(), containerID, types.ContainerLogsOptions{
+					ShowStdout: true,
+					ShowStderr: true,
+					Follow:     false,
+				})
+				if err != nil {
+					log.Printf("failed to get logs for container %s: %s", containerID, err)
+					continue
+				}
+				err = writeContainerLogs(logs, filename)
+				if err != nil {
+					log.Printf("failed to write logs to %s: %s", filename, err)
+				}
+			}
+		}
+	}
+
+	if d.slidingSync != nil {
 		if err := d.slidingSync.Terminate(context.Background()); err != nil {
 			log.Fatalf("failed to stop sliding sync: %s", err)
 		}
@@ -112,12 +154,6 @@ func (d *SlidingSyncDeployment) Teardown(writeLogs bool) {
 		}
 	}
 	if d.reverseProxy != nil {
-		if writeLogs {
-			err := writeContainerLogs(d.reverseProxy, "container-mitmproxy.log")
-			if err != nil {
-				log.Printf("failed to write sliding sync logs: %s", err)
-			}
-		}
 		if err := d.reverseProxy.Terminate(context.Background()); err != nil {
 			log.Fatalf("failed to stop reverse proxy: %s", err)
 		}
@@ -300,16 +336,12 @@ func externalURL(t *testing.T, c testcontainers.Container, exposedPort string) s
 	return fmt.Sprintf("http://%s:%s", host, mappedPort.Port())
 }
 
-func writeContainerLogs(container testcontainers.Container, filename string) error {
-	w, err := os.Create(filename)
+func writeContainerLogs(readCloser io.ReadCloser, filename string) error {
+	w, err := os.Create("./logs/" + filename)
 	if err != nil {
 		return fmt.Errorf("os.Create: %s", err)
 	}
-	reader, err := container.Logs(context.Background())
-	if err != nil {
-		return fmt.Errorf("container.Logs: %s", err)
-	}
-	_, err = io.Copy(w, reader)
+	_, err = io.Copy(w, readCloser)
 	if err != nil {
 		return fmt.Errorf("io.Copy: %s", err)
 	}

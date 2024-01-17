@@ -1,0 +1,1 @@
+Logs from Rust SDK and JS SDK will be stored in this location. If `COMPLEMENT_CRYPTO_WRITE_CONTAINER_LOGS` is set, container logs are also stored here.

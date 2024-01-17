@@ -120,5 +120,4 @@ jobs:
         with:
           name: Logs - ${{ job.status }}
           path: |
-            ./tests/rust_sdk_logs*
-            ./tests/*.log
+            ./tests/logs/*

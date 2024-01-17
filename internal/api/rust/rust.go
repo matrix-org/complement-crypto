@@ -10,6 +10,8 @@ import (
 
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/rust/matrix_sdk_ffi"
+	"github.com/matrix-org/complement/ct"
+	"github.com/matrix-org/complement/must"
 	"golang.org/x/exp/slices"
 )
 
@@ -18,7 +20,7 @@ func init() {
 		WriteToStdoutOrSystem: false,
 		Filter:                "debug",
 		WriteToFiles: &matrix_sdk_ffi.TracingFileConfiguration{
-			Path:       ".",
+			Path:       "./logs",
 			FilePrefix: "rust_sdk_logs",
 		},
 	})
@@ -43,7 +45,7 @@ type RustClient struct {
 	persistentStoragePath string
 }
 
-func NewRustClient(t api.Test, opts api.ClientCreationOpts, ssURL string) (api.Client, error) {
+func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts, ssURL string) (api.Client, error) {
 	t.Logf("NewRustClient[%s][%s] creating...", opts.UserID, opts.DeviceID)
 	matrix_sdk_ffi.LogEvent("rust.go", &zero, matrix_sdk_ffi.LogLevelInfo, t.Name(), fmt.Sprintf("NewRustClient[%s][%s] creating...", opts.UserID, opts.DeviceID))
 	ab := matrix_sdk_ffi.NewClientBuilder().HomeserverUrl(opts.BaseURL).SlidingSyncProxy(&ssURL)
@@ -71,7 +73,7 @@ func NewRustClient(t api.Test, opts api.ClientCreationOpts, ssURL string) (api.C
 	return &api.LoggedClient{Client: c}, nil
 }
 
-func (c *RustClient) Login(t api.Test, opts api.ClientCreationOpts) error {
+func (c *RustClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {
 	var deviceID *string
 	if opts.DeviceID != "" {
 		deviceID = &opts.DeviceID
@@ -83,17 +85,17 @@ func (c *RustClient) Login(t api.Test, opts api.ClientCreationOpts) error {
 	return nil
 }
 
-func (c *RustClient) DeletePersistentStorage(t api.Test) {
+func (c *RustClient) DeletePersistentStorage(t ct.TestLike) {
 	t.Helper()
 	if c.persistentStoragePath != "" {
 		err := os.RemoveAll(c.persistentStoragePath)
 		if err != nil {
-			api.Fatalf(t, "DeletePersistentStorage: %s", err)
+			ct.Fatalf(t, "DeletePersistentStorage: %s", err)
 		}
 	}
 }
 
-func (c *RustClient) Close(t api.Test) {
+func (c *RustClient) Close(t ct.TestLike) {
 	t.Helper()
 	c.roomsMu.Lock()
 	for _, rri := range c.rooms {
@@ -106,30 +108,30 @@ func (c *RustClient) Close(t api.Test) {
 	c.FFIClient.Destroy()
 }
 
-func (c *RustClient) MustGetEvent(t api.Test, roomID, eventID string) api.Event {
+func (c *RustClient) MustGetEvent(t ct.TestLike, roomID, eventID string) api.Event {
 	t.Helper()
 	room := c.findRoom(t, roomID)
 	timelineItem, err := room.Timeline().GetEventTimelineItemByEventId(eventID)
 	if err != nil {
-		api.Fatalf(t, "MustGetEvent(rust) %s (%s, %s): %s", c.userID, roomID, eventID, err)
+		ct.Fatalf(t, "MustGetEvent(rust) %s (%s, %s): %s", c.userID, roomID, eventID, err)
 	}
 	ev := eventTimelineItemToEvent(timelineItem)
 	if ev == nil {
-		api.Fatalf(t, "MustGetEvent(rust) %s (%s, %s): found timeline item but failed to convert it to an Event", c.userID, roomID, eventID)
+		ct.Fatalf(t, "MustGetEvent(rust) %s (%s, %s): found timeline item but failed to convert it to an Event", c.userID, roomID, eventID)
 	}
 	return *ev
 }
 
-func (c *RustClient) MustStartSyncing(t api.Test) (stopSyncing func()) {
+func (c *RustClient) MustStartSyncing(t ct.TestLike) (stopSyncing func()) {
 	t.Helper()
 	stopSyncing, err := c.StartSyncing(t)
-	api.MustNotError(t, "StartSyncing", err)
+	must.NotError(t, "StartSyncing", err)
 	return stopSyncing
 }
 
 // StartSyncing to begin syncing from sync v2 / sliding sync.
 // Tests should call stopSyncing() at the end of the test.
-func (c *RustClient) StartSyncing(t api.Test) (stopSyncing func(), err error) {
+func (c *RustClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error) {
 	t.Helper()
 	syncService, err := c.FFIClient.SyncService().Finish()
 	if err != nil {
@@ -174,7 +176,7 @@ func (c *RustClient) StartSyncing(t api.Test) (stopSyncing func(), err error) {
 
 // IsRoomEncrypted returns true if the room is encrypted. May return an error e.g if you
 // provide a bogus room ID.
-func (c *RustClient) IsRoomEncrypted(t api.Test, roomID string) (bool, error) {
+func (c *RustClient) IsRoomEncrypted(t ct.TestLike, roomID string) (bool, error) {
 	t.Helper()
 	r := c.findRoom(t, roomID)
 	if r == nil {
@@ -184,7 +186,7 @@ func (c *RustClient) IsRoomEncrypted(t api.Test, roomID string) (bool, error) {
 	return r.IsEncrypted()
 }
 
-func (c *RustClient) MustBackupKeys(t api.Test) (recoveryKey string) {
+func (c *RustClient) MustBackupKeys(t ct.TestLike) (recoveryKey string) {
 	t.Helper()
 	genericListener := newGenericStateListener[matrix_sdk_ffi.EnableRecoveryProgress]()
 	var listener matrix_sdk_ffi.EnableRecoveryProgressListener = genericListener
@@ -202,16 +204,16 @@ func (c *RustClient) MustBackupKeys(t api.Test) (recoveryKey string) {
 			genericListener.Close() // break the loop
 		}
 	}
-	api.MustNotError(t, "Encryption.EnableRecovery", err)
+	must.NotError(t, "Encryption.EnableRecovery", err)
 	return recoveryKey
 }
 
-func (c *RustClient) MustLoadBackup(t api.Test, recoveryKey string) {
+func (c *RustClient) MustLoadBackup(t ct.TestLike, recoveryKey string) {
 	t.Helper()
-	api.MustNotError(t, "Recover", c.FFIClient.Encryption().Recover(recoveryKey))
+	must.NotError(t, "Recover", c.FFIClient.Encryption().Recover(recoveryKey))
 }
 
-func (c *RustClient) WaitUntilEventInRoom(t api.Test, roomID string, checker func(api.Event) bool) api.Waiter {
+func (c *RustClient) WaitUntilEventInRoom(t ct.TestLike, roomID string, checker func(api.Event) bool) api.Waiter {
 	t.Helper()
 	c.ensureListening(t, roomID)
 	return &timelineWaiter{
@@ -227,16 +229,16 @@ func (c *RustClient) Type() api.ClientTypeLang {
 
 // SendMessage sends the given text as an m.room.message with msgtype:m.text into the given
 // room. Returns the event ID of the sent event.
-func (c *RustClient) SendMessage(t api.Test, roomID, text string) (eventID string) {
+func (c *RustClient) SendMessage(t ct.TestLike, roomID, text string) (eventID string) {
 	t.Helper()
 	eventID, err := c.TrySendMessage(t, roomID, text)
 	if err != nil {
-		api.Fatalf(t, err.Error())
+		ct.Fatalf(t, err.Error())
 	}
 	return eventID
 }
 
-func (c *RustClient) TrySendMessage(t api.Test, roomID, text string) (eventID string, err error) {
+func (c *RustClient) TrySendMessage(t ct.TestLike, roomID, text string) (eventID string, err error) {
 	t.Helper()
 	ch := make(chan bool)
 	// we need a timeline listener before we can send messages, AND that listener must be attached to the
@@ -268,11 +270,11 @@ func (c *RustClient) TrySendMessage(t api.Test, roomID, text string) (eventID st
 	}
 }
 
-func (c *RustClient) MustBackpaginate(t api.Test, roomID string, count int) {
+func (c *RustClient) MustBackpaginate(t ct.TestLike, roomID string, count int) {
 	t.Helper()
 	r := c.findRoom(t, roomID)
-	api.MustNotEqual(t, r, nil, "unknown room")
-	api.MustNotError(t, "failed to backpaginate", r.Timeline().PaginateBackwards(matrix_sdk_ffi.PaginationOptionsSimpleRequest{
+	must.NotEqual(t, r, nil, "unknown room")
+	must.NotError(t, "failed to backpaginate", r.Timeline().PaginateBackwards(matrix_sdk_ffi.PaginationOptionsSimpleRequest{
 		EventLimit: uint16(count),
 	}))
 }
@@ -293,7 +295,7 @@ func (c *RustClient) findRoomInMap(roomID string) *matrix_sdk_ffi.Room {
 }
 
 // findRoom returns the room, waiting up to 5s for it to appear
-func (c *RustClient) findRoom(t api.Test, roomID string) *matrix_sdk_ffi.Room {
+func (c *RustClient) findRoom(t ct.TestLike, roomID string) *matrix_sdk_ffi.Room {
 	t.Helper()
 	room := c.findRoomInMap(roomID)
 	if room != nil {
@@ -334,20 +336,20 @@ func (c *RustClient) findRoom(t api.Test, roomID string) *matrix_sdk_ffi.Room {
 	return nil
 }
 
-func (c *RustClient) Logf(t api.Test, format string, args ...interface{}) {
+func (c *RustClient) Logf(t ct.TestLike, format string, args ...interface{}) {
 	t.Helper()
 	c.logToFile(t, format, args...)
 	t.Logf(format, args...)
 }
 
-func (c *RustClient) logToFile(t api.Test, format string, args ...interface{}) {
+func (c *RustClient) logToFile(t ct.TestLike, format string, args ...interface{}) {
 	matrix_sdk_ffi.LogEvent("rust.go", &zero, matrix_sdk_ffi.LogLevelInfo, t.Name(), fmt.Sprintf(format, args...))
 }
 
-func (c *RustClient) ensureListening(t api.Test, roomID string) *matrix_sdk_ffi.Room {
+func (c *RustClient) ensureListening(t ct.TestLike, roomID string) *matrix_sdk_ffi.Room {
 	t.Helper()
 	r := c.findRoom(t, roomID)
-	api.MustNotEqual(t, r, nil, fmt.Sprintf("room %s does not exist", roomID))
+	must.NotEqual(t, r, nil, fmt.Sprintf("room %s does not exist", roomID))
 
 	info := c.rooms[roomID]
 	if info.stream != nil {
@@ -449,7 +451,7 @@ type timelineWaiter struct {
 	client  *RustClient
 }
 
-func (w *timelineWaiter) Wait(t api.Test, s time.Duration) {
+func (w *timelineWaiter) Wait(t ct.TestLike, s time.Duration) {
 	t.Helper()
 
 	checkForEvent := func() bool {
@@ -494,11 +496,11 @@ func (w *timelineWaiter) Wait(t api.Test, s time.Duration) {
 	for {
 		timeLeft := s - time.Since(start)
 		if timeLeft <= 0 {
-			api.Fatalf(t, "%s (rust): Wait[%s]: timed out", w.client.userID, w.roomID)
+			ct.Fatalf(t, "%s (rust): Wait[%s]: timed out", w.client.userID, w.roomID)
 		}
 		select {
 		case <-time.After(timeLeft):
-			api.Fatalf(t, "%s (rust): Wait[%s]: timed out", w.client.userID, w.roomID)
+			ct.Fatalf(t, "%s (rust): Wait[%s]: timed out", w.client.userID, w.roomID)
 		case <-updates:
 			return
 		}
