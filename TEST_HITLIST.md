@@ -26,7 +26,7 @@ Key Verification: (Short Authentication String)
 - [ ] Verification can be cancelled over federation.
 
 Network connectivity:
-- [ ] If a client cannot upload OTKs, it retries.
+- [x] If a client cannot upload OTKs, it retries.
 - [ ] If a client cannot claim local OTKs, it retries.
 - [ ] If a client cannot claim remote OTKs, it retries.
 - [x] If a server cannot send device list updates over federation, it retries. https://github.com/matrix-org/complement/pull/695

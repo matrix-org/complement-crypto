@@ -55,6 +55,15 @@ func ClientTypeMatrix(t *testing.T, subTest func(tt *testing.T, a, b api.ClientT
 	}
 }
 
+func ForEachClientType(t *testing.T, subTest func(tt *testing.T, a api.ClientType)) {
+	for _, tc := range []api.ClientType{{Lang: api.ClientTypeRust, HS: "hs1"}, {Lang: api.ClientTypeJS, HS: "hs1"}} {
+		tc := tc
+		t.Run(string(tc.Lang), func(t *testing.T) {
+			subTest(t, tc)
+		})
+	}
+}
+
 func MustCreateClient(t *testing.T, clientType api.ClientType, cfg api.ClientCreationOpts, ssURL string, opts ...func(api.Client, api.ClientCreationOpts)) api.Client {
 	var c api.Client
 	switch clientType.Lang {
@@ -87,22 +96,28 @@ type TestContext struct {
 	Bob        *client.CSAPI
 }
 
-func CreateTestContext(t *testing.T, clientTypeA, clientTypeB api.ClientType) *TestContext {
+func CreateTestContext(t *testing.T, clientType ...api.ClientType) *TestContext {
 	deployment := Deploy(t)
-	// pre-register alice and bob
-	csapiAlice := deployment.Register(t, clientTypeA.HS, helpers.RegistrationOpts{
-		LocalpartSuffix: "alice",
-		Password:        "complement-crypto-password",
-	})
-	csapiBob := deployment.Register(t, clientTypeB.HS, helpers.RegistrationOpts{
-		LocalpartSuffix: "bob",
-		Password:        "complement-crypto-password",
-	})
-	return &TestContext{
+	tc := &TestContext{
 		Deployment: deployment,
-		Alice:      csapiAlice,
-		Bob:        csapiBob,
 	}
+	// pre-register alice and bob, if told
+	if len(clientType) > 0 {
+		tc.Alice = deployment.Register(t, clientType[0].HS, helpers.RegistrationOpts{
+			LocalpartSuffix: "alice",
+			Password:        "complement-crypto-password",
+		})
+	}
+	if len(clientType) > 1 {
+		tc.Bob = deployment.Register(t, clientType[1].HS, helpers.RegistrationOpts{
+			LocalpartSuffix: "bob",
+			Password:        "complement-crypto-password",
+		})
+	}
+	if len(clientType) > 2 {
+		t.Fatalf("CreateTestContext: too many clients: got %d", len(clientType))
+	}
+	return tc
 }
 
 func (c *TestContext) CreateNewEncryptedRoom(t *testing.T, creator *client.CSAPI, preset string, invite []string) (roomID string) {

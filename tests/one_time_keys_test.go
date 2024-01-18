@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
+	"github.com/matrix-org/complement/b"
 	"github.com/matrix-org/complement/client"
 	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/complement/helpers"
@@ -180,5 +181,63 @@ func TestFallbackKeyIsUsedIfOneTimeKeysRunOut(t *testing.T) {
 			must.NotEqual(t, fallbackKey.Get("key").Str, secondFallbackKey.Get("key").Str, "fallback key data same as before, not cycled?")
 		})
 
+	})
+}
+
+func TestFailedOneTimeKeyUploadRetries(t *testing.T) {
+	ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
+		tc := CreateTestContext(t, clientType, clientType)
+		// make a room so we can kick clients
+		roomID := tc.Alice.MustCreateRoom(t, map[string]interface{}{"preset": "public_chat"})
+		// block /keys/upload and make a client
+		tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+			"statuscode": map[string]interface{}{
+				"return_status": http.StatusGatewayTimeout,
+				"block_request": true,
+				"count":         2, // block it twice
+				"filter":        "~u .*\\/keys\\/upload.*",
+			},
+		}, func() {
+			alice := LoginClientFromComplementClient(t, tc.Deployment, tc.Alice, clientType)
+			defer alice.Close(t)
+			aliceStopSyncing := alice.MustStartSyncing(t)
+			defer aliceStopSyncing()
+
+			// we should be able to claim a key eventually
+			for i := 0; i < 5; i++ {
+				time.Sleep(time.Duration(200 * time.Millisecond * time.Duration(i+1)))
+				res := tc.Bob.MustDo(t, "POST", []string{
+					"_matrix", "client", "v3", "keys", "claim",
+				}, client.WithJSONBody(t, map[string]any{
+					"one_time_keys": map[string]any{
+						tc.Alice.UserID: map[string]any{
+							tc.Alice.DeviceID: "signed_curve25519",
+						},
+					},
+				}))
+				jsonBody := must.ParseJSON(t, res.Body)
+				res.Body.Close()
+				err := match.JSONKeyPresent(
+					fmt.Sprintf("one_time_keys.%s.%s.signed_curve25519*", tc.Alice.UserID, tc.Alice.DeviceID),
+				)(jsonBody)
+				if err == nil {
+					break
+				}
+				t.Logf("failed to claim otk: /keys/claim => %v", jsonBody.Raw)
+				if i == 4 {
+					t.Errorf("failed to claim OTK for user, did /keys/upload retry?")
+				}
+
+				// try kicking the client by sending some data down /sync
+				// Specifically, JS SDK needs this. Rust has its own backoff independent to /sync
+				tc.Alice.SendEventSynced(t, roomID, b.Event{
+					Type: "m.room.message",
+					Content: map[string]interface{}{
+						"msgtype": "m.text",
+						"body":    "this is a kick to try to get clients to retry /keys/upload",
+					},
+				})
+			}
+		})
 	})
 }
