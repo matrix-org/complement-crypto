@@ -13,7 +13,7 @@ Key backups:
 One-time Keys:
 - [x] When Alice runs out of OTKs, the fallback key is used.
 - [x] Alice cycles her fallback key when she becomes aware that it has been used.
-- [ ] When a OTK is reused, Alice... (TODO: ??? rejects both, rejects latest, rejects neither?)
+- [ ] When a OTK is reused, Alice rejects the 2nd+ use of the OTK.
 
 Key Verification: (Short Authentication String)
 - [ ] Happy case Alice <-> Bob key verification.
