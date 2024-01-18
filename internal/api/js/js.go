@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -52,16 +53,18 @@ func writeToLog(s string, args ...interface{}) {
 }
 
 type JSClient struct {
-	browser    *chrome.Browser
-	listeners  map[int32]func(roomID string, ev api.Event)
-	listenerID atomic.Int32
-	userID     string
+	browser     *chrome.Browser
+	listeners   map[int32]func(roomID string, ev api.Event)
+	listenerID  atomic.Int32
+	listenersMu *sync.RWMutex
+	userID      string
 }
 
 func NewJSClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, error) {
 	jsc := &JSClient{
-		listeners: make(map[int32]func(roomID string, ev api.Event)),
-		userID:    opts.UserID,
+		listeners:   make(map[int32]func(roomID string, ev api.Event)),
+		userID:      opts.UserID,
+		listenersMu: &sync.RWMutex{},
 	}
 	portKey := opts.UserID + opts.DeviceID
 	browser, err := chrome.RunHeadless(func(s string) {
@@ -77,7 +80,13 @@ func NewJSClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, error)
 				writeToLog("[%s] failed to unmarshal event '%s' into Go %s\n", opts.UserID, segs[1], err)
 				return
 			}
+			jsc.listenersMu.RLock()
+			var listeners []func(roomID string, ev api.Event)
 			for _, l := range jsc.listeners {
+				listeners = append(listeners, l)
+			}
+			jsc.listenersMu.RUnlock()
+			for _, l := range listeners {
 				l(segs[0], jsToEvent(ev))
 			}
 		}
@@ -229,7 +238,9 @@ func (c *JSClient) Close(t ct.TestLike) {
 		console.log("=================== localstorage len", window.localStorage.length);
 	`)
 	c.browser.Cancel()
+	c.listenersMu.Lock()
 	c.listeners = make(map[int32]func(roomID string, ev api.Event))
+	c.listenersMu.Unlock()
 }
 
 func (c *JSClient) UserID() string {
@@ -432,9 +443,13 @@ func (c *JSClient) Type() api.ClientTypeLang {
 
 func (c *JSClient) listenForUpdates(callback func(roomID string, ev api.Event)) (cancel func()) {
 	id := c.listenerID.Add(1)
+	c.listenersMu.Lock()
 	c.listeners[id] = callback
+	c.listenersMu.Unlock()
 	return func() {
+		c.listenersMu.Lock()
 		delete(c.listeners, id)
+		c.listenersMu.Unlock()
 	}
 }
 

@@ -11,7 +11,8 @@ Key backups:
 - [x] Inputting the wrong recovery key fails to decrypt the backup.
 
 One-time Keys:
-- [ ] When Alice runs out of OTKs, the fallback key is used. It is cycled when Alice becomes aware that it has been used.
+- [x] When Alice runs out of OTKs, the fallback key is used.
+- [x] Alice cycles her fallback key when she becomes aware that it has been used.
 - [ ] When a OTK is reused, Alice... (TODO: ??? rejects both, rejects latest, rejects neither?)
 
 Key Verification: (Short Authentication String)

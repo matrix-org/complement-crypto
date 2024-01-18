@@ -16,6 +16,7 @@ import (
 )
 
 func mustClaimFallbackKey(t *testing.T, claimer *client.CSAPI, target *client.CSAPI) (fallbackKeyID string, keyJSON gjson.Result) {
+	t.Helper()
 	res := claimer.MustDo(t, "POST", []string{
 		"_matrix", "client", "v3", "keys", "claim",
 	}, client.WithJSONBody(t, map[string]any{
@@ -43,6 +44,7 @@ func mustClaimFallbackKey(t *testing.T, claimer *client.CSAPI, target *client.CS
 }
 
 func mustClaimOTKs(t *testing.T, claimer *client.CSAPI, target *client.CSAPI, otkCount int) {
+	t.Helper()
 	for i := 0; i < otkCount; i++ {
 		res := claimer.MustDo(t, "POST", []string{
 			"_matrix", "client", "v3", "keys", "claim",
@@ -95,6 +97,11 @@ func TestFallbackKeyIsUsedIfOneTimeKeysRunOut(t *testing.T) {
 		aliceStopSyncing := alice.MustStartSyncing(t)
 		defer aliceStopSyncing()
 
+		// we need to send _something_ to cause /sync v2 to return a long poll response, as fallback
+		// keys don't wake up /sync v2. If we don't do this, rust SDK fails to realise it needs to upload a fallback
+		// key because SS doesn't tell it, because Synapse doesn't tell SS that the fallback key was used.
+		tc.Alice.MustCreateRoom(t, map[string]interface{}{})
+
 		// also let bob upload OTKs before we block the upload endpoint!
 		bob := LoginClientFromComplementClient(t, tc.Deployment, tc.Bob, clientTypeB)
 		defer bob.Close(t)
@@ -127,9 +134,9 @@ func TestFallbackKeyIsUsedIfOneTimeKeysRunOut(t *testing.T) {
 			// now bob tries to talk to alice, the fallback key should be used
 			roomID = tc.CreateNewEncryptedRoom(t, tc.Bob, "public_chat", []string{tc.Alice.UserID})
 			tc.Alice.MustJoinRoom(t, roomID, []string{clientTypeB.HS})
-			w := alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(alice.UserID(), "join"))
+			w := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(alice.UserID(), "join"))
 			w.Wait(t, 5*time.Second)
-			w = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(bob.UserID(), "join"))
+			w = alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(alice.UserID(), "join"))
 			w.Wait(t, 5*time.Second)
 			bob.SendMessage(t, roomID, "Hello world!")
 			waiter = alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody("Hello world!"))
@@ -146,7 +153,7 @@ func TestFallbackKeyIsUsedIfOneTimeKeysRunOut(t *testing.T) {
 		t.Logf("first fallback key %s => %s", fallbackKeyID, fallbackKey.Get("key").Str)
 
 		tc.Alice.MustSyncUntil(t, client.SyncReq{}, func(clientUserID string, topLevelSyncJSON gjson.Result) error {
-			otkCount := topLevelSyncJSON.Get("device_one_time_keys_count.signed_curve25519").Int()
+			otkCount = topLevelSyncJSON.Get("device_one_time_keys_count.signed_curve25519").Int()
 			t.Logf("Alice otk count = %d", otkCount)
 			if otkCount == 0 {
 				return fmt.Errorf("alice hasn't re-uploaded OTKs yet")
@@ -154,8 +161,24 @@ func TestFallbackKeyIsUsedIfOneTimeKeysRunOut(t *testing.T) {
 			return nil
 		})
 
-		// TODO: now re-block /keys/upload, re-claim all otks, and check that the fallback key this time around is different
+		// now re-block /keys/upload, re-claim all otks, and check that the fallback key this time around is different
 		// to the first
+		tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+			"statuscode": map[string]interface{}{
+				"return_status": http.StatusGatewayTimeout,
+				"block_request": true,
+				"filter":        "~u .*\\/keys\\/upload.*",
+			},
+		}, func() {
+			// claim all OTKs
+			mustClaimOTKs(t, otkGobbler, tc.Alice, int(otkCount))
+
+			// now claim the fallback key
+			secondFallbackKeyID, secondFallbackKey := mustClaimFallbackKey(t, otkGobbler, tc.Alice)
+			t.Logf("second fallback key %s => %s", secondFallbackKeyID, secondFallbackKey.Get("key").Str)
+			must.NotEqual(t, secondFallbackKeyID, fallbackKeyID, "fallback key id same as before, not cycled?")
+			must.NotEqual(t, fallbackKey.Get("key").Str, secondFallbackKey.Get("key").Str, "fallback key data same as before, not cycled?")
+		})
 
 	})
 }
