@@ -74,7 +74,7 @@ These tests only make sense on a single server, for a single user.
 Network connectivity tests are extremely time sensitive as retries are often using timeouts in clients.
 
 - [x] If a client cannot upload OTKs, it retries.
-- [ ] If a client cannot claim OTKs, it retries.
+- [x] If a client cannot claim OTKs, it retries.
 - [x] If a server cannot send device list updates over federation, it retries. https://github.com/matrix-org/complement/pull/695
 - [ ] If a client cannot query device keys for a user, it retries.
 - [ ] If a server cannot query device keys on another server, it retries.

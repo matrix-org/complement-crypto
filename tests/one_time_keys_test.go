@@ -3,10 +3,12 @@ package tests
 import (
 	"fmt"
 	"net/http"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
+	"github.com/matrix-org/complement-crypto/internal/deploy"
 	"github.com/matrix-org/complement/b"
 	"github.com/matrix-org/complement/client"
 	"github.com/matrix-org/complement/ct"
@@ -239,5 +241,63 @@ func TestFailedOneTimeKeyUploadRetries(t *testing.T) {
 				})
 			}
 		})
+	})
+}
+
+func TestFailedKeysClaimRetries(t *testing.T) {
+	ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
+		tc := CreateTestContext(t, clientType, clientType)
+		// both clients start syncing to upload OTKs
+		alice := LoginClientFromComplementClient(t, tc.Deployment, tc.Alice, clientType)
+		defer alice.Close(t)
+		aliceStopSyncing := alice.MustStartSyncing(t)
+		defer aliceStopSyncing()
+		bob := LoginClientFromComplementClient(t, tc.Deployment, tc.Bob, clientType)
+		defer bob.Close(t)
+		bobStopSyncing := bob.MustStartSyncing(t)
+		defer bobStopSyncing()
+
+		var stopPoking atomic.Bool
+		waiter := helpers.NewWaiter()
+		callbackURL, close := deploy.NewCallbackServer(t, func(cd deploy.CallbackData) {
+			t.Logf("%+v", cd)
+			if cd.ResponseCode == 200 {
+				waiter.Finish()
+				stopPoking.Store(true)
+			}
+		})
+		defer close()
+
+		// make a room which will link the 2 users together when
+		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "public_chat", nil)
+		// block /keys/claim and join the room, causing the Olm session to be created
+		tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+			"statuscode": map[string]interface{}{
+				"return_status": http.StatusGatewayTimeout,
+				"block_request": true,
+				"count":         2, // block it twice.
+				"filter":        "~u .*\\/keys\\/claim.* ~m POST",
+			},
+			"callback": map[string]interface{}{
+				"callback_url": callbackURL,
+				"filter":       "~u .*\\/keys\\/claim.* ~m POST",
+			},
+		}, func() {
+			// join the room. This should cause an Olm session to be made but it will fail as we cannot
+			// call /keys/claim. We should retry though.
+			tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
+			time.Sleep(time.Second) // FIXME using WaitUntilEventInRoom panics on rust because the room isn't there yet
+			bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(tc.Bob.UserID, "join")).Wait(t, 5*time.Second)
+
+			// Now send a message. On Rust, just sending 1 msg is enough to kick retry schedule.
+			// JS SDK won't retry the /keys/claim automatically. Try sending another event to kick it.
+			counter := 0
+			for !stopPoking.Load() && counter < 10 {
+				bob.TrySendMessage(t, roomID, "poke msg")
+				counter++
+				time.Sleep(100 * time.Millisecond * time.Duration(counter+1))
+			}
+		})
+		waiter.Wait(t, 10*time.Second)
 	})
 }

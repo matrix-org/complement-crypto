@@ -219,3 +219,9 @@ func CheckEventHasMembership(target, membership string) func(e Event) bool {
 		return e.Membership == membership && e.Target == target
 	}
 }
+
+func CheckEventHasEventID(eventID string) func(e Event) bool {
+	return func(e Event) bool {
+		return e.ID == eventID
+	}
+}
