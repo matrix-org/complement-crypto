@@ -2,6 +2,46 @@
 
 This is an attempt to manually enumerate all conceivable failure modes with end-to-end encryption. This hitlist is designed to discern categories of bugs which A) have not been seen in bug reports yet, B) are not known issues yet, C) are potential issues. This testing methodology is responsible for uncovering [numerous](https://github.com/matrix-org/synapse/issues/16680) [issues](https://github.com/matrix-org/synapse/issues/16681) which were previously unknown.
 
+### Test permutations
+
+For each test, multiple permutations can be tested:
+ - homogenous clients (e.g Alice and Bob are both on JS)
+ - heterogeneous clients (e.g Alice is on JS, Bob is using Rust FFI)
+ - both clients are on the same server
+ - clients are on different servers (testing federation)
+
+This creates a matrix of test permutations, represented via `COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX`. There exists a total of 4x4=16 permutations, given:
+- each client can be 1 of 4 types (j,r,J,R)
+- two clients are needed per test
+
+However, in practice there are only 12 permutations because we can ignore duplicate permutations caused by testing on HS1 vs HS2 e.g testing 2x JS clients on HS1 and then re-testing 2x HS clients on HS2 makes no sense:
+```
+Alice | Bob | Fed? | Same client?
+ j       j     N          Y
+ j       r     N          N
+ r       j     N          N
+ r       r     N          Y
+
+ J       j     Y          Y
+ J       r     Y          N
+ R       j     Y          N
+ R       r     Y          Y
+ j       J     Y          Y
+ j       R     Y          N
+ r       J     Y          N
+ r       R     Y          Y
+
+Below permutations can be ignored as they
+are duplicates of the first 4
+
+ J       J     N          Y
+ J       R     N          N
+ R       J     N          N
+ R       R     N          Y
+```
+
+The test hitlist will generally not refer to any specific permutation, preferring the terms Alice and Bob. In some cases, federation may be explicitly mentioned if the test makes no sense without federation.
+
 ### Membership ACLs
 - [x] Happy case Alice and Bob in an encrypted room can send and receive encrypted messages, and decrypt them all.
 - [x] Bob can see messages when he was invited but not joined to the room. Subsequent messages are also decryptable.
@@ -11,6 +51,8 @@ This is an attempt to manually enumerate all conceivable failure modes with end-
 - [x] EXPECTED FAIL: Alice invites Bob, Alice sends a message, Bob changes their device, then Bob joins. Bob should be able to see Alice's message.
 
 ### Key backups
+These tests only make sense on a single server, for a single user.
+
 - [x] New device for Alice cannot decrypt previous messages. Backups can be made on Alice's first device. Alice's new device can download the backup and decrypt the messages. Check backups work cross-platform (e.g create on rust, restore on JS and vice versa).
 - [x] Inputting the wrong recovery key fails to decrypt the backup.
 
@@ -22,29 +64,25 @@ This is an attempt to manually enumerate all conceivable failure modes with end-
 
 ### Key Verification: (Short Authentication String)
 - [ ] Happy case Alice <-> Bob key verification.
-- [ ] Happy case Alice <-> Bob key verification over federation.
 - [ ] Happy case Alice <-> Alice key verification (different devices).
 - [ ] A MITMed key fails key verification.
 - [ ] Repeat all of the above, but for QR code. (render QR code to png then rescan).
 - [ ] Repeat all of the above, but for Emoji representations of SAS.
 - [ ] Verification can be cancelled.
-- [ ] Verification can be cancelled over federation.
 
 ### Network connectivity
 Network connectivity tests are extremely time sensitive as retries are often using timeouts in clients.
 
 - [x] If a client cannot upload OTKs, it retries.
-- [ ] If a client cannot claim local OTKs, it retries.
-- [ ] If a client cannot claim remote OTKs, it retries.
+- [ ] If a client cannot claim OTKs, it retries.
 - [x] If a server cannot send device list updates over federation, it retries. https://github.com/matrix-org/complement/pull/695
 - [ ] If a client cannot query device keys for a user, it retries.
 - [ ] If a server cannot query device keys on another server, it retries.
 - [x] If a client cannot send a to-device msg, it retries.
 - [x] If a server cannot send a to-device msg to another server, it retries. https://github.com/matrix-org/complement/pull/694
-- [ ] Repeat all of the above, but restart the client|server after the initial connection failure. This checks that retries aren't just stored in memory but persisted to disk.
 
-### State Synchronisation:
-This refers to cases where the client has some state and wishes to synchronise it with the server but is interrupted from doing so in a terminal (SIGKILL) manner. Clients MUST persist state they wish to synchronise to avoid state being regenerated and hence getting out-of-sync with server state. All of these tests require persistent storage on clients. Tests will typically intercept responses from the server and then send back an HTTP 504 to cause state synchronisation bugs, as from the server's perspective everything went through okay, but the client doesn't know that.
+### State Synchronisation
+This refers to cases where the client has some state and wishes to synchronise it with the server but is interrupted from doing so in a fatal (SIGKILL) manner. Clients MUST persist state they wish to synchronise to avoid state being regenerated and hence getting out-of-sync with server state. All of these tests require persistent storage on clients. These tests will typically intercept responses from the server and then SIGKILL the client. Upon restart, only if the client has persisted the new state _prior to uploading_ AND endpoints are idempotent (since the client will retry the operation) will state remain in sync. These tests aren't limited to clients, as servers also need to synchronise state over federation.
 
 - [x] If a client is terminated mid-way through uploading OTKs, it re-uploads the _same set_ of OTKs on startup.
 - [ ] If a client is terminated mid-way through uploading device keys, it re-uploads the _same set_ of device keys on startup.
