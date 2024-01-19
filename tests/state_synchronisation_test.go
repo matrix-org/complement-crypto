@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"net/http"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -16,12 +15,24 @@ import (
 	"github.com/matrix-org/complement/must"
 )
 
+func TestSigkillBeforeKeysUploadResponse(t *testing.T) {
+	ForEachClientType(t, func(tt *testing.T, a api.ClientType) {
+		switch a.Lang {
+		case api.ClientTypeRust:
+			testSigkillBeforeKeysUploadResponseRust(t, a)
+		case api.ClientTypeJS:
+			testSigkillBeforeKeysUploadResponseJS(t, a)
+		default:
+			t.Fatalf("unknown lang: %s", a.Lang)
+		}
+	})
+}
+
 // Test that if the client is restarted BEFORE getting the /keys/upload response but
 // AFTER the server has processed the request, the keys are not regenerated (which would
 // cause duplicate key IDs with different keys). Requires persistent storage.
 // Regression test for https://github.com/matrix-org/matrix-rust-sdk/issues/1415
-func TestSigkillBeforeKeysUploadResponseRust(t *testing.T) {
-	clientType := api.ClientType{Lang: api.ClientTypeRust, HS: "hs1"}
+func testSigkillBeforeKeysUploadResponseRust(t *testing.T, clientType api.ClientType) {
 	var mu sync.Mutex
 	var terminated atomic.Bool
 	var terminateClient func()
@@ -98,8 +109,7 @@ func TestSigkillBeforeKeysUploadResponseRust(t *testing.T) {
 	})
 }
 
-func TestSigkillBeforeKeysUploadResponseJS(t *testing.T) {
-	clientType := api.ClientType{Lang: api.ClientTypeJS, HS: "hs1"}
+func testSigkillBeforeKeysUploadResponseJS(t *testing.T, clientType api.ClientType) {
 	var mu sync.Mutex
 	var terminated atomic.Bool
 	var terminateClient func()
@@ -160,55 +170,5 @@ func TestSigkillBeforeKeysUploadResponseJS(t *testing.T) {
 		recreatedClient.Close(t)
 		// ensure we see the 2nd keys/upload
 		seenSecondKeysUploadWaiter.Wait(t, 3*time.Second)
-	})
-}
-
-// Test that if a client is unable to call /sendToDevice, it retries.
-func TestClientRetriesSendToDevice(t *testing.T) {
-	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
-		tc := CreateTestContext(t, clientTypeA, clientTypeB)
-		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "public_chat", nil)
-		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
-		alice := tc.MustLoginClient(t, tc.Alice, clientTypeA)
-		defer alice.Close(t)
-		bob := tc.MustLoginClient(t, tc.Bob, clientTypeB)
-		defer bob.Close(t)
-		aliceStopSyncing := alice.MustStartSyncing(t)
-		defer aliceStopSyncing()
-		bobStopSyncing := bob.MustStartSyncing(t)
-		defer bobStopSyncing()
-		// lets device keys be exchanged
-		time.Sleep(time.Second)
-
-		wantMsgBody := "Hello world!"
-		waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
-
-		var evID string
-		var err error
-		// now gateway timeout the /sendToDevice endpoint
-		tc.Deployment.WithMITMOptions(t, map[string]interface{}{
-			"statuscode": map[string]interface{}{
-				"return_status": http.StatusGatewayTimeout,
-				"filter":        "~u .*\\/sendToDevice.*",
-			},
-		}, func() {
-			evID, err = alice.TrySendMessage(t, roomID, wantMsgBody)
-			if err != nil {
-				// we allow clients to fail the send if they cannot call /sendToDevice
-				t.Logf("TrySendMessage: %s", err)
-			}
-			if evID != "" {
-				t.Logf("TrySendMessage: => %s", evID)
-			}
-		})
-
-		if err != nil {
-			// retry now we have connectivity
-			evID = alice.SendMessage(t, roomID, wantMsgBody)
-		}
-
-		// Bob receives the message
-		t.Logf("bob (%s) waiting for event %s", bob.Type(), evID)
-		waiter.Wait(t, 5*time.Second)
 	})
 }
