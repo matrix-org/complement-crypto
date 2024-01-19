@@ -194,8 +194,8 @@ func TestFailedOneTimeKeyUploadRetries(t *testing.T) {
 			"statuscode": map[string]interface{}{
 				"return_status": http.StatusGatewayTimeout,
 				"block_request": true,
-				"count":         2, // block it twice
-				"filter":        "~u .*\\/keys\\/upload.*",
+				"count":         2, // block it twice.
+				"filter":        "~u .*\\/keys\\/upload.* ~m POST",
 			},
 		}, func() {
 			alice := LoginClientFromComplementClient(t, tc.Deployment, tc.Alice, clientType)
