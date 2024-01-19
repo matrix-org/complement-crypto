@@ -42,6 +42,10 @@ class StatusCode:
             self.reset()
             return
         self.config = ctx.options.statuscode
+        # ensure optional fields are set
+        self.config.setdefault("count", 0)
+        self.config.setdefault("block_request", False)
+
         new_filter = self.config.get('filter', None)
         print(f"statuscode will return HTTP {self.config['return_status']} filter={new_filter} count={self.config['count']}")
         if new_filter:
