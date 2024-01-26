@@ -54,7 +54,7 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts, ssURL string) (ap
 	if opts.PersistentStorage {
 		// @alice:hs1, FOOBAR => alice_hs1_FOOBAR
 		username = strings.Replace(opts.UserID[1:], ":", "_", -1) + "_" + opts.DeviceID
-		ab.BasePath("rust_storage").Username(username)
+		ab = ab.BasePath("rust_storage").Username(username)
 	}
 	client, err := ab.Build()
 	if err != nil {

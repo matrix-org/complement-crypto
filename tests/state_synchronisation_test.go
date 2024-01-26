@@ -44,6 +44,7 @@ func testSigkillBeforeKeysUploadResponseRust(t *testing.T, clientType api.Client
 				// TODO: Errorf FIXME
 				t.Logf("2nd /keys/upload did not 200 OK => got %v", cd.ResponseCode)
 			}
+			t.Logf("recv 2nd /keys/upload => HTTP %d", cd.ResponseCode)
 			seenSecondKeysUploadWaiter.Finish()
 			return
 		}
@@ -102,10 +103,10 @@ func testSigkillBeforeKeysUploadResponseRust(t *testing.T, clientType api.Client
 		// now make the same client
 		alice := MustCreateClient(t, clientType, cfg, tc.Deployment.SlidingSyncURL(t))
 		alice.Login(t, cfg) // login should work
-		alice.Close(t)
-		alice.DeletePersistentStorage(t)
+		alice.MustStartSyncing(t)
 		// ensure we see the 2nd keys/upload
-		seenSecondKeysUploadWaiter.Wait(t, 3*time.Second)
+		seenSecondKeysUploadWaiter.Wait(t, 5*time.Second)
+
 	})
 }
 

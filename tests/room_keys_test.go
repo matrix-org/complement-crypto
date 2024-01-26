@@ -1,16 +1,21 @@
 package tests
 
 import (
+	"os"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/deploy"
+	templates "github.com/matrix-org/complement-crypto/tests/go_templates"
 	"github.com/matrix-org/complement/client"
 	"github.com/matrix-org/complement/must"
 )
 
+// This test ensure we change the m.room_key when a device leaves an E2EE room.
+// If the key is not changed, the left device could potentially decrypt the encrypted
+// event if they could get access to it.
 func TestRoomKeyIsCycledOnDeviceLeaving(t *testing.T) {
 	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
 		tc := CreateTestContext(t, clientTypeA, clientTypeB)
@@ -82,4 +87,170 @@ func TestRoomKeyIsCycledOnDeviceLeaving(t *testing.T) {
 		// the room key.
 		must.Equal(t, seenToDeviceEventSent, true, "did not see /sendToDevice when logging out and sending a new message")
 	})
+}
+
+// Test that the m.room_key is NOT cycled when the client is restarted, but there is no change in devices
+// in the room. This is important to ensure that we don't cycle m.room_keys too frequently, which increases
+// the chances of seeing undecryptable events.
+func TestRoomKeyIsNotCycledOnClientRestart(t *testing.T) {
+	ForEachClientType(t, func(tt *testing.T, a api.ClientType) {
+		switch a.Lang {
+		case api.ClientTypeRust:
+			testRoomKeyIsNotCycledOnClientRestartRust(t, a)
+		case api.ClientTypeJS:
+			testRoomKeyIsNotCycledOnClientRestartJS(t, a)
+		default:
+			t.Fatalf("unknown lang: %s", a.Lang)
+		}
+	})
+}
+
+func testRoomKeyIsNotCycledOnClientRestartRust(t *testing.T, clientType api.ClientType) {
+	tc := CreateTestContext(t, clientType, clientType)
+	roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "trusted_private_chat", []string{tc.Bob.UserID})
+	tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
+
+	bob := tc.MustLoginClient(t, tc.Bob, clientType)
+	defer bob.Close(t)
+	bobStopSyncing := bob.MustStartSyncing(t)
+	defer bobStopSyncing()
+
+	wantMsgBody := "test from the script"
+
+	// run a script which will login as alice and then send an event in the room.
+	// We will wait on that event as Bob to know when the script got to that point.
+	cmd, close := templates.PrepareGoScript(t, "login_rust_client_and_send_msg/login_rust_client_and_send_msg.go",
+		struct {
+			UserID            string
+			DeviceID          string
+			Password          string
+			BaseURL           string
+			SSURL             string
+			PersistentStorage bool
+			Body              string
+			RoomID            string
+		}{
+			UserID:            tc.Alice.UserID,
+			Password:          tc.Alice.Password,
+			DeviceID:          tc.Alice.DeviceID,
+			BaseURL:           tc.Alice.BaseURL,
+			PersistentStorage: true,
+			SSURL:             tc.Deployment.SlidingSyncURL(t),
+			Body:              wantMsgBody,
+			RoomID:            roomID,
+		})
+	cmd.WaitDelay = 3 * time.Second
+	defer close()
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	must.NotError(t, "failed to run script", cmd.Run())
+
+	waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+	waiter.Wait(t, 8*time.Second)
+
+	// the script sent the msg and exited cleanly.
+	// Now recreate the same client and make sure we don't send new room keys.
+
+	// we're going to sniff calls to /sendToDevice to ensure we do NOT see a new room key being sent.
+	seenToDeviceEventSent := false
+	callbackURL, close := deploy.NewCallbackServer(t, func(cd deploy.CallbackData) {
+		if cd.Method == "OPTIONS" {
+			return // ignore CORS
+		}
+		t.Logf("%+v", cd)
+		if strings.Contains(cd.URL, "m.room.encrypted") {
+			// we can't decrypt this, but we know that this should most likely be the m.room_key to-device event.
+			seenToDeviceEventSent = true
+		}
+	})
+	defer close()
+
+	tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+		"callback": map[string]interface{}{
+			"callback_url": callbackURL,
+			"filter":       "~u .*\\/sendToDevice.*",
+		},
+	}, func() {
+		// login as alice
+		alice := tc.MustLoginClient(t, tc.Alice, clientType, WithPersistentStorage())
+		defer alice.Close(t)
+		aliceStopSyncing := alice.MustStartSyncing(t)
+		defer aliceStopSyncing()
+
+		// we don't know how long it will take for the device list update to be processed, so wait 1s
+		time.Sleep(time.Second)
+
+		// now send another message from Alice, who should NOT negotiate a new room key
+		wantMsgBody = "Another Test Message"
+		waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+		alice.SendMessage(t, roomID, wantMsgBody)
+		waiter.Wait(t, 5*time.Second)
+	})
+
+	// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
+	// the room key.
+	must.Equal(t, seenToDeviceEventSent, false, "saw /sendToDevice when restarting the client and sending a new message")
+}
+
+func testRoomKeyIsNotCycledOnClientRestartJS(t *testing.T, clientType api.ClientType) {
+	tc := CreateTestContext(t, clientType, clientType)
+	roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "trusted_private_chat", []string{tc.Bob.UserID})
+	tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
+
+	// Alice and Bob are in a room.
+	alice := tc.MustLoginClient(t, tc.Alice, clientType, WithPersistentStorage())
+	// no close here as we'll close it in the test mid-way
+	bob := tc.MustLoginClient(t, tc.Bob, clientType)
+	defer bob.Close(t)
+	aliceStopSyncing := alice.MustStartSyncing(t)
+	defer aliceStopSyncing()
+	bobStopSyncing := bob.MustStartSyncing(t)
+	defer bobStopSyncing()
+
+	// check the room works
+	wantMsgBody := "Test Message"
+	waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+	alice.SendMessage(t, roomID, wantMsgBody)
+	waiter.Wait(t, 5*time.Second)
+
+	// we're going to sniff calls to /sendToDevice to ensure we do NOT see a new room key being sent.
+	seenToDeviceEventSent := false
+	callbackURL, close := deploy.NewCallbackServer(t, func(cd deploy.CallbackData) {
+		if cd.Method == "OPTIONS" {
+			return // ignore CORS
+		}
+		t.Logf("%+v", cd)
+		if strings.Contains(cd.URL, "m.room.encrypted") {
+			// we can't decrypt this, but we know that this should most likely be the m.room_key to-device event.
+			seenToDeviceEventSent = true
+		}
+	})
+	defer close()
+
+	// we want to start sniffing for the to-device event just before we restart the client.
+	tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+		"callback": map[string]interface{}{
+			"callback_url": callbackURL,
+			"filter":       "~u .*\\/sendToDevice.*",
+		},
+	}, func() {
+		// now alice is going to restart her client
+		alice.Close(t)
+
+		alice = tc.MustCreateClient(t, tc.Alice, clientType, WithPersistentStorage())
+		defer alice.Close(t)
+		alice.Login(t, alice.Opts()) // login should work
+		alice.StartSyncing(t)
+
+		// now send another message from Alice, who should NOT send another new room key
+		wantMsgBody = "Another Test Message"
+		waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+		alice.SendMessage(t, roomID, wantMsgBody)
+		waiter.Wait(t, 5*time.Second)
+
+	})
+
+	// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
+	// the room key.
+	must.Equal(t, seenToDeviceEventSent, false, "saw /sendToDevice when restarting the client and sending a new message")
 }
