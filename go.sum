@@ -89,6 +89,8 @@ github.com/matrix-org/complement v0.0.0-20240117124104-5ecb086412c1 h1:YryEz+vrd
 github.com/matrix-org/complement v0.0.0-20240117124104-5ecb086412c1/go.mod h1:GMCwbgMOudedB86u1c5+nfQS1L31sFHZ9/YzTYqWyjU=
 github.com/matrix-org/complement v0.0.0-20240117130049-f24331b29b64 h1:dBvjM8idvlfkgyCeimfSxZTXdE85wdfJfGIEPq4GAu8=
 github.com/matrix-org/complement v0.0.0-20240117130049-f24331b29b64/go.mod h1:GMCwbgMOudedB86u1c5+nfQS1L31sFHZ9/YzTYqWyjU=
+github.com/matrix-org/complement v0.0.0-20240126134841-458bfba5f7f3 h1:M8k58YcnDn/0wSVLYyuei21VnJOd9CitzUuMo0xxIVY=
+github.com/matrix-org/complement v0.0.0-20240126134841-458bfba5f7f3/go.mod h1:GMCwbgMOudedB86u1c5+nfQS1L31sFHZ9/YzTYqWyjU=
 github.com/matrix-org/gomatrix v0.0.0-20220926102614-ceba4d9f7530 h1:kHKxCOLcHH8r4Fzarl4+Y3K5hjothkVW5z7T1dUM11U=
 github.com/matrix-org/gomatrix v0.0.0-20220926102614-ceba4d9f7530/go.mod h1:/gBX06Kw0exX1HrwmoBibFA98yBk/jxKpGVeyQbff+s=
 github.com/matrix-org/gomatrixserverlib v0.0.0-20230921171121-0466775328c7 h1:NhPNNFLHwdDb/upeicBh1GkxX/sFinEp5HF1WBqPtiY=

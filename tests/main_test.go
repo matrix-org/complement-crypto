@@ -141,23 +141,46 @@ func (c *TestContext) CreateNewEncryptedRoom(t *testing.T, creator *client.CSAPI
 	})
 }
 
-func (c *TestContext) MustLoginDevice(t *testing.T, existing *client.CSAPI, clientType api.ClientType, deviceID string) (*client.CSAPI, api.Client) {
-	newClient := c.Deployment.Login(t, clientType.HS, existing, helpers.LoginOpts{
-		DeviceID: deviceID,
-		Password: "complement-crypto-password",
+func (c *TestContext) OptsFromClient(t *testing.T, existing *client.CSAPI, options ...func(*api.ClientCreationOpts)) api.ClientCreationOpts {
+	o := &api.ClientCreationOpts{
+		BaseURL:  existing.BaseURL,
+		UserID:   existing.UserID,
+		DeviceID: existing.DeviceID,
+		Password: existing.Password,
+	}
+	for _, opt := range options {
+		opt(o)
+	}
+	return *o
+}
+
+func WithPersistentStorage() func(*api.ClientCreationOpts) {
+	return func(o *api.ClientCreationOpts) {
+		o.PersistentStorage = true
+	}
+}
+
+func (c *TestContext) MustRegisterNewDevice(t *testing.T, cli *client.CSAPI, hsName, newDeviceID string) *client.CSAPI {
+	return c.Deployment.Login(t, hsName, cli, helpers.LoginOpts{
+		DeviceID: newDeviceID,
+		Password: cli.Password,
 	})
-	return newClient, c.MustLoginClient(t, newClient, clientType)
 }
 
-func (c *TestContext) MustLoginClient(t *testing.T, cli *client.CSAPI, clientType api.ClientType) api.Client {
-	return LoginClientFromComplementClient(t, c.Deployment, cli, clientType)
-}
-
-func LoginClientFromComplementClient(t *testing.T, dep *deploy.SlidingSyncDeployment, cli *client.CSAPI, clientType api.ClientType) api.Client {
+func (c *TestContext) MustCreateClient(t *testing.T, cli *client.CSAPI, clientType api.ClientType, options ...func(*api.ClientCreationOpts)) api.Client {
 	t.Helper()
-	cfg := api.FromComplementClient(cli, "complement-crypto-password")
-	cfg.BaseURL = dep.ReverseProxyURLForHS(clientType.HS)
-	client := MustCreateClient(t, clientType, cfg, dep.SlidingSyncURL(t))
-	must.NotError(t, "failed to login client", client.Login(t, cfg))
+	cfg := api.NewClientCreationOpts(cli)
+	cfg.BaseURL = c.Deployment.ReverseProxyURLForHS(clientType.HS)
+	for _, opt := range options {
+		opt(&cfg)
+	}
+	client := MustCreateClient(t, clientType, cfg, c.Deployment.SlidingSyncURL(t))
+	return client
+}
+
+func (c *TestContext) MustLoginClient(t *testing.T, cli *client.CSAPI, clientType api.ClientType, options ...func(*api.ClientCreationOpts)) api.Client {
+	t.Helper()
+	client := c.MustCreateClient(t, cli, clientType, options...)
+	must.NotError(t, "failed to login client", client.Login(t, client.Opts()))
 	return client
 }

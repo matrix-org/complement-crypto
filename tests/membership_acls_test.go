@@ -277,7 +277,8 @@ func TestOnNewDeviceBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 		waiter.Wait(t, 5*time.Second)
 
 		// now bob logs in on a new device. He should NOT be able to decrypt this event (though can see it due to history visibility)
-		csapiBob2, bob2 := tc.MustLoginDevice(t, tc.Bob, clientTypeB, "NEW_DEVICE")
+		csapiBob2 := tc.MustRegisterNewDevice(t, tc.Bob, clientTypeB.HS, "NEW_DEVICE")
+		bob2 := tc.MustLoginClient(t, csapiBob2, clientTypeB)
 		bob2StopSyncing := bob2.MustStartSyncing(t)
 		bob2StoppedSyncing := false
 		defer func() {
@@ -353,7 +354,8 @@ func TestChangingDeviceAfterInviteReEncrypts(t *testing.T) {
 		evID := alice.SendMessage(t, roomID, body)
 
 		// now Bob logs in on a different device and accepts the invite. The different device should be able to decrypt the message.
-		_, bob2 := tc.MustLoginDevice(t, tc.Bob, clientTypeB, "NEW_DEVICE")
+		csapiBob2 := tc.MustRegisterNewDevice(t, tc.Bob, clientTypeB.HS, "NEW_DEVICE")
+		bob2 := tc.MustLoginClient(t, csapiBob2, clientTypeB)
 		bob2StopSyncing := bob2.MustStartSyncing(t)
 		defer bob2StopSyncing()
 

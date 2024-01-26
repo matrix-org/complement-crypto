@@ -18,12 +18,8 @@ func TestCanBackupKeys(t *testing.T) {
 			return
 		}
 		t.Logf("backup creator = %s backup restorer = %s", clientTypeA.Lang, clientTypeB.Lang)
-		deployment := Deploy(t)
-		csapiAlice := deployment.Register(t, clientTypeA.HS, helpers.RegistrationOpts{
-			LocalpartSuffix: "alice",
-			Password:        "complement-crypto-password",
-		})
-		roomID := csapiAlice.MustCreateRoom(t, map[string]interface{}{
+		tc := CreateTestContext(t, clientTypeA)
+		roomID := tc.Alice.MustCreateRoom(t, map[string]interface{}{
 			"name":   t.Name(),
 			"preset": "public_chat", // shared history visibility
 			"invite": []string{},
@@ -41,7 +37,7 @@ func TestCanBackupKeys(t *testing.T) {
 		// SDK testing below
 		// -----------------
 
-		backupCreator := LoginClientFromComplementClient(t, deployment, csapiAlice, clientTypeA)
+		backupCreator := tc.MustLoginClient(t, tc.Alice, clientTypeA)
 		defer backupCreator.Close(t)
 		stopSyncing := backupCreator.MustStartSyncing(t)
 		defer stopSyncing()
@@ -57,11 +53,11 @@ func TestCanBackupKeys(t *testing.T) {
 		t.Logf("recovery key -> %s", recoveryKey)
 
 		// Now login on a new device
-		csapiAlice2 := deployment.Login(t, clientTypeB.HS, csapiAlice, helpers.LoginOpts{
+		csapiAlice2 := tc.Deployment.Login(t, clientTypeB.HS, tc.Alice, helpers.LoginOpts{
 			DeviceID: "BACKUP_RESTORER",
 			Password: "complement-crypto-password",
 		})
-		backupRestorer := LoginClientFromComplementClient(t, deployment, csapiAlice2, clientTypeB)
+		backupRestorer := tc.MustLoginClient(t, csapiAlice2, clientTypeB)
 		defer backupRestorer.Close(t)
 
 		// load the key backup using the recovery key
@@ -86,12 +82,8 @@ func TestBackupWrongRecoveryKeyFails(t *testing.T) {
 			return
 		}
 		t.Logf("backup creator = %s backup restorer = %s", clientTypeA.Lang, clientTypeB.Lang)
-		deployment := Deploy(t)
-		csapiAlice := deployment.Register(t, clientTypeA.HS, helpers.RegistrationOpts{
-			LocalpartSuffix: "alice",
-			Password:        "complement-crypto-password",
-		})
-		roomID := csapiAlice.MustCreateRoom(t, map[string]interface{}{
+		tc := CreateTestContext(t, clientTypeA)
+		roomID := tc.Alice.MustCreateRoom(t, map[string]interface{}{
 			"name":   t.Name(),
 			"preset": "public_chat", // shared history visibility
 			"invite": []string{},
@@ -109,7 +101,7 @@ func TestBackupWrongRecoveryKeyFails(t *testing.T) {
 		// SDK testing below
 		// -----------------
 
-		backupCreator := LoginClientFromComplementClient(t, deployment, csapiAlice, clientTypeA)
+		backupCreator := tc.MustLoginClient(t, tc.Alice, clientTypeA)
 		defer backupCreator.Close(t)
 		stopSyncing := backupCreator.MustStartSyncing(t)
 		defer stopSyncing()
@@ -125,11 +117,11 @@ func TestBackupWrongRecoveryKeyFails(t *testing.T) {
 		t.Logf("recovery key -> %s", recoveryKey)
 
 		// Now login on a new device
-		csapiAlice2 := deployment.Login(t, clientTypeB.HS, csapiAlice, helpers.LoginOpts{
+		csapiAlice2 := tc.Deployment.Login(t, clientTypeB.HS, tc.Alice, helpers.LoginOpts{
 			DeviceID: "BACKUP_RESTORER",
 			Password: "complement-crypto-password",
 		})
-		backupRestorer := LoginClientFromComplementClient(t, deployment, csapiAlice2, clientTypeB)
+		backupRestorer := tc.MustLoginClient(t, csapiAlice2, clientTypeB)
 		defer backupRestorer.Close(t)
 
 		// load the key backup using a valid but wrong recovery key

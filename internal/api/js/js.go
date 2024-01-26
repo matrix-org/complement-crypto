@@ -58,6 +58,7 @@ type JSClient struct {
 	listenerID  atomic.Int32
 	listenersMu *sync.RWMutex
 	userID      string
+	opts        api.ClientCreationOpts
 }
 
 func NewJSClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, error) {
@@ -65,6 +66,7 @@ func NewJSClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, error)
 		listeners:   make(map[int32]func(roomID string, ev api.Event)),
 		userID:      opts.UserID,
 		listenersMu: &sync.RWMutex{},
+		opts:        opts,
 	}
 	portKey := opts.UserID + opts.DeviceID
 	browser, err := chrome.RunHeadless(func(s string) {
@@ -245,6 +247,10 @@ func (c *JSClient) Close(t ct.TestLike) {
 
 func (c *JSClient) UserID() string {
 	return c.userID
+}
+
+func (c *JSClient) Opts() api.ClientCreationOpts {
+	return c.opts
 }
 
 func (c *JSClient) MustGetEvent(t ct.TestLike, roomID, eventID string) api.Event {

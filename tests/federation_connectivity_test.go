@@ -49,11 +49,11 @@ func TestNewUserCannotGetKeysForOfflineServer(t *testing.T) {
 	ss := deployment.SlidingSyncURL(t)
 	alice := MustCreateClient(t,
 		api.ClientType{HS: "hs1", Lang: api.ClientTypeRust},
-		api.FromComplementClient(csapiAlice, "complement-crypto-password"), ss, WithDoLogin(t))
+		api.NewClientCreationOpts(csapiAlice), ss, WithDoLogin(t))
 	defer alice.Close(t)
 	bob := MustCreateClient(t,
 		api.ClientType{HS: "hs2", Lang: api.ClientTypeJS},
-		api.FromComplementClient(csapiBob, "complement-crypto-password"), ss, WithDoLogin(t))
+		api.NewClientCreationOpts(csapiBob), ss, WithDoLogin(t))
 	defer bob.Close(t)
 	aliceStopSyncing := alice.MustStartSyncing(t)
 	defer aliceStopSyncing()
@@ -77,7 +77,7 @@ func TestNewUserCannotGetKeysForOfflineServer(t *testing.T) {
 	csapiAlice.MustInviteRoom(t, roomID, csapiCharlie.UserID)
 	charlie := MustCreateClient(t,
 		api.ClientType{HS: "hs1", Lang: api.ClientTypeRust},
-		api.FromComplementClient(csapiCharlie, "complement-crypto-password"), ss, WithDoLogin(t))
+		api.NewClientCreationOpts(csapiCharlie), ss, WithDoLogin(t))
 	defer charlie.Close(t)
 	charlieStopSyncing := charlie.MustStartSyncing(t)
 	defer charlieStopSyncing()
@@ -171,15 +171,15 @@ func TestExistingSessionCannotGetKeysForOfflineServer(t *testing.T) {
 	ss := deployment.SlidingSyncURL(t)
 	alice := MustCreateClient(t,
 		api.ClientType{HS: "hs1", Lang: api.ClientTypeRust},
-		api.FromComplementClient(csapiAlice, "complement-crypto-password"), ss, WithDoLogin(t))
+		api.NewClientCreationOpts(csapiAlice), ss, WithDoLogin(t))
 	defer alice.Close(t)
 	bob := MustCreateClient(t,
 		api.ClientType{HS: "hs2", Lang: api.ClientTypeJS},
-		api.FromComplementClient(csapiBob, "complement-crypto-password"), ss, WithDoLogin(t))
+		api.NewClientCreationOpts(csapiBob), ss, WithDoLogin(t))
 	defer bob.Close(t)
 	charlie := MustCreateClient(t,
 		api.ClientType{HS: "hs1", Lang: api.ClientTypeRust},
-		api.FromComplementClient(csapiCharlie, "complement-crypto-password"), ss, WithDoLogin(t))
+		api.NewClientCreationOpts(csapiCharlie), ss, WithDoLogin(t))
 	defer charlie.Close(t)
 	aliceStopSyncing := alice.MustStartSyncing(t)
 	defer aliceStopSyncing()

@@ -43,6 +43,7 @@ type RustClient struct {
 	roomsMu               *sync.RWMutex
 	userID                string
 	persistentStoragePath string
+	opts                  api.ClientCreationOpts
 }
 
 func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts, ssURL string) (api.Client, error) {
@@ -65,12 +66,17 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts, ssURL string) (ap
 		rooms:     make(map[string]*RustRoomInfo),
 		listeners: make(map[int32]func(roomID string)),
 		roomsMu:   &sync.RWMutex{},
+		opts:      opts,
 	}
 	if opts.PersistentStorage {
 		c.persistentStoragePath = "./rust_storage/" + username
 	}
 	c.Logf(t, "NewRustClient[%s] created client storage=%v", opts.UserID, c.persistentStoragePath)
 	return &api.LoggedClient{Client: c}, nil
+}
+
+func (c *RustClient) Opts() api.ClientCreationOpts {
+	return c.opts
 }
 
 func (c *RustClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {

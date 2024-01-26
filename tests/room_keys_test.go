@@ -20,7 +20,8 @@ func TestRoomKeyIsCycledOnDeviceLeaving(t *testing.T) {
 		// Alice, Alice2 and Bob are in a room.
 		alice := tc.MustLoginClient(t, tc.Alice, clientTypeA)
 		defer alice.Close(t)
-		csapiAlice2, alice2 := tc.MustLoginDevice(t, tc.Alice, clientTypeA, "OTHER_DEVICE")
+		csapiAlice2 := tc.MustRegisterNewDevice(t, tc.Alice, clientTypeA.HS, "OTHER_DEVICE")
+		alice2 := tc.MustLoginClient(t, csapiAlice2, clientTypeA)
 		defer alice2.Close(t)
 		bob := tc.MustLoginClient(t, tc.Bob, clientTypeB)
 		defer bob.Close(t)

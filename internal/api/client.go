@@ -67,6 +67,7 @@ type Client interface {
 	// The user for this client
 	UserID() string
 	Type() ClientTypeLang
+	Opts() ClientCreationOpts
 }
 
 type LoggedClient struct {
@@ -184,11 +185,11 @@ type ClientCreationOpts struct {
 	DeviceID string
 }
 
-func FromComplementClient(c *client.CSAPI, password string) ClientCreationOpts {
+func NewClientCreationOpts(c *client.CSAPI) ClientCreationOpts {
 	return ClientCreationOpts{
 		BaseURL:  c.BaseURL,
 		UserID:   c.UserID,
-		Password: password,
+		Password: c.Password,
 		DeviceID: c.DeviceID,
 	}
 }

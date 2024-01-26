@@ -61,7 +61,7 @@ func testSigkillBeforeKeysUploadResponseRust(t *testing.T, clientType api.Client
 			"filter":       "~u .*\\/keys\\/upload.*",
 		},
 	}, func() {
-		cfg := api.FromComplementClient(tc.Alice, "complement-crypto-password")
+		cfg := api.NewClientCreationOpts(tc.Alice)
 		cfg.BaseURL = tc.Deployment.ReverseProxyURLForHS(clientType.HS)
 		cfg.PersistentStorage = true
 		// run some code in a separate process so we can kill it later
@@ -140,10 +140,7 @@ func testSigkillBeforeKeysUploadResponseJS(t *testing.T, clientType api.ClientTy
 			"filter":       "~u .*\\/keys\\/upload.*",
 		},
 	}, func() {
-		cfg := api.FromComplementClient(tc.Alice, "complement-crypto-password")
-		cfg.BaseURL = tc.Deployment.ReverseProxyURLForHS(clientType.HS)
-		cfg.PersistentStorage = true
-		clientWhichWillBeKilled := MustCreateClient(t, clientType, cfg, tc.Deployment.SlidingSyncURL(t))
+		clientWhichWillBeKilled := tc.MustCreateClient(t, tc.Alice, clientType, WithPersistentStorage())
 		// attempt to login, this should cause OTKs to be uploaded
 		waiter := helpers.NewWaiter()
 		terminateClient = func() {
@@ -154,7 +151,7 @@ func testSigkillBeforeKeysUploadResponseJS(t *testing.T, clientType api.ClientTy
 			waiter.Finish()
 		}
 		go func() {
-			must.NotError(t, "failed to login", clientWhichWillBeKilled.Login(t, cfg))
+			must.NotError(t, "failed to login", clientWhichWillBeKilled.Login(t, clientWhichWillBeKilled.Opts()))
 			// need to start syncing to make JS do /keys/upload
 			// we don't need to stopSyncing because we'll SIGKILL this.
 			clientWhichWillBeKilled.StartSyncing(t)
@@ -163,9 +160,10 @@ func testSigkillBeforeKeysUploadResponseJS(t *testing.T, clientType api.ClientTy
 		waiter.Wait(t, 5*time.Second) // wait for /keys/upload and subsequent SIGKILL
 		t.Logf("terminated browser, making new client")
 		// now make the same client
-		recreatedClient := MustCreateClient(t, clientType, cfg, tc.Deployment.SlidingSyncURL(t))
-		recreatedClient.Login(t, cfg)   // login should work
-		recreatedClient.StartSyncing(t) // ignore errors, we just need to kick it to /keys/upload
+		recreatedClient := tc.MustCreateClient(t, tc.Alice, clientType, WithPersistentStorage())
+		recreatedClient.Login(t, recreatedClient.Opts()) // login should work
+		recreatedClient.StartSyncing(t)                  // ignore errors, we just need to kick it to /keys/upload
+
 		recreatedClient.DeletePersistentStorage(t)
 		recreatedClient.Close(t)
 		// ensure we see the 2nd keys/upload

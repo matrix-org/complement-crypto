@@ -95,7 +95,7 @@ func TestFallbackKeyIsUsedIfOneTimeKeysRunOut(t *testing.T) {
 		// =================
 
 		// Upload OTKs and a fallback
-		alice := LoginClientFromComplementClient(t, tc.Deployment, tc.Alice, clientTypeA)
+		alice := tc.MustLoginClient(t, tc.Alice, clientTypeA)
 		defer alice.Close(t)
 		aliceStopSyncing := alice.MustStartSyncing(t)
 		defer aliceStopSyncing()
@@ -106,7 +106,7 @@ func TestFallbackKeyIsUsedIfOneTimeKeysRunOut(t *testing.T) {
 		tc.Alice.MustCreateRoom(t, map[string]interface{}{})
 
 		// also let bob upload OTKs before we block the upload endpoint!
-		bob := LoginClientFromComplementClient(t, tc.Deployment, tc.Bob, clientTypeB)
+		bob := tc.MustLoginClient(t, tc.Bob, clientTypeB)
 		defer bob.Close(t)
 		bobStopSyncing := bob.MustStartSyncing(t)
 		defer bobStopSyncing()
@@ -200,7 +200,7 @@ func TestFailedOneTimeKeyUploadRetries(t *testing.T) {
 				"filter":        "~u .*\\/keys\\/upload.* ~m POST",
 			},
 		}, func() {
-			alice := LoginClientFromComplementClient(t, tc.Deployment, tc.Alice, clientType)
+			alice := tc.MustLoginClient(t, tc.Alice, clientType)
 			defer alice.Close(t)
 			aliceStopSyncing := alice.MustStartSyncing(t)
 			defer aliceStopSyncing()
@@ -248,11 +248,11 @@ func TestFailedKeysClaimRetries(t *testing.T) {
 	ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
 		tc := CreateTestContext(t, clientType, clientType)
 		// both clients start syncing to upload OTKs
-		alice := LoginClientFromComplementClient(t, tc.Deployment, tc.Alice, clientType)
+		alice := tc.MustLoginClient(t, tc.Alice, clientType)
 		defer alice.Close(t)
 		aliceStopSyncing := alice.MustStartSyncing(t)
 		defer aliceStopSyncing()
-		bob := LoginClientFromComplementClient(t, tc.Deployment, tc.Bob, clientType)
+		bob := tc.MustLoginClient(t, tc.Bob, clientType)
 		defer bob.Close(t)
 		bobStopSyncing := bob.MustStartSyncing(t)
 		defer bobStopSyncing()
