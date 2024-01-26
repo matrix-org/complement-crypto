@@ -106,7 +106,7 @@ func testSigkillBeforeKeysUploadResponseRust(t *testing.T, clientType api.Client
 		alice.MustStartSyncing(t)
 		// ensure we see the 2nd keys/upload
 		seenSecondKeysUploadWaiter.Wait(t, 5*time.Second)
-
+		alice.Close(t)
 	})
 }
 
