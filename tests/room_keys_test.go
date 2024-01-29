@@ -240,14 +240,14 @@ func testRoomKeyIsNotCycledOnClientRestartJS(t *testing.T, clientType api.Client
 		alice = tc.MustCreateClient(t, tc.Alice, clientType, WithPersistentStorage())
 		defer alice.Close(t)
 		alice.Login(t, alice.Opts()) // login should work
-		alice.StartSyncing(t)
+		alice2StopSyncing, _ := alice.StartSyncing(t)
+		defer alice2StopSyncing()
 
 		// now send another message from Alice, who should NOT send another new room key
 		wantMsgBody = "Another Test Message"
 		waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 		alice.SendMessage(t, roomID, wantMsgBody)
 		waiter.Wait(t, 5*time.Second)
-
 	})
 
 	// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle

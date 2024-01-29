@@ -139,7 +139,16 @@ func (c *RustClient) MustStartSyncing(t ct.TestLike) (stopSyncing func()) {
 // Tests should call stopSyncing() at the end of the test.
 func (c *RustClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error) {
 	t.Helper()
-	syncService, err := c.FFIClient.SyncService().Finish()
+	// It's critical that we destroy the sync_service_builder object before we return.
+	// You might be tempted to chain this function call e.g FFIClient.SyncService().Finish()
+	// but if you do that, the builder is never destroyed. If that happens, the builder will
+	// eventually be destroyed by Go finialisers running, but at that point we may not have
+	// a tokio runtime running anymore. This will then cause a panic with something to the effect of:
+	//  > thread '<unnamed>' panicked at 'there is no reactor running, must be called from the context of a Tokio 1.x runtime'
+	// where the stack trace doesn't hit any test code, but does start at a `free_` function.
+	sb := c.FFIClient.SyncService()
+	defer sb.Destroy()
+	syncService, err := sb.Finish()
 	if err != nil {
 		return nil, fmt.Errorf("[%s]failed to make sync service: %s", c.userID, err)
 	}

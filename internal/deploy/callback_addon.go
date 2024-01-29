@@ -12,6 +12,8 @@ import (
 	"github.com/matrix-org/complement/must"
 )
 
+var lastTestName string
+
 type CallbackData struct {
 	Method       string `json:"method"`
 	URL          string `json:"url"`
@@ -23,6 +25,10 @@ type CallbackData struct {
 // Returns the URL of the callback server for use with WithMITMOptions, along with a close function
 // which should be called when the test finishes to shut down the HTTP server.
 func NewCallbackServer(t *testing.T, cb func(CallbackData)) (callbackURL string, close func()) {
+	if lastTestName != "" {
+		t.Logf("WARNING: NewCallbackServer called without closing the last one. Check test '%s'", lastTestName)
+	}
+	lastTestName = t.Name()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		var data CallbackData
@@ -46,5 +52,6 @@ func NewCallbackServer(t *testing.T, cb func(CallbackData)) (callbackURL string,
 	go srv.Serve(ln)
 	return fmt.Sprintf("http://host.docker.internal:%d", port), func() {
 		srv.Close()
+		lastTestName = ""
 	}
 }
