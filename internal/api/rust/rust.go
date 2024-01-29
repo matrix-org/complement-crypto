@@ -152,7 +152,8 @@ func (c *RustClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error)
 	if err != nil {
 		return nil, fmt.Errorf("[%s]failed to make sync service: %s", c.userID, err)
 	}
-	roomList, err := syncService.RoomListService().AllRooms()
+	rls := syncService.RoomListService()
+	roomList, err := rls.AllRooms()
 	if err != nil {
 		return nil, fmt.Errorf("[%s]failed to call SyncService.RoomListService.AllRooms: %s", c.userID, err)
 	}
@@ -187,6 +188,7 @@ func (c *RustClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error)
 		t.Logf("%s: Stopping sync service", c.userID)
 		syncService.Stop()
 		syncService.Destroy()
+		rls.Destroy()
 	}, nil
 }
 
