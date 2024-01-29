@@ -103,9 +103,10 @@ func testSigkillBeforeKeysUploadResponseRust(t *testing.T, clientType api.Client
 		// now make the same client
 		alice := MustCreateClient(t, clientType, cfg, tc.Deployment.SlidingSyncURL(t))
 		alice.Login(t, cfg) // login should work
-		alice.MustStartSyncing(t)
+		stopSyncing := alice.MustStartSyncing(t)
 		// ensure we see the 2nd keys/upload
 		seenSecondKeysUploadWaiter.Wait(t, 5*time.Second)
+		stopSyncing()
 		alice.Close(t)
 	})
 }

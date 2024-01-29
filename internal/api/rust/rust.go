@@ -186,6 +186,7 @@ func (c *RustClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error)
 	return func() {
 		t.Logf("%s: Stopping sync service", c.userID)
 		syncService.Stop()
+		syncService.Destroy()
 	}, nil
 }
 

@@ -199,11 +199,10 @@ func testRoomKeyIsNotCycledOnClientRestartJS(t *testing.T, clientType api.Client
 
 	// Alice and Bob are in a room.
 	alice := tc.MustLoginClient(t, tc.Alice, clientType, WithPersistentStorage())
+	aliceStopSyncing := alice.MustStartSyncing(t)
 	// no close here as we'll close it in the test mid-way
 	bob := tc.MustLoginClient(t, tc.Bob, clientType)
 	defer bob.Close(t)
-	aliceStopSyncing := alice.MustStartSyncing(t)
-	defer aliceStopSyncing()
 	bobStopSyncing := bob.MustStartSyncing(t)
 	defer bobStopSyncing()
 
@@ -235,6 +234,7 @@ func testRoomKeyIsNotCycledOnClientRestartJS(t *testing.T, clientType api.Client
 		},
 	}, func() {
 		// now alice is going to restart her client
+		aliceStopSyncing()
 		alice.Close(t)
 
 		alice = tc.MustCreateClient(t, tc.Alice, clientType, WithPersistentStorage())

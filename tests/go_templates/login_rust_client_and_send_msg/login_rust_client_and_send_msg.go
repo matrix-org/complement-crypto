@@ -24,8 +24,9 @@ func main() {
 	if err := client.Login(t, cfg); err != nil {
 		panic(err)
 	}
-	client.MustStartSyncing(t)
+	stopSyncing := client.MustStartSyncing(t)
 	defer client.Close(t)
+	defer stopSyncing()
 	roomID := "{{.RoomID}}"
 	fmt.Println("Client logged in. Sending '{{.Body}}' in room {{.RoomID}}")
 	eventID := client.SendMessage(t, "{{.RoomID}}", "{{.Body}}")
