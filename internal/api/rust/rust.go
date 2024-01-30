@@ -186,9 +186,14 @@ func (c *RustClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error)
 
 	return func() {
 		t.Logf("%s: Stopping sync service", c.userID)
+		// we need to destroy all of these as they have been allocated Rust side.
+		// If we don't, then the Go GC will eventually call Destroy for us, but
+		// by this point there will be no tokio runtime running, which will then
+		// cause a panic (as cleanup code triggered by Destroy calls async functions)
+		roomList.Destroy()
+		rls.Destroy()
 		syncService.Stop()
 		syncService.Destroy()
-		rls.Destroy()
 	}, nil
 }
 
