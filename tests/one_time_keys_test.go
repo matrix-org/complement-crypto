@@ -80,13 +80,14 @@ func mustClaimOTKs(t *testing.T, claimer *client.CSAPI, target *client.CSAPI, ot
 // - Manually claim all OTKs in the test.
 // - Claim the fallback key. Remember it.
 // - Bob logs in, tries to talk to Alice, will have to claim fallback key. Ensure session works.
+// - BONUS: Charlie logs in, tries to talk to Alice, will have to claim _the same fallback key_. Ensure session works.
 // - Unblock /keys/upload
 // - Ensure fallback key is cycled by re-claiming all OTKs and the fallback key, ensure it isn't the same as the first fallback key.
 // - Expected fail on SS versions <0.99.14
 func TestFallbackKeyIsUsedIfOneTimeKeysRunOut(t *testing.T) {
-	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
-		tc := CreateTestContext(t, clientTypeA, clientTypeB)
-		otkGobbler := tc.Deployment.Register(t, clientTypeB.HS, helpers.RegistrationOpts{
+	ClientTypeMatrix(t, func(t *testing.T, keyProviderClientType, keyConsumerClientType api.ClientType) {
+		tc := CreateTestContext(t, keyProviderClientType, keyConsumerClientType, keyConsumerClientType)
+		otkGobbler := tc.Deployment.Register(t, keyConsumerClientType.HS, helpers.RegistrationOpts{
 			LocalpartSuffix: "eater_of_keys",
 			Password:        "complement-crypto-password",
 		})
@@ -95,7 +96,7 @@ func TestFallbackKeyIsUsedIfOneTimeKeysRunOut(t *testing.T) {
 		// =================
 
 		// Upload OTKs and a fallback
-		alice := tc.MustLoginClient(t, tc.Alice, clientTypeA)
+		alice := tc.MustLoginClient(t, tc.Alice, keyProviderClientType)
 		defer alice.Close(t)
 		aliceStopSyncing := alice.MustStartSyncing(t)
 		defer aliceStopSyncing()
@@ -105,11 +106,15 @@ func TestFallbackKeyIsUsedIfOneTimeKeysRunOut(t *testing.T) {
 		// key because SS doesn't tell it, because Synapse doesn't tell SS that the fallback key was used.
 		tc.Alice.MustCreateRoom(t, map[string]interface{}{})
 
-		// also let bob upload OTKs before we block the upload endpoint!
-		bob := tc.MustLoginClient(t, tc.Bob, clientTypeB)
+		// also let bob & charlie upload OTKs before we block the upload endpoint!
+		bob := tc.MustLoginClient(t, tc.Bob, keyConsumerClientType)
 		defer bob.Close(t)
 		bobStopSyncing := bob.MustStartSyncing(t)
 		defer bobStopSyncing()
+		charlie := tc.MustLoginClient(t, tc.Charlie, keyConsumerClientType)
+		defer charlie.Close(t)
+		charlieStopSyncing := charlie.MustStartSyncing(t)
+		defer charlieStopSyncing()
 
 		// Query OTK count so we know how many to consume
 		res, _ := tc.Alice.MustSync(t, client.SyncReq{})
@@ -134,14 +139,15 @@ func TestFallbackKeyIsUsedIfOneTimeKeysRunOut(t *testing.T) {
 			// now claim the fallback key
 			fallbackKeyID, fallbackKey = mustClaimFallbackKey(t, otkGobbler, tc.Alice)
 
-			// now bob tries to talk to alice, the fallback key should be used
-			roomID = tc.CreateNewEncryptedRoom(t, tc.Bob, "public_chat", []string{tc.Alice.UserID})
-			tc.Alice.MustJoinRoom(t, roomID, []string{clientTypeB.HS})
-			w := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(alice.UserID(), "join"))
-			w.Wait(t, 5*time.Second)
-			w = alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(alice.UserID(), "join"))
-			w.Wait(t, 5*time.Second)
+			// now bob & charlie try to talk to alice, the fallback key should be used
+			roomID = tc.CreateNewEncryptedRoom(t, tc.Bob, "public_chat", []string{tc.Alice.UserID, tc.Charlie.UserID})
+			tc.Charlie.MustJoinRoom(t, roomID, []string{keyConsumerClientType.HS})
+			tc.Alice.MustJoinRoom(t, roomID, []string{keyConsumerClientType.HS})
+			charlie.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(alice.UserID(), "join")).Wait(t, 5*time.Second)
+			bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(alice.UserID(), "join")).Wait(t, 5*time.Second)
+			alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(alice.UserID(), "join")).Wait(t, 5*time.Second)
 			bob.SendMessage(t, roomID, "Hello world!")
+			charlie.SendMessage(t, roomID, "Goodbye world!")
 			waiter = alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody("Hello world!"))
 			// ensure that /keys/upload is actually blocked (OTK count should be 0)
 			res, _ := tc.Alice.MustSync(t, client.SyncReq{})
@@ -150,6 +156,8 @@ func TestFallbackKeyIsUsedIfOneTimeKeysRunOut(t *testing.T) {
 		})
 		// rust sdk needs /keys/upload to 200 OK before it will decrypt the hello world msg
 		waiter.Wait(t, 5*time.Second)
+		// check charlie's message is also here
+		alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody("Goodbye world!")).Wait(t, 5*time.Second)
 
 		// now /keys/upload is unblocked, make sure we upload new keys
 		alice.SendMessage(t, roomID, "Kick the client to upload OTKs... hopefully")

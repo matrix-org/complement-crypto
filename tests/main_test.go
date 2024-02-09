@@ -94,6 +94,7 @@ type TestContext struct {
 	Deployment *deploy.SlidingSyncDeployment
 	Alice      *client.CSAPI
 	Bob        *client.CSAPI
+	Charlie    *client.CSAPI
 }
 
 func CreateTestContext(t *testing.T, clientType ...api.ClientType) *TestContext {
@@ -115,6 +116,12 @@ func CreateTestContext(t *testing.T, clientType ...api.ClientType) *TestContext 
 		})
 	}
 	if len(clientType) > 2 {
+		tc.Charlie = deployment.Register(t, clientType[1].HS, helpers.RegistrationOpts{
+			LocalpartSuffix: "charlie",
+			Password:        "complement-crypto-password",
+		})
+	}
+	if len(clientType) > 3 {
 		t.Fatalf("CreateTestContext: too many clients: got %d", len(clientType))
 	}
 	return tc

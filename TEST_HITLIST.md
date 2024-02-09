@@ -59,7 +59,7 @@ These tests only make sense on a single server, for a single user.
 ### One-time Keys
 - [x] When Alice runs out of OTKs, the fallback key is used.
 - [x] Alice cycles her fallback key when she becomes aware that it has been used.
-- [ ] When a fallback key used by multiple sessions, Alice accepts all of them. TODO: when should Alice stop accepting usage of this key?
+- [x] When a fallback key used by multiple sessions, Alice accepts all of them. TODO: when should Alice stop accepting usage of this key?
 - [ ] When a OTK is reused, Alice rejects the 2nd+ use of the OTK.
 
 ### Key Verification: (Short Authentication String)
