@@ -1,10 +1,12 @@
 package deploy
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -26,7 +28,7 @@ type CallbackData struct {
 // which should be called when the test finishes to shut down the HTTP server.
 func NewCallbackServer(t *testing.T, cb func(CallbackData)) (callbackURL string, close func()) {
 	if lastTestName != "" {
-		t.Logf("WARNING: NewCallbackServer called without closing the last one. Check test '%s'", lastTestName)
+		t.Logf("WARNING[%s]: NewCallbackServer called without closing the last one. Check test '%s'", t.Name(), lastTestName)
 	}
 	lastTestName = t.Name()
 	mux := http.NewServeMux()
@@ -37,7 +39,14 @@ func NewCallbackServer(t *testing.T, cb func(CallbackData)) (callbackURL string,
 			w.WriteHeader(500)
 			return
 		}
-		t.Logf("CallbackServer: %v %+v", time.Now(), data)
+		localpart := ""
+		if strings.HasPrefix(data.AccessToken, "syt_") {
+			maybeLocalpart, _ := base64.RawStdEncoding.DecodeString(strings.Split(data.AccessToken, "_")[1])
+			if maybeLocalpart != nil {
+				localpart = string(maybeLocalpart)
+			}
+		}
+		t.Logf("CallbackServer[%s]%s: %v %+v", t.Name(), localpart, time.Now(), data)
 		cb(data)
 		w.WriteHeader(200)
 	})
