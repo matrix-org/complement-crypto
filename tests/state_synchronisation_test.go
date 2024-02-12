@@ -130,7 +130,11 @@ func testSigkillBeforeKeysUploadResponseJS(t *testing.T, clientType api.ClientTy
 		}
 		// destroy the client
 		mu.Lock()
-		terminateClient()
+		if terminateClient != nil {
+			terminateClient()
+		} else {
+			ct.Errorf(t, "terminateClient is nil. Did WithMITMOptions lock?")
+		}
 		mu.Unlock()
 	})
 	defer close()

@@ -214,20 +214,25 @@ func (c *RustClient) MustBackupKeys(t ct.TestLike) (recoveryKey string) {
 	genericListener := newGenericStateListener[matrix_sdk_ffi.EnableRecoveryProgress]()
 	var listener matrix_sdk_ffi.EnableRecoveryProgressListener = genericListener
 	recoveryKey, err := c.FFIClient.Encryption().EnableRecovery(true, listener)
-	for s := range genericListener.ch {
-		switch x := s.(type) {
-		case matrix_sdk_ffi.EnableRecoveryProgressCreatingBackup:
-			t.Logf("MustBackupKeys: state=CreatingBackup")
-		case matrix_sdk_ffi.EnableRecoveryProgressBackingUp:
-			t.Logf("MustBackupKeys: state=BackingUp %v/%v", x.BackedUpCount, x.TotalCount)
-		case matrix_sdk_ffi.EnableRecoveryProgressCreatingRecoveryKey:
-			t.Logf("MustBackupKeys: state=CreatingRecoveryKey")
-		case matrix_sdk_ffi.EnableRecoveryProgressDone:
-			t.Logf("MustBackupKeys: state=Done")
-			genericListener.Close() // break the loop
+	must.NotError(t, "Encryption.EnableRecovery", err)
+	for !genericListener.isClosed {
+		select {
+		case s := <-genericListener.ch:
+			switch x := s.(type) {
+			case matrix_sdk_ffi.EnableRecoveryProgressCreatingBackup:
+				t.Logf("MustBackupKeys: state=CreatingBackup")
+			case matrix_sdk_ffi.EnableRecoveryProgressBackingUp:
+				t.Logf("MustBackupKeys: state=BackingUp %v/%v", x.BackedUpCount, x.TotalCount)
+			case matrix_sdk_ffi.EnableRecoveryProgressCreatingRecoveryKey:
+				t.Logf("MustBackupKeys: state=CreatingRecoveryKey")
+			case matrix_sdk_ffi.EnableRecoveryProgressDone:
+				t.Logf("MustBackupKeys: state=Done")
+				genericListener.Close() // break the loop
+			}
+		case <-time.After(5 * time.Second):
+			ct.Fatalf(t, "timed out enabling backup keys")
 		}
 	}
-	must.NotError(t, "Encryption.EnableRecovery", err)
 	return recoveryKey
 }
 
