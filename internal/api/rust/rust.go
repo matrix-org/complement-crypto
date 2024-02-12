@@ -111,6 +111,8 @@ func (c *RustClient) Close(t ct.TestLike) {
 			rri.stream.Cancel()
 		}
 	}
+	c.roomsMu.Unlock()
+	c.FFIClient.Encryption().Destroy()
 	c.FFIClient.Destroy()
 }
 
