@@ -24,6 +24,8 @@ func main() {
 	}
 	fmt.Println(time.Now(), "script about to login, expect /keys/upload")
 	client.Login(t, cfg)
+	client.MustStartSyncing(t)
+	time.Sleep(2 * time.Second)
 	fmt.Println("exiting.. you should not see this as it should have been sigkilled by now!")
 
 }

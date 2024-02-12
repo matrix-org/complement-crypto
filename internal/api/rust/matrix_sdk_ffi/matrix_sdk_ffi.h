@@ -712,7 +712,7 @@ void uniffi_matrix_sdk_ffi_fn_free_notificationsettings(
 	RustCallStatus* out_status
 );
 
-void* uniffi_matrix_sdk_ffi_fn_method_notificationsettings_can_homeserver_push_encrypted_event_to_device(
+void* uniffi_matrix_sdk_ffi_fn_method_notificationsettings_can_push_encrypted_event_to_device(
 	void* ptr,
 	RustCallStatus* out_status
 );
@@ -858,6 +858,12 @@ RustBuffer uniffi_matrix_sdk_ffi_fn_method_room_alternative_aliases(
 	RustCallStatus* out_status
 );
 
+void* uniffi_matrix_sdk_ffi_fn_method_room_apply_power_level_changes(
+	void* ptr,
+	RustBuffer changes,
+	RustCallStatus* out_status
+);
+
 RustBuffer uniffi_matrix_sdk_ffi_fn_method_room_avatar_url(
 	void* ptr,
 	RustCallStatus* out_status
@@ -867,6 +873,11 @@ void* uniffi_matrix_sdk_ffi_fn_method_room_ban_user(
 	void* ptr,
 	RustBuffer user_id,
 	RustBuffer reason,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_room_build_power_level_changes_from_current(
+	void* ptr,
 	RustCallStatus* out_status
 );
 
@@ -888,7 +899,13 @@ void* uniffi_matrix_sdk_ffi_fn_method_room_can_user_kick(
 	RustCallStatus* out_status
 );
 
-void* uniffi_matrix_sdk_ffi_fn_method_room_can_user_redact(
+void* uniffi_matrix_sdk_ffi_fn_method_room_can_user_redact_other(
+	void* ptr,
+	RustBuffer user_id,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_room_can_user_redact_own(
 	void* ptr,
 	RustBuffer user_id,
 	RustCallStatus* out_status
@@ -1003,6 +1020,22 @@ void uniffi_matrix_sdk_ffi_fn_method_room_leave(
 	RustCallStatus* out_status
 );
 
+void* uniffi_matrix_sdk_ffi_fn_method_room_mark_as_read(
+	void* ptr,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_room_mark_as_read_and_send_read_receipt(
+	void* ptr,
+	RustBuffer receipt_type,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_room_mark_as_unread(
+	void* ptr,
+	RustCallStatus* out_status
+);
+
 void* uniffi_matrix_sdk_ffi_fn_method_room_member(
 	void* ptr,
 	RustBuffer user_id,
@@ -1026,6 +1059,11 @@ void* uniffi_matrix_sdk_ffi_fn_method_room_members(
 	RustCallStatus* out_status
 );
 
+void* uniffi_matrix_sdk_ffi_fn_method_room_members_no_sync(
+	void* ptr,
+	RustCallStatus* out_status
+);
+
 RustBuffer uniffi_matrix_sdk_ffi_fn_method_room_membership(
 	void* ptr,
 	RustCallStatus* out_status
@@ -1037,11 +1075,6 @@ RustBuffer uniffi_matrix_sdk_ffi_fn_method_room_name(
 );
 
 RustBuffer uniffi_matrix_sdk_ffi_fn_method_room_own_user_id(
-	void* ptr,
-	RustCallStatus* out_status
-);
-
-void* uniffi_matrix_sdk_ffi_fn_method_room_poll_history(
 	void* ptr,
 	RustCallStatus* out_status
 );
@@ -1071,6 +1104,20 @@ void* uniffi_matrix_sdk_ffi_fn_method_room_room_info(
 	RustCallStatus* out_status
 );
 
+void* uniffi_matrix_sdk_ffi_fn_method_room_set_is_favourite(
+	void* ptr,
+	int8_t is_favourite,
+	RustBuffer tag_order,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_room_set_is_low_priority(
+	void* ptr,
+	int8_t is_low_priority,
+	RustBuffer tag_order,
+	RustCallStatus* out_status
+);
+
 void uniffi_matrix_sdk_ffi_fn_method_room_set_name(
 	void* ptr,
 	RustBuffer name,
@@ -1084,6 +1131,12 @@ void uniffi_matrix_sdk_ffi_fn_method_room_set_topic(
 );
 
 void* uniffi_matrix_sdk_ffi_fn_method_room_subscribe_to_room_info_updates(
+	void* ptr,
+	uint64_t listener,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_room_subscribe_to_typing_notifications(
 	void* ptr,
 	uint64_t listener,
 	RustCallStatus* out_status
@@ -1109,6 +1162,13 @@ void* uniffi_matrix_sdk_ffi_fn_method_room_unban_user(
 	void* ptr,
 	RustBuffer user_id,
 	RustBuffer reason,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_room_update_power_level_for_user(
+	void* ptr,
+	RustBuffer user_id,
+	int64_t power_level,
 	RustCallStatus* out_status
 );
 
@@ -1191,22 +1251,23 @@ void* uniffi_matrix_sdk_ffi_fn_method_roomlistitem_full_room(
 	RustCallStatus* out_status
 );
 
-void* uniffi_matrix_sdk_ffi_fn_method_roomlistitem_full_room_blocking(
-	void* ptr,
-	RustCallStatus* out_status
-);
-
-int8_t uniffi_matrix_sdk_ffi_fn_method_roomlistitem_has_unread_notifications(
-	void* ptr,
-	RustCallStatus* out_status
-);
-
 RustBuffer uniffi_matrix_sdk_ffi_fn_method_roomlistitem_id(
 	void* ptr,
 	RustCallStatus* out_status
 );
 
+void* uniffi_matrix_sdk_ffi_fn_method_roomlistitem_init_timeline(
+	void* ptr,
+	RustBuffer event_type_filter,
+	RustCallStatus* out_status
+);
+
 int8_t uniffi_matrix_sdk_ffi_fn_method_roomlistitem_is_direct(
+	void* ptr,
+	RustCallStatus* out_status
+);
+
+int8_t uniffi_matrix_sdk_ffi_fn_method_roomlistitem_is_timeline_initialized(
 	void* ptr,
 	RustCallStatus* out_status
 );
@@ -1229,11 +1290,6 @@ void* uniffi_matrix_sdk_ffi_fn_method_roomlistitem_room_info(
 void uniffi_matrix_sdk_ffi_fn_method_roomlistitem_subscribe(
 	void* ptr,
 	RustBuffer settings,
-	RustCallStatus* out_status
-);
-
-void* uniffi_matrix_sdk_ffi_fn_method_roomlistitem_unread_notifications(
-	void* ptr,
 	RustCallStatus* out_status
 );
 
@@ -1308,7 +1364,12 @@ int8_t uniffi_matrix_sdk_ffi_fn_method_roommember_can_kick(
 	RustCallStatus* out_status
 );
 
-int8_t uniffi_matrix_sdk_ffi_fn_method_roommember_can_redact(
+int8_t uniffi_matrix_sdk_ffi_fn_method_roommember_can_redact_other(
+	void* ptr,
+	RustCallStatus* out_status
+);
+
+int8_t uniffi_matrix_sdk_ffi_fn_method_roommember_can_redact_own(
 	void* ptr,
 	RustCallStatus* out_status
 );
@@ -1366,6 +1427,11 @@ int64_t uniffi_matrix_sdk_ffi_fn_method_roommember_normalized_power_level(
 );
 
 int64_t uniffi_matrix_sdk_ffi_fn_method_roommember_power_level(
+	void* ptr,
+	RustCallStatus* out_status
+);
+
+RustBuffer uniffi_matrix_sdk_ffi_fn_method_roommember_suggested_role_for_power_level(
 	void* ptr,
 	RustCallStatus* out_status
 );
@@ -1630,6 +1696,11 @@ void* uniffi_matrix_sdk_ffi_fn_method_timeline_get_timeline_event_content_by_eve
 	RustCallStatus* out_status
 );
 
+void* uniffi_matrix_sdk_ffi_fn_method_timeline_latest_event(
+	void* ptr,
+	RustCallStatus* out_status
+);
+
 void uniffi_matrix_sdk_ffi_fn_method_timeline_paginate_backwards(
 	void* ptr,
 	RustBuffer opts,
@@ -1811,6 +1882,21 @@ uint64_t uniffi_matrix_sdk_ffi_fn_method_timelineevent_timestamp(
 	RustCallStatus* out_status
 );
 
+void uniffi_matrix_sdk_ffi_fn_free_timelineeventtypefilter(
+	void* ptr,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_constructor_timelineeventtypefilter_exclude(
+	RustBuffer event_types,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_constructor_timelineeventtypefilter_include(
+	RustBuffer event_types,
+	RustCallStatus* out_status
+);
+
 void uniffi_matrix_sdk_ffi_fn_free_timelineitem(
 	void* ptr,
 	RustCallStatus* out_status
@@ -1980,6 +2066,11 @@ void uniffi_matrix_sdk_ffi_fn_init_callback_syncservicestateobserver(
 );
 
 void uniffi_matrix_sdk_ffi_fn_init_callback_timelinelistener(
+	ForeignCallback callback_stub,
+	RustCallStatus* out_status
+);
+
+void uniffi_matrix_sdk_ffi_fn_init_callback_typingnotificationslistener(
 	ForeignCallback callback_stub,
 	RustCallStatus* out_status
 );
@@ -2820,7 +2911,7 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_notificationclientbuilder_finish(
 	RustCallStatus* out_status
 );
 
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_notificationsettings_can_homeserver_push_encrypted_event_to_device(
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_notificationsettings_can_push_encrypted_event_to_device(
 	RustCallStatus* out_status
 );
 
@@ -2912,11 +3003,19 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_alternative_aliases(
 	RustCallStatus* out_status
 );
 
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_apply_power_level_changes(
+	RustCallStatus* out_status
+);
+
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_avatar_url(
 	RustCallStatus* out_status
 );
 
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_ban_user(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_build_power_level_changes_from_current(
 	RustCallStatus* out_status
 );
 
@@ -2932,7 +3031,11 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_can_user_kick(
 	RustCallStatus* out_status
 );
 
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_can_user_redact(
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_can_user_redact_other(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_can_user_redact_own(
 	RustCallStatus* out_status
 );
 
@@ -3016,6 +3119,18 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_leave(
 	RustCallStatus* out_status
 );
 
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_mark_as_read(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_mark_as_read_and_send_read_receipt(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_mark_as_unread(
+	RustCallStatus* out_status
+);
+
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_member(
 	RustCallStatus* out_status
 );
@@ -3032,6 +3147,10 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_members(
 	RustCallStatus* out_status
 );
 
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_members_no_sync(
+	RustCallStatus* out_status
+);
+
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_membership(
 	RustCallStatus* out_status
 );
@@ -3041,10 +3160,6 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_name(
 );
 
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_own_user_id(
-	RustCallStatus* out_status
-);
-
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_poll_history(
 	RustCallStatus* out_status
 );
 
@@ -3064,6 +3179,14 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_room_info(
 	RustCallStatus* out_status
 );
 
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_set_is_favourite(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_set_is_low_priority(
+	RustCallStatus* out_status
+);
+
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_set_name(
 	RustCallStatus* out_status
 );
@@ -3073,6 +3196,10 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_set_topic(
 );
 
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_subscribe_to_room_info_updates(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_subscribe_to_typing_notifications(
 	RustCallStatus* out_status
 );
 
@@ -3089,6 +3216,10 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_typing_notice(
 );
 
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_unban_user(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_update_power_level_for_user(
 	RustCallStatus* out_status
 );
 
@@ -3136,19 +3267,19 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_roomlistitem_full_room(
 	RustCallStatus* out_status
 );
 
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_roomlistitem_full_room_blocking(
-	RustCallStatus* out_status
-);
-
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_roomlistitem_has_unread_notifications(
-	RustCallStatus* out_status
-);
-
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_roomlistitem_id(
 	RustCallStatus* out_status
 );
 
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_roomlistitem_init_timeline(
+	RustCallStatus* out_status
+);
+
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_roomlistitem_is_direct(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_roomlistitem_is_timeline_initialized(
 	RustCallStatus* out_status
 );
 
@@ -3165,10 +3296,6 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_roomlistitem_room_info(
 );
 
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_roomlistitem_subscribe(
-	RustCallStatus* out_status
-);
-
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_roomlistitem_unread_notifications(
 	RustCallStatus* out_status
 );
 
@@ -3216,7 +3343,11 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_roommember_can_kick(
 	RustCallStatus* out_status
 );
 
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_roommember_can_redact(
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_roommember_can_redact_other(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_roommember_can_redact_own(
 	RustCallStatus* out_status
 );
 
@@ -3261,6 +3392,10 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_roommember_normalized_power_level
 );
 
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_roommember_power_level(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_roommember_suggested_role_for_power_level(
 	RustCallStatus* out_status
 );
 
@@ -3405,6 +3540,10 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_get_event_timeline_item_
 );
 
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_get_timeline_event_content_by_event_id(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_latest_event(
 	RustCallStatus* out_status
 );
 
@@ -3584,6 +3723,14 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_constructor_span_new(
 	RustCallStatus* out_status
 );
 
+uint16_t uniffi_matrix_sdk_ffi_checksum_constructor_timelineeventtypefilter_exclude(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_constructor_timelineeventtypefilter_include(
+	RustCallStatus* out_status
+);
+
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_backpaginationstatuslistener_on_update(
 	RustCallStatus* out_status
 );
@@ -3680,6 +3827,10 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_timelinelistener_on_update(
 	RustCallStatus* out_status
 );
 
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_typingnotificationslistener_call(
+	RustCallStatus* out_status
+);
+
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_widgetcapabilitiesprovider_acquire_capabilities(
 	RustCallStatus* out_status
 );
@@ -3706,5 +3857,6 @@ int32_t matrix_sdk_ffi_cgo_RoomListServiceSyncIndicatorListener(uint64_t, int32_
 int32_t matrix_sdk_ffi_cgo_SessionVerificationControllerDelegate(uint64_t, int32_t, uint8_t *, int32_t, RustBuffer *);
 int32_t matrix_sdk_ffi_cgo_SyncServiceStateObserver(uint64_t, int32_t, uint8_t *, int32_t, RustBuffer *);
 int32_t matrix_sdk_ffi_cgo_TimelineListener(uint64_t, int32_t, uint8_t *, int32_t, RustBuffer *);
+int32_t matrix_sdk_ffi_cgo_TypingNotificationsListener(uint64_t, int32_t, uint8_t *, int32_t, RustBuffer *);
 int32_t matrix_sdk_ffi_cgo_WidgetCapabilitiesProvider(uint64_t, int32_t, uint8_t *, int32_t, RustBuffer *);
 

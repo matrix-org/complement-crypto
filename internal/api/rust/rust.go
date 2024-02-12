@@ -117,7 +117,7 @@ func (c *RustClient) Close(t ct.TestLike) {
 func (c *RustClient) MustGetEvent(t ct.TestLike, roomID, eventID string) api.Event {
 	t.Helper()
 	room := c.findRoom(t, roomID)
-	timelineItem, err := room.Timeline().GetEventTimelineItemByEventId(eventID)
+	timelineItem, err := mustGetTimeline(t, room).GetEventTimelineItemByEventId(eventID)
 	if err != nil {
 		ct.Fatalf(t, "MustGetEvent(rust) %s (%s, %s): %s", c.userID, roomID, eventID, err)
 	}
@@ -288,7 +288,12 @@ func (c *RustClient) TrySendMessage(t ct.TestLike, roomID, text string) (eventID
 		}
 	})
 	defer cancel()
-	r.Timeline().Send(matrix_sdk_ffi.MessageEventContentFromHtml(text, text))
+	timeline, err := r.Timeline()
+	if err != nil {
+		err = fmt.Errorf("SendMessage(rust) %s: %s", c.userID, err)
+		return
+	}
+	timeline.Send(matrix_sdk_ffi.MessageEventContentFromHtml(text, text))
 	select {
 	case <-time.After(11 * time.Second):
 		err = fmt.Errorf("SendMessage(rust) %s: timed out after 11s", c.userID)
@@ -302,7 +307,7 @@ func (c *RustClient) MustBackpaginate(t ct.TestLike, roomID string, count int) {
 	t.Helper()
 	r := c.findRoom(t, roomID)
 	must.NotEqual(t, r, nil, "unknown room")
-	must.NotError(t, "failed to backpaginate", r.Timeline().PaginateBackwards(matrix_sdk_ffi.PaginationOptionsSimpleRequest{
+	must.NotError(t, "failed to backpaginate", mustGetTimeline(t, r).PaginateBackwards(matrix_sdk_ffi.PaginationOptionsSimpleRequest{
 		EventLimit: uint16(count),
 	}))
 }
@@ -335,13 +340,17 @@ func (c *RustClient) findRoom(t ct.TestLike, roomID string) *matrix_sdk_ffi.Room
 		if err != nil {
 			c.Logf(t, "allRooms.Room(%s) err: %s", roomID, err)
 		} else if roomListItem != nil {
-			room := roomListItem.FullRoom()
-			c.roomsMu.Lock()
-			c.rooms[roomID] = &RustRoomInfo{
-				room: room,
+			room, err := roomListItem.FullRoom()
+			if err != nil {
+				c.Logf(t, "allRooms.FullRoom(%s) err: %s", roomID, err)
+			} else {
+				c.roomsMu.Lock()
+				c.rooms[roomID] = &RustRoomInfo{
+					room: room,
+				}
+				c.roomsMu.Unlock()
+				return room
 			}
-			c.roomsMu.Unlock()
-			return room
 		}
 	}
 	// try to find it from cache?
@@ -386,7 +395,7 @@ func (c *RustClient) ensureListening(t ct.TestLike, roomID string) *matrix_sdk_f
 
 	c.Logf(t, "[%s]AddTimelineListener[%s]", c.userID, roomID)
 	// we need a timeline listener before we can send messages
-	result := r.Timeline().AddListener(&timelineListener{fn: func(diff []*matrix_sdk_ffi.TimelineDiff) {
+	result := mustGetTimeline(t, r).AddListener(&timelineListener{fn: func(diff []*matrix_sdk_ffi.TimelineDiff) {
 		timeline := c.rooms[roomID].timeline
 		var newEvents []*api.Event
 		c.Logf(t, "[%s]AddTimelineListener[%s] TimelineDiff len=%d", c.userID, roomID, len(diff))
@@ -533,6 +542,12 @@ func (w *timelineWaiter) Wait(t ct.TestLike, s time.Duration) {
 			return
 		}
 	}
+}
+
+func mustGetTimeline(t ct.TestLike, room *matrix_sdk_ffi.Room) *matrix_sdk_ffi.Timeline {
+	timeline, err := room.Timeline()
+	must.NotError(t, "failed to get room timeline", err)
+	return timeline
 }
 
 type timelineListener struct {
