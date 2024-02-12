@@ -419,6 +419,17 @@ func (c *RustClient) ensureListening(t ct.TestLike, roomID string) *matrix_sdk_f
 				timeline = slices.Insert(timeline, i, timelineItemToEvent(insertData.Item))
 				c.logToFile(t, "[%s]_______ INSERT %+v\n", c.userID, timeline[i])
 				newEvents = append(newEvents, timeline[i])
+			case matrix_sdk_ffi.TimelineChangeRemove:
+				removeData := d.Remove()
+				if removeData == nil {
+					continue
+				}
+				i := int(*removeData)
+				if i >= len(timeline) {
+					t.Logf("TimelineListener[%s] REMOVE %d out of bounds of events timeline of size %d", roomID, i, len(timeline))
+					continue
+				}
+				timeline = slices.Delete(timeline, i, i+1)
 			case matrix_sdk_ffi.TimelineChangeAppend:
 				appendItems := d.Append()
 				if appendItems == nil {
