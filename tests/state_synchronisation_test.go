@@ -16,7 +16,7 @@ import (
 )
 
 func TestSigkillBeforeKeysUploadResponse(t *testing.T) {
-	ForEachClientType(t, func(tt *testing.T, a api.ClientType) {
+	ForEachClientType(t, func(t *testing.T, a api.ClientType) {
 		switch a.Lang {
 		case api.ClientTypeRust:
 			testSigkillBeforeKeysUploadResponseRust(t, a)
