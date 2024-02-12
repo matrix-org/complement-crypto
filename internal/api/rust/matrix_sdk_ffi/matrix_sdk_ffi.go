@@ -16,6 +16,8 @@ import (
 	"sync/atomic"
 	"time"
 	"unsafe"
+
+	"github.com/matrix-org/complement-crypto/internal/api/rust/matrix_sdk_ui"
 )
 
 type RustBuffer = C.RustBuffer
@@ -1208,7 +1210,7 @@ func uniffiCheckChecksums() {
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_matrix_sdk_ffi_checksum_method_eventtimelineitem_origin(uniffiStatus)
 		})
-		if checksum != 28263 {
+		if checksum != 512 {
 			// If this happens try cleaning and rebuilding your project
 			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_eventtimelineitem_origin: UniFFI API checksum mismatch")
 		}
@@ -3107,7 +3109,7 @@ func uniffiCheckChecksums() {
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_matrix_sdk_ffi_checksum_method_backpaginationstatuslistener_on_update(uniffiStatus)
 		})
-		if checksum != 2582 {
+		if checksum != 13839 {
 			// If this happens try cleaning and rebuilding your project
 			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_backpaginationstatuslistener_on_update: UniFFI API checksum mismatch")
 		}
@@ -4929,7 +4931,7 @@ func (_self *EventTimelineItem) LocalSendState() *EventSendState {
 	}))
 }
 
-func (_self *EventTimelineItem) Origin() *EventItemOrigin {
+func (_self *EventTimelineItem) Origin() *matrix_sdk_ui.EventItemOrigin {
 	_pointer := _self.ffiObject.incrementPointer("*EventTimelineItem")
 	defer _self.ffiObject.decrementPointer()
 	return FfiConverterOptionalTypeEventItemOriginINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) RustBufferI {
@@ -12378,39 +12380,6 @@ func (c FfiConverterTypeAuthenticationError) Write(writer io.Writer, value *Auth
 	}
 }
 
-type BackPaginationStatus uint
-
-const (
-	BackPaginationStatusIdle                 BackPaginationStatus = 1
-	BackPaginationStatusPaginating           BackPaginationStatus = 2
-	BackPaginationStatusTimelineStartReached BackPaginationStatus = 3
-)
-
-type FfiConverterTypeBackPaginationStatus struct{}
-
-var FfiConverterTypeBackPaginationStatusINSTANCE = FfiConverterTypeBackPaginationStatus{}
-
-func (c FfiConverterTypeBackPaginationStatus) Lift(rb RustBufferI) BackPaginationStatus {
-	return LiftFromRustBuffer[BackPaginationStatus](c, rb)
-}
-
-func (c FfiConverterTypeBackPaginationStatus) Lower(value BackPaginationStatus) RustBuffer {
-	return LowerIntoRustBuffer[BackPaginationStatus](c, value)
-}
-func (FfiConverterTypeBackPaginationStatus) Read(reader io.Reader) BackPaginationStatus {
-	id := readInt32(reader)
-	return BackPaginationStatus(id)
-}
-
-func (FfiConverterTypeBackPaginationStatus) Write(writer io.Writer, value BackPaginationStatus) {
-	writeInt32(writer, int32(value))
-}
-
-type FfiDestroyerTypeBackPaginationStatus struct{}
-
-func (_ FfiDestroyerTypeBackPaginationStatus) Destroy(value BackPaginationStatus) {
-}
-
 type BackupState uint
 
 const (
@@ -12867,39 +12836,6 @@ type FfiDestroyerTypeEncryptionSystem struct{}
 
 func (_ FfiDestroyerTypeEncryptionSystem) Destroy(value EncryptionSystem) {
 	value.Destroy()
-}
-
-type EventItemOrigin uint
-
-const (
-	EventItemOriginLocal      EventItemOrigin = 1
-	EventItemOriginSync       EventItemOrigin = 2
-	EventItemOriginPagination EventItemOrigin = 3
-)
-
-type FfiConverterTypeEventItemOrigin struct{}
-
-var FfiConverterTypeEventItemOriginINSTANCE = FfiConverterTypeEventItemOrigin{}
-
-func (c FfiConverterTypeEventItemOrigin) Lift(rb RustBufferI) EventItemOrigin {
-	return LiftFromRustBuffer[EventItemOrigin](c, rb)
-}
-
-func (c FfiConverterTypeEventItemOrigin) Lower(value EventItemOrigin) RustBuffer {
-	return LowerIntoRustBuffer[EventItemOrigin](c, value)
-}
-func (FfiConverterTypeEventItemOrigin) Read(reader io.Reader) EventItemOrigin {
-	id := readInt32(reader)
-	return EventItemOrigin(id)
-}
-
-func (FfiConverterTypeEventItemOrigin) Write(writer io.Writer, value EventItemOrigin) {
-	writeInt32(writer, int32(value))
-}
-
-type FfiDestroyerTypeEventItemOrigin struct{}
-
-func (_ FfiDestroyerTypeEventItemOrigin) Destroy(value EventItemOrigin) {
 }
 
 type EventSendState interface {
@@ -17454,7 +17390,7 @@ func (c *FfiConverterCallbackInterface[CallbackInterface]) Write(writer io.Write
 
 // Declaration and FfiConverters for BackPaginationStatusListener Callback Interface
 type BackPaginationStatusListener interface {
-	OnUpdate(status BackPaginationStatus)
+	OnUpdate(status matrix_sdk_ui.BackPaginationStatus)
 }
 
 // foreignCallbackCallbackInterfaceBackPaginationStatusListener cannot be callable be a compiled function at a same time
@@ -17487,7 +17423,7 @@ func matrix_sdk_ffi_cgo_BackPaginationStatusListener(handle C.uint64_t, method C
 
 func (foreignCallbackCallbackInterfaceBackPaginationStatusListener) InvokeOnUpdate(callback BackPaginationStatusListener, args []byte, outBuf *C.RustBuffer) uniffiCallbackResult {
 	reader := bytes.NewReader(args)
-	callback.OnUpdate(FfiConverterTypeBackPaginationStatusINSTANCE.Read(reader))
+	callback.OnUpdate(matrix_sdk_ui.FfiConverterTypeBackPaginationStatusINSTANCE.Read(reader))
 
 	return uniffiCallbackResultSuccess
 }
@@ -19969,43 +19905,6 @@ func (_ FfiDestroyerOptionalTypeAssetType) Destroy(value *AssetType) {
 	}
 }
 
-type FfiConverterOptionalTypeEventItemOrigin struct{}
-
-var FfiConverterOptionalTypeEventItemOriginINSTANCE = FfiConverterOptionalTypeEventItemOrigin{}
-
-func (c FfiConverterOptionalTypeEventItemOrigin) Lift(rb RustBufferI) *EventItemOrigin {
-	return LiftFromRustBuffer[*EventItemOrigin](c, rb)
-}
-
-func (_ FfiConverterOptionalTypeEventItemOrigin) Read(reader io.Reader) *EventItemOrigin {
-	if readInt8(reader) == 0 {
-		return nil
-	}
-	temp := FfiConverterTypeEventItemOriginINSTANCE.Read(reader)
-	return &temp
-}
-
-func (c FfiConverterOptionalTypeEventItemOrigin) Lower(value *EventItemOrigin) RustBuffer {
-	return LowerIntoRustBuffer[*EventItemOrigin](c, value)
-}
-
-func (_ FfiConverterOptionalTypeEventItemOrigin) Write(writer io.Writer, value *EventItemOrigin) {
-	if value == nil {
-		writeInt8(writer, 0)
-	} else {
-		writeInt8(writer, 1)
-		FfiConverterTypeEventItemOriginINSTANCE.Write(writer, *value)
-	}
-}
-
-type FfiDestroyerOptionalTypeEventItemOrigin struct{}
-
-func (_ FfiDestroyerOptionalTypeEventItemOrigin) Destroy(value *EventItemOrigin) {
-	if value != nil {
-		FfiDestroyerTypeEventItemOrigin{}.Destroy(*value)
-	}
-}
-
 type FfiConverterOptionalTypeEventSendState struct{}
 
 var FfiConverterOptionalTypeEventSendStateINSTANCE = FfiConverterOptionalTypeEventSendState{}
@@ -20558,6 +20457,43 @@ type FfiDestroyerOptionalSequenceTypeRequiredState struct{}
 func (_ FfiDestroyerOptionalSequenceTypeRequiredState) Destroy(value *[]RequiredState) {
 	if value != nil {
 		FfiDestroyerSequenceTypeRequiredState{}.Destroy(*value)
+	}
+}
+
+type FfiConverterOptionalTypeEventItemOrigin struct{}
+
+var FfiConverterOptionalTypeEventItemOriginINSTANCE = FfiConverterOptionalTypeEventItemOrigin{}
+
+func (c FfiConverterOptionalTypeEventItemOrigin) Lift(rb RustBufferI) *matrix_sdk_ui.EventItemOrigin {
+	return LiftFromRustBuffer[*matrix_sdk_ui.EventItemOrigin](c, rb)
+}
+
+func (_ FfiConverterOptionalTypeEventItemOrigin) Read(reader io.Reader) *matrix_sdk_ui.EventItemOrigin {
+	if readInt8(reader) == 0 {
+		return nil
+	}
+	temp := matrix_sdk_ui.FfiConverterTypeEventItemOriginINSTANCE.Read(reader)
+	return &temp
+}
+
+func (c FfiConverterOptionalTypeEventItemOrigin) Lower(value *matrix_sdk_ui.EventItemOrigin) RustBuffer {
+	return LowerIntoRustBuffer[*matrix_sdk_ui.EventItemOrigin](c, value)
+}
+
+func (_ FfiConverterOptionalTypeEventItemOrigin) Write(writer io.Writer, value *matrix_sdk_ui.EventItemOrigin) {
+	if value == nil {
+		writeInt8(writer, 0)
+	} else {
+		writeInt8(writer, 1)
+		matrix_sdk_ui.FfiConverterTypeEventItemOriginINSTANCE.Write(writer, *value)
+	}
+}
+
+type FfiDestroyerOptionalTypeEventItemOrigin struct{}
+
+func (_ FfiDestroyerOptionalTypeEventItemOrigin) Destroy(value *matrix_sdk_ui.EventItemOrigin) {
+	if value != nil {
+		matrix_sdk_ui.FfiDestroyerTypeEventItemOrigin{}.Destroy(*value)
 	}
 }
 
