@@ -36,8 +36,7 @@ type RustRoomInfo struct {
 
 type RustClient struct {
 	FFIClient             *matrix_sdk_ffi.Client
-	listeners             map[int32]func(roomID string)
-	listenerID            atomic.Int32
+	roomsListener         *RoomsListener
 	allRooms              *matrix_sdk_ffi.RoomList
 	rooms                 map[string]*RustRoomInfo
 	roomsMu               *sync.RWMutex
@@ -61,12 +60,12 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts, ssURL string) (ap
 		return nil, fmt.Errorf("ClientBuilder.Build failed: %s", err)
 	}
 	c := &RustClient{
-		userID:    opts.UserID,
-		FFIClient: client,
-		rooms:     make(map[string]*RustRoomInfo),
-		listeners: make(map[int32]func(roomID string)),
-		roomsMu:   &sync.RWMutex{},
-		opts:      opts,
+		userID:        opts.UserID,
+		FFIClient:     client,
+		roomsListener: NewRoomsListener(),
+		rooms:         make(map[string]*RustRoomInfo),
+		roomsMu:       &sync.RWMutex{},
+		opts:          opts,
 	}
 	if opts.PersistentStorage {
 		c.persistentStoragePath = "./rust_storage/" + username
@@ -159,6 +158,7 @@ func (c *RustClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error)
 	if err != nil {
 		return nil, fmt.Errorf("[%s]failed to call SyncService.RoomListService.AllRooms: %s", c.userID, err)
 	}
+	must.NotEqual(t, roomList, nil, "AllRooms room list must not be nil")
 	genericListener := newGenericStateListener[matrix_sdk_ffi.RoomListLoadingState]()
 	result, err := roomList.LoadingState(genericListener)
 	if err != nil {
@@ -166,6 +166,57 @@ func (c *RustClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error)
 	}
 	go syncService.Start()
 	c.allRooms = roomList
+	// track new rooms when they are made
+	allRoomsListener := newGenericStateListener[[]matrix_sdk_ffi.RoomListEntriesUpdate]()
+	go func() {
+		var allRoomIds DynamicSlice[matrix_sdk_ffi.RoomListEntry]
+		for !allRoomsListener.isClosed {
+			updates := <-allRoomsListener.ch
+			var newEntries []matrix_sdk_ffi.RoomListEntry
+			for _, update := range updates {
+				switch x := update.(type) {
+				case matrix_sdk_ffi.RoomListEntriesUpdateAppend:
+					allRoomIds.Append(x.Values...)
+					newEntries = append(newEntries, x.Values...)
+				case matrix_sdk_ffi.RoomListEntriesUpdateInsert:
+					allRoomIds.Insert(int(x.Index), x.Value)
+					newEntries = append(newEntries, x.Value)
+				case matrix_sdk_ffi.RoomListEntriesUpdatePushBack:
+					allRoomIds.PushBack(x.Value)
+					newEntries = append(newEntries, x.Value)
+				case matrix_sdk_ffi.RoomListEntriesUpdatePushFront:
+					allRoomIds.PushFront(x.Value)
+					newEntries = append(newEntries, x.Value)
+				case matrix_sdk_ffi.RoomListEntriesUpdateSet:
+					allRoomIds.Set(int(x.Index), x.Value)
+					newEntries = append(newEntries, x.Value)
+				case matrix_sdk_ffi.RoomListEntriesUpdateClear:
+					allRoomIds.Clear()
+				case matrix_sdk_ffi.RoomListEntriesUpdatePopBack:
+					allRoomIds.PopBack()
+				case matrix_sdk_ffi.RoomListEntriesUpdatePopFront:
+					allRoomIds.PopFront()
+				case matrix_sdk_ffi.RoomListEntriesUpdateRemove:
+					allRoomIds.Remove(int(x.Index))
+				case matrix_sdk_ffi.RoomListEntriesUpdateReset:
+					allRoomIds.Reset(x.Values)
+					newEntries = append(newEntries, x.Values...)
+				case matrix_sdk_ffi.RoomListEntriesUpdateTruncate:
+					allRoomIds.Truncate(int(x.Length))
+				default:
+					c.Logf(t, "unhandled all rooms update: %+v", update)
+				}
+			}
+			// inform anything waiting on this room that it exists
+			for _, entry := range newEntries {
+				switch x := entry.(type) {
+				case matrix_sdk_ffi.RoomListEntryFilled:
+					c.roomsListener.BroadcastUpdateForRoom(x.RoomId)
+				}
+			}
+		}
+	}()
+	c.allRooms.Entries(allRoomsListener)
 
 	isSyncing := false
 
@@ -278,11 +329,15 @@ func (c *RustClient) TrySendMessage(t ct.TestLike, roomID, text string) (eventID
 	ch := make(chan bool)
 	// we need a timeline listener before we can send messages, AND that listener must be attached to the
 	// same *Room you call .Send on :S
-	r := c.ensureListening(t, roomID)
-	cancel := c.listenForUpdates(func(roomID string) {
+	c.ensureListening(t, roomID)
+	r := c.findRoom(t, roomID)
+	cancel := c.roomsListener.AddListener(func(broadcastRoomID string) bool {
+		if roomID != broadcastRoomID {
+			return false
+		}
 		info := c.rooms[roomID]
 		if info == nil {
-			return
+			return false
 		}
 		for _, ev := range info.timeline {
 			if ev == nil {
@@ -293,6 +348,7 @@ func (c *RustClient) TrySendMessage(t ct.TestLike, roomID, text string) (eventID
 				close(ch)
 			}
 		}
+		return false
 	})
 	defer cancel()
 	timeline, err := r.Timeline()
@@ -323,7 +379,7 @@ func (c *RustClient) UserID() string {
 	return c.userID
 }
 
-func (c *RustClient) findRoomInMap(roomID string) *matrix_sdk_ffi.Room {
+func (c *RustClient) findRoomInCache(roomID string) *matrix_sdk_ffi.Room {
 	c.roomsMu.RLock()
 	defer c.roomsMu.RUnlock()
 	// do we have a reference to it already?
@@ -334,10 +390,11 @@ func (c *RustClient) findRoomInMap(roomID string) *matrix_sdk_ffi.Room {
 	return nil
 }
 
-// findRoom returns the room, waiting up to 5s for it to appear
+// findRoom tries to find the room in the FFI client. Has a cache of already found rooms to ensure
+// the same pointer is always returned for the same room.
 func (c *RustClient) findRoom(t ct.TestLike, roomID string) *matrix_sdk_ffi.Room {
 	t.Helper()
-	room := c.findRoomInMap(roomID)
+	room := c.findRoomInCache(roomID)
 	if room != nil {
 		return room
 	}
@@ -365,7 +422,7 @@ func (c *RustClient) findRoom(t ct.TestLike, roomID string) *matrix_sdk_ffi.Room
 			}
 		}
 	}
-	// try to find it from cache?
+	// try to find it from FFI
 	rooms := c.FFIClient.Rooms()
 	for i, r := range rooms {
 		rid := r.Id()
@@ -382,6 +439,7 @@ func (c *RustClient) findRoom(t ct.TestLike, roomID string) *matrix_sdk_ffi.Room
 			return c.rooms[rid].room
 		}
 	}
+	// we really don't know about this room yet
 	return nil
 }
 
@@ -395,14 +453,28 @@ func (c *RustClient) logToFile(t ct.TestLike, format string, args ...interface{}
 	matrix_sdk_ffi.LogEvent("rust.go", &zero, matrix_sdk_ffi.LogLevelInfo, t.Name(), fmt.Sprintf(format, args...))
 }
 
-func (c *RustClient) ensureListening(t ct.TestLike, roomID string) *matrix_sdk_ffi.Room {
+func (c *RustClient) ensureListening(t ct.TestLike, roomID string) {
 	t.Helper()
 	r := c.findRoom(t, roomID)
+	if r == nil {
+		// we allow the room to not exist yet. If this happens, wait until we see the room before continuing
+		c.roomsListener.AddListener(func(broadcastRoomID string) bool {
+			if broadcastRoomID != roomID {
+				return false
+			}
+			if room := c.findRoom(t, roomID); room != nil {
+				c.ensureListening(t, roomID) // this should work now
+				return true
+			}
+			return false
+		})
+		return
+	}
 	must.NotEqual(t, r, nil, fmt.Sprintf("room %s does not exist", roomID))
 
 	info := c.rooms[roomID]
-	if info.stream != nil {
-		return r
+	if info != nil && info.stream != nil {
+		return
 	}
 
 	c.Logf(t, "[%s]AddTimelineListener[%s]", c.userID, roomID)
@@ -421,6 +493,11 @@ func (c *RustClient) ensureListening(t ct.TestLike, roomID string) *matrix_sdk_f
 				i := int(insertData.Index)
 				if i >= len(timeline) {
 					t.Logf("TimelineListener[%s] INSERT %d out of bounds of events timeline of size %d", roomID, i, len(timeline))
+					if i == len(timeline) {
+						t.Logf("TimelineListener[%s] treating as append", roomID)
+						timeline = append(timeline, timelineItemToEvent(insertData.Item))
+						newEvents = append(newEvents, timeline[i])
+					}
 					continue
 				}
 				timeline = slices.Insert(timeline, i, timelineItemToEvent(insertData.Item))
@@ -470,14 +547,20 @@ func (c *RustClient) ensureListening(t ct.TestLike, roomID string) *matrix_sdk_f
 				timeline[i] = timelineItemToEvent(setData.Item)
 				c.logToFile(t, "[%s]_______ SET %+v\n", c.userID, timeline[i])
 				newEvents = append(newEvents, timeline[i])
+			case matrix_sdk_ffi.TimelineChangePushFront:
+				pushFrontData := d.PushFront()
+				if pushFrontData == nil {
+					continue
+				}
+				ev := timelineItemToEvent(*pushFrontData)
+				timeline = slices.Insert(timeline, 0, ev)
+				newEvents = append(newEvents, ev)
 			default:
 				t.Logf("Unhandled TimelineDiff change %v", d.Change())
 			}
 		}
 		c.rooms[roomID].timeline = timeline
-		for _, l := range c.listeners {
-			l(roomID)
-		}
+		c.roomsListener.BroadcastUpdateForRoom(roomID)
 		for _, e := range newEvents {
 			c.Logf(t, "TimelineDiff change: %+v", e)
 		}
@@ -490,18 +573,7 @@ func (c *RustClient) ensureListening(t ct.TestLike, roomID string) *matrix_sdk_f
 	c.rooms[roomID].timeline = events
 	c.Logf(t, "[%s]AddTimelineListener[%s] result.Items len=%d", c.userID, roomID, len(result.Items))
 	if len(events) > 0 {
-		for _, l := range c.listeners {
-			l(roomID)
-		}
-	}
-	return r
-}
-
-func (c *RustClient) listenForUpdates(callback func(roomID string)) (cancel func()) {
-	id := c.listenerID.Add(1)
-	c.listeners[id] = callback
-	return func() {
-		delete(c.listeners, id)
+		c.roomsListener.BroadcastUpdateForRoom(roomID)
 	}
 }
 
@@ -540,16 +612,27 @@ func (w *timelineWaiter) Wait(t ct.TestLike, s time.Duration) {
 	}
 
 	updates := make(chan bool, 3)
-	cancel := w.client.listenForUpdates(func(roomID string) {
+	var isClosed atomic.Bool
+	cancel := w.client.roomsListener.AddListener(func(roomID string) bool {
+		if isClosed.Load() {
+			return true
+		}
 		if w.roomID != roomID {
-			return
+			return false
 		}
 		if !checkForEvent() {
-			return
+			return false
 		}
+		isClosed.Store(true)
 		close(updates)
+		return true
 	})
 	defer cancel()
+
+	// check again in case it was added after the previous checkForEvent but before AddListener
+	if checkForEvent() {
+		return
+	}
 
 	// either no timeline or doesn't exist yet, start blocking
 	start := time.Now()
@@ -568,6 +651,9 @@ func (w *timelineWaiter) Wait(t ct.TestLike, s time.Duration) {
 }
 
 func mustGetTimeline(t ct.TestLike, room *matrix_sdk_ffi.Room) *matrix_sdk_ffi.Timeline {
+	if room == nil {
+		ct.Fatalf(t, "mustGetTimeline: room does not exist")
+	}
 	timeline, err := room.Timeline()
 	must.NotError(t, "failed to get room timeline", err)
 	return timeline
