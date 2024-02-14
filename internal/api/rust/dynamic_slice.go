@@ -6,6 +6,8 @@ import (
 	"golang.org/x/exp/slices"
 )
 
+// This is a recurring pattern in the FFI bindings where a room list or timeline has delta updates
+// sent to it. Rather than reimplementing all the functions over and over, define it once here.
 type DynamicSlice[T any] struct {
 	Slice []T
 }

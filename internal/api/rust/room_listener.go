@@ -5,6 +5,8 @@ import (
 	"sync/atomic"
 )
 
+// This is a more ergonomic way to listen for updates from the FFI layer, as it will allow you to listen
+// for non-existing rooms without crashing.
 type RoomsListener struct {
 	listeners  map[int32]func(roomID string) (cancel bool)
 	listenerID atomic.Int32

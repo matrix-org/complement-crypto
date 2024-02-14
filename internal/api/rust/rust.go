@@ -729,26 +729,3 @@ func eventTimelineItemToEvent(item *matrix_sdk_ffi.EventTimelineItem) *api.Event
 	}
 	return &complementEvent
 }
-
-type genericStateListener[T any] struct {
-	ch       chan T
-	isClosed bool
-}
-
-func newGenericStateListener[T any]() *genericStateListener[T] {
-	return &genericStateListener[T]{
-		ch: make(chan T),
-	}
-}
-
-func (l *genericStateListener[T]) Close() {
-	l.isClosed = true
-	close(l.ch)
-}
-
-func (l *genericStateListener[T]) OnUpdate(state T) {
-	if l.isClosed {
-		return
-	}
-	l.ch <- state
-}
