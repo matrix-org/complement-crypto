@@ -73,6 +73,7 @@ cargo install uniffi-bindgen-go --path ./uniffi-bindgen-go/bindgen
     * Add `// #cgo LDFLAGS: -lmatrix_sdk_ffi` immediately after `// #include <matrix_sdk_ffi.h>` at the top of `matrix_sdk_ffi.go`.
     * Patch up the import: replace `matrix_sdk_ui` with `github.com/matrix-org/complement-crypto/internal/api/rust/matrix_sdk_ui`. Do this for all the `matrix_sdk` imports.
     * https://github.com/NordSecurity/uniffi-bindgen-go/issues/36
+    * https://github.com/NordSecurity/uniffi-bindgen-go/issues/43
 - Sanity check compile `LIBRARY_PATH="$LIBRARY_PATH:/path/to/matrix-rust-sdk/target/debug" go test -c ./tests`
 
 #### Add console logs

@@ -1022,17 +1022,7 @@ void uniffi_matrix_sdk_ffi_fn_method_room_leave(
 
 void* uniffi_matrix_sdk_ffi_fn_method_room_mark_as_read(
 	void* ptr,
-	RustCallStatus* out_status
-);
-
-void* uniffi_matrix_sdk_ffi_fn_method_room_mark_as_read_and_send_read_receipt(
-	void* ptr,
 	RustBuffer receipt_type,
-	RustCallStatus* out_status
-);
-
-void* uniffi_matrix_sdk_ffi_fn_method_room_mark_as_unread(
-	void* ptr,
 	RustCallStatus* out_status
 );
 
@@ -1127,6 +1117,12 @@ void uniffi_matrix_sdk_ffi_fn_method_room_set_name(
 void uniffi_matrix_sdk_ffi_fn_method_room_set_topic(
 	void* ptr,
 	RustBuffer topic,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_room_set_unread_flag(
+	void* ptr,
+	int8_t new_value,
 	RustCallStatus* out_status
 );
 
@@ -1698,6 +1694,12 @@ void* uniffi_matrix_sdk_ffi_fn_method_timeline_get_timeline_event_content_by_eve
 
 void* uniffi_matrix_sdk_ffi_fn_method_timeline_latest_event(
 	void* ptr,
+	RustCallStatus* out_status
+);
+
+void* uniffi_matrix_sdk_ffi_fn_method_timeline_mark_as_read(
+	void* ptr,
+	RustBuffer receipt_type,
 	RustCallStatus* out_status
 );
 
@@ -3123,14 +3125,6 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_mark_as_read(
 	RustCallStatus* out_status
 );
 
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_mark_as_read_and_send_read_receipt(
-	RustCallStatus* out_status
-);
-
-uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_mark_as_unread(
-	RustCallStatus* out_status
-);
-
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_member(
 	RustCallStatus* out_status
 );
@@ -3192,6 +3186,10 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_set_name(
 );
 
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_set_topic(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_room_set_unread_flag(
 	RustCallStatus* out_status
 );
 
@@ -3544,6 +3542,10 @@ uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_get_timeline_event_conte
 );
 
 uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_latest_event(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_matrix_sdk_ffi_checksum_method_timeline_mark_as_read(
 	RustCallStatus* out_status
 );
 

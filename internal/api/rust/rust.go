@@ -623,8 +623,9 @@ func (w *timelineWaiter) Wait(t ct.TestLike, s time.Duration) {
 		if !checkForEvent() {
 			return false
 		}
-		isClosed.Store(true)
-		close(updates)
+		if isClosed.CompareAndSwap(false, true) {
+			close(updates)
+		}
 		return true
 	})
 	defer cancel()

@@ -1860,27 +1860,9 @@ func uniffiCheckChecksums() {
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_matrix_sdk_ffi_checksum_method_room_mark_as_read(uniffiStatus)
 		})
-		if checksum != 47528 {
+		if checksum != 43113 {
 			// If this happens try cleaning and rebuilding your project
 			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_room_mark_as_read: UniFFI API checksum mismatch")
-		}
-	}
-	{
-		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
-			return C.uniffi_matrix_sdk_ffi_checksum_method_room_mark_as_read_and_send_read_receipt(uniffiStatus)
-		})
-		if checksum != 34997 {
-			// If this happens try cleaning and rebuilding your project
-			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_room_mark_as_read_and_send_read_receipt: UniFFI API checksum mismatch")
-		}
-	}
-	{
-		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
-			return C.uniffi_matrix_sdk_ffi_checksum_method_room_mark_as_unread(uniffiStatus)
-		})
-		if checksum != 13886 {
-			// If this happens try cleaning and rebuilding your project
-			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_room_mark_as_unread: UniFFI API checksum mismatch")
 		}
 	}
 	{
@@ -2025,6 +2007,15 @@ func uniffiCheckChecksums() {
 		if checksum != 55348 {
 			// If this happens try cleaning and rebuilding your project
 			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_room_set_topic: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_room_set_unread_flag(uniffiStatus)
+		})
+		if checksum != 45660 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_room_set_unread_flag: UniFFI API checksum mismatch")
 		}
 	}
 	{
@@ -2817,6 +2808,15 @@ func uniffiCheckChecksums() {
 		if checksum != 4413 {
 			// If this happens try cleaning and rebuilding your project
 			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_timeline_latest_event: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_timeline_mark_as_read(uniffiStatus)
+		})
+		if checksum != 1835 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_timeline_mark_as_read: UniFFI API checksum mismatch")
 		}
 	}
 	{
@@ -6664,62 +6664,14 @@ func (_self *Room) Leave() error {
 	return _uniffiErr
 }
 
-func (_self *Room) MarkAsRead() error {
+func (_self *Room) MarkAsRead(receiptType ReceiptType) error {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
 	return uniffiRustCallAsyncWithError(
 		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
 			// rustFutureFunc
 			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_room_mark_as_read(
-				_pointer,
-				status,
-			))
-		},
-		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
-			// pollFunc
-			C.ffi_matrix_sdk_ffi_rust_future_poll_void(unsafe.Pointer(handle), ptr, status)
-		},
-		func(handle *C.void, status *C.RustCallStatus) {
-			// completeFunc
-			C.ffi_matrix_sdk_ffi_rust_future_complete_void(unsafe.Pointer(handle), status)
-		},
-		func(bool) {}, func(rustFuture *C.void, status *C.RustCallStatus) {
-			// freeFunc
-			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
-		})
-}
-func (_self *Room) MarkAsReadAndSendReadReceipt(receiptType ReceiptType) error {
-	_pointer := _self.ffiObject.incrementPointer("*Room")
-	defer _self.ffiObject.decrementPointer()
-	return uniffiRustCallAsyncWithError(
-		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
-			// rustFutureFunc
-			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_room_mark_as_read_and_send_read_receipt(
 				_pointer, FfiConverterTypeReceiptTypeINSTANCE.Lower(receiptType),
-				status,
-			))
-		},
-		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
-			// pollFunc
-			C.ffi_matrix_sdk_ffi_rust_future_poll_void(unsafe.Pointer(handle), ptr, status)
-		},
-		func(handle *C.void, status *C.RustCallStatus) {
-			// completeFunc
-			C.ffi_matrix_sdk_ffi_rust_future_complete_void(unsafe.Pointer(handle), status)
-		},
-		func(bool) {}, func(rustFuture *C.void, status *C.RustCallStatus) {
-			// freeFunc
-			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
-		})
-}
-func (_self *Room) MarkAsUnread() error {
-	_pointer := _self.ffiObject.incrementPointer("*Room")
-	defer _self.ffiObject.decrementPointer()
-	return uniffiRustCallAsyncWithError(
-		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
-			// rustFutureFunc
-			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_room_mark_as_unread(
-				_pointer,
 				status,
 			))
 		},
@@ -6992,6 +6944,30 @@ func (_self *Room) SetTopic(topic string) error {
 	return _uniffiErr
 }
 
+func (_self *Room) SetUnreadFlag(newValue bool) error {
+	_pointer := _self.ffiObject.incrementPointer("*Room")
+	defer _self.ffiObject.decrementPointer()
+	return uniffiRustCallAsyncWithError(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_room_set_unread_flag(
+				_pointer, FfiConverterBoolINSTANCE.Lower(newValue),
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_void(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) {
+			// completeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_complete_void(unsafe.Pointer(handle), status)
+		},
+		func(bool) {}, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
+		})
+}
 func (_self *Room) SubscribeToRoomInfoUpdates(listener RoomInfoListener) *TaskHandle {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
@@ -8964,6 +8940,30 @@ func (_self *Timeline) LatestEvent() **EventTimelineItem {
 		FfiConverterOptionalEventTimelineItemINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
 			// freeFunc
 			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
+		})
+}
+func (_self *Timeline) MarkAsRead(receiptType ReceiptType) error {
+	_pointer := _self.ffiObject.incrementPointer("*Timeline")
+	defer _self.ffiObject.decrementPointer()
+	return uniffiRustCallAsyncWithError(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_timeline_mark_as_read(
+				_pointer, FfiConverterTypeReceiptTypeINSTANCE.Lower(receiptType),
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_void(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) {
+			// completeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_complete_void(unsafe.Pointer(handle), status)
+		},
+		func(bool) {}, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
 func (_self *Timeline) PaginateBackwards(opts PaginationOptions) error {
@@ -11247,6 +11247,7 @@ type RoomInfo struct {
 	IsPublic                    bool
 	IsSpace                     bool
 	IsTombstoned                bool
+	IsFavourite                 bool
 	CanonicalAlias              *string
 	AlternativeAliases          []string
 	Membership                  Membership
@@ -11275,6 +11276,7 @@ func (r *RoomInfo) Destroy() {
 	FfiDestroyerBool{}.Destroy(r.IsPublic)
 	FfiDestroyerBool{}.Destroy(r.IsSpace)
 	FfiDestroyerBool{}.Destroy(r.IsTombstoned)
+	FfiDestroyerBool{}.Destroy(r.IsFavourite)
 	FfiDestroyerOptionalString{}.Destroy(r.CanonicalAlias)
 	FfiDestroyerSequenceString{}.Destroy(r.AlternativeAliases)
 	FfiDestroyerTypeMembership{}.Destroy(r.Membership)
@@ -11312,6 +11314,7 @@ func (c FfiConverterTypeRoomInfo) Read(reader io.Reader) RoomInfo {
 		FfiConverterBoolINSTANCE.Read(reader),
 		FfiConverterBoolINSTANCE.Read(reader),
 		FfiConverterBoolINSTANCE.Read(reader),
+		FfiConverterBoolINSTANCE.Read(reader),
 		FfiConverterOptionalStringINSTANCE.Read(reader),
 		FfiConverterSequenceStringINSTANCE.Read(reader),
 		FfiConverterTypeMembershipINSTANCE.Read(reader),
@@ -11345,6 +11348,7 @@ func (c FfiConverterTypeRoomInfo) Write(writer io.Writer, value RoomInfo) {
 	FfiConverterBoolINSTANCE.Write(writer, value.IsPublic)
 	FfiConverterBoolINSTANCE.Write(writer, value.IsSpace)
 	FfiConverterBoolINSTANCE.Write(writer, value.IsTombstoned)
+	FfiConverterBoolINSTANCE.Write(writer, value.IsFavourite)
 	FfiConverterOptionalStringINSTANCE.Write(writer, value.CanonicalAlias)
 	FfiConverterSequenceStringINSTANCE.Write(writer, value.AlternativeAliases)
 	FfiConverterTypeMembershipINSTANCE.Write(writer, value.Membership)
