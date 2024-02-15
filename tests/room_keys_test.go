@@ -10,13 +10,28 @@ import (
 	"github.com/matrix-org/complement-crypto/internal/deploy"
 	templates "github.com/matrix-org/complement-crypto/tests/go_templates"
 	"github.com/matrix-org/complement/client"
+	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/complement/must"
 )
+
+func sniffToDeviceEvent(t *testing.T, ch chan deploy.CallbackData) (callbackURL string, close func()) {
+	callbackURL, close = deploy.NewCallbackServer(t, func(cd deploy.CallbackData) {
+		if cd.Method == "OPTIONS" {
+			return // ignore CORS
+		}
+		t.Logf("%+v", cd)
+		if strings.Contains(cd.URL, "m.room.encrypted") {
+			// we can't decrypt this, but we know that this should most likely be the m.room_key to-device event.
+			ch <- cd
+		}
+	})
+	return callbackURL, close
+}
 
 // This test ensure we change the m.room_key when a device leaves an E2EE room.
 // If the key is not changed, the left device could potentially decrypt the encrypted
 // event if they could get access to it.
-func TestRoomKeyIsCycledOnDeviceLeaving(t *testing.T) {
+func TestRoomKeyIsCycledOnDeviceLogout(t *testing.T) {
 	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
 		tc := CreateTestContext(t, clientTypeA, clientTypeB)
 		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "trusted_private_chat", []string{tc.Bob.UserID})
@@ -46,17 +61,8 @@ func TestRoomKeyIsCycledOnDeviceLeaving(t *testing.T) {
 		waiter2.Wait(t, 5*time.Second)
 
 		// we're going to sniff calls to /sendToDevice to ensure we see the new room key being sent.
-		seenToDeviceEventSent := false
-		callbackURL, close := deploy.NewCallbackServer(t, func(cd deploy.CallbackData) {
-			if cd.Method == "OPTIONS" {
-				return // ignore CORS
-			}
-			t.Logf("%+v", cd)
-			if strings.Contains(cd.URL, "m.room.encrypted") {
-				// we can't decrypt this, but we know that this should most likely be the m.room_key to-device event.
-				seenToDeviceEventSent = true
-			}
-		})
+		ch := make(chan deploy.CallbackData, 10)
+		callbackURL, close := sniffToDeviceEvent(t, ch)
 		defer close()
 
 		// we don't know when the new room key will be sent, it could be sent as soon as the device list update
@@ -85,7 +91,11 @@ func TestRoomKeyIsCycledOnDeviceLeaving(t *testing.T) {
 
 		// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
 		// the room key.
-		must.Equal(t, seenToDeviceEventSent, true, "did not see /sendToDevice when logging out and sending a new message")
+		select {
+		case <-ch:
+		default:
+			ct.Fatalf(t, "did not see /sendToDevice when logging out and sending a new message")
+		}
 	})
 }
 
@@ -152,17 +162,8 @@ func testRoomKeyIsNotCycledOnClientRestartRust(t *testing.T, clientType api.Clie
 	// Now recreate the same client and make sure we don't send new room keys.
 
 	// we're going to sniff calls to /sendToDevice to ensure we do NOT see a new room key being sent.
-	seenToDeviceEventSent := false
-	callbackURL, close := deploy.NewCallbackServer(t, func(cd deploy.CallbackData) {
-		if cd.Method == "OPTIONS" {
-			return // ignore CORS
-		}
-		t.Logf("%+v", cd)
-		if strings.Contains(cd.URL, "m.room.encrypted") {
-			// we can't decrypt this, but we know that this should most likely be the m.room_key to-device event.
-			seenToDeviceEventSent = true
-		}
-	})
+	ch := make(chan deploy.CallbackData, 10)
+	callbackURL, close := sniffToDeviceEvent(t, ch)
 	defer close()
 
 	tc.Deployment.WithMITMOptions(t, map[string]interface{}{
@@ -189,7 +190,11 @@ func testRoomKeyIsNotCycledOnClientRestartRust(t *testing.T, clientType api.Clie
 
 	// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
 	// the room key.
-	must.Equal(t, seenToDeviceEventSent, false, "saw /sendToDevice when restarting the client and sending a new message")
+	select {
+	case <-ch:
+		ct.Fatalf(t, "saw /sendToDevice when restarting the client and sending a new message")
+	default:
+	}
 }
 
 func testRoomKeyIsNotCycledOnClientRestartJS(t *testing.T, clientType api.ClientType) {
@@ -213,17 +218,8 @@ func testRoomKeyIsNotCycledOnClientRestartJS(t *testing.T, clientType api.Client
 	waiter.Wait(t, 5*time.Second)
 
 	// we're going to sniff calls to /sendToDevice to ensure we do NOT see a new room key being sent.
-	seenToDeviceEventSent := false
-	callbackURL, close := deploy.NewCallbackServer(t, func(cd deploy.CallbackData) {
-		if cd.Method == "OPTIONS" {
-			return // ignore CORS
-		}
-		t.Logf("%+v", cd)
-		if strings.Contains(cd.URL, "m.room.encrypted") {
-			// we can't decrypt this, but we know that this should most likely be the m.room_key to-device event.
-			seenToDeviceEventSent = true
-		}
-	})
+	ch := make(chan deploy.CallbackData, 10)
+	callbackURL, close := sniffToDeviceEvent(t, ch)
 	defer close()
 
 	// we want to start sniffing for the to-device event just before we restart the client.
@@ -252,5 +248,9 @@ func testRoomKeyIsNotCycledOnClientRestartJS(t *testing.T, clientType api.Client
 
 	// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
 	// the room key.
-	must.Equal(t, seenToDeviceEventSent, false, "saw /sendToDevice when restarting the client and sending a new message")
+	select {
+	case <-ch:
+		ct.Fatalf(t, "saw /sendToDevice when restarting the client and sending a new message")
+	default:
+	}
 }
