@@ -170,7 +170,7 @@ func (c *RustClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error)
 	allRoomsListener := newGenericStateListener[[]matrix_sdk_ffi.RoomListEntriesUpdate]()
 	go func() {
 		var allRoomIds DynamicSlice[matrix_sdk_ffi.RoomListEntry]
-		for !allRoomsListener.isClosed {
+		for !allRoomsListener.isClosed.Load() {
 			updates := <-allRoomsListener.ch
 			var newEntries []matrix_sdk_ffi.RoomListEntry
 			for _, update := range updates {
@@ -268,7 +268,7 @@ func (c *RustClient) MustBackupKeys(t ct.TestLike) (recoveryKey string) {
 	var listener matrix_sdk_ffi.EnableRecoveryProgressListener = genericListener
 	recoveryKey, err := c.FFIClient.Encryption().EnableRecovery(true, listener)
 	must.NotError(t, "Encryption.EnableRecovery", err)
-	for !genericListener.isClosed {
+	for !genericListener.isClosed.Load() {
 		select {
 		case s := <-genericListener.ch:
 			switch x := s.(type) {
