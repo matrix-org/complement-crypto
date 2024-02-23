@@ -66,6 +66,7 @@ class Callback:
                 "access_token": flow.request.headers.get("Authorization", "").removeprefix("Bearer "),
                 "url": flow.request.url,
                 "response_code": flow.response.status_code,
+                "request_body": flow.request.json(),
             })
             request = Request(
                 self.config["callback_url"],

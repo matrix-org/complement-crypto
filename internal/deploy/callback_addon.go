@@ -17,10 +17,15 @@ import (
 var lastTestName string
 
 type CallbackData struct {
-	Method       string `json:"method"`
-	URL          string `json:"url"`
-	AccessToken  string `json:"access_token"`
-	ResponseCode int    `json:"response_code"`
+	Method       string          `json:"method"`
+	URL          string          `json:"url"`
+	AccessToken  string          `json:"access_token"`
+	ResponseCode int             `json:"response_code"`
+	RequestBody  json.RawMessage `json:"request_body"`
+}
+
+func (cd CallbackData) String() string {
+	return fmt.Sprintf("%s %s (token=%s) req_len=%d => HTTP %v", cd.Method, cd.URL, cd.AccessToken, len(cd.RequestBody), cd.ResponseCode)
 }
 
 // NewCallbackServer runs a local HTTP server that can read callbacks from mitmproxy.
@@ -46,7 +51,7 @@ func NewCallbackServer(t *testing.T, cb func(CallbackData)) (callbackURL string,
 				localpart = string(maybeLocalpart)
 			}
 		}
-		t.Logf("CallbackServer[%s]%s: %v %+v", t.Name(), localpart, time.Now(), data)
+		t.Logf("CallbackServer[%s]%s: %v %s", t.Name(), localpart, time.Now(), data)
 		cb(data)
 		w.WriteHeader(200)
 	})

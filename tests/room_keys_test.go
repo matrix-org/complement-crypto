@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"encoding/json"
 	"os"
 	"strings"
 	"testing"
@@ -19,7 +20,6 @@ func sniffToDeviceEvent(t *testing.T, ch chan deploy.CallbackData) (callbackURL 
 		if cd.Method == "OPTIONS" {
 			return // ignore CORS
 		}
-		t.Logf("%+v", cd)
 		if strings.Contains(cd.URL, "m.room.encrypted") {
 			// we can't decrypt this, but we know that this should most likely be the m.room_key to-device event.
 			ch <- cd
@@ -163,6 +163,137 @@ func TestRoomKeyIsCycledOnMemberLeaving(t *testing.T) {
 		default:
 			ct.Fatalf(t, "did not see /sendToDevice when logging out and sending a new message")
 		}
+	})
+}
+
+func TestRoomKeyIsNotCycled(t *testing.T) {
+	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
+		tc := CreateTestContext(t, clientTypeA, clientTypeB)
+		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "trusted_private_chat", []string{tc.Bob.UserID})
+		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+
+		// Alice, Bob are in a room.
+		alice := tc.MustLoginClient(t, tc.Alice, clientTypeA)
+		defer alice.Close(t)
+		bob := tc.MustLoginClient(t, tc.Bob, clientTypeB)
+		defer bob.Close(t)
+		aliceStopSyncing := alice.MustStartSyncing(t)
+		defer aliceStopSyncing()
+		bobStopSyncing := bob.MustStartSyncing(t)
+		defer bobStopSyncing()
+
+		// check the room works
+		wantMsgBody := "Test Message"
+		waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+		alice.SendMessage(t, roomID, wantMsgBody)
+		waiter.Wait(t, 5*time.Second)
+
+		// we're going to sniff calls to /sendToDevice to ensure we see the new room key being sent.
+		ch := make(chan deploy.CallbackData, 10)
+		callbackURL, closeCallbackServer := sniffToDeviceEvent(t, ch)
+		defer closeCallbackServer()
+
+		t.Run("on display name change", func(t *testing.T) {
+			// we don't know when the new room key will be sent, it could be sent as soon as the device list update
+			// is sent, or it could be delayed until message send. We want to handle both cases so we start sniffing
+			// traffic now.
+			tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+				"callback": map[string]interface{}{
+					"callback_url": callbackURL,
+					"filter":       "~u .*\\/sendToDevice.*",
+				},
+			}, func() {
+				// now Bob is going to change their display name
+				// which should NOT trigger a new room key to be sent (on message send)
+				tc.Bob.MustDo(t, "PUT", []string{"_matrix", "client", "v3", "profile", tc.Bob.UserID, "displayname"}, client.WithJSONBody(t, map[string]any{
+					"displayname": "Little Bobby Tables",
+				}))
+
+				// we don't know how long it will take for the device list update to be processed, so wait 1s
+				time.Sleep(time.Second)
+
+				// now send another message from Alice, who should negotiate a new room key
+				wantMsgBody = "Another Test Message"
+				waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+				alice.SendMessage(t, roomID, wantMsgBody)
+				waiter.Wait(t, 5*time.Second)
+			})
+
+			// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
+			// the room key.
+			select {
+			case <-ch:
+				ct.Fatalf(t, "saw /sendToDevice when changing display name and sending a new message")
+			default:
+			}
+		})
+		t.Run("on new device login", func(t *testing.T) {
+			if clientTypeA.HS == "hs2" || clientTypeB.HS == "hs2" {
+				// we sniff /sendToDevice and assume that the access_token is for HS1.
+				t.Skipf("federation unsupported for this test")
+			}
+			// we don't know when the new room key will be sent, it could be sent as soon as the device list update
+			// is sent, or it could be delayed until message send. We want to handle both cases so we start sniffing
+			// traffic now.
+			tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+				"callback": map[string]interface{}{
+					"callback_url": callbackURL,
+					"filter":       "~u .*\\/sendToDevice.*",
+				},
+			}, func() {
+				// now Bob is going to login on a new device
+				// which should NOT trigger a new room key to be sent (on message send)
+				csapiBob2 := tc.MustRegisterNewDevice(t, tc.Bob, clientTypeB.HS, "OTHER_DEVICE")
+				bob2 := tc.MustLoginClient(t, csapiBob2, clientTypeB)
+				defer bob2.Close(t)
+				bob2StopSyncing := bob2.MustStartSyncing(t)
+				defer bob2StopSyncing()
+
+				// we don't know how long it will take for the device list update to be processed, so wait 1s
+				time.Sleep(time.Second)
+
+				// now send another message from Alice, who should negotiate a new room key
+				wantMsgBody = "Yet Another Test Message"
+				waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+				alice.SendMessage(t, roomID, wantMsgBody)
+				waiter.Wait(t, 5*time.Second)
+			})
+
+			// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
+			// the room key.
+
+		Consume:
+			for { // consume all items in the channel
+				// the logic here is a bit weird because we DO expect some /sendToDevice calls as Alice and Bob
+				// share the room key with Bob2. However, Alice, who is sending the message, should NOT be sending
+				// to-device msgs to Bob, as that would indicate a new exchange of room keys. To do this, we use
+				// the access token to see who the sender is, and check the request body to see who the receiver is,
+				// and make sure it's all what we expect.
+				select {
+				case sendToDevice := <-ch:
+					cli := tc.Deployment.Deployment.UnauthenticatedClient(t, "hs1")
+					cli.AccessToken = sendToDevice.AccessToken
+					whoami := cli.MustDo(t, "GET", []string{"_matrix", "client", "v3", "account", "whoami"})
+					sender := must.ParseJSON(t, whoami.Body).Get("user_id").Str
+					reqBody := struct {
+						Messages map[string]map[string]any
+					}{}
+					must.NotError(t, "failed to unmarshal intercepted request body", json.Unmarshal(sendToDevice.RequestBody, &reqBody))
+
+					for target := range reqBody.Messages {
+						for targetDeviceID := range reqBody.Messages[target] {
+							t.Logf("%s /sendToDevice to %v (%v)", sender, target, targetDeviceID)
+							if sender == alice.UserID() && target == bob.UserID() && targetDeviceID != "OTHER_DEVICE" {
+								ct.Fatalf(t, "saw Alice /sendToDevice to Bob for old device, implying room keys were refreshed")
+							}
+						}
+					}
+
+				default:
+					break Consume
+				}
+			}
+		})
 	})
 }
 

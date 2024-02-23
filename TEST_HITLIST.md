@@ -100,9 +100,9 @@ This refers to cases where the client has some state and wishes to synchronise i
 - [ ] The room key is cycled when the encryption algorithm changes.
 - [ ] The room key is cycled when `rotation_period_msgs` is met (default: 100).
 - [ ] The room key is cycled when `rotation_period_ms` is exceeded (default: 1 week).
-- [ ] The room key is not cycled when one of a user's devices logs in.
+- [x] The room key is not cycled when one of a user's devices logs in.
 - [x] The room key is not cycled when the client restarts.
-- [ ] The room key is not cycled when users change their display name or avatar.
+- [x] The room key is not cycled when users change their display name.
 
 ### Adversarial Attacks
 
