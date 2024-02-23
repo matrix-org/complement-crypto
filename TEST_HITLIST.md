@@ -93,15 +93,15 @@ This refers to cases where the client has some state and wishes to synchronise i
 - [ ] If a server is terminated mid-way through sending a to-device message over federation, it retries on startup.
 
 ### Room Keys
-- [ ] The room key is cycled when a user leaves a room.
-- [ ] The room key is cycled when one of a user's devices logs out.
+- [x] The room key is cycled when a user leaves a room.
+- [x] The room key is cycled when one of a user's devices logs out.
 - [ ] The room key is cycled when one of a user's devices is blacklisted.
 - [ ] The room key is cycled when history visibility changes to something more restrictive TODO: define precisely.
 - [ ] The room key is cycled when the encryption algorithm changes.
 - [ ] The room key is cycled when `rotation_period_msgs` is met (default: 100).
 - [ ] The room key is cycled when `rotation_period_ms` is exceeded (default: 1 week).
 - [ ] The room key is not cycled when one of a user's devices logs in.
-- [ ] The room key is not cycled when the client restarts.
+- [x] The room key is not cycled when the client restarts.
 - [ ] The room key is not cycled when users change their display name or avatar.
 
 ### Adversarial Attacks

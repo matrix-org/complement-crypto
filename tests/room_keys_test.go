@@ -99,6 +99,73 @@ func TestRoomKeyIsCycledOnDeviceLogout(t *testing.T) {
 	})
 }
 
+func TestRoomKeyIsCycledOnMemberLeaving(t *testing.T) {
+	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
+		tc := CreateTestContext(t, clientTypeA, clientTypeB, clientTypeB)
+		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "trusted_private_chat", []string{tc.Bob.UserID, tc.Charlie.UserID})
+		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+		tc.Charlie.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+
+		// Alice, Bob and Charlie are in a room.
+		alice := tc.MustLoginClient(t, tc.Alice, clientTypeA)
+		defer alice.Close(t)
+		bob := tc.MustLoginClient(t, tc.Bob, clientTypeB)
+		defer bob.Close(t)
+		charlie := tc.MustLoginClient(t, tc.Charlie, clientTypeB)
+		defer charlie.Close(t)
+		aliceStopSyncing := alice.MustStartSyncing(t)
+		defer aliceStopSyncing()
+		bobStopSyncing := bob.MustStartSyncing(t)
+		defer bobStopSyncing()
+		charlieStopSyncing := charlie.MustStartSyncing(t)
+		defer charlieStopSyncing()
+
+		// check the room works
+		wantMsgBody := "Test Message"
+		waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+		waiter2 := charlie.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+		alice.SendMessage(t, roomID, wantMsgBody)
+		waiter.Wait(t, 5*time.Second)
+		waiter2.Wait(t, 5*time.Second)
+
+		// we're going to sniff calls to /sendToDevice to ensure we see the new room key being sent.
+		ch := make(chan deploy.CallbackData, 10)
+		callbackURL, close := sniffToDeviceEvent(t, ch)
+		defer close()
+
+		// we don't know when the new room key will be sent, it could be sent as soon as the device list update
+		// is sent, or it could be delayed until message send. We want to handle both cases so we start sniffing
+		// traffic now.
+		tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+			"callback": map[string]interface{}{
+				"callback_url": callbackURL,
+				"filter":       "~u .*\\/sendToDevice.*",
+			},
+		}, func() {
+			// now Charlie is going to leave the room, causing her user ID to appear in device_lists.left
+			// which should trigger a new room key to be sent (on message send)
+			tc.Charlie.MustDo(t, "POST", []string{"_matrix", "client", "v3", "logout"}, client.WithJSONBody(t, map[string]any{}))
+
+			// we don't know how long it will take for the device list update to be processed, so wait 1s
+			time.Sleep(time.Second)
+
+			// now send another message from Alice, who should negotiate a new room key
+			wantMsgBody = "Another Test Message"
+			waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+			alice.SendMessage(t, roomID, wantMsgBody)
+			waiter.Wait(t, 5*time.Second)
+		})
+
+		// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
+		// the room key.
+		select {
+		case <-ch:
+		default:
+			ct.Fatalf(t, "did not see /sendToDevice when logging out and sending a new message")
+		}
+	})
+}
+
 // Test that the m.room_key is NOT cycled when the client is restarted, but there is no change in devices
 // in the room. This is important to ensure that we don't cycle m.room_keys too frequently, which increases
 // the chances of seeing undecryptable events.
