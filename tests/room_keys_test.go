@@ -144,7 +144,7 @@ func TestRoomKeyIsCycledOnMemberLeaving(t *testing.T) {
 		}, func() {
 			// now Charlie is going to leave the room, causing her user ID to appear in device_lists.left
 			// which should trigger a new room key to be sent (on message send)
-			tc.Charlie.MustDo(t, "POST", []string{"_matrix", "client", "v3", "logout"}, client.WithJSONBody(t, map[string]any{}))
+			tc.Charlie.MustDo(t, "POST", []string{"_matrix", "client", "v3", "rooms", roomID, "leave"}, client.WithJSONBody(t, map[string]any{}))
 
 			// we don't know how long it will take for the device list update to be processed, so wait 1s
 			time.Sleep(time.Second)
