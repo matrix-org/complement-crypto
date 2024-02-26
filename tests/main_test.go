@@ -2,6 +2,7 @@ package tests
 
 import (
 	"fmt"
+	"os"
 	"sync"
 	"testing"
 
@@ -25,6 +26,13 @@ var (
 func TestMain(m *testing.M) {
 	complementCryptoConfig = config.NewComplementCryptoConfigFromEnvVars()
 	ssMutex = &sync.Mutex{}
+
+	// nuke persistent storage from previous run. We do this on startup rather than teardown
+	// to allow devs to introspect DBs / Chrome profiles if tests fail.
+	// TODO: ideally client packages would do this.
+	os.RemoveAll("./rust_storage")
+	os.RemoveAll("./chromedp")
+
 	js.SetupJSLogs("./logs/js_sdk.log")                  // rust sdk logs on its own
 	complement.TestMainWithCleanup(m, "crypto", func() { // always teardown even if panicking
 		ssMutex.Lock()
