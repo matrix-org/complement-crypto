@@ -57,10 +57,6 @@ jobs:
           (cd rust-sdk && cargo build -p matrix-sdk-ffi)
           ls -alh rust-sdk/target/debug
 
-      - name: "Run Complement-Crypto unit tests"
-        run: |
-          go test $(go list ./internal/... | grep -v 'internal/tests') -timeout 60s
-
       # Temporary: as it takes 3m to build the complement synapse image >:(
       - name: Pull synapse service v1.94.0 and mitmproxy
         shell: bash
@@ -102,12 +98,17 @@ jobs:
         #working-directory: homeserver 
         #env:  
           #DOCKER_BUILDKIT: 1  
+      - name: "Run Complement-Crypto unit tests"
+        run: |
+          export LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
+          export LD_LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
+          env
+          go test $(go list ./internal/... | grep -v 'internal/tests') -timeout 60s
 
       - name: "Ensuring client implementations work..."
         run: |
           export LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
           export LD_LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
-          env
           set -o pipefail &&
           go test -v -json -timeout 15m ./internal/tests | gotestfmt
         shell: bash # required for pipefail to be A Thing. pipefail is required to stop gotestfmt swallowing non-zero exit codes
