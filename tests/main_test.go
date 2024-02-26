@@ -17,12 +17,14 @@ import (
 	"github.com/matrix-org/complement/must"
 )
 
+// globals to ensure we are always referring to the same set of HSes/proxies between tests
 var (
 	ssDeployment           *deploy.SlidingSyncDeployment
 	ssMutex                *sync.Mutex
 	complementCryptoConfig *config.ComplementCrypto // set in TestMain
 )
 
+// Main entry point when users run `go test`. Defined in https://pkg.go.dev/testing#hdr-Main
 func TestMain(m *testing.M) {
 	complementCryptoConfig = config.NewComplementCryptoConfigFromEnvVars()
 	ssMutex = &sync.Mutex{}
@@ -44,6 +46,8 @@ func TestMain(m *testing.M) {
 	})
 }
 
+// Deploy a new network of HSes. If Deploy has been called before, returns the existing
+// deployment.
 func Deploy(t *testing.T) *deploy.SlidingSyncDeployment {
 	ssMutex.Lock()
 	defer ssMutex.Unlock()
@@ -54,6 +58,9 @@ func Deploy(t *testing.T) *deploy.SlidingSyncDeployment {
 	return ssDeployment
 }
 
+// ClientTypeMatrix enumerates all provided client permutations given by the test client
+// matrix `COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX`. Creates sub-tests for each permutation
+// and invokes `subTest`. Sub-tests are run in series.
 func ClientTypeMatrix(t *testing.T, subTest func(tt *testing.T, a, b api.ClientType)) {
 	for _, tc := range complementCryptoConfig.TestClientMatrix {
 		tc := tc
@@ -63,6 +70,8 @@ func ClientTypeMatrix(t *testing.T, subTest func(tt *testing.T, a, b api.ClientT
 	}
 }
 
+// ForEachClientType enumerates all known client implementations and creates sub-tests for
+// each. Sub-tests are run in series. Always defaults to `hs1`.
 func ForEachClientType(t *testing.T, subTest func(tt *testing.T, a api.ClientType)) {
 	for _, tc := range []api.ClientType{{Lang: api.ClientTypeRust, HS: "hs1"}, {Lang: api.ClientTypeJS, HS: "hs1"}} {
 		tc := tc
@@ -72,6 +81,9 @@ func ForEachClientType(t *testing.T, subTest func(tt *testing.T, a api.ClientTyp
 	}
 }
 
+// MustCreateClient creates an api.Client with the specified language/server, else fails the test.
+//
+// Options can be provided to configure clients, such as enabling persistent storage.
 func MustCreateClient(t *testing.T, clientType api.ClientType, cfg api.ClientCreationOpts, ssURL string, opts ...func(api.Client, api.ClientCreationOpts)) api.Client {
 	var c api.Client
 	switch clientType.Lang {
@@ -92,19 +104,34 @@ func MustCreateClient(t *testing.T, clientType api.ClientType, cfg api.ClientCre
 	return c
 }
 
+// WithDoLogin is an option which can be provided to MustCreateClient which will automatically login, else fail the test.
 func WithDoLogin(t *testing.T) func(api.Client, api.ClientCreationOpts) {
 	return func(c api.Client, opts api.ClientCreationOpts) {
 		must.NotError(t, "failed to login", c.Login(t, opts))
 	}
 }
 
-type TestContext struct {
-	Deployment *deploy.SlidingSyncDeployment
-	Alice      *client.CSAPI
-	Bob        *client.CSAPI
-	Charlie    *client.CSAPI
+// WithPersistentStorage is an option which can be provided to MustCreateClient which will configure clients to use persistent storage,
+// e.g IndexedDB or sqlite3 files.
+func WithPersistentStorage() func(*api.ClientCreationOpts) {
+	return func(o *api.ClientCreationOpts) {
+		o.PersistentStorage = true
+	}
 }
 
+// TestContext provides a consistent set of variables which most tests will need access to.
+type TestContext struct {
+	Deployment *deploy.SlidingSyncDeployment
+	// Alice is defined if at least 1 clientType is provided to CreateTestContext.
+	Alice *client.CSAPI
+	// Bob is defined if at least 2 clientTypes are provided to CreateTestContext.
+	Bob *client.CSAPI
+	// Charlie is defined if at least 3 clientTypes are provided to CreateTestContext.
+	Charlie *client.CSAPI
+}
+
+// CreateTestContext creates a new test context suitable for immediate use. The variadic clientTypes
+// control how many clients are automatically registered.
 func CreateTestContext(t *testing.T, clientType ...api.ClientType) *TestContext {
 	deployment := Deploy(t)
 	tc := &TestContext{
@@ -135,6 +162,7 @@ func CreateTestContext(t *testing.T, clientType ...api.ClientType) *TestContext 
 	return tc
 }
 
+// CreateNewEncryptedRoom calls creator.MustCreateRoom with the correct m.room.encryption state event.
 func (c *TestContext) CreateNewEncryptedRoom(t *testing.T, creator *client.CSAPI, preset string, invite []string) (roomID string) {
 	t.Helper()
 	if invite == nil {
@@ -156,6 +184,7 @@ func (c *TestContext) CreateNewEncryptedRoom(t *testing.T, creator *client.CSAPI
 	})
 }
 
+// OptsFromClient converts a Complement client into a set of options which can be used to create an api.Client.
 func (c *TestContext) OptsFromClient(t *testing.T, existing *client.CSAPI, options ...func(*api.ClientCreationOpts)) api.ClientCreationOpts {
 	o := &api.ClientCreationOpts{
 		BaseURL:  existing.BaseURL,
@@ -167,12 +196,6 @@ func (c *TestContext) OptsFromClient(t *testing.T, existing *client.CSAPI, optio
 		opt(o)
 	}
 	return *o
-}
-
-func WithPersistentStorage() func(*api.ClientCreationOpts) {
-	return func(o *api.ClientCreationOpts) {
-		o.PersistentStorage = true
-	}
 }
 
 func (c *TestContext) MustRegisterNewDevice(t *testing.T, cli *client.CSAPI, hsName, newDeviceID string) *client.CSAPI {
