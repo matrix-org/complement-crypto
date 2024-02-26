@@ -42,6 +42,9 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y libolm3 libolm-dev
           go install -v github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
+      - name: "Run Complement-Crypto unit tests"
+        run: |
+          go test $(go list ./internal/... | grep -v 'internal/tests') -timeout 60s
 
       # Install whatever version of the JS SDK is in package.json
       - name: Build JS SDK
@@ -97,11 +100,25 @@ jobs:
         #env:  
           #DOCKER_BUILDKIT: 1  
 
-      - run: |
-          ls "$(pwd)/rust-sdk/target/debug"
+      - name: "Ensuring client implementations work..."
+        run: |
           export LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
           export LD_LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
           env
+          set -o pipefail &&
+          go test -v -json -timeout 15m ./internal/tests | gotestfmt
+        shell: bash # required for pipefail to be A Thing. pipefail is required to stop gotestfmt swallowing non-zero exit codes
+        env:
+          COMPLEMENT_BASE_IMAGE: homeserver
+          COMPLEMENT_ENABLE_DIRTY_RUNS: 1
+          COMPLEMENT_CRYPTO_WRITE_CONTAINER_LOGS: 1
+          COMPLEMENT_SHARE_ENV_PREFIX: PASS_
+          PASS_SYNAPSE_COMPLEMENT_DATABASE: sqlite
+          DOCKER_BUILDKIT: 1
+
+      - run: |
+          export LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
+          export LD_LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
           set -o pipefail &&
           go test -v -json -timeout 15m ./tests | gotestfmt
         shell: bash # required for pipefail to be A Thing. pipefail is required to stop gotestfmt swallowing non-zero exit codes

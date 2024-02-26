@@ -22,7 +22,7 @@ func (t *MockT) Fatalf(f string, args ...any) {
 	os.Exit(1)
 }
 func (t *MockT) Error(args ...any) {
-	t.Errorf("Error:", args...)
+	fmt.Printf("Error: %v", args...)
 }
 func (t *MockT) Name() string { return "inline_script" }
 func (t *MockT) Failed() bool { return false }
