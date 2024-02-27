@@ -84,7 +84,7 @@ func ForEachClientType(t *testing.T, subTest func(tt *testing.T, a api.ClientTyp
 // MustCreateClient creates an api.Client with the specified language/server, else fails the test.
 //
 // Options can be provided to configure clients, such as enabling persistent storage.
-func MustCreateClient(t *testing.T, clientType api.ClientType, cfg api.ClientCreationOpts, ssURL string, opts ...func(api.Client, api.ClientCreationOpts)) api.Client {
+func MustCreateClient(t *testing.T, clientType api.ClientType, cfg api.ClientCreationOpts, ssURL string, opts ...func(api.Client, *api.ClientCreationOpts)) api.Client {
 	var c api.Client
 	switch clientType.Lang {
 	case api.ClientTypeRust:
@@ -99,15 +99,15 @@ func MustCreateClient(t *testing.T, clientType api.ClientType, cfg api.ClientCre
 		t.Fatalf("unknown client type %v", clientType)
 	}
 	for _, o := range opts {
-		o(c, cfg)
+		o(c, &cfg)
 	}
 	return c
 }
 
 // WithDoLogin is an option which can be provided to MustCreateClient which will automatically login, else fail the test.
-func WithDoLogin(t *testing.T) func(api.Client, api.ClientCreationOpts) {
-	return func(c api.Client, opts api.ClientCreationOpts) {
-		must.NotError(t, "failed to login", c.Login(t, opts))
+func WithDoLogin(t *testing.T) func(api.Client, *api.ClientCreationOpts) {
+	return func(c api.Client, opts *api.ClientCreationOpts) {
+		must.NotError(t, "failed to login", c.Login(t, *opts))
 	}
 }
 
@@ -198,6 +198,7 @@ func (c *TestContext) OptsFromClient(t *testing.T, existing *client.CSAPI, optio
 	return *o
 }
 
+// MustRegisterNewDevice logs in a new device for this client, else fails the test.
 func (c *TestContext) MustRegisterNewDevice(t *testing.T, cli *client.CSAPI, hsName, newDeviceID string) *client.CSAPI {
 	return c.Deployment.Login(t, hsName, cli, helpers.LoginOpts{
 		DeviceID: newDeviceID,
@@ -205,6 +206,8 @@ func (c *TestContext) MustRegisterNewDevice(t *testing.T, cli *client.CSAPI, hsN
 	})
 }
 
+// MustCreateClient creates an api.Client from an existing Complement client and the specified client type. Additional options
+// can be set to configure the client beyond that of the Complement client e.g to add persistent storage.
 func (c *TestContext) MustCreateClient(t *testing.T, cli *client.CSAPI, clientType api.ClientType, options ...func(*api.ClientCreationOpts)) api.Client {
 	t.Helper()
 	cfg := api.NewClientCreationOpts(cli)
@@ -216,6 +219,7 @@ func (c *TestContext) MustCreateClient(t *testing.T, cli *client.CSAPI, clientTy
 	return client
 }
 
+// MustLoginClient is the same as MustCreateClient but also logs in the client. TODO REMOVE
 func (c *TestContext) MustLoginClient(t *testing.T, cli *client.CSAPI, clientType api.ClientType, options ...func(*api.ClientCreationOpts)) api.Client {
 	t.Helper()
 	client := c.MustCreateClient(t, cli, clientType, options...)
