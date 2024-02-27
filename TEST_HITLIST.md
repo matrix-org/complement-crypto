@@ -120,3 +120,4 @@ Tests for known failures.
  - [ ] Ensure that we send at least 100 to-device messages per HTTP request when changing the room key: https://github.com/vector-im/element-web/issues/24680
  - [ ] Check that we do not delete OTK private keys when we receive a badly formed pre-key message using that key https://github.com/element-hq/element-ios/issues/7480
  - [ ] If you get a lot of to-device msgs all at once, ensure they are processed in-order https://github.com/element-hq/element-web/issues/25723
+ - [ ] Check that to-device msgs are not dropped if you restart the client quickly when it gets a /sync response https://github.com/element-hq/element-meta/issues/762
