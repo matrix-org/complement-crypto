@@ -129,15 +129,25 @@ func WithPersistentStorage() func(*api.ClientCreationOpts) {
 type TestContext struct {
 	Deployment *deploy.SlidingSyncDeployment
 	// Alice is defined if at least 1 clientType is provided to CreateTestContext.
-	Alice *client.CSAPI
+	Alice           *client.CSAPI
+	AliceClientType api.ClientType
 	// Bob is defined if at least 2 clientTypes are provided to CreateTestContext.
-	Bob *client.CSAPI
+	Bob           *client.CSAPI
+	BobClientType api.ClientType
 	// Charlie is defined if at least 3 clientTypes are provided to CreateTestContext.
-	Charlie *client.CSAPI
+	Charlie           *client.CSAPI
+	CharlieClientType api.ClientType
 }
 
 // CreateTestContext creates a new test context suitable for immediate use. The variadic clientTypes
-// control how many clients are automatically registered.
+// control how many clients are automatically registered:
+//   - 1x clientType = Alice
+//   - 2x clientType = Alice, Bob
+//   - 3x clientType = Alice, Bob, Charlie
+//
+// You can then either login individual users using testContext.MustLoginClient or use the helper functions
+// testContext.WithAliceAndBobSyncing which will automatically create js/rust clients and start sync loops
+// for you, along with handling cleanup.
 func CreateTestContext(t *testing.T, clientType ...api.ClientType) *TestContext {
 	deployment := Deploy(t)
 	tc := &TestContext{
@@ -149,23 +159,83 @@ func CreateTestContext(t *testing.T, clientType ...api.ClientType) *TestContext 
 			LocalpartSuffix: "alice",
 			Password:        "complement-crypto-password",
 		})
+		tc.AliceClientType = clientType[0]
 	}
 	if len(clientType) > 1 {
 		tc.Bob = deployment.Register(t, clientType[1].HS, helpers.RegistrationOpts{
 			LocalpartSuffix: "bob",
 			Password:        "complement-crypto-password",
 		})
+		tc.BobClientType = clientType[1]
 	}
 	if len(clientType) > 2 {
 		tc.Charlie = deployment.Register(t, clientType[1].HS, helpers.RegistrationOpts{
 			LocalpartSuffix: "charlie",
 			Password:        "complement-crypto-password",
 		})
+		tc.CharlieClientType = clientType[2]
 	}
 	if len(clientType) > 3 {
 		t.Fatalf("CreateTestContext: too many clients: got %d", len(clientType))
 	}
 	return tc
+}
+
+// WithAliceSyncing is a helper function which creates a rust/js client and automatically logs in Alice and starts
+// a sync loop for her.
+//
+// The callback function is invoked after this, and cleanup functions are called on your behalf when the
+// callback function ends.
+func (c *TestContext) WithAliceSyncing(t *testing.T, callback func(alice api.Client)) {
+	t.Helper()
+	must.NotEqual(t, c.Alice, nil, "No Alice defined. Call CreateTestContext() with at least 1 api.ClientType.")
+	alice := c.MustLoginClient(t, c.Alice, c.AliceClientType)
+	defer alice.Close(t)
+	aliceStopSyncing := alice.MustStartSyncing(t)
+	defer aliceStopSyncing()
+	callback(alice)
+}
+
+// WithAliceAndBobSyncing is a helper function which creates rust/js clients and automatically logs in Alice & Bob
+// and starts a sync loop for both.
+//
+// The callback function is invoked after this, and cleanup functions are called on your behalf when the
+// callback function ends.
+func (c *TestContext) WithAliceAndBobSyncing(t *testing.T, callback func(alice, bob api.Client)) {
+	t.Helper()
+	must.NotEqual(t, c.Bob, nil, "No Bob defined. Call CreateTestContext() with at least 2 api.ClientTypes.")
+	alice := c.MustLoginClient(t, c.Alice, c.AliceClientType)
+	defer alice.Close(t)
+	bob := c.MustLoginClient(t, c.Bob, c.BobClientType)
+	defer bob.Close(t)
+	aliceStopSyncing := alice.MustStartSyncing(t)
+	defer aliceStopSyncing()
+	bobStopSyncing := bob.MustStartSyncing(t)
+	defer bobStopSyncing()
+	callback(alice, bob)
+}
+
+// WithAliceBobAndCharlieSyncing is a helper function which creates rust/js clients and automatically logs in Alice, Bob
+// and Charlie and starts a sync loop for all.
+//
+// The callback function is invoked after this, and cleanup functions are called on your behalf when the
+// callback function ends.
+func (c *TestContext) WithAliceBobAndCharlieSyncing(t *testing.T, callback func(alice, bob, charlie api.Client)) {
+	t.Helper()
+	must.NotEqual(t, c.Charlie, nil, "No Charlie defined. Call CreateTestContext() with at least 3 api.ClientTypes.")
+	alice := c.MustLoginClient(t, c.Alice, c.AliceClientType)
+	defer alice.Close(t)
+	bob := c.MustLoginClient(t, c.Bob, c.BobClientType)
+	defer bob.Close(t)
+	charlie := c.MustLoginClient(t, c.Charlie, c.CharlieClientType)
+	defer charlie.Close(t)
+	aliceStopSyncing := alice.MustStartSyncing(t)
+	defer aliceStopSyncing()
+	bobStopSyncing := bob.MustStartSyncing(t)
+	defer bobStopSyncing()
+	charlieStopSyncing := charlie.MustStartSyncing(t)
+	defer charlieStopSyncing()
+	callback(alice, bob, charlie)
 }
 
 // CreateNewEncryptedRoom calls creator.MustCreateRoom with the correct m.room.encryption state event.

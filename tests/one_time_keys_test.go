@@ -96,101 +96,87 @@ func TestFallbackKeyIsUsedIfOneTimeKeysRunOut(t *testing.T) {
 		// =================
 
 		// Upload OTKs and a fallback
-		alice := tc.MustLoginClient(t, tc.Alice, keyProviderClientType)
-		defer alice.Close(t)
-		aliceStopSyncing := alice.MustStartSyncing(t)
-		defer aliceStopSyncing()
+		tc.WithAliceBobAndCharlieSyncing(t, func(alice, bob, charlie api.Client) {
+			// we need to send _something_ to cause /sync v2 to return a long poll response, as fallback
+			// keys don't wake up /sync v2. If we don't do this, rust SDK fails to realise it needs to upload a fallback
+			// key because SS doesn't tell it, because Synapse doesn't tell SS that the fallback key was used.
+			tc.Alice.MustCreateRoom(t, map[string]interface{}{})
 
-		// we need to send _something_ to cause /sync v2 to return a long poll response, as fallback
-		// keys don't wake up /sync v2. If we don't do this, rust SDK fails to realise it needs to upload a fallback
-		// key because SS doesn't tell it, because Synapse doesn't tell SS that the fallback key was used.
-		tc.Alice.MustCreateRoom(t, map[string]interface{}{})
-
-		// also let bob & charlie upload OTKs before we block the upload endpoint!
-		bob := tc.MustLoginClient(t, tc.Bob, keyConsumerClientType)
-		defer bob.Close(t)
-		bobStopSyncing := bob.MustStartSyncing(t)
-		defer bobStopSyncing()
-		charlie := tc.MustLoginClient(t, tc.Charlie, keyConsumerClientType)
-		defer charlie.Close(t)
-		charlieStopSyncing := charlie.MustStartSyncing(t)
-		defer charlieStopSyncing()
-
-		// Query OTK count so we know how many to consume
-		res, _ := tc.Alice.MustSync(t, client.SyncReq{})
-		otkCount := res.Get("device_one_time_keys_count.signed_curve25519").Int()
-		t.Logf("uploaded otk count => %d", otkCount)
-
-		var roomID string
-		var fallbackKeyID string
-		var fallbackKey gjson.Result
-		var waiter api.Waiter
-		// Block all /keys/upload requests
-		tc.Deployment.WithMITMOptions(t, map[string]interface{}{
-			"statuscode": map[string]interface{}{
-				"return_status": http.StatusGatewayTimeout,
-				"block_request": true,
-				"filter":        "~u .*\\/keys\\/upload.*",
-			},
-		}, func() {
-			// claim all OTKs
-			mustClaimOTKs(t, otkGobbler, tc.Alice, int(otkCount))
-
-			// now claim the fallback key
-			fallbackKeyID, fallbackKey = mustClaimFallbackKey(t, otkGobbler, tc.Alice)
-
-			// now bob & charlie try to talk to alice, the fallback key should be used
-			roomID = tc.CreateNewEncryptedRoom(t, tc.Bob, "public_chat", []string{tc.Alice.UserID, tc.Charlie.UserID})
-			tc.Charlie.MustJoinRoom(t, roomID, []string{keyConsumerClientType.HS})
-			tc.Alice.MustJoinRoom(t, roomID, []string{keyConsumerClientType.HS})
-			charlie.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(alice.UserID(), "join")).Wait(t, 5*time.Second)
-			bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(alice.UserID(), "join")).Wait(t, 5*time.Second)
-			alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(alice.UserID(), "join")).Wait(t, 5*time.Second)
-			bob.SendMessage(t, roomID, "Hello world!")
-			charlie.SendMessage(t, roomID, "Goodbye world!")
-			waiter = alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody("Hello world!"))
-			// ensure that /keys/upload is actually blocked (OTK count should be 0)
+			// Query OTK count so we know how many to consume
 			res, _ := tc.Alice.MustSync(t, client.SyncReq{})
 			otkCount := res.Get("device_one_time_keys_count.signed_curve25519").Int()
-			must.Equal(t, otkCount, 0, "OTKs were uploaded when they should have been blocked by mitmproxy")
+			t.Logf("uploaded otk count => %d", otkCount)
+
+			var roomID string
+			var fallbackKeyID string
+			var fallbackKey gjson.Result
+			var waiter api.Waiter
+			// Block all /keys/upload requests
+			tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+				"statuscode": map[string]interface{}{
+					"return_status": http.StatusGatewayTimeout,
+					"block_request": true,
+					"filter":        "~u .*\\/keys\\/upload.*",
+				},
+			}, func() {
+				// claim all OTKs
+				mustClaimOTKs(t, otkGobbler, tc.Alice, int(otkCount))
+
+				// now claim the fallback key
+				fallbackKeyID, fallbackKey = mustClaimFallbackKey(t, otkGobbler, tc.Alice)
+
+				// now bob & charlie try to talk to alice, the fallback key should be used
+				roomID = tc.CreateNewEncryptedRoom(t, tc.Bob, "public_chat", []string{tc.Alice.UserID, tc.Charlie.UserID})
+				tc.Charlie.MustJoinRoom(t, roomID, []string{keyConsumerClientType.HS})
+				tc.Alice.MustJoinRoom(t, roomID, []string{keyConsumerClientType.HS})
+				charlie.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(alice.UserID(), "join")).Wait(t, 5*time.Second)
+				bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(alice.UserID(), "join")).Wait(t, 5*time.Second)
+				alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(alice.UserID(), "join")).Wait(t, 5*time.Second)
+				bob.SendMessage(t, roomID, "Hello world!")
+				charlie.SendMessage(t, roomID, "Goodbye world!")
+				waiter = alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody("Hello world!"))
+				// ensure that /keys/upload is actually blocked (OTK count should be 0)
+				res, _ := tc.Alice.MustSync(t, client.SyncReq{})
+				otkCount := res.Get("device_one_time_keys_count.signed_curve25519").Int()
+				must.Equal(t, otkCount, 0, "OTKs were uploaded when they should have been blocked by mitmproxy")
+			})
+			// rust sdk needs /keys/upload to 200 OK before it will decrypt the hello world msg
+			waiter.Wait(t, 5*time.Second)
+			// check charlie's message is also here
+			alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody("Goodbye world!")).Wait(t, 5*time.Second)
+
+			// now /keys/upload is unblocked, make sure we upload new keys
+			alice.SendMessage(t, roomID, "Kick the client to upload OTKs... hopefully")
+			t.Logf("first fallback key %s => %s", fallbackKeyID, fallbackKey.Get("key").Str)
+
+			tc.Alice.MustSyncUntil(t, client.SyncReq{}, func(clientUserID string, topLevelSyncJSON gjson.Result) error {
+				otkCount = topLevelSyncJSON.Get("device_one_time_keys_count.signed_curve25519").Int()
+				t.Logf("Alice otk count = %d", otkCount)
+				if otkCount == 0 {
+					return fmt.Errorf("alice hasn't re-uploaded OTKs yet")
+				}
+				return nil
+			})
+
+			// now re-block /keys/upload, re-claim all otks, and check that the fallback key this time around is different
+			// to the first
+			tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+				"statuscode": map[string]interface{}{
+					"return_status": http.StatusGatewayTimeout,
+					"block_request": true,
+					"filter":        "~u .*\\/keys\\/upload.*",
+				},
+			}, func() {
+				// claim all OTKs
+				mustClaimOTKs(t, otkGobbler, tc.Alice, int(otkCount))
+
+				// now claim the fallback key
+				secondFallbackKeyID, secondFallbackKey := mustClaimFallbackKey(t, otkGobbler, tc.Alice)
+				t.Logf("second fallback key %s => %s", secondFallbackKeyID, secondFallbackKey.Get("key").Str)
+				must.NotEqual(t, secondFallbackKeyID, fallbackKeyID, "fallback key id same as before, not cycled?")
+				must.NotEqual(t, fallbackKey.Get("key").Str, secondFallbackKey.Get("key").Str, "fallback key data same as before, not cycled?")
+			})
 		})
-		// rust sdk needs /keys/upload to 200 OK before it will decrypt the hello world msg
-		waiter.Wait(t, 5*time.Second)
-		// check charlie's message is also here
-		alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody("Goodbye world!")).Wait(t, 5*time.Second)
-
-		// now /keys/upload is unblocked, make sure we upload new keys
-		alice.SendMessage(t, roomID, "Kick the client to upload OTKs... hopefully")
-		t.Logf("first fallback key %s => %s", fallbackKeyID, fallbackKey.Get("key").Str)
-
-		tc.Alice.MustSyncUntil(t, client.SyncReq{}, func(clientUserID string, topLevelSyncJSON gjson.Result) error {
-			otkCount = topLevelSyncJSON.Get("device_one_time_keys_count.signed_curve25519").Int()
-			t.Logf("Alice otk count = %d", otkCount)
-			if otkCount == 0 {
-				return fmt.Errorf("alice hasn't re-uploaded OTKs yet")
-			}
-			return nil
-		})
-
-		// now re-block /keys/upload, re-claim all otks, and check that the fallback key this time around is different
-		// to the first
-		tc.Deployment.WithMITMOptions(t, map[string]interface{}{
-			"statuscode": map[string]interface{}{
-				"return_status": http.StatusGatewayTimeout,
-				"block_request": true,
-				"filter":        "~u .*\\/keys\\/upload.*",
-			},
-		}, func() {
-			// claim all OTKs
-			mustClaimOTKs(t, otkGobbler, tc.Alice, int(otkCount))
-
-			// now claim the fallback key
-			secondFallbackKeyID, secondFallbackKey := mustClaimFallbackKey(t, otkGobbler, tc.Alice)
-			t.Logf("second fallback key %s => %s", secondFallbackKeyID, secondFallbackKey.Get("key").Str)
-			must.NotEqual(t, secondFallbackKeyID, fallbackKeyID, "fallback key id same as before, not cycled?")
-			must.NotEqual(t, fallbackKey.Get("key").Str, secondFallbackKey.Get("key").Str, "fallback key data same as before, not cycled?")
-		})
-
 	})
 }
 
@@ -208,46 +194,43 @@ func TestFailedOneTimeKeyUploadRetries(t *testing.T) {
 				"filter":        "~u .*\\/keys\\/upload.* ~m POST",
 			},
 		}, func() {
-			alice := tc.MustLoginClient(t, tc.Alice, clientType)
-			defer alice.Close(t)
-			aliceStopSyncing := alice.MustStartSyncing(t)
-			defer aliceStopSyncing()
-
-			// we should be able to claim a key eventually
-			for i := 0; i < 5; i++ {
-				time.Sleep(time.Duration(200 * time.Millisecond * time.Duration(i+1)))
-				res := tc.Bob.MustDo(t, "POST", []string{
-					"_matrix", "client", "v3", "keys", "claim",
-				}, client.WithJSONBody(t, map[string]any{
-					"one_time_keys": map[string]any{
-						tc.Alice.UserID: map[string]any{
-							tc.Alice.DeviceID: "signed_curve25519",
+			tc.WithAliceSyncing(t, func(alice api.Client) {
+				// we should be able to claim a key eventually
+				for i := 0; i < 5; i++ {
+					time.Sleep(time.Duration(200 * time.Millisecond * time.Duration(i+1)))
+					res := tc.Bob.MustDo(t, "POST", []string{
+						"_matrix", "client", "v3", "keys", "claim",
+					}, client.WithJSONBody(t, map[string]any{
+						"one_time_keys": map[string]any{
+							tc.Alice.UserID: map[string]any{
+								tc.Alice.DeviceID: "signed_curve25519",
+							},
 						},
-					},
-				}))
-				jsonBody := must.ParseJSON(t, res.Body)
-				res.Body.Close()
-				err := match.JSONKeyPresent(
-					fmt.Sprintf("one_time_keys.%s.%s.signed_curve25519*", tc.Alice.UserID, tc.Alice.DeviceID),
-				)(jsonBody)
-				if err == nil {
-					break
-				}
-				t.Logf("failed to claim otk: /keys/claim => %v", jsonBody.Raw)
-				if i == 4 {
-					t.Errorf("failed to claim OTK for user, did /keys/upload retry?")
-				}
+					}))
+					jsonBody := must.ParseJSON(t, res.Body)
+					res.Body.Close()
+					err := match.JSONKeyPresent(
+						fmt.Sprintf("one_time_keys.%s.%s.signed_curve25519*", tc.Alice.UserID, tc.Alice.DeviceID),
+					)(jsonBody)
+					if err == nil {
+						break
+					}
+					t.Logf("failed to claim otk: /keys/claim => %v", jsonBody.Raw)
+					if i == 4 {
+						t.Errorf("failed to claim OTK for user, did /keys/upload retry?")
+					}
 
-				// try kicking the client by sending some data down /sync
-				// Specifically, JS SDK needs this. Rust has its own backoff independent to /sync
-				tc.Alice.SendEventSynced(t, roomID, b.Event{
-					Type: "m.room.message",
-					Content: map[string]interface{}{
-						"msgtype": "m.text",
-						"body":    "this is a kick to try to get clients to retry /keys/upload",
-					},
-				})
-			}
+					// try kicking the client by sending some data down /sync
+					// Specifically, JS SDK needs this. Rust has its own backoff independent to /sync
+					tc.Alice.SendEventSynced(t, roomID, b.Event{
+						Type: "m.room.message",
+						Content: map[string]interface{}{
+							"msgtype": "m.text",
+							"body":    "this is a kick to try to get clients to retry /keys/upload",
+						},
+					})
+				}
+			})
 		})
 	})
 }
@@ -256,56 +239,49 @@ func TestFailedKeysClaimRetries(t *testing.T) {
 	ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
 		tc := CreateTestContext(t, clientType, clientType)
 		// both clients start syncing to upload OTKs
-		alice := tc.MustLoginClient(t, tc.Alice, clientType)
-		defer alice.Close(t)
-		aliceStopSyncing := alice.MustStartSyncing(t)
-		defer aliceStopSyncing()
-		bob := tc.MustLoginClient(t, tc.Bob, clientType)
-		defer bob.Close(t)
-		bobStopSyncing := bob.MustStartSyncing(t)
-		defer bobStopSyncing()
+		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+			var stopPoking atomic.Bool
+			waiter := helpers.NewWaiter()
+			callbackURL, close := deploy.NewCallbackServer(t, tc.Deployment, func(cd deploy.CallbackData) {
+				t.Logf("%+v", cd)
+				if cd.ResponseCode == 200 {
+					waiter.Finish()
+					stopPoking.Store(true)
+				}
+			})
+			defer close()
 
-		var stopPoking atomic.Bool
-		waiter := helpers.NewWaiter()
-		callbackURL, close := deploy.NewCallbackServer(t, tc.Deployment, func(cd deploy.CallbackData) {
-			t.Logf("%+v", cd)
-			if cd.ResponseCode == 200 {
-				waiter.Finish()
-				stopPoking.Store(true)
-			}
+			// make a room which will link the 2 users together when
+			roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "public_chat", nil)
+			// block /keys/claim and join the room, causing the Olm session to be created
+			tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+				"statuscode": map[string]interface{}{
+					"return_status": http.StatusGatewayTimeout,
+					"block_request": true,
+					"count":         2, // block it twice.
+					"filter":        "~u .*\\/keys\\/claim.* ~m POST",
+				},
+				"callback": map[string]interface{}{
+					"callback_url": callbackURL,
+					"filter":       "~u .*\\/keys\\/claim.* ~m POST",
+				},
+			}, func() {
+				// join the room. This should cause an Olm session to be made but it will fail as we cannot
+				// call /keys/claim. We should retry though.
+				tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
+				time.Sleep(time.Second) // FIXME using WaitUntilEventInRoom panics on rust because the room isn't there yet
+				bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(tc.Bob.UserID, "join")).Wait(t, 5*time.Second)
+
+				// Now send a message. On Rust, just sending 1 msg is enough to kick retry schedule.
+				// JS SDK won't retry the /keys/claim automatically. Try sending another event to kick it.
+				counter := 0
+				for !stopPoking.Load() && counter < 10 {
+					bob.TrySendMessage(t, roomID, "poke msg")
+					counter++
+					time.Sleep(100 * time.Millisecond * time.Duration(counter+1))
+				}
+			})
+			waiter.Wait(t, 10*time.Second)
 		})
-		defer close()
-
-		// make a room which will link the 2 users together when
-		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "public_chat", nil)
-		// block /keys/claim and join the room, causing the Olm session to be created
-		tc.Deployment.WithMITMOptions(t, map[string]interface{}{
-			"statuscode": map[string]interface{}{
-				"return_status": http.StatusGatewayTimeout,
-				"block_request": true,
-				"count":         2, // block it twice.
-				"filter":        "~u .*\\/keys\\/claim.* ~m POST",
-			},
-			"callback": map[string]interface{}{
-				"callback_url": callbackURL,
-				"filter":       "~u .*\\/keys\\/claim.* ~m POST",
-			},
-		}, func() {
-			// join the room. This should cause an Olm session to be made but it will fail as we cannot
-			// call /keys/claim. We should retry though.
-			tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
-			time.Sleep(time.Second) // FIXME using WaitUntilEventInRoom panics on rust because the room isn't there yet
-			bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(tc.Bob.UserID, "join")).Wait(t, 5*time.Second)
-
-			// Now send a message. On Rust, just sending 1 msg is enough to kick retry schedule.
-			// JS SDK won't retry the /keys/claim automatically. Try sending another event to kick it.
-			counter := 0
-			for !stopPoking.Load() && counter < 10 {
-				bob.TrySendMessage(t, roomID, "poke msg")
-				counter++
-				time.Sleep(100 * time.Millisecond * time.Duration(counter+1))
-			}
-		})
-		waiter.Wait(t, 10*time.Second)
 	})
 }
