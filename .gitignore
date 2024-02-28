@@ -1,4 +1,8 @@
 js-sdk/node_modules
 js-sdk/dist
-internal/api/js/chrome/dist
+/internal/api/js/chrome/dist
 __pycache__
+/rust-sdk/
+/tests/logs/
+/tests/chromedp/
+/tests/rust_storage/
