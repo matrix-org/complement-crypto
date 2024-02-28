@@ -267,7 +267,7 @@ func TestFailedKeysClaimRetries(t *testing.T) {
 
 		var stopPoking atomic.Bool
 		waiter := helpers.NewWaiter()
-		callbackURL, close := deploy.NewCallbackServer(t, func(cd deploy.CallbackData) {
+		callbackURL, close := deploy.NewCallbackServer(t, tc.Deployment, func(cd deploy.CallbackData) {
 			t.Logf("%+v", cd)
 			if cd.ResponseCode == 200 {
 				waiter.Finish()

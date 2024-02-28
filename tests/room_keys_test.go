@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/matrix-org/complement"
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/deploy"
 	templates "github.com/matrix-org/complement-crypto/tests/go_templates"
@@ -15,8 +16,8 @@ import (
 	"github.com/matrix-org/complement/must"
 )
 
-func sniffToDeviceEvent(t *testing.T, ch chan deploy.CallbackData) (callbackURL string, close func()) {
-	callbackURL, close = deploy.NewCallbackServer(t, func(cd deploy.CallbackData) {
+func sniffToDeviceEvent(t *testing.T, d complement.Deployment, ch chan deploy.CallbackData) (callbackURL string, close func()) {
+	callbackURL, close = deploy.NewCallbackServer(t, d, func(cd deploy.CallbackData) {
 		if cd.Method == "OPTIONS" {
 			return // ignore CORS
 		}
@@ -62,7 +63,7 @@ func TestRoomKeyIsCycledOnDeviceLogout(t *testing.T) {
 
 		// we're going to sniff calls to /sendToDevice to ensure we see the new room key being sent.
 		ch := make(chan deploy.CallbackData, 10)
-		callbackURL, close := sniffToDeviceEvent(t, ch)
+		callbackURL, close := sniffToDeviceEvent(t, tc.Deployment, ch)
 		defer close()
 
 		// we don't know when the new room key will be sent, it could be sent as soon as the device list update
@@ -130,7 +131,7 @@ func TestRoomKeyIsCycledOnMemberLeaving(t *testing.T) {
 
 		// we're going to sniff calls to /sendToDevice to ensure we see the new room key being sent.
 		ch := make(chan deploy.CallbackData, 10)
-		callbackURL, close := sniffToDeviceEvent(t, ch)
+		callbackURL, close := sniffToDeviceEvent(t, tc.Deployment, ch)
 		defer close()
 
 		// we don't know when the new room key will be sent, it could be sent as soon as the device list update
@@ -190,7 +191,7 @@ func TestRoomKeyIsNotCycled(t *testing.T) {
 
 		// we're going to sniff calls to /sendToDevice to ensure we see the new room key being sent.
 		ch := make(chan deploy.CallbackData, 10)
-		callbackURL, closeCallbackServer := sniffToDeviceEvent(t, ch)
+		callbackURL, closeCallbackServer := sniffToDeviceEvent(t, tc.Deployment, ch)
 		defer closeCallbackServer()
 
 		t.Run("on display name change", func(t *testing.T) {
@@ -361,7 +362,7 @@ func testRoomKeyIsNotCycledOnClientRestartRust(t *testing.T, clientType api.Clie
 
 	// we're going to sniff calls to /sendToDevice to ensure we do NOT see a new room key being sent.
 	ch := make(chan deploy.CallbackData, 10)
-	callbackURL, close := sniffToDeviceEvent(t, ch)
+	callbackURL, close := sniffToDeviceEvent(t, tc.Deployment, ch)
 	defer close()
 
 	tc.Deployment.WithMITMOptions(t, map[string]interface{}{
@@ -417,7 +418,7 @@ func testRoomKeyIsNotCycledOnClientRestartJS(t *testing.T, clientType api.Client
 
 	// we're going to sniff calls to /sendToDevice to ensure we do NOT see a new room key being sent.
 	ch := make(chan deploy.CallbackData, 10)
-	callbackURL, close := sniffToDeviceEvent(t, ch)
+	callbackURL, close := sniffToDeviceEvent(t, tc.Deployment, ch)
 	defer close()
 
 	// we want to start sniffing for the to-device event just before we restart the client.

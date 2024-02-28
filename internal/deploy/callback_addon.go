@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/matrix-org/complement"
 	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/complement/must"
 )
@@ -31,7 +32,7 @@ func (cd CallbackData) String() string {
 // NewCallbackServer runs a local HTTP server that can read callbacks from mitmproxy.
 // Returns the URL of the callback server for use with WithMITMOptions, along with a close function
 // which should be called when the test finishes to shut down the HTTP server.
-func NewCallbackServer(t *testing.T, cb func(CallbackData)) (callbackURL string, close func()) {
+func NewCallbackServer(t *testing.T, deployment complement.Deployment, cb func(CallbackData)) (callbackURL string, close func()) {
 	if lastTestName != "" {
 		t.Logf("WARNING[%s]: NewCallbackServer called without closing the last one. Check test '%s'", t.Name(), lastTestName)
 	}
@@ -64,7 +65,7 @@ func NewCallbackServer(t *testing.T, cb func(CallbackData)) (callbackURL string,
 		Handler: mux,
 	}
 	go srv.Serve(ln)
-	return fmt.Sprintf("http://host.docker.internal:%d", port), func() {
+	return fmt.Sprintf("http://%s:%d", deployment.GetConfig().HostnameRunningComplement, port), func() {
 		srv.Close()
 		lastTestName = ""
 	}

@@ -37,7 +37,8 @@ func testSigkillBeforeKeysUploadResponseRust(t *testing.T, clientType api.Client
 	var terminated atomic.Bool
 	var terminateClient func()
 	seenSecondKeysUploadWaiter := helpers.NewWaiter()
-	callbackURL, close := deploy.NewCallbackServer(t, func(cd deploy.CallbackData) {
+	tc := CreateTestContext(t, clientType, clientType)
+	callbackURL, close := deploy.NewCallbackServer(t, tc.Deployment, func(cd deploy.CallbackData) {
 		if terminated.Load() {
 			// make sure the 2nd upload 200 OKs
 			if cd.ResponseCode != 200 {
@@ -55,7 +56,6 @@ func testSigkillBeforeKeysUploadResponseRust(t *testing.T, clientType api.Client
 	})
 	defer close()
 
-	tc := CreateTestContext(t, clientType, clientType)
 	tc.Deployment.WithMITMOptions(t, map[string]interface{}{
 		"callback": map[string]interface{}{
 			"callback_url": callbackURL,
@@ -116,7 +116,8 @@ func testSigkillBeforeKeysUploadResponseJS(t *testing.T, clientType api.ClientTy
 	var terminated atomic.Bool
 	var terminateClient func()
 	seenSecondKeysUploadWaiter := helpers.NewWaiter()
-	callbackURL, close := deploy.NewCallbackServer(t, func(cd deploy.CallbackData) {
+	tc := CreateTestContext(t, clientType, clientType)
+	callbackURL, close := deploy.NewCallbackServer(t, tc.Deployment, func(cd deploy.CallbackData) {
 		if cd.Method == "OPTIONS" {
 			return // ignore CORS
 		}
@@ -139,7 +140,6 @@ func testSigkillBeforeKeysUploadResponseJS(t *testing.T, clientType api.ClientTy
 	})
 	defer close()
 
-	tc := CreateTestContext(t, clientType, clientType)
 	tc.Deployment.WithMITMOptions(t, map[string]interface{}{
 		"callback": map[string]interface{}{
 			"callback_url": callbackURL,
