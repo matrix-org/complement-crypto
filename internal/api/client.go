@@ -49,8 +49,8 @@ type Client interface {
 	SendMessage(t ct.TestLike, roomID, text string) (eventID string)
 	// TrySendMessage tries to send the message, but can fail.
 	TrySendMessage(t ct.TestLike, roomID, text string) (eventID string, err error)
-	// Wait until an event with the given body is seen. Not all impls expose event IDs
-	// hence needing to use body as a proxy.
+	// Wait until an event is seen in the given room. The checker functions can be custom or you can use
+	// a pre-defined one like api.CheckEventHasMembership, api.CheckEventHasBody, or api.CheckEventHasEventID.
 	WaitUntilEventInRoom(t ct.TestLike, roomID string, checker func(e Event) bool) Waiter
 	// Backpaginate in this room by `count` events.
 	MustBackpaginate(t ct.TestLike, roomID string, count int)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
@@ -36,6 +37,12 @@ func TestMain(m *testing.M) {
 	os.RemoveAll("./rust_storage")
 	os.RemoveAll("./chromedp")
 
+	files, _ := os.ReadDir("./logs")
+	for _, f := range files {
+		if strings.HasPrefix(f.Name(), "rust_sdk_logs") {
+			os.Remove(filepath.Join("./logs", f.Name()))
+		}
+	}
 	js.SetupJSLogs("./logs/js_sdk.log")                  // rust sdk logs on its own
 	complement.TestMainWithCleanup(m, "crypto", func() { // always teardown even if panicking
 		ssMutex.Lock()
