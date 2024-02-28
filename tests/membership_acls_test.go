@@ -29,38 +29,25 @@ func TestAliceBobEncryptionWorks(t *testing.T) {
 		// SDK testing below
 		// -----------------
 
-		// login both clients first, so OTKs etc are uploaded.
-		alice := tc.MustLoginClient(t, tc.Alice, clientTypeA)
-		defer alice.Close(t)
-		bob := tc.MustLoginClient(t, tc.Bob, clientTypeB)
-		defer bob.Close(t)
+		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+			wantMsgBody := "Hello world"
 
-		// Alice starts syncing
-		aliceStopSyncing := alice.MustStartSyncing(t)
-		defer aliceStopSyncing()
+			// Check the room is in fact encrypted
+			isEncrypted, err := alice.IsRoomEncrypted(t, roomID)
+			must.NotError(t, "failed to check if room is encrypted", err)
+			must.Equal(t, isEncrypted, true, "room is not encrypted when it should be")
+			isEncrypted, err = bob.IsRoomEncrypted(t, roomID)
+			must.NotError(t, "failed to check if room is encrypted", err)
+			must.Equal(t, isEncrypted, true, "room is not encrypted")
+			t.Logf("bob room encrypted = %v", isEncrypted)
 
-		wantMsgBody := "Hello world"
+			waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+			evID := alice.SendMessage(t, roomID, wantMsgBody)
 
-		// Check the room is in fact encrypted
-		isEncrypted, err := alice.IsRoomEncrypted(t, roomID)
-		must.NotError(t, "failed to check if room is encrypted", err)
-		must.Equal(t, isEncrypted, true, "room is not encrypted when it should be")
-
-		// Bob starts syncing
-		bobStopSyncing := bob.MustStartSyncing(t)
-		defer bobStopSyncing()
-
-		isEncrypted, err = bob.IsRoomEncrypted(t, roomID)
-		must.NotError(t, "failed to check if room is encrypted", err)
-		must.Equal(t, isEncrypted, true, "room is not encrypted")
-		t.Logf("bob room encrypted = %v", isEncrypted)
-
-		waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
-		evID := alice.SendMessage(t, roomID, wantMsgBody)
-
-		// Bob receives the message
-		t.Logf("bob (%s) waiting for event %s", bob.Type(), evID)
-		waiter.Wait(t, 5*time.Second)
+			// Bob receives the message
+			t.Logf("bob (%s) waiting for event %s", bob.Type(), evID)
+			waiter.Wait(t, 5*time.Second)
+		})
 	})
 }
 
@@ -78,6 +65,7 @@ func TestCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T) {
 		// SDK testing below
 		// -----------------
 
+		// FIXME: is this still true?
 		// Bob logs in BEFORE Alice. This is important because the act of logging in should cause
 		// Bob to upload OTKs which will be needed to send the encrypted event.
 		bob := tc.MustLoginClient(t, tc.Bob, clientTypeB)
@@ -86,6 +74,7 @@ func TestCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T) {
 		defer alice.Close(t)
 
 		// Alice and Bob start syncing.
+		// FIXME: is this still true?
 		// FIXME: Bob must sync before Alice otherwise Alice does not seem to get Bob's device in /keys/query. By putting
 		// Bob first, we ensure that the _first_ device list sync for the room includes Bob.
 		bobStopSyncing := bob.MustStartSyncing(t)
@@ -138,39 +127,28 @@ func TestBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 
 		// SDK testing below
 		// -----------------
+		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+			// Alice sends a message which Bob should not be able to decrypt
+			beforeJoinBody := "Before Bob joins"
+			waiter := alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(beforeJoinBody))
+			evID := alice.SendMessage(t, roomID, beforeJoinBody)
+			t.Logf("alice (%s) waiting for event %s", alice.Type(), evID)
+			waiter.Wait(t, 5*time.Second)
 
-		// login both clients first, so OTKs etc are uploaded.
-		alice := tc.MustLoginClient(t, tc.Alice, clientTypeA)
-		defer alice.Close(t)
-		bob := tc.MustLoginClient(t, tc.Bob, clientTypeB)
-		defer bob.Close(t)
+			// now bob joins the room
+			tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+			time.Sleep(time.Second) // wait for it to appear on the client else rust crashes if it cannot find the room FIXME
+			waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(bob.UserID(), "join"))
+			waiter.Wait(t, 5*time.Second)
 
-		// Alice and Bob start syncing
-		aliceStopSyncing := alice.MustStartSyncing(t)
-		defer aliceStopSyncing()
-		bobStopSyncing := bob.MustStartSyncing(t)
-		defer bobStopSyncing()
-
-		// Alice sends a message which Bob should not be able to decrypt
-		beforeJoinBody := "Before Bob joins"
-		waiter := alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(beforeJoinBody))
-		evID := alice.SendMessage(t, roomID, beforeJoinBody)
-		t.Logf("alice (%s) waiting for event %s", alice.Type(), evID)
-		waiter.Wait(t, 5*time.Second)
-
-		// now bob joins the room
-		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
-		time.Sleep(time.Second) // wait for it to appear on the client else rust crashes if it cannot find the room FIXME
-		waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(bob.UserID(), "join"))
-		waiter.Wait(t, 5*time.Second)
-
-		// bob hits scrollback and should see but not be able to decrypt the message
-		bob.MustBackpaginate(t, roomID, 5)
-		// jJ runs need this, else the event will exist but not yet be marked as failed to decrypt. Unsure why fed slows it down.
-		time.Sleep(500 * time.Millisecond)
-		ev := bob.MustGetEvent(t, roomID, evID)
-		must.NotEqual(t, ev.Text, beforeJoinBody, "bob was able to decrypt a message from before he was joined")
-		must.Equal(t, ev.FailedToDecrypt, true, fmt.Sprintf("message not marked as failed to decrypt: %+v", ev))
+			// bob hits scrollback and should see but not be able to decrypt the message
+			bob.MustBackpaginate(t, roomID, 5)
+			// jJ runs need this, else the event will exist but not yet be marked as failed to decrypt. Unsure why fed slows it down.
+			time.Sleep(500 * time.Millisecond)
+			ev := bob.MustGetEvent(t, roomID, evID)
+			must.NotEqual(t, ev.Text, beforeJoinBody, "bob was able to decrypt a message from before he was joined")
+			must.Equal(t, ev.FailedToDecrypt, true, fmt.Sprintf("message not marked as failed to decrypt: %+v", ev))
+		})
 	})
 }
 
@@ -188,6 +166,7 @@ func TestOnRejoinBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 		// login both clients first, so OTKs etc are uploaded.
 		bob := tc.MustLoginClient(t, tc.Bob, clientTypeB)
 		defer bob.Close(t)
+		// FIXME: do we still need this?
 		time.Sleep(500 * time.Millisecond)
 		alice := tc.MustLoginClient(t, tc.Alice, clientTypeA)
 		defer alice.Close(t)
@@ -259,6 +238,7 @@ func TestOnNewDeviceBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 		// Similarly to TestAliceBobEncryptionWorks, log Bob in first.
 		bob := tc.MustLoginClient(t, tc.Bob, clientTypeB)
 		defer bob.Close(t)
+		// FIXME: do we still need this?
 		time.Sleep(500 * time.Millisecond)
 		alice := tc.MustLoginClient(t, tc.Alice, clientTypeA)
 		defer alice.Close(t)
@@ -336,37 +316,28 @@ func TestChangingDeviceAfterInviteReEncrypts(t *testing.T) {
 		// shared history visibility
 		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "public_chat", nil)
 
-		bob := tc.MustLoginClient(t, tc.Bob, clientTypeB)
-		defer bob.Close(t)
-		alice := tc.MustLoginClient(t, tc.Alice, clientTypeA)
-		defer alice.Close(t)
+		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+			// Alice invites Bob and then she sends an event
+			tc.Alice.MustInviteRoom(t, roomID, tc.Bob.UserID)
+			time.Sleep(time.Second) // let device keys propagate
+			body := "Alice should re-encrypt this message for bob's new device"
+			evID := alice.SendMessage(t, roomID, body)
 
-		// Alice and Bob start syncing. Alice is in her own room.
-		aliceStopSyncing := alice.MustStartSyncing(t)
-		defer aliceStopSyncing()
-		bobStopSyncing := bob.MustStartSyncing(t)
-		defer bobStopSyncing()
+			// now Bob logs in on a different device and accepts the invite. The different device should be able to decrypt the message.
+			csapiBob2 := tc.MustRegisterNewDevice(t, tc.Bob, clientTypeB.HS, "NEW_DEVICE")
+			bob2 := tc.MustLoginClient(t, csapiBob2, clientTypeB)
+			bob2StopSyncing := bob2.MustStartSyncing(t)
+			defer bob2StopSyncing()
 
-		// Alice invites Bob and then she sends an event
-		tc.Alice.MustInviteRoom(t, roomID, tc.Bob.UserID)
-		time.Sleep(time.Second) // let device keys propagate
-		body := "Alice should re-encrypt this message for bob's new device"
-		evID := alice.SendMessage(t, roomID, body)
+			time.Sleep(time.Second) // let device keys propagate
 
-		// now Bob logs in on a different device and accepts the invite. The different device should be able to decrypt the message.
-		csapiBob2 := tc.MustRegisterNewDevice(t, tc.Bob, clientTypeB.HS, "NEW_DEVICE")
-		bob2 := tc.MustLoginClient(t, csapiBob2, clientTypeB)
-		bob2StopSyncing := bob2.MustStartSyncing(t)
-		defer bob2StopSyncing()
+			tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 
-		time.Sleep(time.Second) // let device keys propagate
-
-		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
-
-		time.Sleep(time.Second) // let the client load the events
-		bob2.MustBackpaginate(t, roomID, 5)
-		event := bob2.MustGetEvent(t, roomID, evID)
-		must.Equal(t, event.FailedToDecrypt, true, "bob2 was able to decrypt the message: expected this to fail")
-		// must.Equal(t, event.Text, body, "bob2 failed to decrypt body")
+			time.Sleep(time.Second) // let the client load the events
+			bob2.MustBackpaginate(t, roomID, 5)
+			event := bob2.MustGetEvent(t, roomID, evID)
+			must.Equal(t, event.FailedToDecrypt, true, "bob2 was able to decrypt the message: expected this to fail")
+			// must.Equal(t, event.Text, body, "bob2 failed to decrypt body")
+		})
 	})
 }

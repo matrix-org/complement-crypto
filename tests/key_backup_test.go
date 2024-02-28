@@ -36,42 +36,38 @@ func TestCanBackupKeys(t *testing.T) {
 
 		// SDK testing below
 		// -----------------
+		tc.WithAliceSyncing(t, func(backupCreator api.Client) {
+			body := "An encrypted message"
+			waiter := backupCreator.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(body))
+			evID := backupCreator.SendMessage(t, roomID, body)
+			t.Logf("backupCreator (%s) waiting for event %s", backupCreator.Type(), evID)
+			waiter.Wait(t, 5*time.Second)
 
-		backupCreator := tc.MustLoginClient(t, tc.Alice, clientTypeA)
-		defer backupCreator.Close(t)
-		stopSyncing := backupCreator.MustStartSyncing(t)
-		defer stopSyncing()
+			// Now backupCreator backs up his keys. Some clients may automatically do this, but let's be explicit about it.
+			recoveryKey := backupCreator.MustBackupKeys(t)
+			t.Logf("recovery key -> %s", recoveryKey)
 
-		body := "An encrypted message"
-		waiter := backupCreator.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(body))
-		evID := backupCreator.SendMessage(t, roomID, body)
-		t.Logf("backupCreator (%s) waiting for event %s", backupCreator.Type(), evID)
-		waiter.Wait(t, 5*time.Second)
+			// Now login on a new device
+			csapiAlice2 := tc.Deployment.Login(t, clientTypeB.HS, tc.Alice, helpers.LoginOpts{
+				DeviceID: "BACKUP_RESTORER",
+				Password: "complement-crypto-password",
+			})
+			backupRestorer := tc.MustLoginClient(t, csapiAlice2, clientTypeB)
+			defer backupRestorer.Close(t)
 
-		// Now backupCreator backs up his keys. Some clients may automatically do this, but let's be explicit about it.
-		recoveryKey := backupCreator.MustBackupKeys(t)
-		t.Logf("recovery key -> %s", recoveryKey)
+			// load the key backup using the recovery key
+			backupRestorer.MustLoadBackup(t, recoveryKey)
 
-		// Now login on a new device
-		csapiAlice2 := tc.Deployment.Login(t, clientTypeB.HS, tc.Alice, helpers.LoginOpts{
-			DeviceID: "BACKUP_RESTORER",
-			Password: "complement-crypto-password",
+			// new device can decrypt the encrypted message
+			backupRestorerStopSyncing := backupRestorer.MustStartSyncing(t)
+			defer backupRestorerStopSyncing()
+			time.Sleep(time.Second)
+			backupRestorer.MustBackpaginate(t, roomID, 5) // get the old message
+
+			ev := backupRestorer.MustGetEvent(t, roomID, evID)
+			must.Equal(t, ev.FailedToDecrypt, false, "bob's new device failed to decrypt the event: bad backup?")
+			must.Equal(t, ev.Text, body, "bob's new device failed to see the clear text message")
 		})
-		backupRestorer := tc.MustLoginClient(t, csapiAlice2, clientTypeB)
-		defer backupRestorer.Close(t)
-
-		// load the key backup using the recovery key
-		backupRestorer.MustLoadBackup(t, recoveryKey)
-
-		// new device can decrypt the encrypted message
-		backupRestorerStopSyncing := backupRestorer.MustStartSyncing(t)
-		defer backupRestorerStopSyncing()
-		time.Sleep(time.Second)
-		backupRestorer.MustBackpaginate(t, roomID, 5) // get the old message
-
-		ev := backupRestorer.MustGetEvent(t, roomID, evID)
-		must.Equal(t, ev.FailedToDecrypt, false, "bob's new device failed to decrypt the event: bad backup?")
-		must.Equal(t, ev.Text, body, "bob's new device failed to see the clear text message")
 	})
 }
 
@@ -100,41 +96,37 @@ func TestBackupWrongRecoveryKeyFails(t *testing.T) {
 
 		// SDK testing below
 		// -----------------
+		tc.WithAliceSyncing(t, func(backupCreator api.Client) {
+			body := "An encrypted message"
+			waiter := backupCreator.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(body))
+			evID := backupCreator.SendMessage(t, roomID, body)
+			t.Logf("backupCreator (%s) waiting for event %s", backupCreator.Type(), evID)
+			waiter.Wait(t, 5*time.Second)
 
-		backupCreator := tc.MustLoginClient(t, tc.Alice, clientTypeA)
-		defer backupCreator.Close(t)
-		stopSyncing := backupCreator.MustStartSyncing(t)
-		defer stopSyncing()
+			// Now backupCreator backs up his keys. Some clients may automatically do this, but let's be explicit about it.
+			recoveryKey := backupCreator.MustBackupKeys(t)
+			t.Logf("recovery key -> %s", recoveryKey)
 
-		body := "An encrypted message"
-		waiter := backupCreator.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(body))
-		evID := backupCreator.SendMessage(t, roomID, body)
-		t.Logf("backupCreator (%s) waiting for event %s", backupCreator.Type(), evID)
-		waiter.Wait(t, 5*time.Second)
+			// Now login on a new device
+			csapiAlice2 := tc.Deployment.Login(t, clientTypeB.HS, tc.Alice, helpers.LoginOpts{
+				DeviceID: "BACKUP_RESTORER",
+				Password: "complement-crypto-password",
+			})
+			backupRestorer := tc.MustLoginClient(t, csapiAlice2, clientTypeB)
+			defer backupRestorer.Close(t)
 
-		// Now backupCreator backs up his keys. Some clients may automatically do this, but let's be explicit about it.
-		recoveryKey := backupCreator.MustBackupKeys(t)
-		t.Logf("recovery key -> %s", recoveryKey)
+			// load the key backup using a valid but wrong recovery key
+			wrongRecoveryKey := "EsU1 591R iFs4 8xe6 kR79 7wKu 8XTG xdmx 9PVW 8pX9 LAnC Pe5r"
+			backupRestorer.LoadBackup(t, wrongRecoveryKey)
 
-		// Now login on a new device
-		csapiAlice2 := tc.Deployment.Login(t, clientTypeB.HS, tc.Alice, helpers.LoginOpts{
-			DeviceID: "BACKUP_RESTORER",
-			Password: "complement-crypto-password",
+			// new device cannot decrypt the encrypted message
+			backupRestorerStopSyncing := backupRestorer.MustStartSyncing(t)
+			defer backupRestorerStopSyncing()
+			time.Sleep(time.Second)
+			backupRestorer.MustBackpaginate(t, roomID, 5) // get the old message
+
+			ev := backupRestorer.MustGetEvent(t, roomID, evID)
+			must.Equal(t, ev.FailedToDecrypt, true, "bob's new device decrypted the event: insecure backup?")
 		})
-		backupRestorer := tc.MustLoginClient(t, csapiAlice2, clientTypeB)
-		defer backupRestorer.Close(t)
-
-		// load the key backup using a valid but wrong recovery key
-		wrongRecoveryKey := "EsU1 591R iFs4 8xe6 kR79 7wKu 8XTG xdmx 9PVW 8pX9 LAnC Pe5r"
-		backupRestorer.LoadBackup(t, wrongRecoveryKey)
-
-		// new device cannot decrypt the encrypted message
-		backupRestorerStopSyncing := backupRestorer.MustStartSyncing(t)
-		defer backupRestorerStopSyncing()
-		time.Sleep(time.Second)
-		backupRestorer.MustBackpaginate(t, roomID, 5) // get the old message
-
-		ev := backupRestorer.MustGetEvent(t, roomID, evID)
-		must.Equal(t, ev.FailedToDecrypt, true, "bob's new device decrypted the event: insecure backup?")
 	})
 }

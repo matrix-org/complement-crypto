@@ -39,64 +39,55 @@ func TestRoomKeyIsCycledOnDeviceLogout(t *testing.T) {
 		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 
 		// Alice, Alice2 and Bob are in a room.
-		alice := tc.MustLoginClient(t, tc.Alice, clientTypeA)
-		defer alice.Close(t)
 		csapiAlice2 := tc.MustRegisterNewDevice(t, tc.Alice, clientTypeA.HS, "OTHER_DEVICE")
-		alice2 := tc.MustLoginClient(t, csapiAlice2, clientTypeA)
-		defer alice2.Close(t)
-		bob := tc.MustLoginClient(t, tc.Bob, clientTypeB)
-		defer bob.Close(t)
-		aliceStopSyncing := alice.MustStartSyncing(t)
-		defer aliceStopSyncing()
-		alice2StopSyncing := alice2.MustStartSyncing(t)
-		defer alice2StopSyncing()
-		bobStopSyncing := bob.MustStartSyncing(t)
-		defer bobStopSyncing()
+		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+			tc.WithClientSyncing(t, clientTypeA, csapiAlice2, func(alice2 api.Client) {
+				// check the room works
+				wantMsgBody := "Test Message"
+				waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+				waiter2 := alice2.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+				alice.SendMessage(t, roomID, wantMsgBody)
+				waiter.Wait(t, 5*time.Second)
+				waiter2.Wait(t, 5*time.Second)
 
-		// check the room works
-		wantMsgBody := "Test Message"
-		waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
-		waiter2 := alice2.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
-		alice.SendMessage(t, roomID, wantMsgBody)
-		waiter.Wait(t, 5*time.Second)
-		waiter2.Wait(t, 5*time.Second)
+				// we're going to sniff calls to /sendToDevice to ensure we see the new room key being sent.
+				ch := make(chan deploy.CallbackData, 10)
+				callbackURL, close := sniffToDeviceEvent(t, tc.Deployment, ch)
+				defer close()
 
-		// we're going to sniff calls to /sendToDevice to ensure we see the new room key being sent.
-		ch := make(chan deploy.CallbackData, 10)
-		callbackURL, close := sniffToDeviceEvent(t, tc.Deployment, ch)
-		defer close()
+				// we don't know when the new room key will be sent, it could be sent as soon as the device list update
+				// is sent, or it could be delayed until message send. We want to handle both cases so we start sniffing
+				// traffic now.
+				tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+					"callback": map[string]interface{}{
+						"callback_url": callbackURL,
+						"filter":       "~u .*\\/sendToDevice.*",
+					},
+				}, func() {
+					// now alice2 is going to logout, causing her user ID to appear in device_lists.changed which
+					// should cause a /keys/query request, resulting in the client realising the device is gone,
+					// which should trigger a new room key to be sent (on message send)
+					csapiAlice2.MustDo(t, "POST", []string{"_matrix", "client", "v3", "logout"}, client.WithJSONBody(t, map[string]any{}))
 
-		// we don't know when the new room key will be sent, it could be sent as soon as the device list update
-		// is sent, or it could be delayed until message send. We want to handle both cases so we start sniffing
-		// traffic now.
-		tc.Deployment.WithMITMOptions(t, map[string]interface{}{
-			"callback": map[string]interface{}{
-				"callback_url": callbackURL,
-				"filter":       "~u .*\\/sendToDevice.*",
-			},
-		}, func() {
-			// now alice2 is going to logout, causing her user ID to appear in device_lists.changed which
-			// should cause a /keys/query request, resulting in the client realising the device is gone,
-			// which should trigger a new room key to be sent (on message send)
-			csapiAlice2.MustDo(t, "POST", []string{"_matrix", "client", "v3", "logout"}, client.WithJSONBody(t, map[string]any{}))
+					// we don't know how long it will take for the device list update to be processed, so wait 1s
+					time.Sleep(time.Second)
 
-			// we don't know how long it will take for the device list update to be processed, so wait 1s
-			time.Sleep(time.Second)
+					// now send another message from Alice, who should negotiate a new room key
+					wantMsgBody = "Another Test Message"
+					waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+					alice.SendMessage(t, roomID, wantMsgBody)
+					waiter.Wait(t, 5*time.Second)
+				})
 
-			// now send another message from Alice, who should negotiate a new room key
-			wantMsgBody = "Another Test Message"
-			waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
-			alice.SendMessage(t, roomID, wantMsgBody)
-			waiter.Wait(t, 5*time.Second)
+				// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
+				// the room key.
+				select {
+				case <-ch:
+				default:
+					ct.Fatalf(t, "did not see /sendToDevice when logging out and sending a new message")
+				}
+			})
 		})
-
-		// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
-		// the room key.
-		select {
-		case <-ch:
-		default:
-			ct.Fatalf(t, "did not see /sendToDevice when logging out and sending a new message")
-		}
 	})
 }
 
@@ -106,95 +97,21 @@ func TestRoomKeyIsCycledOnMemberLeaving(t *testing.T) {
 		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "trusted_private_chat", []string{tc.Bob.UserID, tc.Charlie.UserID})
 		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 		tc.Charlie.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
-
 		// Alice, Bob and Charlie are in a room.
-		alice := tc.MustLoginClient(t, tc.Alice, clientTypeA)
-		defer alice.Close(t)
-		bob := tc.MustLoginClient(t, tc.Bob, clientTypeB)
-		defer bob.Close(t)
-		charlie := tc.MustLoginClient(t, tc.Charlie, clientTypeB)
-		defer charlie.Close(t)
-		aliceStopSyncing := alice.MustStartSyncing(t)
-		defer aliceStopSyncing()
-		bobStopSyncing := bob.MustStartSyncing(t)
-		defer bobStopSyncing()
-		charlieStopSyncing := charlie.MustStartSyncing(t)
-		defer charlieStopSyncing()
-
-		// check the room works
-		wantMsgBody := "Test Message"
-		waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
-		waiter2 := charlie.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
-		alice.SendMessage(t, roomID, wantMsgBody)
-		waiter.Wait(t, 5*time.Second)
-		waiter2.Wait(t, 5*time.Second)
-
-		// we're going to sniff calls to /sendToDevice to ensure we see the new room key being sent.
-		ch := make(chan deploy.CallbackData, 10)
-		callbackURL, close := sniffToDeviceEvent(t, tc.Deployment, ch)
-		defer close()
-
-		// we don't know when the new room key will be sent, it could be sent as soon as the device list update
-		// is sent, or it could be delayed until message send. We want to handle both cases so we start sniffing
-		// traffic now.
-		tc.Deployment.WithMITMOptions(t, map[string]interface{}{
-			"callback": map[string]interface{}{
-				"callback_url": callbackURL,
-				"filter":       "~u .*\\/sendToDevice.*",
-			},
-		}, func() {
-			// now Charlie is going to leave the room, causing her user ID to appear in device_lists.left
-			// which should trigger a new room key to be sent (on message send)
-			tc.Charlie.MustDo(t, "POST", []string{"_matrix", "client", "v3", "rooms", roomID, "leave"}, client.WithJSONBody(t, map[string]any{}))
-
-			// we don't know how long it will take for the device list update to be processed, so wait 1s
-			time.Sleep(time.Second)
-
-			// now send another message from Alice, who should negotiate a new room key
-			wantMsgBody = "Another Test Message"
-			waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+		tc.WithAliceBobAndCharlieSyncing(t, func(alice, bob, charlie api.Client) {
+			// check the room works
+			wantMsgBody := "Test Message"
+			waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+			waiter2 := charlie.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 			alice.SendMessage(t, roomID, wantMsgBody)
 			waiter.Wait(t, 5*time.Second)
-		})
+			waiter2.Wait(t, 5*time.Second)
 
-		// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
-		// the room key.
-		select {
-		case <-ch:
-		default:
-			ct.Fatalf(t, "did not see /sendToDevice when logging out and sending a new message")
-		}
-	})
-}
+			// we're going to sniff calls to /sendToDevice to ensure we see the new room key being sent.
+			ch := make(chan deploy.CallbackData, 10)
+			callbackURL, close := sniffToDeviceEvent(t, tc.Deployment, ch)
+			defer close()
 
-func TestRoomKeyIsNotCycled(t *testing.T) {
-	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
-		tc := CreateTestContext(t, clientTypeA, clientTypeB)
-		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "trusted_private_chat", []string{tc.Bob.UserID})
-		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
-
-		// Alice, Bob are in a room.
-		alice := tc.MustLoginClient(t, tc.Alice, clientTypeA)
-		defer alice.Close(t)
-		bob := tc.MustLoginClient(t, tc.Bob, clientTypeB)
-		defer bob.Close(t)
-		aliceStopSyncing := alice.MustStartSyncing(t)
-		defer aliceStopSyncing()
-		bobStopSyncing := bob.MustStartSyncing(t)
-		defer bobStopSyncing()
-
-		// check the room works
-		wantMsgBody := "Test Message"
-		waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
-		alice.SendMessage(t, roomID, wantMsgBody)
-		waiter.Wait(t, 5*time.Second)
-
-		// we're going to sniff calls to /sendToDevice to ensure we see the new room key being sent.
-		ch := make(chan deploy.CallbackData, 10)
-		callbackURL, closeCallbackServer := sniffToDeviceEvent(t, tc.Deployment, ch)
-		defer closeCallbackServer()
-
-		t.Run("on display name change", func(t *testing.T) {
 			// we don't know when the new room key will be sent, it could be sent as soon as the device list update
 			// is sent, or it could be delayed until message send. We want to handle both cases so we start sniffing
 			// traffic now.
@@ -204,11 +121,9 @@ func TestRoomKeyIsNotCycled(t *testing.T) {
 					"filter":       "~u .*\\/sendToDevice.*",
 				},
 			}, func() {
-				// now Bob is going to change their display name
-				// which should NOT trigger a new room key to be sent (on message send)
-				tc.Bob.MustDo(t, "PUT", []string{"_matrix", "client", "v3", "profile", tc.Bob.UserID, "displayname"}, client.WithJSONBody(t, map[string]any{
-					"displayname": "Little Bobby Tables",
-				}))
+				// now Charlie is going to leave the room, causing her user ID to appear in device_lists.left
+				// which should trigger a new room key to be sent (on message send)
+				tc.Charlie.MustDo(t, "POST", []string{"_matrix", "client", "v3", "rooms", roomID, "leave"}, client.WithJSONBody(t, map[string]any{}))
 
 				// we don't know how long it will take for the device list update to be processed, so wait 1s
 				time.Sleep(time.Second)
@@ -224,76 +139,133 @@ func TestRoomKeyIsNotCycled(t *testing.T) {
 			// the room key.
 			select {
 			case <-ch:
-				ct.Fatalf(t, "saw /sendToDevice when changing display name and sending a new message")
 			default:
+				ct.Fatalf(t, "did not see /sendToDevice when logging out and sending a new message")
 			}
 		})
-		t.Run("on new device login", func(t *testing.T) {
-			if clientTypeA.HS == "hs2" || clientTypeB.HS == "hs2" {
-				// we sniff /sendToDevice and assume that the access_token is for HS1.
-				t.Skipf("federation unsupported for this test")
-			}
-			// we don't know when the new room key will be sent, it could be sent as soon as the device list update
-			// is sent, or it could be delayed until message send. We want to handle both cases so we start sniffing
-			// traffic now.
-			tc.Deployment.WithMITMOptions(t, map[string]interface{}{
-				"callback": map[string]interface{}{
-					"callback_url": callbackURL,
-					"filter":       "~u .*\\/sendToDevice.*",
-				},
-			}, func() {
-				// now Bob is going to login on a new device
-				// which should NOT trigger a new room key to be sent (on message send)
-				csapiBob2 := tc.MustRegisterNewDevice(t, tc.Bob, clientTypeB.HS, "OTHER_DEVICE")
-				bob2 := tc.MustLoginClient(t, csapiBob2, clientTypeB)
-				defer bob2.Close(t)
-				bob2StopSyncing := bob2.MustStartSyncing(t)
-				defer bob2StopSyncing()
+	})
+}
 
-				// we don't know how long it will take for the device list update to be processed, so wait 1s
-				time.Sleep(time.Second)
+func TestRoomKeyIsNotCycled(t *testing.T) {
+	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
+		tc := CreateTestContext(t, clientTypeA, clientTypeB)
+		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "trusted_private_chat", []string{tc.Bob.UserID})
+		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 
-				// now send another message from Alice, who should negotiate a new room key
-				wantMsgBody = "Yet Another Test Message"
-				waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
-				alice.SendMessage(t, roomID, wantMsgBody)
-				waiter.Wait(t, 5*time.Second)
-			})
+		// Alice, Bob are in a room.
+		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+			// check the room works
+			wantMsgBody := "Test Message"
+			waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+			alice.SendMessage(t, roomID, wantMsgBody)
+			waiter.Wait(t, 5*time.Second)
 
-			// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
-			// the room key.
+			// we're going to sniff calls to /sendToDevice to ensure we see the new room key being sent.
+			ch := make(chan deploy.CallbackData, 10)
+			callbackURL, closeCallbackServer := sniffToDeviceEvent(t, tc.Deployment, ch)
+			defer closeCallbackServer()
 
-		Consume:
-			for { // consume all items in the channel
-				// the logic here is a bit weird because we DO expect some /sendToDevice calls as Alice and Bob
-				// share the room key with Bob2. However, Alice, who is sending the message, should NOT be sending
-				// to-device msgs to Bob, as that would indicate a new exchange of room keys. To do this, we use
-				// the access token to see who the sender is, and check the request body to see who the receiver is,
-				// and make sure it's all what we expect.
+			t.Run("on display name change", func(t *testing.T) {
+				// we don't know when the new room key will be sent, it could be sent as soon as the device list update
+				// is sent, or it could be delayed until message send. We want to handle both cases so we start sniffing
+				// traffic now.
+				tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+					"callback": map[string]interface{}{
+						"callback_url": callbackURL,
+						"filter":       "~u .*\\/sendToDevice.*",
+					},
+				}, func() {
+					// now Bob is going to change their display name
+					// which should NOT trigger a new room key to be sent (on message send)
+					tc.Bob.MustDo(t, "PUT", []string{"_matrix", "client", "v3", "profile", tc.Bob.UserID, "displayname"}, client.WithJSONBody(t, map[string]any{
+						"displayname": "Little Bobby Tables",
+					}))
+
+					// we don't know how long it will take for the device list update to be processed, so wait 1s
+					time.Sleep(time.Second)
+
+					// now send another message from Alice, who should negotiate a new room key
+					wantMsgBody = "Another Test Message"
+					waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+					alice.SendMessage(t, roomID, wantMsgBody)
+					waiter.Wait(t, 5*time.Second)
+				})
+
+				// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
+				// the room key.
 				select {
-				case sendToDevice := <-ch:
-					cli := tc.Deployment.Deployment.UnauthenticatedClient(t, "hs1")
-					cli.AccessToken = sendToDevice.AccessToken
-					whoami := cli.MustDo(t, "GET", []string{"_matrix", "client", "v3", "account", "whoami"})
-					sender := must.ParseJSON(t, whoami.Body).Get("user_id").Str
-					reqBody := struct {
-						Messages map[string]map[string]any
-					}{}
-					must.NotError(t, "failed to unmarshal intercepted request body", json.Unmarshal(sendToDevice.RequestBody, &reqBody))
+				case <-ch:
+					ct.Fatalf(t, "saw /sendToDevice when changing display name and sending a new message")
+				default:
+				}
+			})
+			t.Run("on new device login", func(t *testing.T) {
+				if clientTypeA.HS == "hs2" || clientTypeB.HS == "hs2" {
+					// we sniff /sendToDevice and assume that the access_token is for HS1.
+					t.Skipf("federation unsupported for this test")
+				}
+				// we don't know when the new room key will be sent, it could be sent as soon as the device list update
+				// is sent, or it could be delayed until message send. We want to handle both cases so we start sniffing
+				// traffic now.
+				tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+					"callback": map[string]interface{}{
+						"callback_url": callbackURL,
+						"filter":       "~u .*\\/sendToDevice.*",
+					},
+				}, func() {
+					// now Bob is going to login on a new device
+					// which should NOT trigger a new room key to be sent (on message send)
+					csapiBob2 := tc.MustRegisterNewDevice(t, tc.Bob, clientTypeB.HS, "OTHER_DEVICE")
+					bob2 := tc.MustLoginClient(t, csapiBob2, clientTypeB)
+					defer bob2.Close(t)
+					bob2StopSyncing := bob2.MustStartSyncing(t)
+					defer bob2StopSyncing()
 
-					for target := range reqBody.Messages {
-						for targetDeviceID := range reqBody.Messages[target] {
-							t.Logf("%s /sendToDevice to %v (%v)", sender, target, targetDeviceID)
-							if sender == alice.UserID() && target == bob.UserID() && targetDeviceID != "OTHER_DEVICE" {
-								ct.Fatalf(t, "saw Alice /sendToDevice to Bob for old device, implying room keys were refreshed")
+					// we don't know how long it will take for the device list update to be processed, so wait 1s
+					time.Sleep(time.Second)
+
+					// now send another message from Alice, who should negotiate a new room key
+					wantMsgBody = "Yet Another Test Message"
+					waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+					alice.SendMessage(t, roomID, wantMsgBody)
+					waiter.Wait(t, 5*time.Second)
+				})
+
+				// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
+				// the room key.
+
+			Consume:
+				for { // consume all items in the channel
+					// the logic here is a bit weird because we DO expect some /sendToDevice calls as Alice and Bob
+					// share the room key with Bob2. However, Alice, who is sending the message, should NOT be sending
+					// to-device msgs to Bob, as that would indicate a new exchange of room keys. To do this, we use
+					// the access token to see who the sender is, and check the request body to see who the receiver is,
+					// and make sure it's all what we expect.
+					select {
+					case sendToDevice := <-ch:
+						cli := tc.Deployment.Deployment.UnauthenticatedClient(t, "hs1")
+						cli.AccessToken = sendToDevice.AccessToken
+						whoami := cli.MustDo(t, "GET", []string{"_matrix", "client", "v3", "account", "whoami"})
+						sender := must.ParseJSON(t, whoami.Body).Get("user_id").Str
+						reqBody := struct {
+							Messages map[string]map[string]any
+						}{}
+						must.NotError(t, "failed to unmarshal intercepted request body", json.Unmarshal(sendToDevice.RequestBody, &reqBody))
+
+						for target := range reqBody.Messages {
+							for targetDeviceID := range reqBody.Messages[target] {
+								t.Logf("%s /sendToDevice to %v (%v)", sender, target, targetDeviceID)
+								if sender == alice.UserID() && target == bob.UserID() && targetDeviceID != "OTHER_DEVICE" {
+									ct.Fatalf(t, "saw Alice /sendToDevice to Bob for old device, implying room keys were refreshed")
+								}
 							}
 						}
-					}
 
-				default:
-					break Consume
+					default:
+						break Consume
+					}
 				}
-			}
+			})
 		})
 	})
 }
@@ -319,81 +291,79 @@ func testRoomKeyIsNotCycledOnClientRestartRust(t *testing.T, clientType api.Clie
 	roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "trusted_private_chat", []string{tc.Bob.UserID})
 	tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
 
-	bob := tc.MustLoginClient(t, tc.Bob, clientType)
-	defer bob.Close(t)
-	bobStopSyncing := bob.MustStartSyncing(t)
-	defer bobStopSyncing()
+	tc.WithClientSyncing(t, clientType, tc.Bob, func(bob api.Client) {
 
-	wantMsgBody := "test from the script"
+		wantMsgBody := "test from the script"
 
-	// run a script which will login as alice and then send an event in the room.
-	// We will wait on that event as Bob to know when the script got to that point.
-	cmd, close := templates.PrepareGoScript(t, "testRoomKeyIsNotCycledOnClientRestartRust/test.go",
-		struct {
-			UserID            string
-			DeviceID          string
-			Password          string
-			BaseURL           string
-			SSURL             string
-			PersistentStorage bool
-			Body              string
-			RoomID            string
-		}{
-			UserID:            tc.Alice.UserID,
-			Password:          tc.Alice.Password,
-			DeviceID:          tc.Alice.DeviceID,
-			BaseURL:           tc.Alice.BaseURL,
-			PersistentStorage: true,
-			SSURL:             tc.Deployment.SlidingSyncURL(t),
-			Body:              wantMsgBody,
-			RoomID:            roomID,
+		// run a script which will login as alice and then send an event in the room.
+		// We will wait on that event as Bob to know when the script got to that point.
+		cmd, close := templates.PrepareGoScript(t, "testRoomKeyIsNotCycledOnClientRestartRust/test.go",
+			struct {
+				UserID            string
+				DeviceID          string
+				Password          string
+				BaseURL           string
+				SSURL             string
+				PersistentStorage bool
+				Body              string
+				RoomID            string
+			}{
+				UserID:            tc.Alice.UserID,
+				Password:          tc.Alice.Password,
+				DeviceID:          tc.Alice.DeviceID,
+				BaseURL:           tc.Alice.BaseURL,
+				PersistentStorage: true,
+				SSURL:             tc.Deployment.SlidingSyncURL(t),
+				Body:              wantMsgBody,
+				RoomID:            roomID,
+			})
+		cmd.WaitDelay = 3 * time.Second
+		defer close()
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		must.NotError(t, "failed to run script", cmd.Run())
+
+		waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+		waiter.Wait(t, 8*time.Second)
+
+		// the script sent the msg and exited cleanly.
+		// Now recreate the same client and make sure we don't send new room keys.
+
+		// we're going to sniff calls to /sendToDevice to ensure we do NOT see a new room key being sent.
+		ch := make(chan deploy.CallbackData, 10)
+		callbackURL, close := sniffToDeviceEvent(t, tc.Deployment, ch)
+		defer close()
+
+		tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+			"callback": map[string]interface{}{
+				"callback_url": callbackURL,
+				"filter":       "~u .*\\/sendToDevice.*",
+			},
+		}, func() {
+			// login as alice
+			alice := tc.MustLoginClient(t, tc.Alice, clientType, WithPersistentStorage())
+			defer alice.Close(t)
+			aliceStopSyncing := alice.MustStartSyncing(t)
+			defer aliceStopSyncing()
+
+			// we don't know how long it will take for the device list update to be processed, so wait 1s
+			time.Sleep(time.Second)
+
+			// now send another message from Alice, who should NOT negotiate a new room key
+			wantMsgBody = "Another Test Message"
+			waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+			alice.SendMessage(t, roomID, wantMsgBody)
+			waiter.Wait(t, 5*time.Second)
 		})
-	cmd.WaitDelay = 3 * time.Second
-	defer close()
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	must.NotError(t, "failed to run script", cmd.Run())
 
-	waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
-	waiter.Wait(t, 8*time.Second)
-
-	// the script sent the msg and exited cleanly.
-	// Now recreate the same client and make sure we don't send new room keys.
-
-	// we're going to sniff calls to /sendToDevice to ensure we do NOT see a new room key being sent.
-	ch := make(chan deploy.CallbackData, 10)
-	callbackURL, close := sniffToDeviceEvent(t, tc.Deployment, ch)
-	defer close()
-
-	tc.Deployment.WithMITMOptions(t, map[string]interface{}{
-		"callback": map[string]interface{}{
-			"callback_url": callbackURL,
-			"filter":       "~u .*\\/sendToDevice.*",
-		},
-	}, func() {
-		// login as alice
-		alice := tc.MustLoginClient(t, tc.Alice, clientType, WithPersistentStorage())
-		defer alice.Close(t)
-		aliceStopSyncing := alice.MustStartSyncing(t)
-		defer aliceStopSyncing()
-
-		// we don't know how long it will take for the device list update to be processed, so wait 1s
-		time.Sleep(time.Second)
-
-		// now send another message from Alice, who should NOT negotiate a new room key
-		wantMsgBody = "Another Test Message"
-		waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
-		alice.SendMessage(t, roomID, wantMsgBody)
-		waiter.Wait(t, 5*time.Second)
+		// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
+		// the room key.
+		select {
+		case <-ch:
+			ct.Fatalf(t, "saw /sendToDevice when restarting the client and sending a new message")
+		default:
+		}
 	})
-
-	// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
-	// the room key.
-	select {
-	case <-ch:
-		ct.Fatalf(t, "saw /sendToDevice when restarting the client and sending a new message")
-	default:
-	}
 }
 
 func testRoomKeyIsNotCycledOnClientRestartJS(t *testing.T, clientType api.ClientType) {

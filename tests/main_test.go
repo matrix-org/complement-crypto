@@ -67,7 +67,7 @@ func Deploy(t *testing.T) *deploy.SlidingSyncDeployment {
 // ClientTypeMatrix enumerates all provided client permutations given by the test client
 // matrix `COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX`. Creates sub-tests for each permutation
 // and invokes `subTest`. Sub-tests are run in series.
-func ClientTypeMatrix(t *testing.T, subTest func(tt *testing.T, a, b api.ClientType)) {
+func ClientTypeMatrix(t *testing.T, subTest func(t *testing.T, clientTypeA, clientTypeB api.ClientType)) {
 	for _, tc := range complementCryptoConfig.TestClientMatrix {
 		tc := tc
 		t.Run(fmt.Sprintf("%s|%s", tc[0], tc[1]), func(t *testing.T) {
@@ -78,7 +78,7 @@ func ClientTypeMatrix(t *testing.T, subTest func(tt *testing.T, a, b api.ClientT
 
 // ForEachClientType enumerates all known client implementations and creates sub-tests for
 // each. Sub-tests are run in series. Always defaults to `hs1`.
-func ForEachClientType(t *testing.T, subTest func(tt *testing.T, a api.ClientType)) {
+func ForEachClientType(t *testing.T, subTest func(t *testing.T, clientType api.ClientType)) {
 	for _, tc := range []api.ClientType{{Lang: api.ClientTypeRust, HS: "hs1"}, {Lang: api.ClientTypeJS, HS: "hs1"}} {
 		tc := tc
 		t.Run(string(tc.Lang), func(t *testing.T) {
@@ -181,6 +181,15 @@ func CreateTestContext(t *testing.T, clientType ...api.ClientType) *TestContext 
 	return tc
 }
 
+func (c *TestContext) WithClientSyncing(t *testing.T, clientType api.ClientType, cli *client.CSAPI, callback func(cli api.Client)) {
+	t.Helper()
+	clientUnderTest := c.MustLoginClient(t, cli, clientType)
+	defer clientUnderTest.Close(t)
+	stopSyncing := clientUnderTest.MustStartSyncing(t)
+	defer stopSyncing()
+	callback(clientUnderTest)
+}
+
 // WithAliceSyncing is a helper function which creates a rust/js client and automatically logs in Alice and starts
 // a sync loop for her.
 //
@@ -189,11 +198,7 @@ func CreateTestContext(t *testing.T, clientType ...api.ClientType) *TestContext 
 func (c *TestContext) WithAliceSyncing(t *testing.T, callback func(alice api.Client)) {
 	t.Helper()
 	must.NotEqual(t, c.Alice, nil, "No Alice defined. Call CreateTestContext() with at least 1 api.ClientType.")
-	alice := c.MustLoginClient(t, c.Alice, c.AliceClientType)
-	defer alice.Close(t)
-	aliceStopSyncing := alice.MustStartSyncing(t)
-	defer aliceStopSyncing()
-	callback(alice)
+	c.WithClientSyncing(t, c.AliceClientType, c.Alice, callback)
 }
 
 // WithAliceAndBobSyncing is a helper function which creates rust/js clients and automatically logs in Alice & Bob
@@ -204,15 +209,11 @@ func (c *TestContext) WithAliceSyncing(t *testing.T, callback func(alice api.Cli
 func (c *TestContext) WithAliceAndBobSyncing(t *testing.T, callback func(alice, bob api.Client)) {
 	t.Helper()
 	must.NotEqual(t, c.Bob, nil, "No Bob defined. Call CreateTestContext() with at least 2 api.ClientTypes.")
-	alice := c.MustLoginClient(t, c.Alice, c.AliceClientType)
-	defer alice.Close(t)
-	bob := c.MustLoginClient(t, c.Bob, c.BobClientType)
-	defer bob.Close(t)
-	aliceStopSyncing := alice.MustStartSyncing(t)
-	defer aliceStopSyncing()
-	bobStopSyncing := bob.MustStartSyncing(t)
-	defer bobStopSyncing()
-	callback(alice, bob)
+	c.WithClientSyncing(t, c.AliceClientType, c.Alice, func(alice api.Client) {
+		c.WithClientSyncing(t, c.BobClientType, c.Bob, func(bob api.Client) {
+			callback(alice, bob)
+		})
+	})
 }
 
 // WithAliceBobAndCharlieSyncing is a helper function which creates rust/js clients and automatically logs in Alice, Bob
@@ -223,19 +224,13 @@ func (c *TestContext) WithAliceAndBobSyncing(t *testing.T, callback func(alice, 
 func (c *TestContext) WithAliceBobAndCharlieSyncing(t *testing.T, callback func(alice, bob, charlie api.Client)) {
 	t.Helper()
 	must.NotEqual(t, c.Charlie, nil, "No Charlie defined. Call CreateTestContext() with at least 3 api.ClientTypes.")
-	alice := c.MustLoginClient(t, c.Alice, c.AliceClientType)
-	defer alice.Close(t)
-	bob := c.MustLoginClient(t, c.Bob, c.BobClientType)
-	defer bob.Close(t)
-	charlie := c.MustLoginClient(t, c.Charlie, c.CharlieClientType)
-	defer charlie.Close(t)
-	aliceStopSyncing := alice.MustStartSyncing(t)
-	defer aliceStopSyncing()
-	bobStopSyncing := bob.MustStartSyncing(t)
-	defer bobStopSyncing()
-	charlieStopSyncing := charlie.MustStartSyncing(t)
-	defer charlieStopSyncing()
-	callback(alice, bob, charlie)
+	c.WithClientSyncing(t, c.AliceClientType, c.Alice, func(alice api.Client) {
+		c.WithClientSyncing(t, c.BobClientType, c.Bob, func(bob api.Client) {
+			c.WithClientSyncing(t, c.CharlieClientType, c.Charlie, func(charlie api.Client) {
+				callback(alice, bob, charlie)
+			})
+		})
+	})
 }
 
 // CreateNewEncryptedRoom calls creator.MustCreateRoom with the correct m.room.encryption state event.
