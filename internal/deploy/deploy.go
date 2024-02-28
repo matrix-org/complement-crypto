@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -165,7 +164,7 @@ func (d *SlidingSyncDeployment) Teardown(writeLogs bool) {
 	}
 }
 
-func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
+func RunNewDeployment(t *testing.T, mitmProxyAddonsDir string, shouldTCPDump bool) *SlidingSyncDeployment {
 	// allow 30s for everything to deploy
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -173,11 +172,6 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 	// Deploy the homeserver using Complement
 	deployment := complement.Deploy(t, 2)
 	networkName := deployment.Network()
-
-	workingDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("failed to find working directory: %s", err)
-	}
 
 	// Make a postgres container
 	postgresContainer, err := testcontainers.GenericContainer(context.Background(), testcontainers.GenericContainerRequest{
@@ -209,37 +203,40 @@ func RunNewDeployment(t *testing.T, shouldTCPDump bool) *SlidingSyncDeployment {
 	hs1ExposedPort := "3000/tcp"
 	hs2ExposedPort := "3001/tcp"
 	controllerExposedPort := "8080/tcp" // default mitmproxy uses
-	mitmproxyContainer, err := testcontainers.GenericContainer(context.Background(), testcontainers.GenericContainerRequest{
-		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        "mitmproxy/mitmproxy:10.1.5",
-			ExposedPorts: []string{hs1ExposedPort, hs2ExposedPort, controllerExposedPort},
-			Env:          map[string]string{},
-			Cmd: []string{
-				"mitmdump",
-				"--mode", "reverse:http://hs1:8008@3000",
-				"--mode", "reverse:http://hs2:8008@3001",
-				"--mode", "regular",
-				"-s", "/addons/__init__.py",
-			},
-			WaitingFor: wait.ForLog("loading complement crypto addons"),
-			Networks:   []string{networkName},
-			NetworkAliases: map[string][]string{
-				networkName: {"mitmproxy"},
-			},
-			Mounts: testcontainers.Mounts(
-				testcontainers.BindMount(filepath.Join(workingDir, "mitmproxy_addons"), "/addons"),
-			),
-			HostConfigModifier: func(hc *container.HostConfig) {
-				if runtime.GOOS == "linux" { // Specifically useful for GHA
-					// Ensure that the container can contact the host, so they can
-					// interact with a complement-controlled test server.
-					// Note: this feature of docker landed in Docker 20.10,
-					// see https://github.com/moby/moby/pull/40007
-					hc.ExtraHosts = []string{"host.docker.internal:host-gateway"}
-				}
-			},
+	mitmContainerReq := testcontainers.ContainerRequest{
+		Image:        "mitmproxy/mitmproxy:10.1.5",
+		ExposedPorts: []string{hs1ExposedPort, hs2ExposedPort, controllerExposedPort},
+		Env:          map[string]string{},
+		Cmd: []string{
+			"mitmdump",
+			"--mode", "reverse:http://hs1:8008@3000",
+			"--mode", "reverse:http://hs2:8008@3001",
+			"--mode", "regular",
 		},
-		Started: true,
+		Networks: []string{networkName},
+		NetworkAliases: map[string][]string{
+			networkName: {"mitmproxy"},
+		},
+		HostConfigModifier: func(hc *container.HostConfig) {
+			if runtime.GOOS == "linux" { // Specifically useful for GHA
+				// Ensure that the container can contact the host, so they can
+				// interact with a complement-controlled test server.
+				// Note: this feature of docker landed in Docker 20.10,
+				// see https://github.com/moby/moby/pull/40007
+				hc.ExtraHosts = []string{"host.docker.internal:host-gateway"}
+			}
+		},
+	}
+	if mitmProxyAddonsDir != "" {
+		mitmContainerReq.Mounts = testcontainers.Mounts(
+			testcontainers.BindMount(mitmProxyAddonsDir, "/addons"),
+		)
+		mitmContainerReq.Cmd = append(mitmContainerReq.Cmd, "-s", "/addons/__init__.py")
+		mitmContainerReq.WaitingFor = wait.ForLog("loading complement crypto addons")
+	}
+	mitmproxyContainer, err := testcontainers.GenericContainer(context.Background(), testcontainers.GenericContainerRequest{
+		ContainerRequest: mitmContainerReq,
+		Started:          true,
 	})
 	must.NotError(t, "failed to start reverse proxy container", err)
 	rpHS1URL := externalURL(t, mitmproxyContainer, hs1ExposedPort)
