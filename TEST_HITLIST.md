@@ -76,7 +76,7 @@ Network connectivity tests are extremely time sensitive as retries are often usi
 - [x] If a client cannot upload OTKs, it retries.
 - [x] If a client cannot claim OTKs, it retries.
 - [x] If a server cannot send device list updates over federation, it retries. https://github.com/matrix-org/complement/pull/695
-- [ ] If a client cannot query device keys for a user, it retries.
+- [x] If a client cannot query device keys for a user, it retries.
 - [ ] If a server cannot query device keys on another server, it retries.
 - [x] If a client cannot send a to-device msg, it retries.
 - [x] If a server cannot send a to-device msg to another server, it retries. https://github.com/matrix-org/complement/pull/694
