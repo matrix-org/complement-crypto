@@ -328,7 +328,7 @@ func testRoomKeyIsNotCycledOnClientRestartRust(t *testing.T, clientType api.Clie
 
 	// run a script which will login as alice and then send an event in the room.
 	// We will wait on that event as Bob to know when the script got to that point.
-	cmd, close := templates.PrepareGoScript(t, "login_rust_client_and_send_msg/login_rust_client_and_send_msg.go",
+	cmd, close := templates.PrepareGoScript(t, "testRoomKeyIsNotCycledOnClientRestartRust/test.go",
 		struct {
 			UserID            string
 			DeviceID          string
