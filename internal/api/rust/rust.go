@@ -3,6 +3,7 @@ package rust
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -16,9 +17,17 @@ import (
 )
 
 func init() {
+	// delete old log files
+	files, _ := os.ReadDir("./logs")
+	for _, f := range files {
+		if strings.HasPrefix(f.Name(), "rust_sdk_logs") {
+			os.Remove(filepath.Join("./logs", f.Name()))
+		}
+	}
+	// log new files
 	matrix_sdk_ffi.SetupTracing(matrix_sdk_ffi.TracingConfiguration{
 		WriteToStdoutOrSystem: false,
-		Filter:                "debug",
+		Filter:                "debug,hyper=warn,log=warn,eyeball=warn", //,matrix_sdk_ffi=trace,matrix_sdk=trace,matrix_sdk_crypto=trace,matrix_sdk_base=trace,matrix_sdk_ui=trace",
 		WriteToFiles: &matrix_sdk_ffi.TracingFileConfiguration{
 			Path:       "./logs",
 			FilePrefix: "rust_sdk_logs",
