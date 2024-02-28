@@ -29,24 +29,18 @@ func TestFailedDeviceKeyDownloadRetries(t *testing.T) {
 			roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "private_chat", []string{tc.Bob.UserID})
 			tc.Bob.MustJoinRoom(t, roomID, []string{"hs1"})
 
-			alice := tc.MustLoginClient(t, tc.Alice, clientType)
-			defer alice.Close(t)
-			bob := tc.MustLoginClient(t, tc.Bob, clientType)
-			defer bob.Close(t)
-			aliceStopSyncing := alice.MustStartSyncing(t)
-			defer aliceStopSyncing()
-			bobStopSyncing := bob.MustStartSyncing(t)
-			defer bobStopSyncing()
+			tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+				// When Alice sends a message
+				alice.SendMessage(t, roomID, "checking whether we can send a message")
 
-			// When Alice sends a message
-			alice.SendMessage(t, roomID, "checking whether we can send a message")
+				// Then Bob should receive it
+				bob.WaitUntilEventInRoom(
+					t,
+					roomID,
+					api.CheckEventHasBody("checking whether we can send a message"),
+				).Wait(t, 5*time.Second)
 
-			// Then Bob should receive it
-			bob.WaitUntilEventInRoom(
-				t,
-				roomID,
-				api.CheckEventHasBody("checking whether we can send a message"),
-			).Wait(t, 5*time.Second)
+			})
 		})
 	})
 }
