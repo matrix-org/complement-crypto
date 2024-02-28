@@ -174,6 +174,28 @@ func TestCanWaitUntilEventInRoomBeforeRoomIsKnown(t *testing.T) {
 	})
 }
 
+func TestSendingEvents(t *testing.T) {
+	deployment := Deploy(t)
+	ForEachClient(t, "", deployment, func(t *testing.T, client api.Client, csapi *client.CSAPI) {
+		must.NotError(t, "Failed to login", client.Login(t, client.Opts()))
+		roomID := csapi.MustCreateRoom(t, map[string]interface{}{})
+		stopSyncing := client.MustStartSyncing(t)
+		defer stopSyncing()
+		eventID := client.SendMessage(t, roomID, "Test Message")
+		event := client.MustGetEvent(t, roomID, eventID)
+		must.Equal(t, event.Text, "Test Message", "event text mismatch")
+		eventID2, err := client.TrySendMessage(t, roomID, "Another Test Message")
+		must.NotError(t, "TrySendMessage failed", err)
+		event2 := client.MustGetEvent(t, roomID, eventID2)
+		must.Equal(t, event2.Text, "Another Test Message", "event text mismatch")
+		// sending to a bogus room should error but not fail the test
+		invalidEventID, err := client.TrySendMessage(t, "!foo:hs1", "This should not work")
+		t.Logf("TrySendMessage -> %v", err)
+		must.NotEqual(t, err, nil, "TrySendMessage returned no error when it should have")
+		must.Equal(t, invalidEventID, "", "TrySendMessage returned an event ID when it should have returned an error")
+	})
+}
+
 // run a subtest for each client factory
 func ForEachClient(t *testing.T, name string, deployment *deploy.SlidingSyncDeployment, fn func(t *testing.T, client api.Client, csapi *client.CSAPI)) {
 	for _, createClient := range clientFactories {

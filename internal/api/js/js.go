@@ -97,11 +97,6 @@ func NewJSClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, error)
 		return nil, fmt.Errorf("failed to RunHeadless: %s", err)
 	}
 	jsc.browser = browser
-	chrome.MustRunAsyncFn[chrome.Void](t, browser.Ctx, `
-		const databases = await indexedDB.databases();
-		console.log("====STARTUP=============== idb " + JSON.stringify(databases));
-		console.log("=================== localstorage len", window.localStorage.length);
-	`)
 
 	// now login
 	deviceID := "undefined"
@@ -234,11 +229,6 @@ func (c *JSClient) DeletePersistentStorage(t ct.TestLike) {
 // If we get callbacks/events after this point, tests may panic if the callbacks
 // log messages.
 func (c *JSClient) Close(t ct.TestLike) {
-	chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `
-		const databases = await indexedDB.databases();
-		console.log("====CLOSE======= idb " + JSON.stringify(databases));
-		console.log("=================== localstorage len", window.localStorage.length);
-	`)
 	c.browser.Cancel()
 	c.listenersMu.Lock()
 	c.listeners = make(map[int32]func(roomID string, ev api.Event))

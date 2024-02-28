@@ -356,6 +356,10 @@ func (c *RustClient) TrySendMessage(t ct.TestLike, roomID, text string) (eventID
 		return false
 	})
 	defer cancel()
+	if r == nil {
+		err = fmt.Errorf("SendMessage(rust) %s: failed to find room %s", c.userID, roomID)
+		return
+	}
 	timeline, err := r.Timeline()
 	if err != nil {
 		err = fmt.Errorf("SendMessage(rust) %s: %s", c.userID, err)
