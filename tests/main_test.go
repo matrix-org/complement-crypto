@@ -169,7 +169,7 @@ func CreateTestContext(t *testing.T, clientType ...api.ClientType) *TestContext 
 		tc.BobClientType = clientType[1]
 	}
 	if len(clientType) > 2 {
-		tc.Charlie = deployment.Register(t, clientType[1].HS, helpers.RegistrationOpts{
+		tc.Charlie = deployment.Register(t, clientType[2].HS, helpers.RegistrationOpts{
 			LocalpartSuffix: "charlie",
 			Password:        "complement-crypto-password",
 		})
@@ -210,7 +210,9 @@ func (c *TestContext) WithAliceAndBobSyncing(t *testing.T, callback func(alice, 
 	t.Helper()
 	must.NotEqual(t, c.Bob, nil, "No Bob defined. Call CreateTestContext() with at least 2 api.ClientTypes.")
 	c.WithClientSyncing(t, c.AliceClientType, c.Alice, func(alice api.Client) {
+		t.Helper()
 		c.WithClientSyncing(t, c.BobClientType, c.Bob, func(bob api.Client) {
+			t.Helper()
 			callback(alice, bob)
 		})
 	})
@@ -225,8 +227,11 @@ func (c *TestContext) WithAliceBobAndCharlieSyncing(t *testing.T, callback func(
 	t.Helper()
 	must.NotEqual(t, c.Charlie, nil, "No Charlie defined. Call CreateTestContext() with at least 3 api.ClientTypes.")
 	c.WithClientSyncing(t, c.AliceClientType, c.Alice, func(alice api.Client) {
+		t.Helper()
 		c.WithClientSyncing(t, c.BobClientType, c.Bob, func(bob api.Client) {
+			t.Helper()
 			c.WithClientSyncing(t, c.CharlieClientType, c.Charlie, func(charlie api.Client) {
+				t.Helper()
 				callback(alice, bob, charlie)
 			})
 		})
