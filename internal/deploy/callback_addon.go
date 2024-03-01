@@ -22,6 +22,7 @@ type CallbackData struct {
 	URL          string          `json:"url"`
 	AccessToken  string          `json:"access_token"`
 	ResponseCode int             `json:"response_code"`
+	ResponseBody json.RawMessage `json:"response_body"`
 	RequestBody  json.RawMessage `json:"request_body"`
 }
 

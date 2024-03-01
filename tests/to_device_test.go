@@ -1,11 +1,19 @@
 package tests
 
 import (
+	"fmt"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
+	"github.com/matrix-org/complement-crypto/internal/deploy"
+	templates "github.com/matrix-org/complement-crypto/tests/go_templates"
+	"github.com/matrix-org/complement/client"
+	"github.com/matrix-org/complement/helpers"
+	"github.com/matrix-org/complement/must"
+	"github.com/tidwall/gjson"
 )
 
 // Test that if a client is unable to call /sendToDevice, it retries.
@@ -50,4 +58,135 @@ func TestClientRetriesSendToDevice(t *testing.T) {
 			waiter.Wait(t, 5*time.Second)
 		})
 	})
+}
+
+// Regression test for https://github.com/vector-im/element-web/issues/23113
+// "If you restart (e.g. upgrade) Element while it's waiting to process a m.room_key, it'll drop it and you'll get UISIs"
+//
+// - Alice (2 devices) and Bob are in an encrypted room.
+// - Bob's client is shut down temporarily.
+// - Alice's 2nd device logs out, which will Alice's 1st device to cycle room keys.
+// - Start sniffing /sync traffic. Bob's client comes back.
+// - When /sync shows a to-device message from Alice (indicating the room key), sleep(1ms) then SIGKILL Bob.
+// - Restart Bob's client.
+// - Ensure Bob can decrypt new messages sent from Alice.
+func TestUnprocessedToDeviceMessagesArentLostOnRestart(t *testing.T) {
+	ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
+		// prepare for the test: register all 3 clients and create the room
+		tc := CreateTestContext(t, clientType, clientType)
+		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "private_chat", []string{tc.Bob.UserID})
+		tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
+		alice2 := tc.Deployment.Login(t, clientType.HS, tc.Alice, helpers.LoginOpts{
+			DeviceID: "ALICE_TWO",
+			Password: "complement-crypto-password",
+		})
+		switch clientType.Lang {
+		case api.ClientTypeRust:
+			testUnprocessedToDeviceMessagesArentLostOnRestartRust(t, tc, roomID, alice2)
+		case api.ClientTypeJS:
+			testUnprocessedToDeviceMessagesArentLostOnRestartJS(t, tc, roomID, alice2)
+		default:
+			t.Fatalf("unknown lang: %s", clientType.Lang)
+		}
+	})
+}
+
+func testUnprocessedToDeviceMessagesArentLostOnRestartRust(t *testing.T, tc *TestContext, roomID string, alice2 *client.CSAPI) {
+	tc.WithAliceSyncing(t, func(alice api.Client) {
+		bob := tc.MustLoginClient(t, tc.Bob, tc.BobClientType, WithPersistentStorage())
+		// we will close this in the test, no defer
+		bobStopSyncing := bob.MustStartSyncing(t)
+		tc.WithClientSyncing(t, tc.AliceClientType, alice2, func(alice2 api.Client) { // sync to ensure alice2 has keys uploaded
+			// check the room works
+			alice.SendMessage(t, roomID, "Hello World!")
+			bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody("Hello World!")).Wait(t, 2*time.Second)
+		})
+		// stop bob's client
+		bobStopSyncing()
+		bob.Logf(t, "Bob is about to be Closed()")
+		bob.Close(t)
+
+		// send a lot of to-device messages to bob to increase the window in which to SIGKILL the client.
+		// It's unimportant what these are.
+		for i := 0; i < 60; i++ {
+			alice2.MustSendToDeviceMessages(t, "m.room_key_request", map[string]map[string]map[string]interface{}{
+				bob.UserID(): {
+					"*": {
+						"action":               "request_cancellation",
+						"request_id":           fmt.Sprintf("random_%d", i),
+						"requesting_device_id": "WHO_KNOWS",
+					},
+				},
+			})
+		}
+		t.Logf("to-device msgs sent")
+
+		// logout alice 2
+		alice2.MustDo(t, "POST", []string{"_matrix", "client", "v3", "logout"})
+
+		// send a message as alice to make a new room key (if we didn't already on the /logout above)
+		eventID := alice.SendMessage(t, roomID, "Kick to make a new room key!")
+
+		// sniff /sync traffic
+		waitForRoomKey := helpers.NewWaiter()
+		tc.Deployment.WithSniffedEndpoint(t, "/sync", func(cd deploy.CallbackData) {
+			// When /sync shows a to-device message from Alice (indicating the room key), sleep(1ms) then SIGKILL Bob.
+			body := gjson.ParseBytes(cd.ResponseBody)
+			toDeviceEvents := body.Get("extensions.to_device.events").Array()
+			if len(toDeviceEvents) > 0 {
+				for _, ev := range toDeviceEvents {
+					if ev.Get("type").Str == "m.room.encrypted" {
+						t.Logf("detected potential room key")
+						waitForRoomKey.Finish()
+					}
+				}
+			}
+		}, func() {
+			// bob comes back online, and will be killed a short while later.
+			bobOpts := bob.Opts()
+			t.Logf("recreating bob, base url %s", bobOpts.BaseURL)
+			cmd, close := templates.PrepareGoScript(t, "testUnprocessedToDeviceMessagesArentLostOnRestartRust/test.go",
+				struct {
+					UserID            string
+					DeviceID          string
+					Password          string
+					BaseURL           string
+					SSURL             string
+					PersistentStorage bool
+				}{
+					UserID:            bobOpts.UserID,
+					Password:          bobOpts.Password,
+					DeviceID:          bobOpts.DeviceID,
+					BaseURL:           bobOpts.BaseURL,
+					PersistentStorage: bobOpts.PersistentStorage,
+					SSURL:             tc.Deployment.SlidingSyncURL(t),
+				})
+			cmd.WaitDelay = 3 * time.Second
+			defer close()
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			cmd.Start()
+			waitForRoomKey.Wait(t, 10*time.Second)
+			t.Logf("killing external process")
+			must.NotError(t, "failed to kill process", cmd.Process.Kill())
+
+			// Ensure Bob can decrypt new messages sent from Alice.
+			bob = tc.MustLoginClient(t, tc.Bob, tc.BobClientType, WithPersistentStorage())
+			defer bob.Close(t)
+			bobStopSyncing := bob.MustStartSyncing(t)
+			defer bobStopSyncing()
+			// we can't rely on MustStartSyncing returning to know that the room key has been received, as
+			// in rust we just wait for RoomListLoadingStateLoaded which is a separate connection to the
+			// encryption loop.
+			time.Sleep(time.Second)
+			ev := bob.MustGetEvent(t, roomID, eventID)
+			must.Equal(t, ev.FailedToDecrypt, false, "unable to decrypt message")
+			must.Equal(t, ev.Text, "Kick to make a new room key!", "event text mismatch")
+		})
+
+	})
+}
+
+func testUnprocessedToDeviceMessagesArentLostOnRestartJS(t *testing.T, tc *TestContext, roomID string, alice2 *client.CSAPI) {
+
 }

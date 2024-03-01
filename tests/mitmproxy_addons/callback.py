@@ -67,6 +67,7 @@ class Callback:
                 "url": flow.request.url,
                 "response_code": flow.response.status_code,
                 "request_body": flow.request.json(),
+                "response_body": flow.response.json(),
             })
             request = Request(
                 self.config["callback_url"],

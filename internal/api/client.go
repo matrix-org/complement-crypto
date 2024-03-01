@@ -86,6 +86,12 @@ func (c *LoggedClient) Close(t ct.TestLike) {
 	c.Client.Close(t)
 }
 
+func (c *LoggedClient) MustGetEvent(t ct.TestLike, roomID, eventID string) Event {
+	t.Helper()
+	c.Logf(t, "%s MustGetEvent(%s, %s)", c.logPrefix(), roomID, eventID)
+	return c.Client.MustGetEvent(t, roomID, eventID)
+}
+
 func (c *LoggedClient) MustStartSyncing(t ct.TestLike) (stopSyncing func()) {
 	t.Helper()
 	c.Logf(t, "%s MustStartSyncing starting to sync", c.logPrefix())

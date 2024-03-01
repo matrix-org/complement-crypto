@@ -116,7 +116,7 @@ func TestFallbackKeyIsUsedIfOneTimeKeysRunOut(t *testing.T) {
 				"statuscode": map[string]interface{}{
 					"return_status": http.StatusGatewayTimeout,
 					"block_request": true,
-					"filter":        "~u .*\\/keys\\/upload.*",
+					"filter":        "~u .*/keys/upload.*",
 				},
 			}, func() {
 				// claim all OTKs

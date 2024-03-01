@@ -52,6 +52,29 @@ func (d *SlidingSyncDeployment) SlidingSyncURL(t *testing.T) string {
 	return d.slidingSyncURL
 }
 
+func (d *SlidingSyncDeployment) WithSniffedEndpoint(t *testing.T, partialPath string, onSniff func(CallbackData), inner func()) {
+	t.Helper()
+	callbackURL, closeCallbackServer := NewCallbackServer(t, d, onSniff)
+	defer closeCallbackServer()
+	d.WithMITMOptions(t, map[string]interface{}{
+		"callback": map[string]interface{}{
+			"callback_url": callbackURL,
+			// the filter is a python regexp
+			// "Regexes are Python-style" - https://docs.mitmproxy.org/stable/concepts-filters/
+			// re.escape() escapes very little:
+			// "Changed in version 3.7: Only characters that can have special meaning in a regular expression are escaped.
+			// As a result, '!', '"', '%', "'", ',', '/', ':', ';', '<', '=', '>', '@', and "`" are no longer escaped."
+			// https://docs.python.org/3/library/re.html#re.escape
+			//
+			// The majority of HTTP paths are just /foo/bar with % for path-encoding e.g @foo:bar=>%40foo%3Abar,
+			// so on balance we can probably just use the path directly.
+			"filter": "~u .*" + partialPath + ".*",
+		},
+	}, func() {
+		inner()
+	})
+}
+
 // WithMITMOptions changes the options of mitmproxy and executes inner() whilst those options are in effect.
 // As the options on mitmproxy are a shared resource, this function has transaction-like semantics, ensuring
 // the lock is released when inner() returns. This is similar to the `with` keyword in python.
@@ -202,15 +225,17 @@ func RunNewDeployment(t *testing.T, mitmProxyAddonsDir string, shouldTCPDump boo
 	// test authors to easily add custom addons.
 	hs1ExposedPort := "3000/tcp"
 	hs2ExposedPort := "3001/tcp"
+	ssRevProxyExposedPort := "3002/tcp"
 	controllerExposedPort := "8080/tcp" // default mitmproxy uses
 	mitmContainerReq := testcontainers.ContainerRequest{
 		Image:        "mitmproxy/mitmproxy:10.1.5",
-		ExposedPorts: []string{hs1ExposedPort, hs2ExposedPort, controllerExposedPort},
+		ExposedPorts: []string{hs1ExposedPort, hs2ExposedPort, controllerExposedPort, ssRevProxyExposedPort},
 		Env:          map[string]string{},
 		Cmd: []string{
 			"mitmdump",
 			"--mode", "reverse:http://hs1:8008@3000",
 			"--mode", "reverse:http://hs2:8008@3001",
+			"--mode", "reverse:http://ssproxy:6789@3002",
 			"--mode", "regular",
 		},
 		Networks: []string{networkName},
@@ -241,6 +266,7 @@ func RunNewDeployment(t *testing.T, mitmProxyAddonsDir string, shouldTCPDump boo
 	must.NotError(t, "failed to start reverse proxy container", err)
 	rpHS1URL := externalURL(t, mitmproxyContainer, hs1ExposedPort)
 	rpHS2URL := externalURL(t, mitmproxyContainer, hs2ExposedPort)
+	rpSSURL := externalURL(t, mitmproxyContainer, ssRevProxyExposedPort)
 	controllerURL := externalURL(t, mitmproxyContainer, controllerExposedPort)
 
 	// Make a sliding sync proxy
@@ -274,11 +300,11 @@ func RunNewDeployment(t *testing.T, mitmProxyAddonsDir string, shouldTCPDump boo
 	// log for debugging purposes
 	t.Logf("SlidingSyncDeployment created (network=%s):", networkName)
 	t.Logf("  NAME          INT          EXT")
-	t.Logf("  sliding sync: ssproxy      %s", ssURL)
-	t.Logf("  synapse:      hs1          %s", csapi1.BaseURL)
-	t.Logf("  synapse:      hs2          %s", csapi2.BaseURL)
+	t.Logf("  sliding sync: ssproxy      %s (rp=%s)", ssURL, rpSSURL)
+	t.Logf("  synapse:      hs1          %s (rp=%s)", csapi1.BaseURL, rpHS1URL)
+	t.Logf("  synapse:      hs2          %s (rp=%s)", csapi2.BaseURL, rpHS2URL)
 	t.Logf("  postgres:     postgres")
-	t.Logf("  mitmproxy:    mitmproxy hs1=%s hs2=%s controller=%s", rpHS1URL, rpHS2URL, controllerURL)
+	t.Logf("  mitmproxy:    mitmproxy    controller=%s", controllerURL)
 	var cmd *exec.Cmd
 	if shouldTCPDump {
 		t.Log("Running tcpdump...")
@@ -308,7 +334,7 @@ func RunNewDeployment(t *testing.T, mitmProxyAddonsDir string, shouldTCPDump boo
 		slidingSync:    ssContainer,
 		postgres:       postgresContainer,
 		reverseProxy:   mitmproxyContainer,
-		slidingSyncURL: ssURL,
+		slidingSyncURL: rpSSURL,
 		tcpdump:        cmd,
 		ControllerURL:  controllerURL,
 		mitmClient: &http.Client{
