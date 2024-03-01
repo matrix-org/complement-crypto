@@ -110,6 +110,11 @@ func NewJSClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, error)
 		// "Uncaught (in promise) Error: createUser is undefined, it should be set with setUserCreator()!"
 		// https://github.com/matrix-org/matrix-js-sdk/blob/76b9c3950bfdfca922bec7f70502ff2da93bd731/src/store/indexeddb.ts#L143
 		chrome.RunAsyncFn[chrome.Void](t, browser.Ctx, fmt.Sprintf(`
+		// FIXME: this doesn't seem to work.
+		// JS SDK doesn't store this for us, so we need to. Do this before making the stores which can error out.
+		// window.__accessToken = window.localStorage.getItem("complement_crypto_access_token") || undefined;
+		// console.log("localStorage.getItem(complement_crypto_access_token) => " + window.__accessToken);
+
 		window.__store = new IndexedDBStore({
 			indexedDB: window.indexedDB,
 			dbName: "%s",
@@ -137,6 +142,7 @@ func NewJSClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, error)
 		useAuthorizationHeader: %s,
 		userId:                 "%s",
 		deviceId: %s,
+		accessToken: window.__accessToken || undefined,
 		store: %s,
 		cryptoStore: %s,
 		cryptoCallbacks: {
@@ -163,8 +169,10 @@ func NewJSClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, error)
 				return Promise.resolve(result);
 			},
 		}
-	});`, opts.BaseURL, "true", opts.UserID, deviceID, store, cryptoStore))
-
+	});
+	await window.__client.initRustCrypto();
+	`, opts.BaseURL, "true", opts.UserID, deviceID, store, cryptoStore))
+	jsc.Logf(t, "NewJSClient[%s,%s] created client storage=%v", opts.UserID, opts.DeviceID, opts.PersistentStorage)
 	return &api.LoggedClient{Client: jsc}, nil
 }
 
@@ -179,8 +187,7 @@ func (c *JSClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {
 		user: "%s",
 		password: "%s",
 		device_id: %s,
-	});
-	await window.__client.initRustCrypto();`, opts.UserID, opts.Password, deviceID))
+	});`, opts.UserID, opts.Password, deviceID))
 
 	// any events need to log the control string so we get notified
 	chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`
@@ -190,6 +197,17 @@ func (c *JSClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {
 	window.__client.on("event", function(event) {
 		console.log("%s"+event.getRoomId()+"||"+JSON.stringify(event.getEffectiveEvent()));
 	});`, CONSOLE_LOG_CONTROL_STRING, CONSOLE_LOG_CONTROL_STRING))
+
+	if c.opts.PersistentStorage {
+		/* FIXME: this doesn't work. It doesn't seem to remember across restarts.
+		chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `
+			const token = window.__client.getAccessToken();
+			if (token) {
+				window.localStorage.setItem("complement_crypto_access_token",token);
+				console.log("localStorage.setItem(complement_crypto_access_token) => " + token);
+			}
+		`) */
+	}
 
 	return nil
 }
@@ -428,7 +446,7 @@ func (c *JSClient) Logf(t ct.TestLike, format string, args ...interface{}) {
 	t.Helper()
 	formatted := fmt.Sprintf(t.Name()+": "+format, args...)
 	if c.browser.Ctx.Err() == nil { // don't log on dead browsers
-		chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`console.log("%s");`, formatted))
+		chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`console.log("%s");`, strings.Replace(formatted, `"`, `\"`, -1)))
 	}
 	t.Logf(format, args...)
 }

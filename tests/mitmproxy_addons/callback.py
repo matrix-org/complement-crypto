@@ -13,6 +13,8 @@ from urllib.error import HTTPError, URLError
 #   method: "GET|PUT|...",
 #   access_token: "syt_11...",
 #   url: "http://hs1/_matrix/client/...",
+#   request_body: { some json object or null if no body },
+#   response_body: { some json object },
 #   response_code: 200,
 # }
 # Currently this is a read-only callback. The response cannot be modified, but side-effects can be
@@ -61,12 +63,16 @@ class Callback:
         if self.config["callback_url"] == "":
             return # ignore responses if we aren't told a url
         if flowfilter.match(self.filter, flow):
+            try:
+                req_body = flow.request.json()
+            except:
+                req_body = None
             data = json.dumps({
                 "method": flow.request.method,
                 "access_token": flow.request.headers.get("Authorization", "").removeprefix("Bearer "),
                 "url": flow.request.url,
                 "response_code": flow.response.status_code,
-                "request_body": flow.request.json(),
+                "request_body": req_body,
                 "response_body": flow.response.json(),
             })
             request = Request(
