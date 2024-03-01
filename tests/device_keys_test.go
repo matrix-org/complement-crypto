@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
+	"github.com/matrix-org/complement-crypto/internal/deploy"
+	"github.com/matrix-org/complement/must"
 )
 
 // If a client cannot query device keys for a user, it retries.
@@ -16,6 +18,16 @@ import (
 func TestFailedDeviceKeyDownloadRetries(t *testing.T) {
 	ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
 		tc := CreateTestContext(t, clientType, clientType)
+
+		// Track whether we received any requests on /keys/query
+		queryReceived := false
+		callbackUrl, closeCallbackServer := deploy.NewCallbackServer(
+			t,
+			tc.Deployment,
+			func(data deploy.CallbackData) { queryReceived = true },
+		)
+		defer closeCallbackServer()
+
 		// Given that the first 4 attempts to download device keys will fail
 		tc.Deployment.WithMITMOptions(t, map[string]interface{}{
 			"statuscode": map[string]interface{}{
@@ -23,6 +35,10 @@ func TestFailedDeviceKeyDownloadRetries(t *testing.T) {
 				"block_request": true,
 				"count":         4,
 				"filter":        "~u .*\\/keys\\/query.* ~m POST",
+			},
+			"callback": map[string]interface{}{
+				"callback_url": callbackUrl,
+				"filter":       "~u .*\\/keys\\/query.* ~m POST",
 			},
 		}, func() {
 			// And Alice and Bob are in an encrypted room together
@@ -42,5 +58,8 @@ func TestFailedDeviceKeyDownloadRetries(t *testing.T) {
 
 			})
 		})
+
+		// Sanity: we did receive some requests (which we initially blocked)
+		must.Equal(t, queryReceived, true, "No request to /keys/query was received!")
 	})
 }
