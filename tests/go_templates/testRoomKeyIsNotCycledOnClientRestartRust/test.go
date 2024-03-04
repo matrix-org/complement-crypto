@@ -9,6 +9,7 @@ import (
 )
 
 func main() {
+	rust.SetupLogs("rust_sdk_inline_script")
 	t := &api.MockT{}
 	cfg := api.ClientCreationOpts{
 		BaseURL:           "{{.BaseURL}}",

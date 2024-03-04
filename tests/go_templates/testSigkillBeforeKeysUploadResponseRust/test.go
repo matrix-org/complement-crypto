@@ -9,6 +9,7 @@ import (
 )
 
 func main() {
+	rust.SetupLogs("rust_sdk_inline_script")
 	time.Sleep(time.Second)
 	t := &api.MockT{}
 	cfg := api.ClientCreationOpts{
