@@ -58,7 +58,7 @@ func TestMain(m *testing.M) {
 	complement.TestMainWithCleanup(m, "clienttests", func() { // always teardown even if panicking
 		ssMutex.Lock()
 		if ssDeployment != nil {
-			ssDeployment.Teardown(false)
+			ssDeployment.Teardown()
 		}
 		ssMutex.Unlock()
 		js.WriteJSLogs()

@@ -40,7 +40,7 @@ func TestMain(m *testing.M) {
 	complement.TestMainWithCleanup(m, "crypto", func() { // always teardown even if panicking
 		ssMutex.Lock()
 		if ssDeployment != nil {
-			ssDeployment.Teardown(complementCryptoConfig.WriteContainerLogs)
+			ssDeployment.Teardown()
 		}
 		ssMutex.Unlock()
 		js.WriteJSLogs()

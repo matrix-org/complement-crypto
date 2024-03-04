@@ -141,49 +141,47 @@ func (d *SlidingSyncDeployment) withReverseProxyURL(hsName string, c *client.CSA
 	return c
 }
 
-func (d *SlidingSyncDeployment) Teardown(writeLogs bool) {
-	if writeLogs {
-		containers := map[string]testcontainers.Container{
-			"container-sliding-sync.log": d.slidingSync,
-			"container-mitmproxy.log":    d.reverseProxy,
+func (d *SlidingSyncDeployment) Teardown() {
+	containers := map[string]testcontainers.Container{
+		"container-sliding-sync.log": d.slidingSync,
+		"container-mitmproxy.log":    d.reverseProxy,
+	}
+	for filename, c := range containers {
+		if c == nil {
+			continue
 		}
-		for filename, c := range containers {
-			if c == nil {
-				continue
-			}
-			logs, err := c.Logs(context.Background())
+		logs, err := c.Logs(context.Background())
+		if err != nil {
+			log.Printf("failed to get logs for file %s: %s", filename, err)
+			continue
+		}
+		err = writeContainerLogs(logs, filename)
+		if err != nil {
+			log.Printf("failed to write logs to %s: %s", filename, err)
+		}
+	}
+	// and HSes..
+	dockerClient, err := testcontainers.NewDockerClientWithOpts(context.Background())
+	if err != nil {
+		log.Printf("failed to write HS container logs, failed to make docker client: %s", err)
+	} else {
+		filenameToContainerID := map[string]string{
+			"container-hs1.log": d.Deployment.ContainerID(&api.MockT{}, "hs1"),
+			"container-hs2.log": d.Deployment.ContainerID(&api.MockT{}, "hs2"),
+		}
+		for filename, containerID := range filenameToContainerID {
+			logs, err := dockerClient.ContainerLogs(context.Background(), containerID, types.ContainerLogsOptions{
+				ShowStdout: true,
+				ShowStderr: true,
+				Follow:     false,
+			})
 			if err != nil {
-				log.Printf("failed to get logs for file %s: %s", filename, err)
+				log.Printf("failed to get logs for container %s: %s", containerID, err)
 				continue
 			}
 			err = writeContainerLogs(logs, filename)
 			if err != nil {
 				log.Printf("failed to write logs to %s: %s", filename, err)
-			}
-		}
-		// and HSes..
-		dockerClient, err := testcontainers.NewDockerClientWithOpts(context.Background())
-		if err != nil {
-			log.Printf("failed to write HS container logs, failed to make docker client: %s", err)
-		} else {
-			filenameToContainerID := map[string]string{
-				"container-hs1.log": d.Deployment.ContainerID(&api.MockT{}, "hs1"),
-				"container-hs2.log": d.Deployment.ContainerID(&api.MockT{}, "hs2"),
-			}
-			for filename, containerID := range filenameToContainerID {
-				logs, err := dockerClient.ContainerLogs(context.Background(), containerID, types.ContainerLogsOptions{
-					ShowStdout: true,
-					ShowStderr: true,
-					Follow:     false,
-				})
-				if err != nil {
-					log.Printf("failed to get logs for container %s: %s", containerID, err)
-					continue
-				}
-				err = writeContainerLogs(logs, filename)
-				if err != nil {
-					log.Printf("failed to write logs to %s: %s", filename, err)
-				}
 			}
 		}
 	}

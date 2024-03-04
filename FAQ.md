@@ -2,6 +2,8 @@
 
 ### Debug failing tests
 
+Ensure your firewall allows containers to talk to the host: https://github.com/matrix-org/complement-crypto/issues/13#issuecomment-1973203807
+
 If tests fail in CI, all log files are uploaded as GHA artifacts.
 
 Most of the time, failing tests will have the failure reason in red on the console output, along with the line number which is where the test got up to before failing:

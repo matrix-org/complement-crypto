@@ -11,11 +11,6 @@ import (
 // in this struct are structured so they can be automatically parsed via gendoc. See /cmd/gendoc.
 // There are additional configuration options available: see https://github.com/matrix-org/complement/blob/main/ENVIRONMENT.md
 type ComplementCrypto struct {
-	// Name: COMPLEMENT_CRYPTO_WRITE_CONTAINER_LOGS
-	// Default: 0
-	// Description: If 1, writes container logs to ./tests/logs. Useful as a debugging tool.
-	WriteContainerLogs bool
-
 	// Name: COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX
 	// Default: jj,jr,rj,rr
 	// Description: The client test matrix to run. Every test is run for each given permutation.
@@ -82,8 +77,7 @@ func NewComplementCryptoConfigFromEnvVars() *ComplementCrypto {
 		panic("COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX: no tests will run as no matrix values are set")
 	}
 	return &ComplementCrypto{
-		WriteContainerLogs: os.Getenv("COMPLEMENT_CRYPTO_WRITE_CONTAINER_LOGS") == "1",
-		TCPDump:            os.Getenv("COMPLEMENT_CRYPTO_TCPDUMP") == "1",
-		TestClientMatrix:   testClientMatrix,
+		TCPDump:          os.Getenv("COMPLEMENT_CRYPTO_TCPDUMP") == "1",
+		TestClientMatrix: testClientMatrix,
 	}
 }
