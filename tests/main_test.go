@@ -329,6 +329,17 @@ func (encRoomOptions) RotationPeriodMsgs(numMsgs int) EncRoomOption {
 	}
 }
 
+// An option for CreateNewEncryptedRoom that adds a `rotation_period_ms` field
+// to the `m.room.encryption` event supplied when the room is created.
+func (encRoomOptions) RotationPeriodMs(milliseconds int) EncRoomOption {
+	return func(reqBody map[string]interface{}) {
+		var initial_state = reqBody["initial_state"].([]map[string]interface{})
+		var event = initial_state[0]
+		var content = event["content"].(map[string]interface{})
+		content["rotation_period_ms"] = milliseconds
+	}
+}
+
 // OptsFromClient converts a Complement client into a set of options which can be used to create an api.Client.
 func (c *TestContext) OptsFromClient(t *testing.T, existing *client.CSAPI, options ...func(*api.ClientCreationOpts)) api.ClientCreationOpts {
 	o := &api.ClientCreationOpts{

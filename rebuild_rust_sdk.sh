@@ -44,6 +44,7 @@ echo 'building matrix-sdk-ffi...';
 cd $RUST_SDK_DIR;
 sed -i.bak 's/uniffi =.*/uniffi = "0\.25\.3"/' Cargo.toml
 sed -i.bak 's^uniffi_bindgen =.*^uniffi_bindgen = { git = "https:\/\/github.com\/mozilla\/uniffi-rs", rev = "0a03b713306d6ce3de033157fc2ce92a238c2e24" }^' Cargo.toml
+sed -i.bak 's#matrix-sdk-crypto = (.*)version = "(.*)"(.*)#matrix-sdk-crypto = \1version = "\2", features = ["_disable-minimum-rotation-period-ms"]\3#' Cargo.toml
 cargo build -p matrix-sdk-ffi
 # generate the bindings
 echo "generating bindings to $COMPLEMENT_DIR/internal/api/rust...";
