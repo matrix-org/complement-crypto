@@ -221,7 +221,6 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartJS(t *testing.T, tc *TestC
 		go func() { // in a goroutine so we don't need this to return before closing the browser
 			t.Logf("bob starting to sync, expecting to be killed..")
 			bob.StartSyncing(t)
-			t.Logf("MustStartSyncing returned.")
 		}()
 
 		browserIsClosed.Wait(t, 10*time.Second)
