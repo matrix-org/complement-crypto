@@ -447,8 +447,8 @@ func (c *JSClient) Logf(t ct.TestLike, format string, args ...interface{}) {
 	formatted := fmt.Sprintf(t.Name()+": "+format, args...)
 	if c.browser.Ctx.Err() == nil { // don't log on dead browsers
 		chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`console.log("%s");`, strings.Replace(formatted, `"`, `\"`, -1)))
+		t.Logf(format, args...)
 	}
-	t.Logf(format, args...)
 }
 
 func (c *JSClient) Type() api.ClientTypeLang {
