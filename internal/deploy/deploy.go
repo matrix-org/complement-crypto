@@ -6,11 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -216,6 +218,17 @@ func RunNewDeployment(t *testing.T, mitmProxyAddonsDir string, shouldTCPDump boo
 	deployment := complement.Deploy(t, 2)
 	networkName := deployment.Network()
 
+	// rather than use POSTGRES_DB which only lets us make 1 db, inject some sql
+	// to allow us to make 2 DBs, one for each SS instance on each HS.
+	createdbFile := filepath.Join(os.TempDir(), "createdb.sql")
+	err := os.WriteFile(createdbFile, []byte(`
+	CREATE DATABASE syncv3_hs1;
+	CREATE DATABASE syncv3_hs2;
+	`), fs.ModePerm)
+	if err != nil {
+		ct.Fatalf(t, "failed to write createdb.sql: %s", err)
+	}
+
 	// Make a postgres container
 	postgresContainer, err := testcontainers.GenericContainer(context.Background(), testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
@@ -224,7 +237,13 @@ func RunNewDeployment(t *testing.T, mitmProxyAddonsDir string, shouldTCPDump boo
 			Env: map[string]string{
 				"POSTGRES_USER":     "postgres",
 				"POSTGRES_PASSWORD": "postgres",
-				"POSTGRES_DB":       "syncv3",
+			},
+			Files: []testcontainers.ContainerFile{
+				{
+					HostFilePath:      createdbFile,
+					ContainerFilePath: "/docker-entrypoint-initdb.d/create-dbs.sql",
+					FileMode:          0o777,
+				},
 			},
 			WaitingFor: wait.ForExec([]string{"pg_isready"}).WithExitCodeMatcher(func(exitCode int) bool {
 				fmt.Println("pg_isready exit code", exitCode)
@@ -301,7 +320,7 @@ func RunNewDeployment(t *testing.T, mitmProxyAddonsDir string, shouldTCPDump boo
 					"SYNCV3_BINDADDR":  ":6789",
 					"SYNCV3_SERVER":    "http://hs1:8008",
 					"SYNCV3_LOG_LEVEL": "trace",
-					"SYNCV3_DB":        "user=postgres dbname=syncv3 sslmode=disable password=postgres host=postgres",
+					"SYNCV3_DB":        "user=postgres dbname=syncv3_hs1 sslmode=disable password=postgres host=postgres",
 				},
 				WaitingFor: wait.ForLog("listening on"),
 				Networks:   []string{networkName},
