@@ -37,24 +37,12 @@ const magicMITMURL = "http://mitm.code"
 
 type SlidingSyncDeployment struct {
 	complement.Deployment
-	postgres       testcontainers.Container
-	slidingSync    testcontainers.Container
-	reverseProxy   testcontainers.Container
-	slidingSyncURL string
-	mitmClient     *http.Client
-	ControllerURL  string
-	proxyHSToURL   map[string]string
-	mu             sync.RWMutex
-	tcpdump        *exec.Cmd
-}
-
-func (d *SlidingSyncDeployment) SlidingSyncURL(t *testing.T) string {
-	t.Helper()
-	if d.slidingSync == nil || d.slidingSyncURL == "" {
-		t.Fatalf("SlidingSyncURL: not set")
-		return ""
-	}
-	return d.slidingSyncURL
+	extraContainers      map[string]testcontainers.Container
+	mitmClient           *http.Client
+	ControllerURL        string
+	dnsToReverseProxyURL map[string]string
+	mu                   sync.RWMutex
+	tcpdump              *exec.Cmd
 }
 
 func (d *SlidingSyncDeployment) WithSniffedEndpoint(t *testing.T, partialPath string, onSniff func(CallbackData), inner func()) {
@@ -134,24 +122,29 @@ func (d *SlidingSyncDeployment) AppServiceUser(t ct.TestLike, hsName, appService
 	return d.withReverseProxyURL(hsName, d.Deployment.AppServiceUser(t, hsName, appServiceUserID))
 }
 
+func (d *SlidingSyncDeployment) SlidingSyncURLForHS(t ct.TestLike, hsName string) string {
+	switch hsName {
+	case "hs1":
+		return d.dnsToReverseProxyURL["ssproxy1"]
+	case "hs2":
+		return d.dnsToReverseProxyURL["ssproxy2"]
+	}
+	ct.Fatalf(t, "SlidingSyncURLForHS: unknown hs name '%s'", hsName)
+	return ""
+}
+
 // Replace the actual HS URL with a mitmproxy reverse proxy URL so we can sniff/intercept/modify traffic.
 func (d *SlidingSyncDeployment) withReverseProxyURL(hsName string, c *client.CSAPI) *client.CSAPI {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
-	proxyURL := d.proxyHSToURL[hsName]
+	proxyURL := d.dnsToReverseProxyURL[hsName]
 	c.BaseURL = proxyURL
 	return c
 }
 
 func (d *SlidingSyncDeployment) Teardown() {
-	containers := map[string]testcontainers.Container{
-		"container-sliding-sync.log": d.slidingSync,
-		"container-mitmproxy.log":    d.reverseProxy,
-	}
-	for filename, c := range containers {
-		if c == nil {
-			continue
-		}
+	for name, c := range d.extraContainers {
+		filename := fmt.Sprintf("container-%s.log", name)
 		logs, err := c.Logs(context.Background())
 		if err != nil {
 			log.Printf("failed to get logs for file %s: %s", filename, err)
@@ -188,19 +181,9 @@ func (d *SlidingSyncDeployment) Teardown() {
 		}
 	}
 
-	if d.slidingSync != nil {
-		if err := d.slidingSync.Terminate(context.Background()); err != nil {
-			log.Fatalf("failed to stop sliding sync: %s", err)
-		}
-	}
-	if d.postgres != nil {
-		if err := d.postgres.Terminate(context.Background()); err != nil {
-			log.Fatalf("failed to stop postgres: %s", err)
-		}
-	}
-	if d.reverseProxy != nil {
-		if err := d.reverseProxy.Terminate(context.Background()); err != nil {
-			log.Fatalf("failed to stop reverse proxy: %s", err)
+	for name, container := range d.extraContainers {
+		if err := container.Terminate(context.Background()); err != nil {
+			log.Fatalf("failed to stop %s: %s", name, err)
 		}
 	}
 	if d.tcpdump != nil {
@@ -210,7 +193,7 @@ func (d *SlidingSyncDeployment) Teardown() {
 }
 
 func RunNewDeployment(t *testing.T, mitmProxyAddonsDir string, shouldTCPDump bool) *SlidingSyncDeployment {
-	// allow 30s for everything to deploy
+	// allow time for everything to deploy
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
@@ -230,7 +213,7 @@ func RunNewDeployment(t *testing.T, mitmProxyAddonsDir string, shouldTCPDump boo
 	}
 
 	// Make a postgres container
-	postgresContainer, err := testcontainers.GenericContainer(context.Background(), testcontainers.GenericContainerRequest{
+	postgresContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:        "postgres:13-alpine",
 			ExposedPorts: []string{"5432/tcp"},
@@ -264,17 +247,19 @@ func RunNewDeployment(t *testing.T, mitmProxyAddonsDir string, shouldTCPDump boo
 	// test authors to easily add custom addons.
 	hs1ExposedPort := "3000/tcp"
 	hs2ExposedPort := "3001/tcp"
-	ssRevProxyExposedPort := "3002/tcp"
+	ss1RevProxyExposedPort := "3002/tcp"
+	ss2RevProxyExposedPort := "3003/tcp"
 	controllerExposedPort := "8080/tcp" // default mitmproxy uses
 	mitmContainerReq := testcontainers.ContainerRequest{
 		Image:        "mitmproxy/mitmproxy:10.1.5",
-		ExposedPorts: []string{hs1ExposedPort, hs2ExposedPort, controllerExposedPort, ssRevProxyExposedPort},
+		ExposedPorts: []string{hs1ExposedPort, hs2ExposedPort, controllerExposedPort, ss1RevProxyExposedPort, ss2RevProxyExposedPort},
 		Env:          map[string]string{},
 		Cmd: []string{
 			"mitmdump",
 			"--mode", "reverse:http://hs1:8008@3000",
 			"--mode", "reverse:http://hs2:8008@3001",
-			"--mode", "reverse:http://ssproxy:6789@3002",
+			"--mode", "reverse:http://ssproxy1:6789@3002",
+			"--mode", "reverse:http://ssproxy2:6789@3003",
 			"--mode", "regular",
 		},
 		Networks: []string{networkName},
@@ -298,19 +283,20 @@ func RunNewDeployment(t *testing.T, mitmProxyAddonsDir string, shouldTCPDump boo
 		mitmContainerReq.Cmd = append(mitmContainerReq.Cmd, "-s", "/addons/__init__.py")
 		mitmContainerReq.WaitingFor = wait.ForLog("loading complement crypto addons")
 	}
-	mitmproxyContainer, err := testcontainers.GenericContainer(context.Background(), testcontainers.GenericContainerRequest{
+	mitmproxyContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: mitmContainerReq,
 		Started:          true,
 	})
 	must.NotError(t, "failed to start reverse proxy container", err)
 	rpHS1URL := externalURL(t, mitmproxyContainer, hs1ExposedPort)
 	rpHS2URL := externalURL(t, mitmproxyContainer, hs2ExposedPort)
-	rpSSURL := externalURL(t, mitmproxyContainer, ssRevProxyExposedPort)
+	rpSS1URL := externalURL(t, mitmproxyContainer, ss1RevProxyExposedPort)
+	rpSS2URL := externalURL(t, mitmproxyContainer, ss2RevProxyExposedPort)
 	controllerURL := externalURL(t, mitmproxyContainer, controllerExposedPort)
 
-	// Make a sliding sync proxy
+	// Make 2x sliding sync proxy
 	ssExposedPort := "6789/tcp"
-	ssContainer, err := testcontainers.GenericContainer(ctx,
+	ss1Container, err := testcontainers.GenericContainer(ctx,
 		testcontainers.GenericContainerRequest{
 			ContainerRequest: testcontainers.ContainerRequest{
 				Image:        "ghcr.io/matrix-org/sliding-sync:v0.99.14",
@@ -325,21 +311,44 @@ func RunNewDeployment(t *testing.T, mitmProxyAddonsDir string, shouldTCPDump boo
 				WaitingFor: wait.ForLog("listening on"),
 				Networks:   []string{networkName},
 				NetworkAliases: map[string][]string{
-					networkName: {"ssproxy"},
+					networkName: {"ssproxy1"},
+				},
+			},
+			Started: true,
+		})
+	must.NotError(t, "failed to start sliding sync container", err)
+	ss2Container, err := testcontainers.GenericContainer(ctx,
+		testcontainers.GenericContainerRequest{
+			ContainerRequest: testcontainers.ContainerRequest{
+				Image:        "ghcr.io/matrix-org/sliding-sync:v0.99.14",
+				ExposedPorts: []string{ssExposedPort},
+				Env: map[string]string{
+					"SYNCV3_SECRET":    "secret",
+					"SYNCV3_BINDADDR":  ":6789",
+					"SYNCV3_SERVER":    "http://hs2:8008",
+					"SYNCV3_LOG_LEVEL": "trace",
+					"SYNCV3_DB":        "user=postgres dbname=syncv3_hs2 sslmode=disable password=postgres host=postgres",
+				},
+				WaitingFor: wait.ForLog("listening on"),
+				Networks:   []string{networkName},
+				NetworkAliases: map[string][]string{
+					networkName: {"ssproxy2"},
 				},
 			},
 			Started: true,
 		})
 	must.NotError(t, "failed to start sliding sync container", err)
 
-	ssURL := externalURL(t, ssContainer, ssExposedPort)
+	ss1URL := externalURL(t, ss1Container, ssExposedPort)
+	ss2URL := externalURL(t, ss2Container, ssExposedPort)
 	csapi1 := deployment.UnauthenticatedClient(t, "hs1")
 	csapi2 := deployment.UnauthenticatedClient(t, "hs2")
 
 	// log for debugging purposes
 	t.Logf("SlidingSyncDeployment created (network=%s):", networkName)
 	t.Logf("  NAME          INT          EXT")
-	t.Logf("  sliding sync: ssproxy      %s (rp=%s)", ssURL, rpSSURL)
+	t.Logf("  sliding sync: ssproxy1     %s (rp=%s)", ss1URL, rpSS1URL)
+	t.Logf("  sliding sync: ssproxy2     %s (rp=%s)", ss2URL, rpSS2URL)
 	t.Logf("  synapse:      hs1          %s (rp=%s)", csapi1.BaseURL, rpHS1URL)
 	t.Logf("  synapse:      hs2          %s (rp=%s)", csapi2.BaseURL, rpHS2URL)
 	t.Logf("  postgres:     postgres")
@@ -348,7 +357,7 @@ func RunNewDeployment(t *testing.T, mitmProxyAddonsDir string, shouldTCPDump boo
 	if shouldTCPDump {
 		t.Log("Running tcpdump...")
 		urlsToTCPDump := []string{
-			ssURL, csapi1.BaseURL, csapi2.BaseURL, rpHS1URL, rpHS2URL, controllerURL,
+			ss1URL, ss2URL, csapi1.BaseURL, csapi2.BaseURL, rpHS1URL, rpHS2URL, controllerURL,
 		}
 		tcpdumpFilter := []string{}
 		for _, u := range urlsToTCPDump {
@@ -369,22 +378,26 @@ func RunNewDeployment(t *testing.T, mitmProxyAddonsDir string, shouldTCPDump boo
 	proxyURL, err := url.Parse(controllerURL)
 	must.NotError(t, "failed to parse controller URL", err)
 	return &SlidingSyncDeployment{
-		Deployment:     deployment,
-		slidingSync:    ssContainer,
-		postgres:       postgresContainer,
-		reverseProxy:   mitmproxyContainer,
-		slidingSyncURL: rpSSURL,
-		tcpdump:        cmd,
-		ControllerURL:  controllerURL,
+		Deployment: deployment,
+		extraContainers: map[string]testcontainers.Container{
+			"ssproxy1":  ss1Container,
+			"ssproxy2":  ss2Container,
+			"postgres":  postgresContainer,
+			"mitmproxy": mitmproxyContainer,
+		},
+		tcpdump:       cmd,
+		ControllerURL: controllerURL,
 		mitmClient: &http.Client{
 			Timeout: 5 * time.Second,
 			Transport: &http.Transport{
 				Proxy: http.ProxyURL(proxyURL),
 			},
 		},
-		proxyHSToURL: map[string]string{
-			"hs1": rpHS1URL,
-			"hs2": rpHS2URL,
+		dnsToReverseProxyURL: map[string]string{
+			"hs1":      rpHS1URL,
+			"hs2":      rpHS2URL,
+			"ssproxy1": rpSS1URL,
+			"ssproxy2": rpSS2URL,
 		},
 	}
 }

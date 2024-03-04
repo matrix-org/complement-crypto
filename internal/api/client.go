@@ -186,7 +186,8 @@ type ClientCreationOpts struct {
 
 	// Optional. If true, persistent storage will be used for the same user|device ID.
 	PersistentStorage bool
-
+	// Required for rust clients. The URL of the sliding sync proxy.
+	SlidingSyncURL string
 	// Optional. Set this to login with this device ID.
 	DeviceID string
 }

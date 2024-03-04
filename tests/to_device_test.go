@@ -164,7 +164,7 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartRust(t *testing.T, tc *Tes
 				DeviceID:          bobOpts.DeviceID,
 				BaseURL:           bobOpts.BaseURL,
 				PersistentStorage: bobOpts.PersistentStorage,
-				SSURL:             tc.Deployment.SlidingSyncURL(t),
+				SSURL:             bobOpts.SlidingSyncURL,
 			})
 		cmd.WaitDelay = 3 * time.Second
 		defer close()

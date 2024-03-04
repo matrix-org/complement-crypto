@@ -16,9 +16,10 @@ func main() {
 		UserID:            "{{.UserID}}",
 		DeviceID:          "{{.DeviceID}}",
 		Password:          "{{.Password}}",
+		SlidingSyncURL:    "{{.SSURL}}",
 		PersistentStorage: {{.PersistentStorage}},
 	}
-	client, err := rust.NewRustClient(t, cfg, "{{.SSURL}}")
+	client, err := rust.NewRustClient(t, cfg)
 	if err != nil {
 		panic(err)
 	}
@@ -31,10 +32,10 @@ func main() {
 	roomID := "{{.RoomID}}"
 	fmt.Println("Client logged in. Sending '{{.Body}}' in room {{.RoomID}}")
 	eventID := client.SendMessage(t, "{{.RoomID}}", "{{.Body}}")
-	fmt.Println("Sent event " + eventID +" waiting for remote echo")
+	fmt.Println("Sent event " + eventID + " waiting for remote echo")
 
 	waiter := client.WaitUntilEventInRoom(t, roomID, api.CheckEventHasEventID(eventID))
-	waiter.Wait(t, 5 * time.Second)
+	waiter.Wait(t, 5*time.Second)
 
 	time.Sleep(time.Second)
 	fmt.Println("exiting")

@@ -64,6 +64,7 @@ func testSigkillBeforeKeysUploadResponseRust(t *testing.T, clientType api.Client
 	}, func() {
 		cfg := api.NewClientCreationOpts(tc.Alice)
 		cfg.PersistentStorage = true
+		cfg.SlidingSyncURL = tc.Deployment.SlidingSyncURLForHS(t, clientType.HS)
 		// run some code in a separate process so we can kill it later
 		cmd, close := templates.PrepareGoScript(t, "testSigkillBeforeKeysUploadResponseRust/test.go",
 			struct {
@@ -79,7 +80,7 @@ func testSigkillBeforeKeysUploadResponseRust(t *testing.T, clientType api.Client
 				DeviceID:          cfg.DeviceID,
 				BaseURL:           cfg.BaseURL,
 				PersistentStorage: cfg.PersistentStorage,
-				SSURL:             tc.Deployment.SlidingSyncURL(t),
+				SSURL:             cfg.SlidingSyncURL,
 			})
 		cmd.WaitDelay = 3 * time.Second
 		defer close()
@@ -100,7 +101,7 @@ func testSigkillBeforeKeysUploadResponseRust(t *testing.T, clientType api.Client
 		waiter.Waitf(t, 5*time.Second, "failed to terminate process")
 		t.Logf("terminated process, making new client")
 		// now make the same client
-		alice := MustCreateClient(t, clientType, cfg, tc.Deployment.SlidingSyncURL(t))
+		alice := MustCreateClient(t, clientType, cfg)
 		alice.Login(t, cfg) // login should work
 		stopSyncing := alice.MustStartSyncing(t)
 		// ensure we see the 2nd keys/upload

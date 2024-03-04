@@ -292,7 +292,6 @@ func testRoomKeyIsNotCycledOnClientRestartRust(t *testing.T, clientType api.Clie
 	tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
 
 	tc.WithClientSyncing(t, clientType, tc.Bob, func(bob api.Client) {
-
 		wantMsgBody := "test from the script"
 
 		// run a script which will login as alice and then send an event in the room.
@@ -313,7 +312,7 @@ func testRoomKeyIsNotCycledOnClientRestartRust(t *testing.T, clientType api.Clie
 				DeviceID:          tc.Alice.DeviceID,
 				BaseURL:           tc.Alice.BaseURL,
 				PersistentStorage: true,
-				SSURL:             tc.Deployment.SlidingSyncURL(t),
+				SSURL:             bob.Opts().SlidingSyncURL,
 				Body:              wantMsgBody,
 				RoomID:            roomID,
 			})

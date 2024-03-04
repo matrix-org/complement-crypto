@@ -92,11 +92,11 @@ func ForEachClientType(t *testing.T, subTest func(t *testing.T, clientType api.C
 // MustCreateClient creates an api.Client with the specified language/server, else fails the test.
 //
 // Options can be provided to configure clients, such as enabling persistent storage.
-func MustCreateClient(t *testing.T, clientType api.ClientType, cfg api.ClientCreationOpts, ssURL string, opts ...func(api.Client, *api.ClientCreationOpts)) api.Client {
+func MustCreateClient(t *testing.T, clientType api.ClientType, cfg api.ClientCreationOpts, opts ...func(api.Client, *api.ClientCreationOpts)) api.Client {
 	var c api.Client
 	switch clientType.Lang {
 	case api.ClientTypeRust:
-		client, err := rust.NewRustClient(t, cfg, ssURL)
+		client, err := rust.NewRustClient(t, cfg)
 		must.NotError(t, "NewRustClient: %s", err)
 		c = client
 	case api.ClientTypeJS:
@@ -292,7 +292,8 @@ func (c *TestContext) MustCreateClient(t *testing.T, cli *client.CSAPI, clientTy
 	for _, opt := range options {
 		opt(&cfg)
 	}
-	client := MustCreateClient(t, clientType, cfg, c.Deployment.SlidingSyncURL(t))
+	cfg.SlidingSyncURL = c.Deployment.SlidingSyncURLForHS(t, clientType.HS)
+	client := MustCreateClient(t, clientType, cfg)
 	return client
 }
 

@@ -17,9 +17,10 @@ func main() {
 		UserID:            "{{.UserID}}",
 		DeviceID:          "{{.DeviceID}}",
 		Password:          "{{.Password}}",
+		SlidingSyncURL:    "{{.SSURL}}",
 		PersistentStorage: {{.PersistentStorage}},
 	}
-	client, err := rust.NewRustClient(t, cfg, "{{.SSURL}}")
+	client, err := rust.NewRustClient(t, cfg)
 	if err != nil {
 		panic(err)
 	}

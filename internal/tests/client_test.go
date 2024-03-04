@@ -25,7 +25,7 @@ var (
 	ssDeployment *deploy.SlidingSyncDeployment
 	// aka functions which make clients, and we don't care about the language.
 	// Tests just loop through this array for each client impl.
-	clientFactories []func(t *testing.T, cfg api.ClientCreationOpts, deployment *deploy.SlidingSyncDeployment) api.Client
+	clientFactories []func(t *testing.T, cfg api.ClientCreationOpts) api.Client
 )
 
 func Deploy(t *testing.T) *deploy.SlidingSyncDeployment {
@@ -39,14 +39,14 @@ func Deploy(t *testing.T) *deploy.SlidingSyncDeployment {
 }
 
 func TestMain(m *testing.M) {
-	rustClientCreator := func(t *testing.T, cfg api.ClientCreationOpts, deployment *deploy.SlidingSyncDeployment) api.Client {
-		client, err := rust.NewRustClient(t, cfg, deployment.SlidingSyncURL(t))
+	rustClientCreator := func(t *testing.T, cfg api.ClientCreationOpts) api.Client {
+		client, err := rust.NewRustClient(t, cfg)
 		if err != nil {
 			t.Fatalf("NewRustClient: %s", err)
 		}
 		return client
 	}
-	jsClientCreator := func(t *testing.T, cfg api.ClientCreationOpts, deployment *deploy.SlidingSyncDeployment) api.Client {
+	jsClientCreator := func(t *testing.T, cfg api.ClientCreationOpts) api.Client {
 		client, err := js.NewJSClient(t, cfg)
 		if err != nil {
 			t.Fatalf("NewJSClient: %s", err)
@@ -54,6 +54,7 @@ func TestMain(m *testing.M) {
 		return client
 	}
 	clientFactories = append(clientFactories, rustClientCreator, jsClientCreator)
+	rust.SetupLogs("rust_sdk_logs")
 	js.SetupJSLogs("./logs/js_sdk.log")                       // rust sdk logs on its own
 	complement.TestMainWithCleanup(m, "clienttests", func() { // always teardown even if panicking
 		ssMutex.Lock()
@@ -203,7 +204,9 @@ func ForEachClient(t *testing.T, name string, deployment *deploy.SlidingSyncDepl
 			LocalpartSuffix: "client",
 			Password:        "complement-crypto-password",
 		})
-		client := createClient(t, api.NewClientCreationOpts(csapiAlice), deployment)
+		opts := api.NewClientCreationOpts(csapiAlice)
+		opts.SlidingSyncURL = deployment.SlidingSyncURLForHS(t, "hs1")
+		client := createClient(t, opts)
 		t.Run(name+" "+string(client.Type()), func(t *testing.T) {
 			fn(t, client, csapiAlice)
 		})
