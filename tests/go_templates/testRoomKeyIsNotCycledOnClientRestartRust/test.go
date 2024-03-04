@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
@@ -17,7 +18,7 @@ func main() {
 		DeviceID:          "{{.DeviceID}}",
 		Password:          "{{.Password}}",
 		SlidingSyncURL:    "{{.SSURL}}",
-		PersistentStorage: {{.PersistentStorage}},
+		PersistentStorage: strings.EqualFold("{{.PersistentStorage}}", "true"),
 	}
 	client, err := rust.NewRustClient(t, cfg)
 	if err != nil {

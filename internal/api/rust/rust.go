@@ -16,11 +16,11 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-func DeleteOldLogs() {
+func DeleteOldLogs(prefix string) {
 	// delete old log files
 	files, _ := os.ReadDir("./logs")
 	for _, f := range files {
-		if strings.HasPrefix(f.Name(), "rust_sdk_logs") {
+		if strings.HasPrefix(f.Name(), prefix) {
 			os.Remove(filepath.Join("./logs", f.Name()))
 		}
 	}

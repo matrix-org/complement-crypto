@@ -35,7 +35,8 @@ func TestMain(m *testing.M) {
 	// TODO: ideally client packages would do this.
 	os.RemoveAll("./rust_storage")
 	os.RemoveAll("./chromedp")
-	rust.DeleteOldLogs()
+	rust.DeleteOldLogs("rust_sdk_logs")
+	rust.DeleteOldLogs("rust_sdk_inline_script")
 	rust.SetupLogs("rust_sdk_logs")
 
 	js.SetupJSLogs("./logs/js_sdk.log")                  // rust sdk logs on its own
