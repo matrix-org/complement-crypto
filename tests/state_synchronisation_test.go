@@ -63,7 +63,6 @@ func testSigkillBeforeKeysUploadResponseRust(t *testing.T, clientType api.Client
 		},
 	}, func() {
 		cfg := api.NewClientCreationOpts(tc.Alice)
-		cfg.BaseURL = tc.Deployment.ReverseProxyURLForHS(clientType.HS)
 		cfg.PersistentStorage = true
 		// run some code in a separate process so we can kill it later
 		cmd, close := templates.PrepareGoScript(t, "testSigkillBeforeKeysUploadResponseRust/test.go",

@@ -22,6 +22,9 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/matrix-org/complement"
 	"github.com/matrix-org/complement-crypto/internal/api"
+	"github.com/matrix-org/complement/client"
+	"github.com/matrix-org/complement/ct"
+	"github.com/matrix-org/complement/helpers"
 	"github.com/matrix-org/complement/must"
 	testcontainers "github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -38,7 +41,7 @@ type SlidingSyncDeployment struct {
 	slidingSyncURL string
 	mitmClient     *http.Client
 	ControllerURL  string
-	proxyURLToHS   map[string]string
+	proxyHSToURL   map[string]string
 	mu             sync.RWMutex
 	tcpdump        *exec.Cmd
 }
@@ -113,10 +116,29 @@ func (d *SlidingSyncDeployment) unlockOptions(t *testing.T, lockID []byte) {
 	must.Equal(t, res.StatusCode, 200, "controller returned wrong HTTP status")
 }
 
-func (d *SlidingSyncDeployment) ReverseProxyURLForHS(hsName string) string {
+func (d *SlidingSyncDeployment) UnauthenticatedClient(t ct.TestLike, serverName string) *client.CSAPI {
+	return d.withReverseProxyURL(serverName, d.Deployment.UnauthenticatedClient(t, serverName))
+}
+
+func (d *SlidingSyncDeployment) Register(t ct.TestLike, hsName string, opts helpers.RegistrationOpts) *client.CSAPI {
+	return d.withReverseProxyURL(hsName, d.Deployment.Register(t, hsName, opts))
+}
+
+func (d *SlidingSyncDeployment) Login(t ct.TestLike, hsName string, existing *client.CSAPI, opts helpers.LoginOpts) *client.CSAPI {
+	return d.withReverseProxyURL(hsName, d.Deployment.Login(t, hsName, existing, opts))
+}
+
+func (d *SlidingSyncDeployment) AppServiceUser(t ct.TestLike, hsName, appServiceUserID string) *client.CSAPI {
+	return d.withReverseProxyURL(hsName, d.Deployment.AppServiceUser(t, hsName, appServiceUserID))
+}
+
+// Replace the actual HS URL with a mitmproxy reverse proxy URL so we can sniff/intercept/modify traffic.
+func (d *SlidingSyncDeployment) withReverseProxyURL(hsName string, c *client.CSAPI) *client.CSAPI {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
-	return d.proxyURLToHS[hsName]
+	proxyURL := d.proxyHSToURL[hsName]
+	c.BaseURL = proxyURL
+	return c
 }
 
 func (d *SlidingSyncDeployment) Teardown(writeLogs bool) {
@@ -343,7 +365,7 @@ func RunNewDeployment(t *testing.T, mitmProxyAddonsDir string, shouldTCPDump boo
 				Proxy: http.ProxyURL(proxyURL),
 			},
 		},
-		proxyURLToHS: map[string]string{
+		proxyHSToURL: map[string]string{
 			"hs1": rpHS1URL,
 			"hs2": rpHS2URL,
 		},

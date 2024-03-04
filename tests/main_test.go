@@ -287,7 +287,6 @@ func (c *TestContext) MustRegisterNewDevice(t *testing.T, cli *client.CSAPI, hsN
 func (c *TestContext) MustCreateClient(t *testing.T, cli *client.CSAPI, clientType api.ClientType, options ...func(*api.ClientCreationOpts)) api.Client {
 	t.Helper()
 	cfg := api.NewClientCreationOpts(cli)
-	cfg.BaseURL = c.Deployment.ReverseProxyURLForHS(clientType.HS)
 	for _, opt := range options {
 		opt(&cfg)
 	}
