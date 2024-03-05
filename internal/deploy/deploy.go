@@ -408,6 +408,18 @@ func externalURL(t *testing.T, c testcontainers.Container, exposedPort string) s
 	defer cancel()
 	host, err := c.Host(ctx)
 	must.NotError(t, "failed to get host", err)
+	if host == "localhost" {
+		// always specify IPv4 addresses as otherwise you can get sporadic test failures
+		// on IPv4/IPv6 enabled machines (e.g Github Actions) because:
+		// - we do dynamic high numbered port allocation,
+		// - allocated port namespaces are independent for v4 vs v6,
+		// - meaning you can have 1 process bind to ::1:35678 and another process bind to 127.0.0.1:35678 RANDOMLY
+		// - so if you get a request to http://localhost:35678...
+		// - which process should be hit?
+		// This manifests as test failures (typically endpoints that should work fine will 404 e.g HS requests hitting SS containers)
+		// This can be fixed by replacing localhost with 127.0.01 in the request URL.
+		host = "127.0.0.1"
+	}
 	mappedPort, err := c.MappedPort(ctx, nat.Port(exposedPort))
 	must.NotError(t, "failed to get mapped port", err)
 	return fmt.Sprintf("http://%s:%s", host, mappedPort.Port())
