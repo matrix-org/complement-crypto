@@ -63,17 +63,21 @@ class Callback:
         if self.config["callback_url"] == "":
             return # ignore responses if we aren't told a url
         if flowfilter.match(self.filter, flow):
-            try:
+            try: # e.g GET requests have no req body
                 req_body = flow.request.json()
             except:
                 req_body = None
+            try: # e.g OPTIONS responses have no res body
+                res_body = flow.response.json()
+            except:
+                res_body = None
             data = json.dumps({
                 "method": flow.request.method,
                 "access_token": flow.request.headers.get("Authorization", "").removeprefix("Bearer "),
                 "url": flow.request.url,
                 "response_code": flow.response.status_code,
                 "request_body": req_body,
-                "response_body": flow.response.json(),
+                "response_body": res_body,
             })
             request = Request(
                 self.config["callback_url"],
