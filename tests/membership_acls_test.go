@@ -155,6 +155,12 @@ func TestBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 // Bob leaves the room. Some messages are sent. Bob rejoins and cannot decrypt the messages sent whilst he was gone (ensuring we cycle keys).
 func TestOnRejoinBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
+		// disable this test if A) it's over federation and B) the HS2 user is on JS
+		// due to https://github.com/element-hq/synapse/issues/15717
+		if clientTypeA.HS != clientTypeB.HS && clientTypeB.Lang == api.ClientTypeJS {
+			t.Skipf("skipping due to https://github.com/element-hq/synapse/issues/15717")
+			return
+		}
 		tc := CreateTestContext(t, clientTypeA, clientTypeB)
 		// shared history visibility
 		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "public_chat", nil)
