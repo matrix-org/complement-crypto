@@ -66,7 +66,11 @@ func NewComplementCryptoConfigFromEnvVars() *ComplementCrypto {
 					Lang: api.ClientTypeJS,
 					HS:   "hs2",
 				}
-			// TODO: case 'R': requires 2x sliding syncs / postgres
+			case 'R':
+				testCase[i] = api.ClientType{
+					Lang: api.ClientTypeRust,
+					HS:   "hs2",
+				}
 			default:
 				panic("COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX bad value: " + val)
 			}

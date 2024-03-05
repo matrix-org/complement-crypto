@@ -35,13 +35,14 @@ func sniffToDeviceEvent(t *testing.T, d complement.Deployment, ch chan deploy.Ca
 func TestRoomKeyIsCycledOnDeviceLogout(t *testing.T) {
 	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
 		tc := CreateTestContext(t, clientTypeA, clientTypeB)
-		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "trusted_private_chat", []string{tc.Bob.UserID})
-		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 
 		// Alice, Alice2 and Bob are in a room.
 		csapiAlice2 := tc.MustRegisterNewDevice(t, tc.Alice, clientTypeA.HS, "OTHER_DEVICE")
 		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
 			tc.WithClientSyncing(t, clientTypeA, csapiAlice2, func(alice2 api.Client) {
+				roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "trusted_private_chat", []string{tc.Bob.UserID})
+				tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+				alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(tc.Bob.UserID, "join")).Wait(t, 5*time.Second)
 				// check the room works
 				wantMsgBody := "Test Message"
 				waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
@@ -94,11 +95,14 @@ func TestRoomKeyIsCycledOnDeviceLogout(t *testing.T) {
 func TestRoomKeyIsCycledOnMemberLeaving(t *testing.T) {
 	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
 		tc := CreateTestContext(t, clientTypeA, clientTypeB, clientTypeB)
-		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "trusted_private_chat", []string{tc.Bob.UserID, tc.Charlie.UserID})
-		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
-		tc.Charlie.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 		// Alice, Bob and Charlie are in a room.
 		tc.WithAliceBobAndCharlieSyncing(t, func(alice, bob, charlie api.Client) {
+			// do setup code after all clients are syncing to ensure that if Alice asks for Charlie's keys on receipt of the
+			// join event, then Charlie has already uploaded keys.
+			roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "trusted_private_chat", []string{tc.Bob.UserID, tc.Charlie.UserID})
+			tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+			tc.Charlie.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+			alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(tc.Charlie.UserID, "join")).Wait(t, 5*time.Second)
 			// check the room works
 			wantMsgBody := "Test Message"
 			waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
