@@ -1,6 +1,6 @@
 ## How do I...
 
-### Debug failing tests
+### Find logs for CI runs
 
 Ensure your firewall allows containers to talk to the host: https://github.com/matrix-org/complement-crypto/issues/13#issuecomment-1973203807
 
@@ -27,11 +27,12 @@ Sometimes, even that isn't enough. Perhaps server logs aren't giving enough info
 
 If you need to add console logging to clients, see below.
 
+### Add some logs to figure out what is happening
 
-### JS SDK
+See "Changing the JavaScript directly" and "Changing the JavaScript directly"
+under "Modify the client code".
 
-#### Regenerate bindings
-*Why: if you want to test a different version of the JS SDK you need to rebuild the HTML/JS files.*
+### Use a different version of matrix-js-sdk
 
 Prerequisites:
  - A working Yarn/npm installation (version?)
@@ -42,14 +43,175 @@ In order to regenerate the JS SDK, run `./rebuild_js_sdk.sh` with an appropriate
 
 Internally, we use Vite to bundle JS SDK into a single page app, which has no UI and merely sets `window.matrix = sdk;` so tests can create clients. It also sets some required helper functions (notably a `Buffer` implementation for key backups).
 
-#### Add console logs
+### Modify the client code
+*Why: if you want to play with changes to the clients, or add logging
+information, you will need to modify the client code and rebuild it to make sure
+it is running inside the tests.*
 
-If you want to add console logging to the JS SDK, it is easiest to _modify the bundled output_ as it is not minified. To do this, `grep` for function names in `internal/api/js/chrome/dist/assests/index.....js` then use an editor to add `console.log` lines. These lines will appear in JS SDK log files.
+#### Changing the JavaScript directly (the easy way)
 
-### Rust SDK FFI
+If you just need to add some logging or make small changes, you can modify the
+bundled JavaScript code directly. Just edit the file:
 
-#### Regenerate FFI Bindings
-*Why: if you want to test a different version of the rust SDK you need to regenerate FFI bindings.*
+```
+internal/api/js/chrome/dist/assets/index-*.js
+```
+
+You can search in this file for the function you are interested in. If you add
+`console.log` lines here, the output should show up in `tests/logs/js_sdk.log`.
+
+Once you've changed the JavaScript, you can re-run your tests immediately and
+your changed code will run. You don't even need to use `count=1` to force the
+tests to re-run, because the framework will detect your changes.
+
+(Notice that `index-*.js` contains the compiled WASM in a variable called
+`matrix_sdk_crypto_wasm_bg_wasm`, but because it's compiled, it's not in a form
+that we can easily edit.)
+
+#### Changing the native Rust directly (also fairly easy)
+
+If you need to try out changes to Rust code (e.g. to add logging) and you don't
+mind your changes only applying to the native Rust (and NOT applying to Rust
+within the JavaScript client, which is compiled to WASM) then you can modify it
+in-place and then recompile it.
+
+Edit files inside the `rust-sdk` directory (which is just a copy of
+a specific version of `matrix-rust-sdk`) and then `cargo build -p
+matrix-sdk-ffi` inside that directory.
+
+Make sure you launch the tests with LIBRARY_PATH pointing to
+`rust-sdk/target/debug` so that the built code gets used.
+
+Make sure you add `-count=1` on the command line when you re-run the tests,
+because changes to the rust here won't trigger the framework to re-execute a
+test that it has already run.
+
+#### Using your local matrix-js-sdk
+
+If you want to try out changes within a local `matrix-js-sdk`, you need to
+perform several steps:
+
+1. Clone the matrix-js-sdk repo:
+
+    ```
+    cd code
+    git clone https://github.com/matrix-org/matrix-js-sdk.git
+    ```
+
+    and make any changes you want to make.
+
+2. Change `internal/api/js/js-sdk/package.json` to say e.g.:
+
+    ```
+    "matrix-js-sdk": "file:/home/andy/code/matrix-js-sdk",
+    ```
+
+    in place of the existing `matrix-js-sdk` line in that file.
+
+    Note: `yarn link` did NOT work for me (AndyB) - I had to use a `file:` URL.
+    It can be relative if you prefer: this will be relative to the location of
+    `package.json`.
+
+    Further note: you can't use `yarn link` within matrix-js-sdk to refer to its
+    dependencies either - I had to change to use `file:` URLs there too.
+
+3. Rebuild the JavaScript project:
+
+    ```
+    cd internal/api/js/js-sdk
+    yarn install && yarn build
+    ```
+
+    This creates files inside `internal/api/js/js_sdk/dist`.
+
+4. Copy the built code into `chrome/dist`:
+
+    ```
+    cp -r internal/api/js/js-sdk/dist/. internal/api/js/chrome/dist
+    ```
+
+Now you can re-run your tests and see the effect of your changes.
+
+#### Using your local matrix-rust-sdk-crypto-wasm and matrix-rust-sdk
+
+If you want to make changes to the Rust code and see the effect in the
+JavaScript tests, then you need to rebuild the WASM. Follow these steps:
+
+1. Perform the steps from "Using your local matrix-js-sdk" above.
+
+    So that you have a local matrix-js-sdk that you can use to bundle the WASM
+    you build into `internal/api/js/chrome/dist`.
+
+    Make sure this step is working, perhaps by adding some log lines and
+    checking they appear in the logs, before moving on.
+
+2. Clone the Rust code and the WASM bindings:
+
+    ```
+    cd code
+    git clone https://github.com/matrix-org/matrix-rust-sdk.git
+    git clone https://github.com/matrix-org/matrix-rust-sdk-crypto-wasm.git
+    ```
+
+    Make any changes you want to make to the code here.
+
+3. Modify matrix-rust-sdk-crypto-wasm/.cargo/config to look like:
+
+    ```
+    [build]
+    target = "wasm32-unknown-unknown"
+
+    [patch.'https://github.com/matrix-org/matrix-rust-sdk']
+    matrix-sdk-base = { path = "../matrix-rust-sdk/crates/matrix-sdk-base" }
+    matrix-sdk-common = { path = "../matrix-rust-sdk/crates/matrix-sdk-common" }
+    matrix-sdk-crypto = { path = "../matrix-rust-sdk/crates/matrix-sdk-crypto" }
+    matrix-sdk-indexeddb = { path = "../matrix-rust-sdk/crates/matrix-sdk-indexeddb" }
+    matrix-sdk-qrcode = { path = "../matrix-rust-sdk/crates/matrix-sdk-qrcode" }
+    ```
+
+    (As described in the
+    [README](https://github.com/matrix-org/matrix-rust-sdk-crypto-wasm/#local-development-with-matrix-rust-sdk).)
+
+    This means the WASM bindings will build your local matrix-rust-sdk instead
+    of a released version.
+
+4. Modify matrix-js-sdk to refer to your local matrix-rust-sdk-crypto-wasm.
+   Open `~/code/matrix-js-sdk/package.json` and modify the line about
+   `@matrix-org/matrix-sdk-crypto-wasm` to look something like:
+
+    ```
+    "@matrix-org/matrix-sdk-crypto-wasm": "file:/home/andy/code/matrix-rust-sdk-crypto-wasm",
+    ```
+
+    (Relative URLs are allowed, relative to the location of `package.json`.)
+
+    Note that `yarn link` does not work (for me - AndyB).
+
+5. Build the bindings:
+
+    ```
+    cd code/matrix-rust-sdk-crypto-wasm
+    yarn build:dev
+    ```
+
+    (Note that you don't need to build matrix-rust-sdk - the above command
+    fetches the code from there and builds it all into `pkg/*.js` here.)
+
+6. Rebuild and re-copy the JavaScript by repeating the last two steps from
+   "Using your local matrix-js-sdk" above.
+
+Now when you re-run the JavaScript tests they should reflect the changes you
+made in your Rust code.
+
+#### TODO: sharing the same Rust code between JavaScript and Rust tests
+
+It should be possible to replace the `rust-sdk` directory with a symlink to your
+local `matrix-rust-sdk` directory, repeat all of the steps in both "Changing the
+native Rust directly" and "Using your local matrix-rust-sdk-crypto-wasm and
+matrix-rust-sdk", and share the Rust code between both JavaScript and native
+Rust tests, but I have not actually tried it.
+
+### React to changed interfaces in the Rust
 
 Prerequisites:
  - A working Rust installation (1.72+)
@@ -78,6 +240,3 @@ cargo install uniffi-bindgen-go --path ./uniffi-bindgen-go/bindgen
     * Specify `matrix_sdk` package qualifier for `RustBufferI`: https://github.com/NordSecurity/uniffi-bindgen-go/issues/43
 - Sanity check compile `LIBRARY_PATH="$LIBRARY_PATH:/path/to/matrix-rust-sdk/target/debug" go test -c ./tests`
 
-#### Add console logs
-
-You need a local checkout of `matrix-rust-sdk` and be on the correct branch. You then need to be able to regenerate FFI bindings (see above). Modify the rust source and then regenerate bindings each time, ensuring the resulting `.a` files are on the `LIBRARY_PATH`.
