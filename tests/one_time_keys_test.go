@@ -195,31 +195,24 @@ func TestFailedOneTimeKeyUploadRetries(t *testing.T) {
 			},
 		}, func() {
 			tc.WithAliceSyncing(t, func(alice api.Client) {
-				// we should be able to claim a key eventually
-				for i := 0; i < 5; i++ {
-					time.Sleep(time.Duration(200 * time.Millisecond * time.Duration(i+1)))
-					res := tc.Bob.MustDo(t, "POST", []string{
-						"_matrix", "client", "v3", "keys", "claim",
-					}, client.WithJSONBody(t, map[string]any{
-						"one_time_keys": map[string]any{
-							tc.Alice.UserID: map[string]any{
-								tc.Alice.DeviceID: "signed_curve25519",
-							},
+				tc.Bob.MustDo(t, "POST", []string{
+					"_matrix", "client", "v3", "keys", "claim",
+				}, client.WithJSONBody(t, map[string]any{
+					"one_time_keys": map[string]any{
+						tc.Alice.UserID: map[string]any{
+							tc.Alice.DeviceID: "signed_curve25519",
 						},
-					}))
+					},
+				}), client.WithRetryUntil(10*time.Second, func(res *http.Response) bool {
 					jsonBody := must.ParseJSON(t, res.Body)
 					res.Body.Close()
 					err := match.JSONKeyPresent(
 						fmt.Sprintf("one_time_keys.%s.%s.signed_curve25519*", tc.Alice.UserID, tc.Alice.DeviceID),
 					)(jsonBody)
 					if err == nil {
-						break
+						return true
 					}
 					t.Logf("failed to claim otk: /keys/claim => %v", jsonBody.Raw)
-					if i == 4 {
-						t.Errorf("failed to claim OTK for user, did /keys/upload retry?")
-					}
-
 					// try kicking the client by sending some data down /sync
 					// Specifically, JS SDK needs this. Rust has its own backoff independent to /sync
 					tc.Alice.SendEventSynced(t, roomID, b.Event{
@@ -229,7 +222,8 @@ func TestFailedOneTimeKeyUploadRetries(t *testing.T) {
 							"body":    "this is a kick to try to get clients to retry /keys/upload",
 						},
 					})
-				}
+					return false
+				}))
 			})
 		})
 	})
