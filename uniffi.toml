@@ -1,0 +1,2 @@
+[bindings.go]
+go_mod = "github.com/matrix-org/complement-crypto/internal/api/rust"
