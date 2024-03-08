@@ -7,6 +7,7 @@ js-sdk/dist
 /internal/tests/logs/
 __pycache__
 /rust-sdk/
+/internal/tests/logs/
 /tests/logs/
 /tests/chromedp/
 /tests/rust_storage/

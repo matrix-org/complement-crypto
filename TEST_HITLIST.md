@@ -76,7 +76,7 @@ Network connectivity tests are extremely time sensitive as retries are often usi
 - [x] If a client cannot upload OTKs, it retries.
 - [x] If a client cannot claim OTKs, it retries.
 - [x] If a server cannot send device list updates over federation, it retries. https://github.com/matrix-org/complement/pull/695
-- [x] If a client cannot query device keys for a user, it retries.
+- [x] If a client cannot query device keys for a user, it retries. (TestFailedDeviceKeyDownloadRetries)
 - [ ] If a server cannot query device keys on another server, it retries.
 - [x] If a client cannot send a to-device msg, it retries.
 - [x] If a server cannot send a to-device msg to another server, it retries. https://github.com/matrix-org/complement/pull/694
@@ -98,7 +98,7 @@ This refers to cases where the client has some state and wishes to synchronise i
 - [ ] The room key is cycled when one of a user's devices is blacklisted.
 - [ ] The room key is cycled when history visibility changes to something more restrictive TODO: define precisely.
 - [ ] The room key is cycled when the encryption algorithm changes.
-- [ ] The room key is cycled when `rotation_period_msgs` is met (default: 100).
+- [x] The room key is cycled when `rotation_period_msgs` is met (default: 100). (TestRoomKeyIsCycledAfterEnoughMessages)
 - [ ] The room key is cycled when `rotation_period_ms` is exceeded (default: 1 week).
 - [x] The room key is not cycled when one of a user's devices logs in.
 - [x] The room key is not cycled when the client restarts.

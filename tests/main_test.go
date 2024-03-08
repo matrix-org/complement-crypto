@@ -241,16 +241,27 @@ func (c *TestContext) WithAliceBobAndCharlieSyncing(t *testing.T, callback func(
 	})
 }
 
+// An option to customise the behaviour of CreateNewEncryptedRoom
+type EncRoomOption = func(reqBody map[string]interface{})
+
 // CreateNewEncryptedRoom calls creator.MustCreateRoom with the correct m.room.encryption state event.
-func (c *TestContext) CreateNewEncryptedRoom(t *testing.T, creator *client.CSAPI, preset string, invite []string) (roomID string) {
+//
+// options is a set of EncRoomOption that may be provided using methods on
+// EncRoomOptions:
+// - Preset*: the preset argument passed to createRoom (default: "private_chat")
+// - Invite: a list of usernames to invite to the room (default: empty list)
+// - RotationPeriodMsgs: value of the rotation_period_msgs param (default: omitted)
+func (c *TestContext) CreateNewEncryptedRoom(
+	t *testing.T,
+	creator *client.CSAPI,
+	options ...EncRoomOption,
+) (roomID string) {
 	t.Helper()
-	if invite == nil {
-		invite = []string{} // else synapse 500s
-	}
-	return creator.MustCreateRoom(t, map[string]interface{}{
+
+	reqBody := map[string]interface{}{
 		"name":   t.Name(),
-		"preset": preset,
-		"invite": invite,
+		"preset": "private_chat",
+		"invite": []string{},
 		"initial_state": []map[string]interface{}{
 			{
 				"type":      "m.room.encryption",
@@ -260,7 +271,61 @@ func (c *TestContext) CreateNewEncryptedRoom(t *testing.T, creator *client.CSAPI
 				},
 			},
 		},
-	})
+	}
+
+	for _, option := range options {
+		option(reqBody)
+	}
+
+	return creator.MustCreateRoom(t, reqBody)
+}
+
+type encRoomOptions int
+
+// A namespace for the various options that may be passed in to CreateNewEncryptedRoom
+const EncRoomOptions encRoomOptions = 0
+
+// An option for CreateNewEncryptedRoom that requests the `preset` field to be
+// set to `private_chat`.
+func (encRoomOptions) PresetPrivateChat() EncRoomOption {
+	return setPreset("private_chat")
+}
+
+// An option for CreateNewEncryptedRoom that requests the `preset` field to be
+// set to `trusted_private_chat`.
+func (encRoomOptions) PresetTrustedPrivateChat() EncRoomOption {
+	return setPreset("trusted_private_chat")
+}
+
+// An option for CreateNewEncryptedRoom that requests the `preset` field to be
+// set to `public_chat`.
+func (encRoomOptions) PresetPublicChat() EncRoomOption {
+	return setPreset("public_chat")
+}
+
+func setPreset(preset string) EncRoomOption {
+	return func(reqBody map[string]interface{}) {
+		reqBody["preset"] = preset
+	}
+}
+
+// An option for CreateNewEncryptedRoom that provides a list of Matrix usernames
+// to be supplied in the `invite` field.
+func (encRoomOptions) Invite(invite []string) EncRoomOption {
+	return func(reqBody map[string]interface{}) {
+		reqBody["invite"] = invite
+	}
+}
+
+// An option for CreateNewEncryptedRoom that adds a `rotation_period_msgs` field
+// to the `m.room.encryption` event supplied when the room is created.
+func (encRoomOptions) RotationPeriodMsgs(numMsgs int) EncRoomOption {
+	return func(reqBody map[string]interface{}) {
+		var initial_state = reqBody["initial_state"].([]map[string]interface{})
+		var event = initial_state[0]
+		var content = event["content"].(map[string]interface{})
+		content["rotation_period_msgs"] = numMsgs
+	}
 }
 
 // OptsFromClient converts a Complement client into a set of options which can be used to create an api.Client.

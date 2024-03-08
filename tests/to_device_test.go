@@ -19,7 +19,7 @@ import (
 func TestClientRetriesSendToDevice(t *testing.T) {
 	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
 		tc := CreateTestContext(t, clientTypeA, clientTypeB)
-		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "public_chat", nil)
+		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, EncRoomOptions.PresetPublicChat())
 		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
 			// lets device keys be exchanged
@@ -73,7 +73,7 @@ func TestUnprocessedToDeviceMessagesArentLostOnRestart(t *testing.T) {
 	ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
 		// prepare for the test: register all 3 clients and create the room
 		tc := CreateTestContext(t, clientType, clientType)
-		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "private_chat", []string{tc.Bob.UserID})
+		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, EncRoomOptions.Invite([]string{tc.Bob.UserID}))
 		tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
 		alice2 := tc.Deployment.Login(t, clientType.HS, tc.Alice, helpers.LoginOpts{
 			DeviceID: "ALICE_TWO",

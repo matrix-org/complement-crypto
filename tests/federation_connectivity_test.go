@@ -28,7 +28,7 @@ func TestNewUserCannotGetKeysForOfflineServer(t *testing.T) {
 		Lang: api.ClientTypeRust,
 		HS:   "hs1",
 	})
-	roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "private_chat", []string{tc.Bob.UserID})
+	roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, EncRoomOptions.Invite([]string{tc.Bob.UserID}))
 	t.Logf("%s joining room %s", tc.Bob.UserID, roomID)
 	tc.Bob.MustJoinRoom(t, roomID, []string{"hs1"})
 
@@ -108,8 +108,8 @@ func TestExistingSessionCannotGetKeysForOfflineServer(t *testing.T) {
 		Lang: api.ClientTypeRust,
 		HS:   "hs1",
 	})
-	roomIDbc := tc.CreateNewEncryptedRoom(t, tc.Charlie, "private_chat", []string{tc.Bob.UserID})
-	roomIDab := tc.CreateNewEncryptedRoom(t, tc.Alice, "private_chat", []string{tc.Bob.UserID})
+	roomIDbc := tc.CreateNewEncryptedRoom(t, tc.Charlie, EncRoomOptions.Invite([]string{tc.Bob.UserID}))
+	roomIDab := tc.CreateNewEncryptedRoom(t, tc.Alice, EncRoomOptions.Invite([]string{tc.Bob.UserID}))
 	t.Logf("%s joining rooms %s and %s", tc.Bob.UserID, roomIDab, roomIDbc)
 	tc.Bob.MustJoinRoom(t, roomIDab, []string{"hs1"})
 	tc.Bob.MustJoinRoom(t, roomIDbc, []string{"hs1"})
