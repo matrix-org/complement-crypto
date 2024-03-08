@@ -97,6 +97,78 @@ func TestRoomKeyIsCycledOnDeviceLogout(t *testing.T) {
 	})
 }
 
+// The room key is cycled when `rotation_period_msgs` is met (default: 100).
+//
+// This test ensures we change the m.room_key when we have sent enough messages,
+// where "enough" means the value set in the `m.room.encryption` event under the
+// `rotation_period_msgs` property.
+//
+// If the key were not changed, someone who stole the key would have access to
+// future messages.
+//
+// See https://gitlab.matrix.org/matrix-org/olm/blob/master/docs/megolm.md#lack-of-backward-secrecy
+func TestRoomKeyIsCycledAfterEnoughMessages(t *testing.T) {
+	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
+		// Given a room containing Alice and Bob
+		tc := CreateTestContext(t, clientTypeA, clientTypeB)
+		roomID := tc.CreateNewEncryptedRoom(
+			t,
+			tc.Alice,
+			EncRoomOptions.PresetTrustedPrivateChat(),
+			EncRoomOptions.Invite([]string{tc.Bob.UserID}),
+			EncRoomOptions.RotationPeriodMsgs(5),
+		)
+		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+
+		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+			// And some messages were sent, but not enough to trigger resending
+			for i := 0; i < 4; i++ {
+				wantMsgBody := "Before we hit the threshold"
+				waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+				alice.SendMessage(t, roomID, wantMsgBody)
+				waiter.Wait(t, 5*time.Second)
+			}
+
+			// Sniff calls to /sendToDevice to ensure we see the new room key being sent.
+			ch := make(chan deploy.CallbackData, 10)
+			callbackURL, close := sniffToDeviceEvent(t, tc.Deployment, ch)
+			defer close()
+			tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+				"callback": map[string]interface{}{
+					"callback_url": callbackURL,
+					"filter":       "~u .*\\/sendToDevice.*",
+				},
+			}, func() {
+				wantMsgBody := "This one hits the threshold"
+				// When we send two messages (one to hit the threshold and one to pass it)
+				//
+				// Note that we deliberately cover two possible valid behaviours
+				// of the client here. It's valid for the client to cycle the key:
+				// - eagerly as soon as the threshold is reached, or
+				// - lazily on the next message that would take the count above the threshold
+				// By sending two messages, we ensure that clients using either
+				// of these approaches will pass the test.
+				waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+				alice.SendMessage(t, roomID, wantMsgBody)
+				waiter.Wait(t, 5*time.Second)
+
+				wantMsgBody = "After the threshold"
+				waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+				alice.SendMessage(t, roomID, wantMsgBody)
+				waiter.Wait(t, 5*time.Second)
+			})
+
+			// Then we did send out new keys
+			select {
+			case <-ch:
+				// Success - keys were sent
+			default:
+				ct.Fatalf(t, "did not see /sendToDevice after sending rotation_period_msgs messages")
+			}
+		})
+	})
+}
+
 func TestRoomKeyIsCycledOnMemberLeaving(t *testing.T) {
 	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
 		tc := CreateTestContext(t, clientTypeA, clientTypeB, clientTypeB)
