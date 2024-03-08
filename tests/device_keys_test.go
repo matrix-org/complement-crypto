@@ -42,7 +42,7 @@ func TestFailedDeviceKeyDownloadRetries(t *testing.T) {
 			},
 		}, func() {
 			// And Alice and Bob are in an encrypted room together
-			roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "private_chat", []string{tc.Bob.UserID})
+			roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, EncRoomOptions.Invite([]string{tc.Bob.UserID}))
 			tc.Bob.MustJoinRoom(t, roomID, []string{"hs1"})
 
 			tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {

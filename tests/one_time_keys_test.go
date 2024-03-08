@@ -126,7 +126,12 @@ func TestFallbackKeyIsUsedIfOneTimeKeysRunOut(t *testing.T) {
 				fallbackKeyID, fallbackKey = mustClaimFallbackKey(t, otkGobbler, tc.Alice)
 
 				// now bob & charlie try to talk to alice, the fallback key should be used
-				roomID = tc.CreateNewEncryptedRoom(t, tc.Bob, "public_chat", []string{tc.Alice.UserID, tc.Charlie.UserID})
+				roomID = tc.CreateNewEncryptedRoom(
+					t,
+					tc.Bob,
+					EncRoomOptions.PresetPublicChat(),
+					EncRoomOptions.Invite([]string{tc.Alice.UserID, tc.Charlie.UserID}),
+				)
 				tc.Charlie.MustJoinRoom(t, roomID, []string{keyConsumerClientType.HS})
 				tc.Alice.MustJoinRoom(t, roomID, []string{keyConsumerClientType.HS})
 				charlie.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(alice.UserID(), "join")).Wait(t, 5*time.Second)
@@ -246,7 +251,7 @@ func TestFailedKeysClaimRetries(t *testing.T) {
 			defer close()
 
 			// make a room which will link the 2 users together when
-			roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "public_chat", nil)
+			roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, EncRoomOptions.PresetPublicChat())
 			// block /keys/claim and join the room, causing the Olm session to be created
 			tc.Deployment.WithMITMOptions(t, map[string]interface{}{
 				"statuscode": map[string]interface{}{

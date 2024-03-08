@@ -23,7 +23,12 @@ func TestAliceBobEncryptionWorks(t *testing.T) {
 	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
 		tc := CreateTestContext(t, clientTypeA, clientTypeB)
 		// Alice invites Bob to the encrypted room
-		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "trusted_private_chat", []string{tc.Bob.UserID})
+		roomID := tc.CreateNewEncryptedRoom(
+			t,
+			tc.Alice,
+			EncRoomOptions.PresetTrustedPrivateChat(),
+			EncRoomOptions.Invite([]string{tc.Bob.UserID}),
+		)
 		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 
 		// SDK testing below
@@ -60,7 +65,12 @@ func TestCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T) {
 	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
 		tc := CreateTestContext(t, clientTypeA, clientTypeB)
 		// Alice invites Bob to the encrypted room
-		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "trusted_private_chat", []string{tc.Bob.UserID})
+		roomID := tc.CreateNewEncryptedRoom(
+			t,
+			tc.Alice,
+			EncRoomOptions.PresetTrustedPrivateChat(),
+			EncRoomOptions.Invite([]string{tc.Bob.UserID}),
+		)
 
 		// SDK testing below
 		// -----------------
@@ -123,7 +133,7 @@ func TestBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
 		tc := CreateTestContext(t, clientTypeA, clientTypeB)
 		// shared history visibility
-		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "public_chat", nil)
+		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, EncRoomOptions.PresetPublicChat())
 
 		// SDK testing below
 		// -----------------
@@ -163,7 +173,7 @@ func TestOnRejoinBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 		}
 		tc := CreateTestContext(t, clientTypeA, clientTypeB)
 		// shared history visibility
-		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "public_chat", nil)
+		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, EncRoomOptions.PresetPublicChat())
 		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 
 		// SDK testing below
@@ -234,7 +244,7 @@ func TestOnNewDeviceBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
 		tc := CreateTestContext(t, clientTypeA, clientTypeB)
 		// shared history visibility
-		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "public_chat", nil)
+		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, EncRoomOptions.PresetPublicChat())
 		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 
 		// SDK testing below
@@ -320,7 +330,7 @@ func TestChangingDeviceAfterInviteReEncrypts(t *testing.T) {
 	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
 		tc := CreateTestContext(t, clientTypeA, clientTypeB)
 		// shared history visibility
-		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, "public_chat", nil)
+		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, EncRoomOptions.PresetPublicChat())
 
 		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
 			// Alice invites Bob and then she sends an event
