@@ -343,6 +343,7 @@ func init() {
 	(&FfiConverterCallbackInterfaceClientDelegate{}).register()
 	(&FfiConverterCallbackInterfaceClientSessionDelegate{}).register()
 	(&FfiConverterCallbackInterfaceEnableRecoveryProgressListener{}).register()
+	(&FfiConverterCallbackInterfaceIgnoredUsersListener{}).register()
 	(&FfiConverterCallbackInterfaceNotificationSettingsDelegate{}).register()
 	(&FfiConverterCallbackInterfaceProgressWatcher{}).register()
 	(&FfiConverterCallbackInterfaceRecoveryStateListener{}).register()
@@ -355,6 +356,7 @@ func init() {
 	(&FfiConverterCallbackInterfaceSyncServiceStateObserver{}).register()
 	(&FfiConverterCallbackInterfaceTimelineListener{}).register()
 	(&FfiConverterCallbackInterfaceTypingNotificationsListener{}).register()
+	(&FfiConverterCallbackInterfaceVerificationStateListener{}).register()
 	(&FfiConverterCallbackInterfaceWidgetCapabilitiesProvider{}).register()
 	uniffiInitContinuationCallback()
 	uniffiCheckChecksums()
@@ -504,6 +506,24 @@ func uniffiCheckChecksums() {
 		if checksum != 48899 {
 			// If this happens try cleaning and rebuilding your project
 			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_func_setup_tracing: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_func_suggested_power_level_for_role(uniffiStatus)
+		})
+		if checksum != 19924 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_func_suggested_power_level_for_role: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_func_suggested_role_for_power_level(uniffiStatus)
+		})
+		if checksum != 54793 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_func_suggested_role_for_power_level: UniFFI API checksum mismatch")
 		}
 	}
 	{
@@ -726,9 +746,18 @@ func uniffiCheckChecksums() {
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_matrix_sdk_ffi_checksum_method_client_ignore_user(uniffiStatus)
 		})
-		if checksum != 53606 {
+		if checksum != 34126 {
 			// If this happens try cleaning and rebuilding your project
 			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_client_ignore_user: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_client_ignored_users(uniffiStatus)
+		})
+		if checksum != 23697 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_client_ignored_users: UniFFI API checksum mismatch")
 		}
 	}
 	{
@@ -841,6 +870,15 @@ func uniffiCheckChecksums() {
 	}
 	{
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_client_subscribe_to_ignored_users(uniffiStatus)
+		})
+		if checksum != 11499 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_client_subscribe_to_ignored_users: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_matrix_sdk_ffi_checksum_method_client_sync_service(uniffiStatus)
 		})
 		if checksum != 55738 {
@@ -852,7 +890,7 @@ func uniffiCheckChecksums() {
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_matrix_sdk_ffi_checksum_method_client_unignore_user(uniffiStatus)
 		})
-		if checksum != 6043 {
+		if checksum != 26626 {
 			// If this happens try cleaning and rebuilding your project
 			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_client_unignore_user: UniFFI API checksum mismatch")
 		}
@@ -886,6 +924,15 @@ func uniffiCheckChecksums() {
 	}
 	{
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_clientbuilder_add_root_certificates(uniffiStatus)
+		})
+		if checksum != 18594 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_clientbuilder_add_root_certificates: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_matrix_sdk_ffi_checksum_method_clientbuilder_base_path(uniffiStatus)
 		})
 		if checksum != 13781 {
@@ -897,7 +944,7 @@ func uniffiCheckChecksums() {
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_matrix_sdk_ffi_checksum_method_clientbuilder_build(uniffiStatus)
 		})
-		if checksum != 56797 {
+		if checksum != 18041 {
 			// If this happens try cleaning and rebuilding your project
 			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_clientbuilder_build: UniFFI API checksum mismatch")
 		}
@@ -963,6 +1010,15 @@ func uniffiCheckChecksums() {
 		if checksum != 46252 {
 			// If this happens try cleaning and rebuilding your project
 			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_clientbuilder_server_name: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_clientbuilder_server_name_or_homeserver_url(uniffiStatus)
+		})
+		if checksum != 49458 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_clientbuilder_server_name_or_homeserver_url: UniFFI API checksum mismatch")
 		}
 	}
 	{
@@ -1116,6 +1172,24 @@ func uniffiCheckChecksums() {
 		if checksum != 40510 {
 			// If this happens try cleaning and rebuilding your project
 			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_encryption_reset_recovery_key: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_encryption_verification_state(uniffiStatus)
+		})
+		if checksum != 60310 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_encryption_verification_state: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_encryption_verification_state_listener(uniffiStatus)
+		})
+		if checksum != 27586 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_encryption_verification_state_listener: UniFFI API checksum mismatch")
 		}
 	}
 	{
@@ -1390,6 +1464,15 @@ func uniffiCheckChecksums() {
 	}
 	{
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_notificationsettings_can_homeserver_push_encrypted_event_to_device(uniffiStatus)
+		})
+		if checksum != 22382 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_notificationsettings_can_homeserver_push_encrypted_event_to_device: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_matrix_sdk_ffi_checksum_method_notificationsettings_can_push_encrypted_event_to_device(uniffiStatus)
 		})
 		if checksum != 5028 {
@@ -1624,15 +1707,6 @@ func uniffiCheckChecksums() {
 	}
 	{
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
-			return C.uniffi_matrix_sdk_ffi_checksum_method_room_build_power_level_changes_from_current(uniffiStatus)
-		})
-		if checksum != 43034 {
-			// If this happens try cleaning and rebuilding your project
-			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_room_build_power_level_changes_from_current: UniFFI API checksum mismatch")
-		}
-	}
-	{
-		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_matrix_sdk_ffi_checksum_method_room_can_user_ban(uniffiStatus)
 		})
 		if checksum != 47371 {
@@ -1714,11 +1788,29 @@ func uniffiCheckChecksums() {
 	}
 	{
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_room_discard_room_key(uniffiStatus)
+		})
+		if checksum != 32259 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_room_discard_room_key: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_matrix_sdk_ffi_checksum_method_room_display_name(uniffiStatus)
 		})
 		if checksum != 38216 {
 			// If this happens try cleaning and rebuilding your project
 			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_room_display_name: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_room_get_power_levels(uniffiStatus)
+		})
+		if checksum != 30102 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_room_get_power_levels: UniFFI API checksum mismatch")
 		}
 	}
 	{
@@ -1743,7 +1835,7 @@ func uniffiCheckChecksums() {
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_matrix_sdk_ffi_checksum_method_room_ignore_user(uniffiStatus)
 		})
-		if checksum != 9941 {
+		if checksum != 2323 {
 			// If this happens try cleaning and rebuilding your project
 			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_room_ignore_user: UniFFI API checksum mismatch")
 		}
@@ -1770,7 +1862,7 @@ func uniffiCheckChecksums() {
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_matrix_sdk_ffi_checksum_method_room_inviter(uniffiStatus)
 		})
-		if checksum != 8327 {
+		if checksum != 39443 {
 			// If this happens try cleaning and rebuilding your project
 			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_room_inviter: UniFFI API checksum mismatch")
 		}
@@ -1869,7 +1961,7 @@ func uniffiCheckChecksums() {
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_matrix_sdk_ffi_checksum_method_room_member(uniffiStatus)
 		})
-		if checksum != 4975 {
+		if checksum != 63994 {
 			// If this happens try cleaning and rebuilding your project
 			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_room_member: UniFFI API checksum mismatch")
 		}
@@ -1966,6 +2058,15 @@ func uniffiCheckChecksums() {
 	}
 	{
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_room_reset_power_levels(uniffiStatus)
+		})
+		if checksum != 43063 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_room_reset_power_levels: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_matrix_sdk_ffi_checksum_method_room_room_info(uniffiStatus)
 		})
 		if checksum != 45186 {
@@ -2031,9 +2132,18 @@ func uniffiCheckChecksums() {
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_matrix_sdk_ffi_checksum_method_room_subscribe_to_typing_notifications(uniffiStatus)
 		})
-		if checksum != 63693 {
+		if checksum != 18048 {
 			// If this happens try cleaning and rebuilding your project
 			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_room_subscribe_to_typing_notifications: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_room_suggested_role_for_user(uniffiStatus)
+		})
+		if checksum != 26294 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_room_suggested_role_for_user: UniFFI API checksum mismatch")
 		}
 	}
 	{
@@ -2074,11 +2184,11 @@ func uniffiCheckChecksums() {
 	}
 	{
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
-			return C.uniffi_matrix_sdk_ffi_checksum_method_room_update_power_level_for_user(uniffiStatus)
+			return C.uniffi_matrix_sdk_ffi_checksum_method_room_update_power_levels_for_users(uniffiStatus)
 		})
-		if checksum != 15011 {
+		if checksum != 48283 {
 			// If this happens try cleaning and rebuilding your project
-			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_room_update_power_level_for_user: UniFFI API checksum mismatch")
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_room_update_power_levels_for_users: UniFFI API checksum mismatch")
 		}
 	}
 	{
@@ -2317,186 +2427,6 @@ func uniffiCheckChecksums() {
 	}
 	{
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
-			return C.uniffi_matrix_sdk_ffi_checksum_method_roommember_avatar_url(uniffiStatus)
-		})
-		if checksum != 9148 {
-			// If this happens try cleaning and rebuilding your project
-			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_roommember_avatar_url: UniFFI API checksum mismatch")
-		}
-	}
-	{
-		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
-			return C.uniffi_matrix_sdk_ffi_checksum_method_roommember_can_ban(uniffiStatus)
-		})
-		if checksum != 19267 {
-			// If this happens try cleaning and rebuilding your project
-			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_roommember_can_ban: UniFFI API checksum mismatch")
-		}
-	}
-	{
-		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
-			return C.uniffi_matrix_sdk_ffi_checksum_method_roommember_can_invite(uniffiStatus)
-		})
-		if checksum != 36172 {
-			// If this happens try cleaning and rebuilding your project
-			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_roommember_can_invite: UniFFI API checksum mismatch")
-		}
-	}
-	{
-		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
-			return C.uniffi_matrix_sdk_ffi_checksum_method_roommember_can_kick(uniffiStatus)
-		})
-		if checksum != 31109 {
-			// If this happens try cleaning and rebuilding your project
-			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_roommember_can_kick: UniFFI API checksum mismatch")
-		}
-	}
-	{
-		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
-			return C.uniffi_matrix_sdk_ffi_checksum_method_roommember_can_redact_other(uniffiStatus)
-		})
-		if checksum != 6135 {
-			// If this happens try cleaning and rebuilding your project
-			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_roommember_can_redact_other: UniFFI API checksum mismatch")
-		}
-	}
-	{
-		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
-			return C.uniffi_matrix_sdk_ffi_checksum_method_roommember_can_redact_own(uniffiStatus)
-		})
-		if checksum != 7910 {
-			// If this happens try cleaning and rebuilding your project
-			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_roommember_can_redact_own: UniFFI API checksum mismatch")
-		}
-	}
-	{
-		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
-			return C.uniffi_matrix_sdk_ffi_checksum_method_roommember_can_send_message(uniffiStatus)
-		})
-		if checksum != 14989 {
-			// If this happens try cleaning and rebuilding your project
-			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_roommember_can_send_message: UniFFI API checksum mismatch")
-		}
-	}
-	{
-		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
-			return C.uniffi_matrix_sdk_ffi_checksum_method_roommember_can_send_state(uniffiStatus)
-		})
-		if checksum != 43889 {
-			// If this happens try cleaning and rebuilding your project
-			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_roommember_can_send_state: UniFFI API checksum mismatch")
-		}
-	}
-	{
-		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
-			return C.uniffi_matrix_sdk_ffi_checksum_method_roommember_can_trigger_room_notification(uniffiStatus)
-		})
-		if checksum != 62393 {
-			// If this happens try cleaning and rebuilding your project
-			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_roommember_can_trigger_room_notification: UniFFI API checksum mismatch")
-		}
-	}
-	{
-		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
-			return C.uniffi_matrix_sdk_ffi_checksum_method_roommember_display_name(uniffiStatus)
-		})
-		if checksum != 28367 {
-			// If this happens try cleaning and rebuilding your project
-			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_roommember_display_name: UniFFI API checksum mismatch")
-		}
-	}
-	{
-		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
-			return C.uniffi_matrix_sdk_ffi_checksum_method_roommember_ignore(uniffiStatus)
-		})
-		if checksum != 32455 {
-			// If this happens try cleaning and rebuilding your project
-			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_roommember_ignore: UniFFI API checksum mismatch")
-		}
-	}
-	{
-		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
-			return C.uniffi_matrix_sdk_ffi_checksum_method_roommember_is_account_user(uniffiStatus)
-		})
-		if checksum != 37767 {
-			// If this happens try cleaning and rebuilding your project
-			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_roommember_is_account_user: UniFFI API checksum mismatch")
-		}
-	}
-	{
-		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
-			return C.uniffi_matrix_sdk_ffi_checksum_method_roommember_is_ignored(uniffiStatus)
-		})
-		if checksum != 46154 {
-			// If this happens try cleaning and rebuilding your project
-			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_roommember_is_ignored: UniFFI API checksum mismatch")
-		}
-	}
-	{
-		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
-			return C.uniffi_matrix_sdk_ffi_checksum_method_roommember_is_name_ambiguous(uniffiStatus)
-		})
-		if checksum != 65246 {
-			// If this happens try cleaning and rebuilding your project
-			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_roommember_is_name_ambiguous: UniFFI API checksum mismatch")
-		}
-	}
-	{
-		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
-			return C.uniffi_matrix_sdk_ffi_checksum_method_roommember_membership(uniffiStatus)
-		})
-		if checksum != 34335 {
-			// If this happens try cleaning and rebuilding your project
-			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_roommember_membership: UniFFI API checksum mismatch")
-		}
-	}
-	{
-		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
-			return C.uniffi_matrix_sdk_ffi_checksum_method_roommember_normalized_power_level(uniffiStatus)
-		})
-		if checksum != 49076 {
-			// If this happens try cleaning and rebuilding your project
-			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_roommember_normalized_power_level: UniFFI API checksum mismatch")
-		}
-	}
-	{
-		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
-			return C.uniffi_matrix_sdk_ffi_checksum_method_roommember_power_level(uniffiStatus)
-		})
-		if checksum != 17042 {
-			// If this happens try cleaning and rebuilding your project
-			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_roommember_power_level: UniFFI API checksum mismatch")
-		}
-	}
-	{
-		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
-			return C.uniffi_matrix_sdk_ffi_checksum_method_roommember_suggested_role_for_power_level(uniffiStatus)
-		})
-		if checksum != 53355 {
-			// If this happens try cleaning and rebuilding your project
-			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_roommember_suggested_role_for_power_level: UniFFI API checksum mismatch")
-		}
-	}
-	{
-		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
-			return C.uniffi_matrix_sdk_ffi_checksum_method_roommember_unignore(uniffiStatus)
-		})
-		if checksum != 56817 {
-			// If this happens try cleaning and rebuilding your project
-			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_roommember_unignore: UniFFI API checksum mismatch")
-		}
-	}
-	{
-		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
-			return C.uniffi_matrix_sdk_ffi_checksum_method_roommember_user_id(uniffiStatus)
-		})
-		if checksum != 19498 {
-			// If this happens try cleaning and rebuilding your project
-			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_roommember_user_id: UniFFI API checksum mismatch")
-		}
-	}
-	{
-		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_matrix_sdk_ffi_checksum_method_roommembersiterator_len(uniffiStatus)
 		})
 		if checksum != 32977 {
@@ -2508,7 +2438,7 @@ func uniffiCheckChecksums() {
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_matrix_sdk_ffi_checksum_method_roommembersiterator_next_chunk(uniffiStatus)
 		})
-		if checksum != 35645 {
+		if checksum != 64838 {
 			// If this happens try cleaning and rebuilding your project
 			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_roommembersiterator_next_chunk: UniFFI API checksum mismatch")
 		}
@@ -2691,6 +2621,15 @@ func uniffiCheckChecksums() {
 		if checksum != 29139 {
 			// If this happens try cleaning and rebuilding your project
 			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_syncservicebuilder_with_cross_process_lock: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_syncservicebuilder_with_unified_invites_in_room_list(uniffiStatus)
+		})
+		if checksum != 63488 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_syncservicebuilder_with_unified_invites_in_room_list: UniFFI API checksum mismatch")
 		}
 	}
 	{
@@ -3183,7 +3122,7 @@ func uniffiCheckChecksums() {
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_matrix_sdk_ffi_checksum_constructor_authenticationservice_new(uniffiStatus)
 		})
-		if checksum != 41347 {
+		if checksum != 24676 {
 			// If this happens try cleaning and rebuilding your project
 			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_constructor_authenticationservice_new: UniFFI API checksum mismatch")
 		}
@@ -3303,6 +3242,15 @@ func uniffiCheckChecksums() {
 		if checksum != 5434 {
 			// If this happens try cleaning and rebuilding your project
 			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_enablerecoveryprogresslistener_on_update: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_ignoreduserslistener_call(uniffiStatus)
+		})
+		if checksum != 7628 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_ignoreduserslistener_call: UniFFI API checksum mismatch")
 		}
 	}
 	{
@@ -3456,6 +3404,15 @@ func uniffiCheckChecksums() {
 		if checksum != 12563 {
 			// If this happens try cleaning and rebuilding your project
 			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_typingnotificationslistener_call: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_verificationstatelistener_on_update(uniffiStatus)
+		})
+		if checksum != 25797 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_verificationstatelistener_on_update: UniFFI API checksum mismatch")
 		}
 	}
 	{
@@ -3859,9 +3816,9 @@ type AuthenticationService struct {
 	ffiObject FfiObject
 }
 
-func NewAuthenticationService(basePath string, passphrase *string, userAgent *string, oidcConfiguration *OidcConfiguration, customSlidingSyncProxy *string, sessionDelegate *ClientSessionDelegate, crossProcessRefreshLockId *string) *AuthenticationService {
+func NewAuthenticationService(basePath string, passphrase *string, userAgent *string, additionalRootCertificates [][]byte, proxy *string, oidcConfiguration *OidcConfiguration, customSlidingSyncProxy *string, sessionDelegate *ClientSessionDelegate, crossProcessRefreshLockId *string) *AuthenticationService {
 	return FfiConverterAuthenticationServiceINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) unsafe.Pointer {
-		return C.uniffi_matrix_sdk_ffi_fn_constructor_authenticationservice_new(FfiConverterStringINSTANCE.Lower(basePath), FfiConverterOptionalStringINSTANCE.Lower(passphrase), FfiConverterOptionalStringINSTANCE.Lower(userAgent), FfiConverterOptionalTypeOidcConfigurationINSTANCE.Lower(oidcConfiguration), FfiConverterOptionalStringINSTANCE.Lower(customSlidingSyncProxy), FfiConverterOptionalCallbackInterfaceClientSessionDelegateINSTANCE.Lower(sessionDelegate), FfiConverterOptionalStringINSTANCE.Lower(crossProcessRefreshLockId), _uniffiStatus)
+		return C.uniffi_matrix_sdk_ffi_fn_constructor_authenticationservice_new(FfiConverterStringINSTANCE.Lower(basePath), FfiConverterOptionalStringINSTANCE.Lower(passphrase), FfiConverterOptionalStringINSTANCE.Lower(userAgent), FfiConverterSequenceBytesINSTANCE.Lower(additionalRootCertificates), FfiConverterOptionalStringINSTANCE.Lower(proxy), FfiConverterOptionalTypeOidcConfigurationINSTANCE.Lower(oidcConfiguration), FfiConverterOptionalStringINSTANCE.Lower(customSlidingSyncProxy), FfiConverterOptionalCallbackInterfaceClientSessionDelegateINSTANCE.Lower(sessionDelegate), FfiConverterOptionalStringINSTANCE.Lower(crossProcessRefreshLockId), _uniffiStatus)
 	}))
 }
 
@@ -4233,12 +4190,51 @@ func (_self *Client) Homeserver() string {
 func (_self *Client) IgnoreUser(userId string) error {
 	_pointer := _self.ffiObject.incrementPointer("*Client")
 	defer _self.ffiObject.decrementPointer()
-	_, _uniffiErr := rustCallWithError(FfiConverterTypeClientError{}, func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_client_ignore_user(
-			_pointer, FfiConverterStringINSTANCE.Lower(userId), _uniffiStatus)
-		return false
-	})
-	return _uniffiErr
+	return uniffiRustCallAsyncWithError(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_client_ignore_user(
+				_pointer, FfiConverterStringINSTANCE.Lower(userId),
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_void(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) {
+			// completeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_complete_void(unsafe.Pointer(handle), status)
+		},
+		func(bool) {}, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
+		})
+}
+
+func (_self *Client) IgnoredUsers() ([]string, error) {
+	_pointer := _self.ffiObject.incrementPointer("*Client")
+	defer _self.ffiObject.decrementPointer()
+	return uniffiRustCallAsyncWithErrorAndResult(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_client_ignored_users(
+				_pointer,
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_rust_buffer(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) RustBufferI {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_rust_buffer(unsafe.Pointer(handle), status)
+		},
+		FfiConverterSequenceStringINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
+		})
 }
 
 func (_self *Client) Login(username string, password string, initialDeviceName *string, deviceId *string) error {
@@ -4385,6 +4381,15 @@ func (_self *Client) SetPusher(identifiers PusherIdentifiers, kind PusherKind, a
 	return _uniffiErr
 }
 
+func (_self *Client) SubscribeToIgnoredUsers(listener IgnoredUsersListener) *TaskHandle {
+	_pointer := _self.ffiObject.incrementPointer("*Client")
+	defer _self.ffiObject.decrementPointer()
+	return FfiConverterTaskHandleINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) unsafe.Pointer {
+		return C.uniffi_matrix_sdk_ffi_fn_method_client_subscribe_to_ignored_users(
+			_pointer, FfiConverterCallbackInterfaceIgnoredUsersListenerINSTANCE.Lower(listener), _uniffiStatus)
+	}))
+}
+
 func (_self *Client) SyncService() *SyncServiceBuilder {
 	_pointer := _self.ffiObject.incrementPointer("*Client")
 	defer _self.ffiObject.decrementPointer()
@@ -4397,12 +4402,26 @@ func (_self *Client) SyncService() *SyncServiceBuilder {
 func (_self *Client) UnignoreUser(userId string) error {
 	_pointer := _self.ffiObject.incrementPointer("*Client")
 	defer _self.ffiObject.decrementPointer()
-	_, _uniffiErr := rustCallWithError(FfiConverterTypeClientError{}, func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_client_unignore_user(
-			_pointer, FfiConverterStringINSTANCE.Lower(userId), _uniffiStatus)
-		return false
-	})
-	return _uniffiErr
+	return uniffiRustCallAsyncWithError(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_client_unignore_user(
+				_pointer, FfiConverterStringINSTANCE.Lower(userId),
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_void(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) {
+			// completeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_complete_void(unsafe.Pointer(handle), status)
+		},
+		func(bool) {}, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
+		})
 }
 
 func (_self *Client) UploadAvatar(mimeType string, data []byte) error {
@@ -4510,6 +4529,15 @@ func NewClientBuilder() *ClientBuilder {
 	}))
 }
 
+func (_self *ClientBuilder) AddRootCertificates(certificates [][]byte) *ClientBuilder {
+	_pointer := _self.ffiObject.incrementPointer("*ClientBuilder")
+	defer _self.ffiObject.decrementPointer()
+	return FfiConverterClientBuilderINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) unsafe.Pointer {
+		return C.uniffi_matrix_sdk_ffi_fn_method_clientbuilder_add_root_certificates(
+			_pointer, FfiConverterSequenceBytesINSTANCE.Lower(certificates), _uniffiStatus)
+	}))
+}
+
 func (_self *ClientBuilder) BasePath(path string) *ClientBuilder {
 	_pointer := _self.ffiObject.incrementPointer("*ClientBuilder")
 	defer _self.ffiObject.decrementPointer()
@@ -4522,7 +4550,7 @@ func (_self *ClientBuilder) BasePath(path string) *ClientBuilder {
 func (_self *ClientBuilder) Build() (*Client, error) {
 	_pointer := _self.ffiObject.incrementPointer("*ClientBuilder")
 	defer _self.ffiObject.decrementPointer()
-	_uniffiRV, _uniffiErr := rustCallWithError(FfiConverterTypeClientError{}, func(_uniffiStatus *C.RustCallStatus) unsafe.Pointer {
+	_uniffiRV, _uniffiErr := rustCallWithError(FfiConverterTypeClientBuildError{}, func(_uniffiStatus *C.RustCallStatus) unsafe.Pointer {
 		return C.uniffi_matrix_sdk_ffi_fn_method_clientbuilder_build(
 			_pointer, _uniffiStatus)
 	})
@@ -4594,6 +4622,15 @@ func (_self *ClientBuilder) ServerName(serverName string) *ClientBuilder {
 	return FfiConverterClientBuilderINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) unsafe.Pointer {
 		return C.uniffi_matrix_sdk_ffi_fn_method_clientbuilder_server_name(
 			_pointer, FfiConverterStringINSTANCE.Lower(serverName), _uniffiStatus)
+	}))
+}
+
+func (_self *ClientBuilder) ServerNameOrHomeserverUrl(serverNameOrUrl string) *ClientBuilder {
+	_pointer := _self.ffiObject.incrementPointer("*ClientBuilder")
+	defer _self.ffiObject.decrementPointer()
+	return FfiConverterClientBuilderINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) unsafe.Pointer {
+		return C.uniffi_matrix_sdk_ffi_fn_method_clientbuilder_server_name_or_homeserver_url(
+			_pointer, FfiConverterStringINSTANCE.Lower(serverNameOrUrl), _uniffiStatus)
 	}))
 }
 
@@ -4924,6 +4961,24 @@ func (_self *Encryption) ResetRecoveryKey() (string, error) {
 			// freeFunc
 			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
 		})
+}
+
+func (_self *Encryption) VerificationState() VerificationState {
+	_pointer := _self.ffiObject.incrementPointer("*Encryption")
+	defer _self.ffiObject.decrementPointer()
+	return FfiConverterTypeVerificationStateINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) RustBufferI {
+		return C.uniffi_matrix_sdk_ffi_fn_method_encryption_verification_state(
+			_pointer, _uniffiStatus)
+	}))
+}
+
+func (_self *Encryption) VerificationStateListener(listener VerificationStateListener) *TaskHandle {
+	_pointer := _self.ffiObject.incrementPointer("*Encryption")
+	defer _self.ffiObject.decrementPointer()
+	return FfiConverterTaskHandleINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) unsafe.Pointer {
+		return C.uniffi_matrix_sdk_ffi_fn_method_encryption_verification_state_listener(
+			_pointer, FfiConverterCallbackInterfaceVerificationStateListenerINSTANCE.Lower(listener), _uniffiStatus)
+	}))
 }
 
 func (_self *Encryption) WaitForBackupUploadSteadyState(progressListener *BackupSteadyStateListener) error {
@@ -5644,6 +5699,30 @@ type NotificationSettings struct {
 	ffiObject FfiObject
 }
 
+func (_self *NotificationSettings) CanHomeserverPushEncryptedEventToDevice() bool {
+	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
+	defer _self.ffiObject.decrementPointer()
+	return uniffiRustCallAsyncWithResult(func(status *C.RustCallStatus) *C.void {
+		// rustFutureFunc
+		return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_notificationsettings_can_homeserver_push_encrypted_event_to_device(
+			_pointer,
+			status,
+		))
+	},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_i8(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) C.int8_t {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_i8(unsafe.Pointer(handle), status)
+		},
+		FfiConverterBoolINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
+		})
+}
+
 func (_self *NotificationSettings) CanPushEncryptedEventToDevice() bool {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
@@ -6291,31 +6370,6 @@ func (_self *Room) BanUser(userId string, reason *string) error {
 		})
 }
 
-func (_self *Room) BuildPowerLevelChangesFromCurrent() (matrix_sdk.RoomPowerLevelChanges, error) {
-	_pointer := _self.ffiObject.incrementPointer("*Room")
-	defer _self.ffiObject.decrementPointer()
-	return uniffiRustCallAsyncWithErrorAndResult(
-		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
-			// rustFutureFunc
-			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_room_build_power_level_changes_from_current(
-				_pointer,
-				status,
-			))
-		},
-		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
-			// pollFunc
-			C.ffi_matrix_sdk_ffi_rust_future_poll_rust_buffer(unsafe.Pointer(handle), ptr, status)
-		},
-		func(handle *C.void, status *C.RustCallStatus) matrix_sdk.RustBufferI {
-			// completeFunc
-			return C.ffi_matrix_sdk_ffi_rust_future_complete_rust_buffer(unsafe.Pointer(handle), status)
-		},
-		matrix_sdk.FfiConverterTypeRoomPowerLevelChangesINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
-			// freeFunc
-			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
-		})
-}
-
 func (_self *Room) CanUserBan(userId string) (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
@@ -6525,6 +6579,31 @@ func (_self *Room) CanonicalAlias() *string {
 	}))
 }
 
+func (_self *Room) DiscardRoomKey() error {
+	_pointer := _self.ffiObject.incrementPointer("*Room")
+	defer _self.ffiObject.decrementPointer()
+	return uniffiRustCallAsyncWithError(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_room_discard_room_key(
+				_pointer,
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_void(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) {
+			// completeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_complete_void(unsafe.Pointer(handle), status)
+		},
+		func(bool) {}, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
+		})
+}
+
 func (_self *Room) DisplayName() (string, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
@@ -6538,6 +6617,31 @@ func (_self *Room) DisplayName() (string, error) {
 	} else {
 		return FfiConverterStringINSTANCE.Lift(_uniffiRV), _uniffiErr
 	}
+}
+
+func (_self *Room) GetPowerLevels() (RoomPowerLevels, error) {
+	_pointer := _self.ffiObject.incrementPointer("*Room")
+	defer _self.ffiObject.decrementPointer()
+	return uniffiRustCallAsyncWithErrorAndResult(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_room_get_power_levels(
+				_pointer,
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_rust_buffer(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) RustBufferI {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_rust_buffer(unsafe.Pointer(handle), status)
+		},
+		FfiConverterTypeRoomPowerLevelsINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
+		})
 }
 
 func (_self *Room) HasActiveRoomCall() bool {
@@ -6561,12 +6665,26 @@ func (_self *Room) Id() string {
 func (_self *Room) IgnoreUser(userId string) error {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
-	_, _uniffiErr := rustCallWithError(FfiConverterTypeClientError{}, func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_room_ignore_user(
-			_pointer, FfiConverterStringINSTANCE.Lower(userId), _uniffiStatus)
-		return false
-	})
-	return _uniffiErr
+	return uniffiRustCallAsyncWithError(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_room_ignore_user(
+				_pointer, FfiConverterStringINSTANCE.Lower(userId),
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_void(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) {
+			// completeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_complete_void(unsafe.Pointer(handle), status)
+		},
+		func(bool) {}, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
+		})
 }
 
 func (_self *Room) InviteUserById(userId string) error {
@@ -6589,10 +6707,10 @@ func (_self *Room) InvitedMembersCount() uint64 {
 	}))
 }
 
-func (_self *Room) Inviter() **RoomMember {
+func (_self *Room) Inviter() *RoomMember {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
-	return FfiConverterOptionalRoomMemberINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) RustBufferI {
+	return FfiConverterOptionalTypeRoomMemberINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) RustBufferI {
 		return C.uniffi_matrix_sdk_ffi_fn_method_room_inviter(
 			_pointer, _uniffiStatus)
 	}))
@@ -6730,7 +6848,7 @@ func (_self *Room) MarkAsRead(receiptType ReceiptType) error {
 		})
 }
 
-func (_self *Room) Member(userId string) (*RoomMember, error) {
+func (_self *Room) Member(userId string) (RoomMember, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
 	return uniffiRustCallAsyncWithErrorAndResult(
@@ -6743,15 +6861,15 @@ func (_self *Room) Member(userId string) (*RoomMember, error) {
 		},
 		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
 			// pollFunc
-			C.ffi_matrix_sdk_ffi_rust_future_poll_pointer(unsafe.Pointer(handle), ptr, status)
+			C.ffi_matrix_sdk_ffi_rust_future_poll_rust_buffer(unsafe.Pointer(handle), ptr, status)
 		},
-		func(handle *C.void, status *C.RustCallStatus) unsafe.Pointer {
+		func(handle *C.void, status *C.RustCallStatus) RustBufferI {
 			// completeFunc
-			return C.ffi_matrix_sdk_ffi_rust_future_complete_pointer(unsafe.Pointer(handle), status)
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_rust_buffer(unsafe.Pointer(handle), status)
 		},
-		FfiConverterRoomMemberINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+		FfiConverterTypeRoomMemberINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
 			// freeFunc
-			C.ffi_matrix_sdk_ffi_rust_future_free_pointer(unsafe.Pointer(rustFuture), status)
+			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
 		})
 }
 
@@ -6895,6 +7013,31 @@ func (_self *Room) ReportContent(eventId string, score *int32, reason *string) e
 	return _uniffiErr
 }
 
+func (_self *Room) ResetPowerLevels() (RoomPowerLevels, error) {
+	_pointer := _self.ffiObject.incrementPointer("*Room")
+	defer _self.ffiObject.decrementPointer()
+	return uniffiRustCallAsyncWithErrorAndResult(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_room_reset_power_levels(
+				_pointer,
+				status,
+			))
+		},
+		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
+			// pollFunc
+			C.ffi_matrix_sdk_ffi_rust_future_poll_rust_buffer(unsafe.Pointer(handle), ptr, status)
+		},
+		func(handle *C.void, status *C.RustCallStatus) RustBufferI {
+			// completeFunc
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_rust_buffer(unsafe.Pointer(handle), status)
+		},
+		FfiConverterTypeRoomPowerLevelsINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+			// freeFunc
+			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
+		})
+}
+
 func (_self *Room) RoomInfo() (RoomInfo, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
@@ -7029,24 +7172,34 @@ func (_self *Room) SubscribeToRoomInfoUpdates(listener RoomInfoListener) *TaskHa
 func (_self *Room) SubscribeToTypingNotifications(listener TypingNotificationsListener) *TaskHandle {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
-	return uniffiRustCallAsyncWithResult(func(status *C.RustCallStatus) *C.void {
-		// rustFutureFunc
-		return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_room_subscribe_to_typing_notifications(
-			_pointer, FfiConverterCallbackInterfaceTypingNotificationsListenerINSTANCE.Lower(listener),
-			status,
-		))
-	},
+	return FfiConverterTaskHandleINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) unsafe.Pointer {
+		return C.uniffi_matrix_sdk_ffi_fn_method_room_subscribe_to_typing_notifications(
+			_pointer, FfiConverterCallbackInterfaceTypingNotificationsListenerINSTANCE.Lower(listener), _uniffiStatus)
+	}))
+}
+
+func (_self *Room) SuggestedRoleForUser(userId string) (matrix_sdk.RoomMemberRole, error) {
+	_pointer := _self.ffiObject.incrementPointer("*Room")
+	defer _self.ffiObject.decrementPointer()
+	return uniffiRustCallAsyncWithErrorAndResult(
+		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
+			// rustFutureFunc
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_room_suggested_role_for_user(
+				_pointer, FfiConverterStringINSTANCE.Lower(userId),
+				status,
+			))
+		},
 		func(handle *C.void, ptr unsafe.Pointer, status *C.RustCallStatus) {
 			// pollFunc
-			C.ffi_matrix_sdk_ffi_rust_future_poll_pointer(unsafe.Pointer(handle), ptr, status)
+			C.ffi_matrix_sdk_ffi_rust_future_poll_rust_buffer(unsafe.Pointer(handle), ptr, status)
 		},
-		func(handle *C.void, status *C.RustCallStatus) unsafe.Pointer {
+		func(handle *C.void, status *C.RustCallStatus) matrix_sdk.RustBufferI {
 			// completeFunc
-			return C.ffi_matrix_sdk_ffi_rust_future_complete_pointer(unsafe.Pointer(handle), status)
+			return C.ffi_matrix_sdk_ffi_rust_future_complete_rust_buffer(unsafe.Pointer(handle), status)
 		},
-		FfiConverterTaskHandleINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
+		matrix_sdk.FfiConverterTypeRoomMemberRoleINSTANCE.Lift, func(rustFuture *C.void, status *C.RustCallStatus) {
 			// freeFunc
-			C.ffi_matrix_sdk_ffi_rust_future_free_pointer(unsafe.Pointer(rustFuture), status)
+			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
 		})
 }
 
@@ -7134,14 +7287,14 @@ func (_self *Room) UnbanUser(userId string, reason *string) error {
 		})
 }
 
-func (_self *Room) UpdatePowerLevelForUser(userId string, powerLevel int64) error {
+func (_self *Room) UpdatePowerLevelsForUsers(updates []UserPowerLevelUpdate) error {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
 	return uniffiRustCallAsyncWithError(
 		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
 			// rustFutureFunc
-			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_room_update_power_level_for_user(
-				_pointer, FfiConverterStringINSTANCE.Lower(userId), FfiConverterInt64INSTANCE.Lower(powerLevel),
+			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_room_update_power_levels_for_users(
+				_pointer, FfiConverterSequenceTypeUserPowerLevelUpdateINSTANCE.Lower(updates),
 				status,
 			))
 		},
@@ -7764,238 +7917,6 @@ func (_ FfiDestroyerRoomListService) Destroy(value *RoomListService) {
 	value.Destroy()
 }
 
-type RoomMember struct {
-	ffiObject FfiObject
-}
-
-func (_self *RoomMember) AvatarUrl() *string {
-	_pointer := _self.ffiObject.incrementPointer("*RoomMember")
-	defer _self.ffiObject.decrementPointer()
-	return FfiConverterOptionalStringINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) RustBufferI {
-		return C.uniffi_matrix_sdk_ffi_fn_method_roommember_avatar_url(
-			_pointer, _uniffiStatus)
-	}))
-}
-
-func (_self *RoomMember) CanBan() bool {
-	_pointer := _self.ffiObject.incrementPointer("*RoomMember")
-	defer _self.ffiObject.decrementPointer()
-	return FfiConverterBoolINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) C.int8_t {
-		return C.uniffi_matrix_sdk_ffi_fn_method_roommember_can_ban(
-			_pointer, _uniffiStatus)
-	}))
-}
-
-func (_self *RoomMember) CanInvite() bool {
-	_pointer := _self.ffiObject.incrementPointer("*RoomMember")
-	defer _self.ffiObject.decrementPointer()
-	return FfiConverterBoolINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) C.int8_t {
-		return C.uniffi_matrix_sdk_ffi_fn_method_roommember_can_invite(
-			_pointer, _uniffiStatus)
-	}))
-}
-
-func (_self *RoomMember) CanKick() bool {
-	_pointer := _self.ffiObject.incrementPointer("*RoomMember")
-	defer _self.ffiObject.decrementPointer()
-	return FfiConverterBoolINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) C.int8_t {
-		return C.uniffi_matrix_sdk_ffi_fn_method_roommember_can_kick(
-			_pointer, _uniffiStatus)
-	}))
-}
-
-func (_self *RoomMember) CanRedactOther() bool {
-	_pointer := _self.ffiObject.incrementPointer("*RoomMember")
-	defer _self.ffiObject.decrementPointer()
-	return FfiConverterBoolINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) C.int8_t {
-		return C.uniffi_matrix_sdk_ffi_fn_method_roommember_can_redact_other(
-			_pointer, _uniffiStatus)
-	}))
-}
-
-func (_self *RoomMember) CanRedactOwn() bool {
-	_pointer := _self.ffiObject.incrementPointer("*RoomMember")
-	defer _self.ffiObject.decrementPointer()
-	return FfiConverterBoolINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) C.int8_t {
-		return C.uniffi_matrix_sdk_ffi_fn_method_roommember_can_redact_own(
-			_pointer, _uniffiStatus)
-	}))
-}
-
-func (_self *RoomMember) CanSendMessage(event MessageLikeEventType) bool {
-	_pointer := _self.ffiObject.incrementPointer("*RoomMember")
-	defer _self.ffiObject.decrementPointer()
-	return FfiConverterBoolINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) C.int8_t {
-		return C.uniffi_matrix_sdk_ffi_fn_method_roommember_can_send_message(
-			_pointer, FfiConverterTypeMessageLikeEventTypeINSTANCE.Lower(event), _uniffiStatus)
-	}))
-}
-
-func (_self *RoomMember) CanSendState(stateEvent StateEventType) bool {
-	_pointer := _self.ffiObject.incrementPointer("*RoomMember")
-	defer _self.ffiObject.decrementPointer()
-	return FfiConverterBoolINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) C.int8_t {
-		return C.uniffi_matrix_sdk_ffi_fn_method_roommember_can_send_state(
-			_pointer, FfiConverterTypeStateEventTypeINSTANCE.Lower(stateEvent), _uniffiStatus)
-	}))
-}
-
-func (_self *RoomMember) CanTriggerRoomNotification() bool {
-	_pointer := _self.ffiObject.incrementPointer("*RoomMember")
-	defer _self.ffiObject.decrementPointer()
-	return FfiConverterBoolINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) C.int8_t {
-		return C.uniffi_matrix_sdk_ffi_fn_method_roommember_can_trigger_room_notification(
-			_pointer, _uniffiStatus)
-	}))
-}
-
-func (_self *RoomMember) DisplayName() *string {
-	_pointer := _self.ffiObject.incrementPointer("*RoomMember")
-	defer _self.ffiObject.decrementPointer()
-	return FfiConverterOptionalStringINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) RustBufferI {
-		return C.uniffi_matrix_sdk_ffi_fn_method_roommember_display_name(
-			_pointer, _uniffiStatus)
-	}))
-}
-
-func (_self *RoomMember) Ignore() error {
-	_pointer := _self.ffiObject.incrementPointer("*RoomMember")
-	defer _self.ffiObject.decrementPointer()
-	_, _uniffiErr := rustCallWithError(FfiConverterTypeClientError{}, func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_roommember_ignore(
-			_pointer, _uniffiStatus)
-		return false
-	})
-	return _uniffiErr
-}
-
-func (_self *RoomMember) IsAccountUser() bool {
-	_pointer := _self.ffiObject.incrementPointer("*RoomMember")
-	defer _self.ffiObject.decrementPointer()
-	return FfiConverterBoolINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) C.int8_t {
-		return C.uniffi_matrix_sdk_ffi_fn_method_roommember_is_account_user(
-			_pointer, _uniffiStatus)
-	}))
-}
-
-func (_self *RoomMember) IsIgnored() bool {
-	_pointer := _self.ffiObject.incrementPointer("*RoomMember")
-	defer _self.ffiObject.decrementPointer()
-	return FfiConverterBoolINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) C.int8_t {
-		return C.uniffi_matrix_sdk_ffi_fn_method_roommember_is_ignored(
-			_pointer, _uniffiStatus)
-	}))
-}
-
-func (_self *RoomMember) IsNameAmbiguous() bool {
-	_pointer := _self.ffiObject.incrementPointer("*RoomMember")
-	defer _self.ffiObject.decrementPointer()
-	return FfiConverterBoolINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) C.int8_t {
-		return C.uniffi_matrix_sdk_ffi_fn_method_roommember_is_name_ambiguous(
-			_pointer, _uniffiStatus)
-	}))
-}
-
-func (_self *RoomMember) Membership() MembershipState {
-	_pointer := _self.ffiObject.incrementPointer("*RoomMember")
-	defer _self.ffiObject.decrementPointer()
-	return FfiConverterTypeMembershipStateINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) RustBufferI {
-		return C.uniffi_matrix_sdk_ffi_fn_method_roommember_membership(
-			_pointer, _uniffiStatus)
-	}))
-}
-
-func (_self *RoomMember) NormalizedPowerLevel() int64 {
-	_pointer := _self.ffiObject.incrementPointer("*RoomMember")
-	defer _self.ffiObject.decrementPointer()
-	return FfiConverterInt64INSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) C.int64_t {
-		return C.uniffi_matrix_sdk_ffi_fn_method_roommember_normalized_power_level(
-			_pointer, _uniffiStatus)
-	}))
-}
-
-func (_self *RoomMember) PowerLevel() int64 {
-	_pointer := _self.ffiObject.incrementPointer("*RoomMember")
-	defer _self.ffiObject.decrementPointer()
-	return FfiConverterInt64INSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) C.int64_t {
-		return C.uniffi_matrix_sdk_ffi_fn_method_roommember_power_level(
-			_pointer, _uniffiStatus)
-	}))
-}
-
-func (_self *RoomMember) SuggestedRoleForPowerLevel() matrix_sdk.RoomMemberRole {
-	_pointer := _self.ffiObject.incrementPointer("*RoomMember")
-	defer _self.ffiObject.decrementPointer()
-	return matrix_sdk.FfiConverterTypeRoomMemberRoleINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) matrix_sdk.RustBufferI {
-		return C.uniffi_matrix_sdk_ffi_fn_method_roommember_suggested_role_for_power_level(
-			_pointer, _uniffiStatus)
-	}))
-}
-
-func (_self *RoomMember) Unignore() error {
-	_pointer := _self.ffiObject.incrementPointer("*RoomMember")
-	defer _self.ffiObject.decrementPointer()
-	_, _uniffiErr := rustCallWithError(FfiConverterTypeClientError{}, func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_matrix_sdk_ffi_fn_method_roommember_unignore(
-			_pointer, _uniffiStatus)
-		return false
-	})
-	return _uniffiErr
-}
-
-func (_self *RoomMember) UserId() string {
-	_pointer := _self.ffiObject.incrementPointer("*RoomMember")
-	defer _self.ffiObject.decrementPointer()
-	return FfiConverterStringINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) RustBufferI {
-		return C.uniffi_matrix_sdk_ffi_fn_method_roommember_user_id(
-			_pointer, _uniffiStatus)
-	}))
-}
-
-func (object *RoomMember) Destroy() {
-	runtime.SetFinalizer(object, nil)
-	object.ffiObject.destroy()
-}
-
-type FfiConverterRoomMember struct{}
-
-var FfiConverterRoomMemberINSTANCE = FfiConverterRoomMember{}
-
-func (c FfiConverterRoomMember) Lift(pointer unsafe.Pointer) *RoomMember {
-	result := &RoomMember{
-		newFfiObject(
-			pointer,
-			func(pointer unsafe.Pointer, status *C.RustCallStatus) {
-				C.uniffi_matrix_sdk_ffi_fn_free_roommember(pointer, status)
-			}),
-	}
-	runtime.SetFinalizer(result, (*RoomMember).Destroy)
-	return result
-}
-
-func (c FfiConverterRoomMember) Read(reader io.Reader) *RoomMember {
-	return c.Lift(unsafe.Pointer(uintptr(readUint64(reader))))
-}
-
-func (c FfiConverterRoomMember) Lower(value *RoomMember) unsafe.Pointer {
-	// TODO: this is bad - all synchronization from ObjectRuntime.go is discarded here,
-	// because the pointer will be decremented immediately after this function returns,
-	// and someone will be left holding onto a non-locked pointer.
-	pointer := value.ffiObject.incrementPointer("*RoomMember")
-	defer value.ffiObject.decrementPointer()
-	return pointer
-}
-
-func (c FfiConverterRoomMember) Write(writer io.Writer, value *RoomMember) {
-	writeUint64(writer, uint64(uintptr(c.Lower(value))))
-}
-
-type FfiDestroyerRoomMember struct{}
-
-func (_ FfiDestroyerRoomMember) Destroy(value *RoomMember) {
-	value.Destroy()
-}
-
 type RoomMembersIterator struct {
 	ffiObject FfiObject
 }
@@ -8009,10 +7930,10 @@ func (_self *RoomMembersIterator) Len() uint32 {
 	}))
 }
 
-func (_self *RoomMembersIterator) NextChunk(chunkSize uint32) *[]*RoomMember {
+func (_self *RoomMembersIterator) NextChunk(chunkSize uint32) *[]RoomMember {
 	_pointer := _self.ffiObject.incrementPointer("*RoomMembersIterator")
 	defer _self.ffiObject.decrementPointer()
-	return FfiConverterOptionalSequenceRoomMemberINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) RustBufferI {
+	return FfiConverterOptionalSequenceTypeRoomMemberINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) RustBufferI {
 		return C.uniffi_matrix_sdk_ffi_fn_method_roommembersiterator_next_chunk(
 			_pointer, FfiConverterUint32INSTANCE.Lower(chunkSize), _uniffiStatus)
 	}))
@@ -8715,6 +8636,15 @@ func (_self *SyncServiceBuilder) WithCrossProcessLock(appIdentifier *string) *Sy
 	return FfiConverterSyncServiceBuilderINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) unsafe.Pointer {
 		return C.uniffi_matrix_sdk_ffi_fn_method_syncservicebuilder_with_cross_process_lock(
 			_pointer, FfiConverterOptionalStringINSTANCE.Lower(appIdentifier), _uniffiStatus)
+	}))
+}
+
+func (_self *SyncServiceBuilder) WithUnifiedInvitesInRoomList(withUnifiedInvites bool) *SyncServiceBuilder {
+	_pointer := _self.ffiObject.incrementPointer("*SyncServiceBuilder")
+	defer _self.ffiObject.decrementPointer()
+	return FfiConverterSyncServiceBuilderINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) unsafe.Pointer {
+		return C.uniffi_matrix_sdk_ffi_fn_method_syncservicebuilder_with_unified_invites_in_room_list(
+			_pointer, FfiConverterBoolINSTANCE.Lower(withUnifiedInvites), _uniffiStatus)
 	}))
 }
 
@@ -11327,10 +11257,11 @@ type RoomInfo struct {
 	AlternativeAliases          []string
 	Membership                  Membership
 	LatestEvent                 **EventTimelineItem
-	Inviter                     **RoomMember
+	Inviter                     *RoomMember
 	ActiveMembersCount          uint64
 	InvitedMembersCount         uint64
 	JoinedMembersCount          uint64
+	UserPowerLevels             map[string]int64
 	HighlightCount              uint64
 	NotificationCount           uint64
 	UserDefinedNotificationMode *RoomNotificationMode
@@ -11356,10 +11287,11 @@ func (r *RoomInfo) Destroy() {
 	FfiDestroyerSequenceString{}.Destroy(r.AlternativeAliases)
 	FfiDestroyerTypeMembership{}.Destroy(r.Membership)
 	FfiDestroyerOptionalEventTimelineItem{}.Destroy(r.LatestEvent)
-	FfiDestroyerOptionalRoomMember{}.Destroy(r.Inviter)
+	FfiDestroyerOptionalTypeRoomMember{}.Destroy(r.Inviter)
 	FfiDestroyerUint64{}.Destroy(r.ActiveMembersCount)
 	FfiDestroyerUint64{}.Destroy(r.InvitedMembersCount)
 	FfiDestroyerUint64{}.Destroy(r.JoinedMembersCount)
+	FfiDestroyerMapStringInt64{}.Destroy(r.UserPowerLevels)
 	FfiDestroyerUint64{}.Destroy(r.HighlightCount)
 	FfiDestroyerUint64{}.Destroy(r.NotificationCount)
 	FfiDestroyerOptionalTypeRoomNotificationMode{}.Destroy(r.UserDefinedNotificationMode)
@@ -11394,10 +11326,11 @@ func (c FfiConverterTypeRoomInfo) Read(reader io.Reader) RoomInfo {
 		FfiConverterSequenceStringINSTANCE.Read(reader),
 		FfiConverterTypeMembershipINSTANCE.Read(reader),
 		FfiConverterOptionalEventTimelineItemINSTANCE.Read(reader),
-		FfiConverterOptionalRoomMemberINSTANCE.Read(reader),
+		FfiConverterOptionalTypeRoomMemberINSTANCE.Read(reader),
 		FfiConverterUint64INSTANCE.Read(reader),
 		FfiConverterUint64INSTANCE.Read(reader),
 		FfiConverterUint64INSTANCE.Read(reader),
+		FfiConverterMapStringInt64INSTANCE.Read(reader),
 		FfiConverterUint64INSTANCE.Read(reader),
 		FfiConverterUint64INSTANCE.Read(reader),
 		FfiConverterOptionalTypeRoomNotificationModeINSTANCE.Read(reader),
@@ -11428,10 +11361,11 @@ func (c FfiConverterTypeRoomInfo) Write(writer io.Writer, value RoomInfo) {
 	FfiConverterSequenceStringINSTANCE.Write(writer, value.AlternativeAliases)
 	FfiConverterTypeMembershipINSTANCE.Write(writer, value.Membership)
 	FfiConverterOptionalEventTimelineItemINSTANCE.Write(writer, value.LatestEvent)
-	FfiConverterOptionalRoomMemberINSTANCE.Write(writer, value.Inviter)
+	FfiConverterOptionalTypeRoomMemberINSTANCE.Write(writer, value.Inviter)
 	FfiConverterUint64INSTANCE.Write(writer, value.ActiveMembersCount)
 	FfiConverterUint64INSTANCE.Write(writer, value.InvitedMembersCount)
 	FfiConverterUint64INSTANCE.Write(writer, value.JoinedMembersCount)
+	FfiConverterMapStringInt64INSTANCE.Write(writer, value.UserPowerLevels)
 	FfiConverterUint64INSTANCE.Write(writer, value.HighlightCount)
 	FfiConverterUint64INSTANCE.Write(writer, value.NotificationCount)
 	FfiConverterOptionalTypeRoomNotificationModeINSTANCE.Write(writer, value.UserDefinedNotificationMode)
@@ -11609,6 +11543,74 @@ func (_ FfiDestroyerTypeRoomListRange) Destroy(value RoomListRange) {
 	value.Destroy()
 }
 
+type RoomMember struct {
+	UserId                     string
+	DisplayName                *string
+	AvatarUrl                  *string
+	Membership                 MembershipState
+	IsNameAmbiguous            bool
+	PowerLevel                 int64
+	NormalizedPowerLevel       int64
+	IsIgnored                  bool
+	SuggestedRoleForPowerLevel matrix_sdk.RoomMemberRole
+}
+
+func (r *RoomMember) Destroy() {
+	FfiDestroyerString{}.Destroy(r.UserId)
+	FfiDestroyerOptionalString{}.Destroy(r.DisplayName)
+	FfiDestroyerOptionalString{}.Destroy(r.AvatarUrl)
+	FfiDestroyerTypeMembershipState{}.Destroy(r.Membership)
+	FfiDestroyerBool{}.Destroy(r.IsNameAmbiguous)
+	FfiDestroyerInt64{}.Destroy(r.PowerLevel)
+	FfiDestroyerInt64{}.Destroy(r.NormalizedPowerLevel)
+	FfiDestroyerBool{}.Destroy(r.IsIgnored)
+	matrix_sdk.FfiDestroyerTypeRoomMemberRole{}.Destroy(r.SuggestedRoleForPowerLevel)
+}
+
+type FfiConverterTypeRoomMember struct{}
+
+var FfiConverterTypeRoomMemberINSTANCE = FfiConverterTypeRoomMember{}
+
+func (c FfiConverterTypeRoomMember) Lift(rb RustBufferI) RoomMember {
+	return LiftFromRustBuffer[RoomMember](c, rb)
+}
+
+func (c FfiConverterTypeRoomMember) Read(reader io.Reader) RoomMember {
+	return RoomMember{
+		FfiConverterStringINSTANCE.Read(reader),
+		FfiConverterOptionalStringINSTANCE.Read(reader),
+		FfiConverterOptionalStringINSTANCE.Read(reader),
+		FfiConverterTypeMembershipStateINSTANCE.Read(reader),
+		FfiConverterBoolINSTANCE.Read(reader),
+		FfiConverterInt64INSTANCE.Read(reader),
+		FfiConverterInt64INSTANCE.Read(reader),
+		FfiConverterBoolINSTANCE.Read(reader),
+		matrix_sdk.FfiConverterTypeRoomMemberRoleINSTANCE.Read(reader),
+	}
+}
+
+func (c FfiConverterTypeRoomMember) Lower(value RoomMember) RustBuffer {
+	return LowerIntoRustBuffer[RoomMember](c, value)
+}
+
+func (c FfiConverterTypeRoomMember) Write(writer io.Writer, value RoomMember) {
+	FfiConverterStringINSTANCE.Write(writer, value.UserId)
+	FfiConverterOptionalStringINSTANCE.Write(writer, value.DisplayName)
+	FfiConverterOptionalStringINSTANCE.Write(writer, value.AvatarUrl)
+	FfiConverterTypeMembershipStateINSTANCE.Write(writer, value.Membership)
+	FfiConverterBoolINSTANCE.Write(writer, value.IsNameAmbiguous)
+	FfiConverterInt64INSTANCE.Write(writer, value.PowerLevel)
+	FfiConverterInt64INSTANCE.Write(writer, value.NormalizedPowerLevel)
+	FfiConverterBoolINSTANCE.Write(writer, value.IsIgnored)
+	matrix_sdk.FfiConverterTypeRoomMemberRoleINSTANCE.Write(writer, value.SuggestedRoleForPowerLevel)
+}
+
+type FfiDestroyerTypeRoomMember struct{}
+
+func (_ FfiDestroyerTypeRoomMember) Destroy(value RoomMember) {
+	value.Destroy()
+}
+
 type RoomNotificationSettings struct {
 	Mode      RoomNotificationMode
 	IsDefault bool
@@ -11646,6 +11648,78 @@ func (c FfiConverterTypeRoomNotificationSettings) Write(writer io.Writer, value 
 type FfiDestroyerTypeRoomNotificationSettings struct{}
 
 func (_ FfiDestroyerTypeRoomNotificationSettings) Destroy(value RoomNotificationSettings) {
+	value.Destroy()
+}
+
+type RoomPowerLevels struct {
+	Ban           int64
+	Invite        int64
+	Kick          int64
+	Redact        int64
+	EventsDefault int64
+	StateDefault  int64
+	UsersDefault  int64
+	RoomName      int64
+	RoomAvatar    int64
+	RoomTopic     int64
+}
+
+func (r *RoomPowerLevels) Destroy() {
+	FfiDestroyerInt64{}.Destroy(r.Ban)
+	FfiDestroyerInt64{}.Destroy(r.Invite)
+	FfiDestroyerInt64{}.Destroy(r.Kick)
+	FfiDestroyerInt64{}.Destroy(r.Redact)
+	FfiDestroyerInt64{}.Destroy(r.EventsDefault)
+	FfiDestroyerInt64{}.Destroy(r.StateDefault)
+	FfiDestroyerInt64{}.Destroy(r.UsersDefault)
+	FfiDestroyerInt64{}.Destroy(r.RoomName)
+	FfiDestroyerInt64{}.Destroy(r.RoomAvatar)
+	FfiDestroyerInt64{}.Destroy(r.RoomTopic)
+}
+
+type FfiConverterTypeRoomPowerLevels struct{}
+
+var FfiConverterTypeRoomPowerLevelsINSTANCE = FfiConverterTypeRoomPowerLevels{}
+
+func (c FfiConverterTypeRoomPowerLevels) Lift(rb RustBufferI) RoomPowerLevels {
+	return LiftFromRustBuffer[RoomPowerLevels](c, rb)
+}
+
+func (c FfiConverterTypeRoomPowerLevels) Read(reader io.Reader) RoomPowerLevels {
+	return RoomPowerLevels{
+		FfiConverterInt64INSTANCE.Read(reader),
+		FfiConverterInt64INSTANCE.Read(reader),
+		FfiConverterInt64INSTANCE.Read(reader),
+		FfiConverterInt64INSTANCE.Read(reader),
+		FfiConverterInt64INSTANCE.Read(reader),
+		FfiConverterInt64INSTANCE.Read(reader),
+		FfiConverterInt64INSTANCE.Read(reader),
+		FfiConverterInt64INSTANCE.Read(reader),
+		FfiConverterInt64INSTANCE.Read(reader),
+		FfiConverterInt64INSTANCE.Read(reader),
+	}
+}
+
+func (c FfiConverterTypeRoomPowerLevels) Lower(value RoomPowerLevels) RustBuffer {
+	return LowerIntoRustBuffer[RoomPowerLevels](c, value)
+}
+
+func (c FfiConverterTypeRoomPowerLevels) Write(writer io.Writer, value RoomPowerLevels) {
+	FfiConverterInt64INSTANCE.Write(writer, value.Ban)
+	FfiConverterInt64INSTANCE.Write(writer, value.Invite)
+	FfiConverterInt64INSTANCE.Write(writer, value.Kick)
+	FfiConverterInt64INSTANCE.Write(writer, value.Redact)
+	FfiConverterInt64INSTANCE.Write(writer, value.EventsDefault)
+	FfiConverterInt64INSTANCE.Write(writer, value.StateDefault)
+	FfiConverterInt64INSTANCE.Write(writer, value.UsersDefault)
+	FfiConverterInt64INSTANCE.Write(writer, value.RoomName)
+	FfiConverterInt64INSTANCE.Write(writer, value.RoomAvatar)
+	FfiConverterInt64INSTANCE.Write(writer, value.RoomTopic)
+}
+
+type FfiDestroyerTypeRoomPowerLevels struct{}
+
+func (_ FfiDestroyerTypeRoomPowerLevels) Destroy(value RoomPowerLevels) {
 	value.Destroy()
 }
 
@@ -12004,11 +12078,15 @@ func (_ FfiDestroyerTypeTracingConfiguration) Destroy(value TracingConfiguration
 type TracingFileConfiguration struct {
 	Path       string
 	FilePrefix string
+	FileSuffix *string
+	MaxFiles   *uint64
 }
 
 func (r *TracingFileConfiguration) Destroy() {
 	FfiDestroyerString{}.Destroy(r.Path)
 	FfiDestroyerString{}.Destroy(r.FilePrefix)
+	FfiDestroyerOptionalString{}.Destroy(r.FileSuffix)
+	FfiDestroyerOptionalUint64{}.Destroy(r.MaxFiles)
 }
 
 type FfiConverterTypeTracingFileConfiguration struct{}
@@ -12023,6 +12101,8 @@ func (c FfiConverterTypeTracingFileConfiguration) Read(reader io.Reader) Tracing
 	return TracingFileConfiguration{
 		FfiConverterStringINSTANCE.Read(reader),
 		FfiConverterStringINSTANCE.Read(reader),
+		FfiConverterOptionalStringINSTANCE.Read(reader),
+		FfiConverterOptionalUint64INSTANCE.Read(reader),
 	}
 }
 
@@ -12033,6 +12113,8 @@ func (c FfiConverterTypeTracingFileConfiguration) Lower(value TracingFileConfigu
 func (c FfiConverterTypeTracingFileConfiguration) Write(writer io.Writer, value TracingFileConfiguration) {
 	FfiConverterStringINSTANCE.Write(writer, value.Path)
 	FfiConverterStringINSTANCE.Write(writer, value.FilePrefix)
+	FfiConverterOptionalStringINSTANCE.Write(writer, value.FileSuffix)
+	FfiConverterOptionalUint64INSTANCE.Write(writer, value.MaxFiles)
 }
 
 type FfiDestroyerTypeTracingFileConfiguration struct{}
@@ -12149,6 +12231,46 @@ func (c FfiConverterTypeUnstableVoiceContent) Write(writer io.Writer, value Unst
 type FfiDestroyerTypeUnstableVoiceContent struct{}
 
 func (_ FfiDestroyerTypeUnstableVoiceContent) Destroy(value UnstableVoiceContent) {
+	value.Destroy()
+}
+
+type UserPowerLevelUpdate struct {
+	UserId     string
+	PowerLevel int64
+}
+
+func (r *UserPowerLevelUpdate) Destroy() {
+	FfiDestroyerString{}.Destroy(r.UserId)
+	FfiDestroyerInt64{}.Destroy(r.PowerLevel)
+}
+
+type FfiConverterTypeUserPowerLevelUpdate struct{}
+
+var FfiConverterTypeUserPowerLevelUpdateINSTANCE = FfiConverterTypeUserPowerLevelUpdate{}
+
+func (c FfiConverterTypeUserPowerLevelUpdate) Lift(rb RustBufferI) UserPowerLevelUpdate {
+	return LiftFromRustBuffer[UserPowerLevelUpdate](c, rb)
+}
+
+func (c FfiConverterTypeUserPowerLevelUpdate) Read(reader io.Reader) UserPowerLevelUpdate {
+	return UserPowerLevelUpdate{
+		FfiConverterStringINSTANCE.Read(reader),
+		FfiConverterInt64INSTANCE.Read(reader),
+	}
+}
+
+func (c FfiConverterTypeUserPowerLevelUpdate) Lower(value UserPowerLevelUpdate) RustBuffer {
+	return LowerIntoRustBuffer[UserPowerLevelUpdate](c, value)
+}
+
+func (c FfiConverterTypeUserPowerLevelUpdate) Write(writer io.Writer, value UserPowerLevelUpdate) {
+	FfiConverterStringINSTANCE.Write(writer, value.UserId)
+	FfiConverterInt64INSTANCE.Write(writer, value.PowerLevel)
+}
+
+type FfiDestroyerTypeUserPowerLevelUpdate struct{}
+
+func (_ FfiDestroyerTypeUserPowerLevelUpdate) Destroy(value UserPowerLevelUpdate) {
 	value.Destroy()
 }
 
@@ -12645,6 +12767,9 @@ func (err AuthenticationError) Unwrap() error {
 // Err* are used for checking error type with `errors.Is`
 var ErrAuthenticationErrorClientMissing = fmt.Errorf("AuthenticationErrorClientMissing")
 var ErrAuthenticationErrorInvalidServerName = fmt.Errorf("AuthenticationErrorInvalidServerName")
+var ErrAuthenticationErrorServerUnreachable = fmt.Errorf("AuthenticationErrorServerUnreachable")
+var ErrAuthenticationErrorWellKnownLookupFailed = fmt.Errorf("AuthenticationErrorWellKnownLookupFailed")
+var ErrAuthenticationErrorWellKnownDeserializationError = fmt.Errorf("AuthenticationErrorWellKnownDeserializationError")
 var ErrAuthenticationErrorSlidingSyncNotAvailable = fmt.Errorf("AuthenticationErrorSlidingSyncNotAvailable")
 var ErrAuthenticationErrorSessionMissing = fmt.Errorf("AuthenticationErrorSessionMissing")
 var ErrAuthenticationErrorInvalidBasePath = fmt.Errorf("AuthenticationErrorInvalidBasePath")
@@ -12691,6 +12816,60 @@ func (err AuthenticationErrorInvalidServerName) Error() string {
 
 func (self AuthenticationErrorInvalidServerName) Is(target error) bool {
 	return target == ErrAuthenticationErrorInvalidServerName
+}
+
+type AuthenticationErrorServerUnreachable struct {
+	message string
+}
+
+func NewAuthenticationErrorServerUnreachable() *AuthenticationError {
+	return &AuthenticationError{
+		err: &AuthenticationErrorServerUnreachable{},
+	}
+}
+
+func (err AuthenticationErrorServerUnreachable) Error() string {
+	return fmt.Sprintf("ServerUnreachable: %s", err.message)
+}
+
+func (self AuthenticationErrorServerUnreachable) Is(target error) bool {
+	return target == ErrAuthenticationErrorServerUnreachable
+}
+
+type AuthenticationErrorWellKnownLookupFailed struct {
+	message string
+}
+
+func NewAuthenticationErrorWellKnownLookupFailed() *AuthenticationError {
+	return &AuthenticationError{
+		err: &AuthenticationErrorWellKnownLookupFailed{},
+	}
+}
+
+func (err AuthenticationErrorWellKnownLookupFailed) Error() string {
+	return fmt.Sprintf("WellKnownLookupFailed: %s", err.message)
+}
+
+func (self AuthenticationErrorWellKnownLookupFailed) Is(target error) bool {
+	return target == ErrAuthenticationErrorWellKnownLookupFailed
+}
+
+type AuthenticationErrorWellKnownDeserializationError struct {
+	message string
+}
+
+func NewAuthenticationErrorWellKnownDeserializationError() *AuthenticationError {
+	return &AuthenticationError{
+		err: &AuthenticationErrorWellKnownDeserializationError{},
+	}
+}
+
+func (err AuthenticationErrorWellKnownDeserializationError) Error() string {
+	return fmt.Sprintf("WellKnownDeserializationError: %s", err.message)
+}
+
+func (self AuthenticationErrorWellKnownDeserializationError) Is(target error) bool {
+	return target == ErrAuthenticationErrorWellKnownDeserializationError
 }
 
 type AuthenticationErrorSlidingSyncNotAvailable struct {
@@ -12895,24 +13074,30 @@ func (c FfiConverterTypeAuthenticationError) Read(reader io.Reader) error {
 	case 2:
 		return &AuthenticationError{&AuthenticationErrorInvalidServerName{message}}
 	case 3:
-		return &AuthenticationError{&AuthenticationErrorSlidingSyncNotAvailable{message}}
+		return &AuthenticationError{&AuthenticationErrorServerUnreachable{message}}
 	case 4:
-		return &AuthenticationError{&AuthenticationErrorSessionMissing{message}}
+		return &AuthenticationError{&AuthenticationErrorWellKnownLookupFailed{message}}
 	case 5:
-		return &AuthenticationError{&AuthenticationErrorInvalidBasePath{message}}
+		return &AuthenticationError{&AuthenticationErrorWellKnownDeserializationError{message}}
 	case 6:
-		return &AuthenticationError{&AuthenticationErrorOidcNotSupported{message}}
+		return &AuthenticationError{&AuthenticationErrorSlidingSyncNotAvailable{message}}
 	case 7:
-		return &AuthenticationError{&AuthenticationErrorOidcMetadataMissing{message}}
+		return &AuthenticationError{&AuthenticationErrorSessionMissing{message}}
 	case 8:
-		return &AuthenticationError{&AuthenticationErrorOidcMetadataInvalid{message}}
+		return &AuthenticationError{&AuthenticationErrorInvalidBasePath{message}}
 	case 9:
-		return &AuthenticationError{&AuthenticationErrorOidcCallbackUrlInvalid{message}}
+		return &AuthenticationError{&AuthenticationErrorOidcNotSupported{message}}
 	case 10:
-		return &AuthenticationError{&AuthenticationErrorOidcCancelled{message}}
+		return &AuthenticationError{&AuthenticationErrorOidcMetadataMissing{message}}
 	case 11:
-		return &AuthenticationError{&AuthenticationErrorOidcError{message}}
+		return &AuthenticationError{&AuthenticationErrorOidcMetadataInvalid{message}}
 	case 12:
+		return &AuthenticationError{&AuthenticationErrorOidcCallbackUrlInvalid{message}}
+	case 13:
+		return &AuthenticationError{&AuthenticationErrorOidcCancelled{message}}
+	case 14:
+		return &AuthenticationError{&AuthenticationErrorOidcError{message}}
+	case 15:
 		return &AuthenticationError{&AuthenticationErrorGeneric{message}}
 	default:
 		panic(fmt.Sprintf("Unknown error code %d in FfiConverterTypeAuthenticationError.Read()", errorID))
@@ -12926,26 +13111,32 @@ func (c FfiConverterTypeAuthenticationError) Write(writer io.Writer, value *Auth
 		writeInt32(writer, 1)
 	case *AuthenticationErrorInvalidServerName:
 		writeInt32(writer, 2)
-	case *AuthenticationErrorSlidingSyncNotAvailable:
+	case *AuthenticationErrorServerUnreachable:
 		writeInt32(writer, 3)
-	case *AuthenticationErrorSessionMissing:
+	case *AuthenticationErrorWellKnownLookupFailed:
 		writeInt32(writer, 4)
-	case *AuthenticationErrorInvalidBasePath:
+	case *AuthenticationErrorWellKnownDeserializationError:
 		writeInt32(writer, 5)
-	case *AuthenticationErrorOidcNotSupported:
+	case *AuthenticationErrorSlidingSyncNotAvailable:
 		writeInt32(writer, 6)
-	case *AuthenticationErrorOidcMetadataMissing:
+	case *AuthenticationErrorSessionMissing:
 		writeInt32(writer, 7)
-	case *AuthenticationErrorOidcMetadataInvalid:
+	case *AuthenticationErrorInvalidBasePath:
 		writeInt32(writer, 8)
-	case *AuthenticationErrorOidcCallbackUrlInvalid:
+	case *AuthenticationErrorOidcNotSupported:
 		writeInt32(writer, 9)
-	case *AuthenticationErrorOidcCancelled:
+	case *AuthenticationErrorOidcMetadataMissing:
 		writeInt32(writer, 10)
-	case *AuthenticationErrorOidcError:
+	case *AuthenticationErrorOidcMetadataInvalid:
 		writeInt32(writer, 11)
-	case *AuthenticationErrorGeneric:
+	case *AuthenticationErrorOidcCallbackUrlInvalid:
 		writeInt32(writer, 12)
+	case *AuthenticationErrorOidcCancelled:
+		writeInt32(writer, 13)
+	case *AuthenticationErrorOidcError:
+		writeInt32(writer, 14)
+	case *AuthenticationErrorGeneric:
+		writeInt32(writer, 15)
 	default:
 		_ = variantValue
 		panic(fmt.Sprintf("invalid error value `%v` in FfiConverterTypeAuthenticationError.Write", value))
@@ -13072,6 +13263,98 @@ type FfiDestroyerTypeBackupUploadState struct{}
 
 func (_ FfiDestroyerTypeBackupUploadState) Destroy(value BackupUploadState) {
 	value.Destroy()
+}
+
+type ClientBuildError struct {
+	err error
+}
+
+func (err ClientBuildError) Error() string {
+	return fmt.Sprintf("ClientBuildError: %s", err.err.Error())
+}
+
+func (err ClientBuildError) Unwrap() error {
+	return err.err
+}
+
+// Err* are used for checking error type with `errors.Is`
+var ErrClientBuildErrorSdk = fmt.Errorf("ClientBuildErrorSdk")
+var ErrClientBuildErrorGeneric = fmt.Errorf("ClientBuildErrorGeneric")
+
+// Variant structs
+type ClientBuildErrorSdk struct {
+	message string
+}
+
+func NewClientBuildErrorSdk() *ClientBuildError {
+	return &ClientBuildError{
+		err: &ClientBuildErrorSdk{},
+	}
+}
+
+func (err ClientBuildErrorSdk) Error() string {
+	return fmt.Sprintf("Sdk: %s", err.message)
+}
+
+func (self ClientBuildErrorSdk) Is(target error) bool {
+	return target == ErrClientBuildErrorSdk
+}
+
+type ClientBuildErrorGeneric struct {
+	message string
+}
+
+func NewClientBuildErrorGeneric() *ClientBuildError {
+	return &ClientBuildError{
+		err: &ClientBuildErrorGeneric{},
+	}
+}
+
+func (err ClientBuildErrorGeneric) Error() string {
+	return fmt.Sprintf("Generic: %s", err.message)
+}
+
+func (self ClientBuildErrorGeneric) Is(target error) bool {
+	return target == ErrClientBuildErrorGeneric
+}
+
+type FfiConverterTypeClientBuildError struct{}
+
+var FfiConverterTypeClientBuildErrorINSTANCE = FfiConverterTypeClientBuildError{}
+
+func (c FfiConverterTypeClientBuildError) Lift(eb RustBufferI) error {
+	return LiftFromRustBuffer[error](c, eb)
+}
+
+func (c FfiConverterTypeClientBuildError) Lower(value *ClientBuildError) RustBuffer {
+	return LowerIntoRustBuffer[*ClientBuildError](c, value)
+}
+
+func (c FfiConverterTypeClientBuildError) Read(reader io.Reader) error {
+	errorID := readUint32(reader)
+
+	message := FfiConverterStringINSTANCE.Read(reader)
+	switch errorID {
+	case 1:
+		return &ClientBuildError{&ClientBuildErrorSdk{message}}
+	case 2:
+		return &ClientBuildError{&ClientBuildErrorGeneric{message}}
+	default:
+		panic(fmt.Sprintf("Unknown error code %d in FfiConverterTypeClientBuildError.Read()", errorID))
+	}
+
+}
+
+func (c FfiConverterTypeClientBuildError) Write(writer io.Writer, value *ClientBuildError) {
+	switch variantValue := value.err.(type) {
+	case *ClientBuildErrorSdk:
+		writeInt32(writer, 1)
+	case *ClientBuildErrorGeneric:
+		writeInt32(writer, 2)
+	default:
+		_ = variantValue
+		panic(fmt.Sprintf("invalid error value `%v` in FfiConverterTypeClientBuildError.Write", value))
+	}
 }
 
 type ClientError struct {
@@ -14802,9 +15085,13 @@ func (e OtherStateRoomPinnedEvents) Destroy() {
 }
 
 type OtherStateRoomPowerLevels struct {
+	Users    map[string]int64
+	Previous *map[string]int64
 }
 
 func (e OtherStateRoomPowerLevels) Destroy() {
+	FfiDestroyerMapStringInt64{}.Destroy(e.Users)
+	FfiDestroyerOptionalMapStringInt64{}.Destroy(e.Previous)
 }
 
 type OtherStateRoomServerAcl struct {
@@ -14900,7 +15187,10 @@ func (FfiConverterTypeOtherState) Read(reader io.Reader) OtherState {
 	case 13:
 		return OtherStateRoomPinnedEvents{}
 	case 14:
-		return OtherStateRoomPowerLevels{}
+		return OtherStateRoomPowerLevels{
+			FfiConverterMapStringInt64INSTANCE.Read(reader),
+			FfiConverterOptionalMapStringInt64INSTANCE.Read(reader),
+		}
 	case 15:
 		return OtherStateRoomServerAcl{}
 	case 16:
@@ -14958,6 +15248,8 @@ func (FfiConverterTypeOtherState) Write(writer io.Writer, value OtherState) {
 		writeInt32(writer, 13)
 	case OtherStateRoomPowerLevels:
 		writeInt32(writer, 14)
+		FfiConverterMapStringInt64INSTANCE.Write(writer, variant_value.Users)
+		FfiConverterOptionalMapStringInt64INSTANCE.Write(writer, variant_value.Previous)
 	case OtherStateRoomServerAcl:
 		writeInt32(writer, 15)
 	case OtherStateRoomThirdPartyInvite:
@@ -16094,6 +16386,18 @@ type RoomListEntriesDynamicFilterKindUnread struct {
 func (e RoomListEntriesDynamicFilterKindUnread) Destroy() {
 }
 
+type RoomListEntriesDynamicFilterKindFavourite struct {
+}
+
+func (e RoomListEntriesDynamicFilterKindFavourite) Destroy() {
+}
+
+type RoomListEntriesDynamicFilterKindInvite struct {
+}
+
+func (e RoomListEntriesDynamicFilterKindInvite) Destroy() {
+}
+
 type RoomListEntriesDynamicFilterKindCategory struct {
 	Expect RoomListFilterCategory
 }
@@ -16151,16 +16455,20 @@ func (FfiConverterTypeRoomListEntriesDynamicFilterKind) Read(reader io.Reader) R
 	case 4:
 		return RoomListEntriesDynamicFilterKindUnread{}
 	case 5:
+		return RoomListEntriesDynamicFilterKindFavourite{}
+	case 6:
+		return RoomListEntriesDynamicFilterKindInvite{}
+	case 7:
 		return RoomListEntriesDynamicFilterKindCategory{
 			FfiConverterTypeRoomListFilterCategoryINSTANCE.Read(reader),
 		}
-	case 6:
+	case 8:
 		return RoomListEntriesDynamicFilterKindNone{}
-	case 7:
+	case 9:
 		return RoomListEntriesDynamicFilterKindNormalizedMatchRoomName{
 			FfiConverterStringINSTANCE.Read(reader),
 		}
-	case 8:
+	case 10:
 		return RoomListEntriesDynamicFilterKindFuzzyMatchRoomName{
 			FfiConverterStringINSTANCE.Read(reader),
 		}
@@ -16181,16 +16489,20 @@ func (FfiConverterTypeRoomListEntriesDynamicFilterKind) Write(writer io.Writer, 
 		writeInt32(writer, 3)
 	case RoomListEntriesDynamicFilterKindUnread:
 		writeInt32(writer, 4)
-	case RoomListEntriesDynamicFilterKindCategory:
+	case RoomListEntriesDynamicFilterKindFavourite:
 		writeInt32(writer, 5)
+	case RoomListEntriesDynamicFilterKindInvite:
+		writeInt32(writer, 6)
+	case RoomListEntriesDynamicFilterKindCategory:
+		writeInt32(writer, 7)
 		FfiConverterTypeRoomListFilterCategoryINSTANCE.Write(writer, variant_value.Expect)
 	case RoomListEntriesDynamicFilterKindNone:
-		writeInt32(writer, 6)
+		writeInt32(writer, 8)
 	case RoomListEntriesDynamicFilterKindNormalizedMatchRoomName:
-		writeInt32(writer, 7)
+		writeInt32(writer, 9)
 		FfiConverterStringINSTANCE.Write(writer, variant_value.Pattern)
 	case RoomListEntriesDynamicFilterKindFuzzyMatchRoomName:
-		writeInt32(writer, 8)
+		writeInt32(writer, 10)
 		FfiConverterStringINSTANCE.Write(writer, variant_value.Pattern)
 	default:
 		_ = variant_value
@@ -16495,6 +16807,7 @@ var ErrRoomListErrorInvalidRoomId = fmt.Errorf("RoomListErrorInvalidRoomId")
 var ErrRoomListErrorTimelineAlreadyExists = fmt.Errorf("RoomListErrorTimelineAlreadyExists")
 var ErrRoomListErrorTimelineNotInitialized = fmt.Errorf("RoomListErrorTimelineNotInitialized")
 var ErrRoomListErrorInitializingTimeline = fmt.Errorf("RoomListErrorInitializingTimeline")
+var ErrRoomListErrorEventCache = fmt.Errorf("RoomListErrorEventCache")
 
 // Variant structs
 type RoomListErrorSlidingSync struct {
@@ -16703,6 +17016,33 @@ func (self RoomListErrorInitializingTimeline) Is(target error) bool {
 	return target == ErrRoomListErrorInitializingTimeline
 }
 
+type RoomListErrorEventCache struct {
+	Error_ string
+}
+
+func NewRoomListErrorEventCache(
+	error string,
+) *RoomListError {
+	return &RoomListError{
+		err: &RoomListErrorEventCache{
+			Error_: error,
+		},
+	}
+}
+
+func (err RoomListErrorEventCache) Error() string {
+	return fmt.Sprint("EventCache",
+		": ",
+
+		"Error_=",
+		err.Error_,
+	)
+}
+
+func (self RoomListErrorEventCache) Is(target error) bool {
+	return target == ErrRoomListErrorEventCache
+}
+
 type FfiConverterTypeRoomListError struct{}
 
 var FfiConverterTypeRoomListErrorINSTANCE = FfiConverterTypeRoomListError{}
@@ -16749,6 +17089,10 @@ func (c FfiConverterTypeRoomListError) Read(reader io.Reader) error {
 		return &RoomListError{&RoomListErrorInitializingTimeline{
 			Error_: FfiConverterStringINSTANCE.Read(reader),
 		}}
+	case 9:
+		return &RoomListError{&RoomListErrorEventCache{
+			Error_: FfiConverterStringINSTANCE.Read(reader),
+		}}
 	default:
 		panic(fmt.Sprintf("Unknown error code %d in FfiConverterTypeRoomListError.Read()", errorID))
 	}
@@ -16778,6 +17122,9 @@ func (c FfiConverterTypeRoomListError) Write(writer io.Writer, value *RoomListEr
 		FfiConverterStringINSTANCE.Write(writer, variantValue.RoomName)
 	case *RoomListErrorInitializingTimeline:
 		writeInt32(writer, 8)
+		FfiConverterStringINSTANCE.Write(writer, variantValue.Error_)
+	case *RoomListErrorEventCache:
+		writeInt32(writer, 9)
 		FfiConverterStringINSTANCE.Write(writer, variantValue.Error_)
 	default:
 		_ = variantValue
@@ -17775,6 +18122,12 @@ func (e TimelineItemContentKindPoll) Destroy() {
 	FfiDestroyerBool{}.Destroy(e.HasBeenEdited)
 }
 
+type TimelineItemContentKindCallInvite struct {
+}
+
+func (e TimelineItemContentKindCallInvite) Destroy() {
+}
+
 type TimelineItemContentKindUnableToDecrypt struct {
 	Msg EncryptedMessage
 }
@@ -17874,32 +18227,34 @@ func (FfiConverterTypeTimelineItemContentKind) Read(reader io.Reader) TimelineIt
 			FfiConverterBoolINSTANCE.Read(reader),
 		}
 	case 5:
+		return TimelineItemContentKindCallInvite{}
+	case 6:
 		return TimelineItemContentKindUnableToDecrypt{
 			FfiConverterTypeEncryptedMessageINSTANCE.Read(reader),
 		}
-	case 6:
+	case 7:
 		return TimelineItemContentKindRoomMembership{
 			FfiConverterStringINSTANCE.Read(reader),
 			FfiConverterOptionalTypeMembershipChangeINSTANCE.Read(reader),
 		}
-	case 7:
+	case 8:
 		return TimelineItemContentKindProfileChange{
 			FfiConverterOptionalStringINSTANCE.Read(reader),
 			FfiConverterOptionalStringINSTANCE.Read(reader),
 			FfiConverterOptionalStringINSTANCE.Read(reader),
 			FfiConverterOptionalStringINSTANCE.Read(reader),
 		}
-	case 8:
+	case 9:
 		return TimelineItemContentKindState{
 			FfiConverterStringINSTANCE.Read(reader),
 			FfiConverterTypeOtherStateINSTANCE.Read(reader),
 		}
-	case 9:
+	case 10:
 		return TimelineItemContentKindFailedToParseMessageLike{
 			FfiConverterStringINSTANCE.Read(reader),
 			FfiConverterStringINSTANCE.Read(reader),
 		}
-	case 10:
+	case 11:
 		return TimelineItemContentKindFailedToParseState{
 			FfiConverterStringINSTANCE.Read(reader),
 			FfiConverterStringINSTANCE.Read(reader),
@@ -17930,29 +18285,31 @@ func (FfiConverterTypeTimelineItemContentKind) Write(writer io.Writer, value Tim
 		FfiConverterMapStringSequenceStringINSTANCE.Write(writer, variant_value.Votes)
 		FfiConverterOptionalUint64INSTANCE.Write(writer, variant_value.EndTime)
 		FfiConverterBoolINSTANCE.Write(writer, variant_value.HasBeenEdited)
-	case TimelineItemContentKindUnableToDecrypt:
+	case TimelineItemContentKindCallInvite:
 		writeInt32(writer, 5)
+	case TimelineItemContentKindUnableToDecrypt:
+		writeInt32(writer, 6)
 		FfiConverterTypeEncryptedMessageINSTANCE.Write(writer, variant_value.Msg)
 	case TimelineItemContentKindRoomMembership:
-		writeInt32(writer, 6)
+		writeInt32(writer, 7)
 		FfiConverterStringINSTANCE.Write(writer, variant_value.UserId)
 		FfiConverterOptionalTypeMembershipChangeINSTANCE.Write(writer, variant_value.Change)
 	case TimelineItemContentKindProfileChange:
-		writeInt32(writer, 7)
+		writeInt32(writer, 8)
 		FfiConverterOptionalStringINSTANCE.Write(writer, variant_value.DisplayName)
 		FfiConverterOptionalStringINSTANCE.Write(writer, variant_value.PrevDisplayName)
 		FfiConverterOptionalStringINSTANCE.Write(writer, variant_value.AvatarUrl)
 		FfiConverterOptionalStringINSTANCE.Write(writer, variant_value.PrevAvatarUrl)
 	case TimelineItemContentKindState:
-		writeInt32(writer, 8)
+		writeInt32(writer, 9)
 		FfiConverterStringINSTANCE.Write(writer, variant_value.StateKey)
 		FfiConverterTypeOtherStateINSTANCE.Write(writer, variant_value.Content)
 	case TimelineItemContentKindFailedToParseMessageLike:
-		writeInt32(writer, 9)
+		writeInt32(writer, 10)
 		FfiConverterStringINSTANCE.Write(writer, variant_value.EventType)
 		FfiConverterStringINSTANCE.Write(writer, variant_value.Error)
 	case TimelineItemContentKindFailedToParseState:
-		writeInt32(writer, 10)
+		writeInt32(writer, 11)
 		FfiConverterStringINSTANCE.Write(writer, variant_value.EventType)
 		FfiConverterStringINSTANCE.Write(writer, variant_value.StateKey)
 		FfiConverterStringINSTANCE.Write(writer, variant_value.Error)
@@ -17966,6 +18323,39 @@ type FfiDestroyerTypeTimelineItemContentKind struct{}
 
 func (_ FfiDestroyerTypeTimelineItemContentKind) Destroy(value TimelineItemContentKind) {
 	value.Destroy()
+}
+
+type VerificationState uint
+
+const (
+	VerificationStateUnknown    VerificationState = 1
+	VerificationStateVerified   VerificationState = 2
+	VerificationStateUnverified VerificationState = 3
+)
+
+type FfiConverterTypeVerificationState struct{}
+
+var FfiConverterTypeVerificationStateINSTANCE = FfiConverterTypeVerificationState{}
+
+func (c FfiConverterTypeVerificationState) Lift(rb RustBufferI) VerificationState {
+	return LiftFromRustBuffer[VerificationState](c, rb)
+}
+
+func (c FfiConverterTypeVerificationState) Lower(value VerificationState) RustBuffer {
+	return LowerIntoRustBuffer[VerificationState](c, value)
+}
+func (FfiConverterTypeVerificationState) Read(reader io.Reader) VerificationState {
+	id := readInt32(reader)
+	return VerificationState(id)
+}
+
+func (FfiConverterTypeVerificationState) Write(writer io.Writer, value VerificationState) {
+	writeInt32(writer, int32(value))
+}
+
+type FfiDestroyerTypeVerificationState struct{}
+
+func (_ FfiDestroyerTypeVerificationState) Destroy(value VerificationState) {
 }
 
 type VirtualTimelineItem interface {
@@ -18619,6 +19009,68 @@ func (c *FfiConverterCallbackInterfaceEnableRecoveryProgressListener) register()
 type FfiDestroyerCallbackInterfaceEnableRecoveryProgressListener struct{}
 
 func (FfiDestroyerCallbackInterfaceEnableRecoveryProgressListener) Destroy(value EnableRecoveryProgressListener) {
+}
+
+type IgnoredUsersListener interface {
+	Call(ignoredUserIds []string)
+}
+
+// foreignCallbackCallbackInterfaceIgnoredUsersListener cannot be callable be a compiled function at a same time
+type foreignCallbackCallbackInterfaceIgnoredUsersListener struct{}
+
+//export matrix_sdk_ffi_cgo_IgnoredUsersListener
+func matrix_sdk_ffi_cgo_IgnoredUsersListener(handle C.uint64_t, method C.int32_t, argsPtr *C.uint8_t, argsLen C.int32_t, outBuf *C.RustBuffer) C.int32_t {
+	cb := FfiConverterCallbackInterfaceIgnoredUsersListenerINSTANCE.Lift(uint64(handle))
+	switch method {
+	case 0:
+		// 0 means Rust is done with the callback, and the callback
+		// can be dropped by the foreign language.
+		*outBuf = FfiConverterCallbackInterfaceIgnoredUsersListenerINSTANCE.drop(uint64(handle))
+		// See docs of ForeignCallback in `uniffi/src/ffi/foreigncallbacks.rs`
+		return C.int32_t(uniffiIdxCallbackFree)
+
+	case 1:
+		var result uniffiCallbackResult
+		args := unsafe.Slice((*byte)(argsPtr), argsLen)
+		result = foreignCallbackCallbackInterfaceIgnoredUsersListener{}.InvokeCall(cb, args, outBuf)
+		return C.int32_t(result)
+
+	default:
+		// This should never happen, because an out of bounds method index won't
+		// ever be used. Once we can catch errors, we should return an InternalException.
+		// https://github.com/mozilla/uniffi-rs/issues/351
+		return C.int32_t(uniffiCallbackUnexpectedResultError)
+	}
+}
+
+func (foreignCallbackCallbackInterfaceIgnoredUsersListener) InvokeCall(callback IgnoredUsersListener, args []byte, outBuf *C.RustBuffer) uniffiCallbackResult {
+	reader := bytes.NewReader(args)
+	callback.Call(FfiConverterSequenceStringINSTANCE.Read(reader))
+
+	return uniffiCallbackResultSuccess
+}
+
+type FfiConverterCallbackInterfaceIgnoredUsersListener struct {
+	FfiConverterCallbackInterface[IgnoredUsersListener]
+}
+
+var FfiConverterCallbackInterfaceIgnoredUsersListenerINSTANCE = &FfiConverterCallbackInterfaceIgnoredUsersListener{
+	FfiConverterCallbackInterface: FfiConverterCallbackInterface[IgnoredUsersListener]{
+		handleMap: newConcurrentHandleMap[IgnoredUsersListener](),
+	},
+}
+
+// This is a static function because only 1 instance is supported for registering
+func (c *FfiConverterCallbackInterfaceIgnoredUsersListener) register() {
+	rustCall(func(status *C.RustCallStatus) int32 {
+		C.uniffi_matrix_sdk_ffi_fn_init_callback_ignoreduserslistener(C.ForeignCallback(C.matrix_sdk_ffi_cgo_IgnoredUsersListener), status)
+		return 0
+	})
+}
+
+type FfiDestroyerCallbackInterfaceIgnoredUsersListener struct{}
+
+func (FfiDestroyerCallbackInterfaceIgnoredUsersListener) Destroy(value IgnoredUsersListener) {
 }
 
 type NotificationSettingsDelegate interface {
@@ -19424,6 +19876,68 @@ type FfiDestroyerCallbackInterfaceTypingNotificationsListener struct{}
 func (FfiDestroyerCallbackInterfaceTypingNotificationsListener) Destroy(value TypingNotificationsListener) {
 }
 
+type VerificationStateListener interface {
+	OnUpdate(status VerificationState)
+}
+
+// foreignCallbackCallbackInterfaceVerificationStateListener cannot be callable be a compiled function at a same time
+type foreignCallbackCallbackInterfaceVerificationStateListener struct{}
+
+//export matrix_sdk_ffi_cgo_VerificationStateListener
+func matrix_sdk_ffi_cgo_VerificationStateListener(handle C.uint64_t, method C.int32_t, argsPtr *C.uint8_t, argsLen C.int32_t, outBuf *C.RustBuffer) C.int32_t {
+	cb := FfiConverterCallbackInterfaceVerificationStateListenerINSTANCE.Lift(uint64(handle))
+	switch method {
+	case 0:
+		// 0 means Rust is done with the callback, and the callback
+		// can be dropped by the foreign language.
+		*outBuf = FfiConverterCallbackInterfaceVerificationStateListenerINSTANCE.drop(uint64(handle))
+		// See docs of ForeignCallback in `uniffi/src/ffi/foreigncallbacks.rs`
+		return C.int32_t(uniffiIdxCallbackFree)
+
+	case 1:
+		var result uniffiCallbackResult
+		args := unsafe.Slice((*byte)(argsPtr), argsLen)
+		result = foreignCallbackCallbackInterfaceVerificationStateListener{}.InvokeOnUpdate(cb, args, outBuf)
+		return C.int32_t(result)
+
+	default:
+		// This should never happen, because an out of bounds method index won't
+		// ever be used. Once we can catch errors, we should return an InternalException.
+		// https://github.com/mozilla/uniffi-rs/issues/351
+		return C.int32_t(uniffiCallbackUnexpectedResultError)
+	}
+}
+
+func (foreignCallbackCallbackInterfaceVerificationStateListener) InvokeOnUpdate(callback VerificationStateListener, args []byte, outBuf *C.RustBuffer) uniffiCallbackResult {
+	reader := bytes.NewReader(args)
+	callback.OnUpdate(FfiConverterTypeVerificationStateINSTANCE.Read(reader))
+
+	return uniffiCallbackResultSuccess
+}
+
+type FfiConverterCallbackInterfaceVerificationStateListener struct {
+	FfiConverterCallbackInterface[VerificationStateListener]
+}
+
+var FfiConverterCallbackInterfaceVerificationStateListenerINSTANCE = &FfiConverterCallbackInterfaceVerificationStateListener{
+	FfiConverterCallbackInterface: FfiConverterCallbackInterface[VerificationStateListener]{
+		handleMap: newConcurrentHandleMap[VerificationStateListener](),
+	},
+}
+
+// This is a static function because only 1 instance is supported for registering
+func (c *FfiConverterCallbackInterfaceVerificationStateListener) register() {
+	rustCall(func(status *C.RustCallStatus) int32 {
+		C.uniffi_matrix_sdk_ffi_fn_init_callback_verificationstatelistener(C.ForeignCallback(C.matrix_sdk_ffi_cgo_VerificationStateListener), status)
+		return 0
+	})
+}
+
+type FfiDestroyerCallbackInterfaceVerificationStateListener struct{}
+
+func (FfiDestroyerCallbackInterfaceVerificationStateListener) Destroy(value VerificationStateListener) {
+}
+
 type WidgetCapabilitiesProvider interface {
 	AcquireCapabilities(capabilities WidgetCapabilities) WidgetCapabilities
 }
@@ -19968,43 +20482,6 @@ func (_ FfiDestroyerOptionalRoom) Destroy(value **Room) {
 	}
 }
 
-type FfiConverterOptionalRoomMember struct{}
-
-var FfiConverterOptionalRoomMemberINSTANCE = FfiConverterOptionalRoomMember{}
-
-func (c FfiConverterOptionalRoomMember) Lift(rb RustBufferI) **RoomMember {
-	return LiftFromRustBuffer[**RoomMember](c, rb)
-}
-
-func (_ FfiConverterOptionalRoomMember) Read(reader io.Reader) **RoomMember {
-	if readInt8(reader) == 0 {
-		return nil
-	}
-	temp := FfiConverterRoomMemberINSTANCE.Read(reader)
-	return &temp
-}
-
-func (c FfiConverterOptionalRoomMember) Lower(value **RoomMember) RustBuffer {
-	return LowerIntoRustBuffer[**RoomMember](c, value)
-}
-
-func (_ FfiConverterOptionalRoomMember) Write(writer io.Writer, value **RoomMember) {
-	if value == nil {
-		writeInt8(writer, 0)
-	} else {
-		writeInt8(writer, 1)
-		FfiConverterRoomMemberINSTANCE.Write(writer, *value)
-	}
-}
-
-type FfiDestroyerOptionalRoomMember struct{}
-
-func (_ FfiDestroyerOptionalRoomMember) Destroy(value **RoomMember) {
-	if value != nil {
-		FfiDestroyerRoomMember{}.Destroy(*value)
-	}
-}
-
 type FfiConverterOptionalTaskHandle struct{}
 
 var FfiConverterOptionalTaskHandleINSTANCE = FfiConverterOptionalTaskHandle{}
@@ -20483,6 +20960,43 @@ type FfiDestroyerOptionalTypePowerLevels struct{}
 func (_ FfiDestroyerOptionalTypePowerLevels) Destroy(value *PowerLevels) {
 	if value != nil {
 		FfiDestroyerTypePowerLevels{}.Destroy(*value)
+	}
+}
+
+type FfiConverterOptionalTypeRoomMember struct{}
+
+var FfiConverterOptionalTypeRoomMemberINSTANCE = FfiConverterOptionalTypeRoomMember{}
+
+func (c FfiConverterOptionalTypeRoomMember) Lift(rb RustBufferI) *RoomMember {
+	return LiftFromRustBuffer[*RoomMember](c, rb)
+}
+
+func (_ FfiConverterOptionalTypeRoomMember) Read(reader io.Reader) *RoomMember {
+	if readInt8(reader) == 0 {
+		return nil
+	}
+	temp := FfiConverterTypeRoomMemberINSTANCE.Read(reader)
+	return &temp
+}
+
+func (c FfiConverterOptionalTypeRoomMember) Lower(value *RoomMember) RustBuffer {
+	return LowerIntoRustBuffer[*RoomMember](c, value)
+}
+
+func (_ FfiConverterOptionalTypeRoomMember) Write(writer io.Writer, value *RoomMember) {
+	if value == nil {
+		writeInt8(writer, 0)
+	} else {
+		writeInt8(writer, 1)
+		FfiConverterTypeRoomMemberINSTANCE.Write(writer, *value)
+	}
+}
+
+type FfiDestroyerOptionalTypeRoomMember struct{}
+
+func (_ FfiDestroyerOptionalTypeRoomMember) Destroy(value *RoomMember) {
+	if value != nil {
+		FfiDestroyerTypeRoomMember{}.Destroy(*value)
 	}
 }
 
@@ -21263,43 +21777,6 @@ func (_ FfiDestroyerOptionalSequenceString) Destroy(value *[]string) {
 	}
 }
 
-type FfiConverterOptionalSequenceRoomMember struct{}
-
-var FfiConverterOptionalSequenceRoomMemberINSTANCE = FfiConverterOptionalSequenceRoomMember{}
-
-func (c FfiConverterOptionalSequenceRoomMember) Lift(rb RustBufferI) *[]*RoomMember {
-	return LiftFromRustBuffer[*[]*RoomMember](c, rb)
-}
-
-func (_ FfiConverterOptionalSequenceRoomMember) Read(reader io.Reader) *[]*RoomMember {
-	if readInt8(reader) == 0 {
-		return nil
-	}
-	temp := FfiConverterSequenceRoomMemberINSTANCE.Read(reader)
-	return &temp
-}
-
-func (c FfiConverterOptionalSequenceRoomMember) Lower(value *[]*RoomMember) RustBuffer {
-	return LowerIntoRustBuffer[*[]*RoomMember](c, value)
-}
-
-func (_ FfiConverterOptionalSequenceRoomMember) Write(writer io.Writer, value *[]*RoomMember) {
-	if value == nil {
-		writeInt8(writer, 0)
-	} else {
-		writeInt8(writer, 1)
-		FfiConverterSequenceRoomMemberINSTANCE.Write(writer, *value)
-	}
-}
-
-type FfiDestroyerOptionalSequenceRoomMember struct{}
-
-func (_ FfiDestroyerOptionalSequenceRoomMember) Destroy(value *[]*RoomMember) {
-	if value != nil {
-		FfiDestroyerSequenceRoomMember{}.Destroy(*value)
-	}
-}
-
 type FfiConverterOptionalSequenceTimelineItem struct{}
 
 var FfiConverterOptionalSequenceTimelineItemINSTANCE = FfiConverterOptionalSequenceTimelineItem{}
@@ -21371,6 +21848,80 @@ type FfiDestroyerOptionalSequenceTypeRequiredState struct{}
 func (_ FfiDestroyerOptionalSequenceTypeRequiredState) Destroy(value *[]RequiredState) {
 	if value != nil {
 		FfiDestroyerSequenceTypeRequiredState{}.Destroy(*value)
+	}
+}
+
+type FfiConverterOptionalSequenceTypeRoomMember struct{}
+
+var FfiConverterOptionalSequenceTypeRoomMemberINSTANCE = FfiConverterOptionalSequenceTypeRoomMember{}
+
+func (c FfiConverterOptionalSequenceTypeRoomMember) Lift(rb RustBufferI) *[]RoomMember {
+	return LiftFromRustBuffer[*[]RoomMember](c, rb)
+}
+
+func (_ FfiConverterOptionalSequenceTypeRoomMember) Read(reader io.Reader) *[]RoomMember {
+	if readInt8(reader) == 0 {
+		return nil
+	}
+	temp := FfiConverterSequenceTypeRoomMemberINSTANCE.Read(reader)
+	return &temp
+}
+
+func (c FfiConverterOptionalSequenceTypeRoomMember) Lower(value *[]RoomMember) RustBuffer {
+	return LowerIntoRustBuffer[*[]RoomMember](c, value)
+}
+
+func (_ FfiConverterOptionalSequenceTypeRoomMember) Write(writer io.Writer, value *[]RoomMember) {
+	if value == nil {
+		writeInt8(writer, 0)
+	} else {
+		writeInt8(writer, 1)
+		FfiConverterSequenceTypeRoomMemberINSTANCE.Write(writer, *value)
+	}
+}
+
+type FfiDestroyerOptionalSequenceTypeRoomMember struct{}
+
+func (_ FfiDestroyerOptionalSequenceTypeRoomMember) Destroy(value *[]RoomMember) {
+	if value != nil {
+		FfiDestroyerSequenceTypeRoomMember{}.Destroy(*value)
+	}
+}
+
+type FfiConverterOptionalMapStringInt64 struct{}
+
+var FfiConverterOptionalMapStringInt64INSTANCE = FfiConverterOptionalMapStringInt64{}
+
+func (c FfiConverterOptionalMapStringInt64) Lift(rb RustBufferI) *map[string]int64 {
+	return LiftFromRustBuffer[*map[string]int64](c, rb)
+}
+
+func (_ FfiConverterOptionalMapStringInt64) Read(reader io.Reader) *map[string]int64 {
+	if readInt8(reader) == 0 {
+		return nil
+	}
+	temp := FfiConverterMapStringInt64INSTANCE.Read(reader)
+	return &temp
+}
+
+func (c FfiConverterOptionalMapStringInt64) Lower(value *map[string]int64) RustBuffer {
+	return LowerIntoRustBuffer[*map[string]int64](c, value)
+}
+
+func (_ FfiConverterOptionalMapStringInt64) Write(writer io.Writer, value *map[string]int64) {
+	if value == nil {
+		writeInt8(writer, 0)
+	} else {
+		writeInt8(writer, 1)
+		FfiConverterMapStringInt64INSTANCE.Write(writer, *value)
+	}
+}
+
+type FfiDestroyerOptionalMapStringInt64 struct{}
+
+func (_ FfiDestroyerOptionalMapStringInt64) Destroy(value *map[string]int64) {
+	if value != nil {
+		FfiDestroyerMapStringInt64{}.Destroy(*value)
 	}
 }
 
@@ -21497,6 +22048,49 @@ func (FfiDestroyerSequenceString) Destroy(sequence []string) {
 	}
 }
 
+type FfiConverterSequenceBytes struct{}
+
+var FfiConverterSequenceBytesINSTANCE = FfiConverterSequenceBytes{}
+
+func (c FfiConverterSequenceBytes) Lift(rb RustBufferI) [][]byte {
+	return LiftFromRustBuffer[[][]byte](c, rb)
+}
+
+func (c FfiConverterSequenceBytes) Read(reader io.Reader) [][]byte {
+	length := readInt32(reader)
+	if length == 0 {
+		return nil
+	}
+	result := make([][]byte, 0, length)
+	for i := int32(0); i < length; i++ {
+		result = append(result, FfiConverterBytesINSTANCE.Read(reader))
+	}
+	return result
+}
+
+func (c FfiConverterSequenceBytes) Lower(value [][]byte) RustBuffer {
+	return LowerIntoRustBuffer[[][]byte](c, value)
+}
+
+func (c FfiConverterSequenceBytes) Write(writer io.Writer, value [][]byte) {
+	if len(value) > math.MaxInt32 {
+		panic("[][]byte is too large to fit into Int32")
+	}
+
+	writeInt32(writer, int32(len(value)))
+	for _, item := range value {
+		FfiConverterBytesINSTANCE.Write(writer, item)
+	}
+}
+
+type FfiDestroyerSequenceBytes struct{}
+
+func (FfiDestroyerSequenceBytes) Destroy(sequence [][]byte) {
+	for _, value := range sequence {
+		FfiDestroyerBytes{}.Destroy(value)
+	}
+}
+
 type FfiConverterSequenceRoom struct{}
 
 var FfiConverterSequenceRoomINSTANCE = FfiConverterSequenceRoom{}
@@ -21537,49 +22131,6 @@ type FfiDestroyerSequenceRoom struct{}
 func (FfiDestroyerSequenceRoom) Destroy(sequence []*Room) {
 	for _, value := range sequence {
 		FfiDestroyerRoom{}.Destroy(value)
-	}
-}
-
-type FfiConverterSequenceRoomMember struct{}
-
-var FfiConverterSequenceRoomMemberINSTANCE = FfiConverterSequenceRoomMember{}
-
-func (c FfiConverterSequenceRoomMember) Lift(rb RustBufferI) []*RoomMember {
-	return LiftFromRustBuffer[[]*RoomMember](c, rb)
-}
-
-func (c FfiConverterSequenceRoomMember) Read(reader io.Reader) []*RoomMember {
-	length := readInt32(reader)
-	if length == 0 {
-		return nil
-	}
-	result := make([]*RoomMember, 0, length)
-	for i := int32(0); i < length; i++ {
-		result = append(result, FfiConverterRoomMemberINSTANCE.Read(reader))
-	}
-	return result
-}
-
-func (c FfiConverterSequenceRoomMember) Lower(value []*RoomMember) RustBuffer {
-	return LowerIntoRustBuffer[[]*RoomMember](c, value)
-}
-
-func (c FfiConverterSequenceRoomMember) Write(writer io.Writer, value []*RoomMember) {
-	if len(value) > math.MaxInt32 {
-		panic("[]*RoomMember is too large to fit into Int32")
-	}
-
-	writeInt32(writer, int32(len(value)))
-	for _, item := range value {
-		FfiConverterRoomMemberINSTANCE.Write(writer, item)
-	}
-}
-
-type FfiDestroyerSequenceRoomMember struct{}
-
-func (FfiDestroyerSequenceRoomMember) Destroy(sequence []*RoomMember) {
-	for _, value := range sequence {
-		FfiDestroyerRoomMember{}.Destroy(value)
 	}
 }
 
@@ -21927,6 +22478,92 @@ func (FfiDestroyerSequenceTypeRoomListRange) Destroy(sequence []RoomListRange) {
 	}
 }
 
+type FfiConverterSequenceTypeRoomMember struct{}
+
+var FfiConverterSequenceTypeRoomMemberINSTANCE = FfiConverterSequenceTypeRoomMember{}
+
+func (c FfiConverterSequenceTypeRoomMember) Lift(rb RustBufferI) []RoomMember {
+	return LiftFromRustBuffer[[]RoomMember](c, rb)
+}
+
+func (c FfiConverterSequenceTypeRoomMember) Read(reader io.Reader) []RoomMember {
+	length := readInt32(reader)
+	if length == 0 {
+		return nil
+	}
+	result := make([]RoomMember, 0, length)
+	for i := int32(0); i < length; i++ {
+		result = append(result, FfiConverterTypeRoomMemberINSTANCE.Read(reader))
+	}
+	return result
+}
+
+func (c FfiConverterSequenceTypeRoomMember) Lower(value []RoomMember) RustBuffer {
+	return LowerIntoRustBuffer[[]RoomMember](c, value)
+}
+
+func (c FfiConverterSequenceTypeRoomMember) Write(writer io.Writer, value []RoomMember) {
+	if len(value) > math.MaxInt32 {
+		panic("[]RoomMember is too large to fit into Int32")
+	}
+
+	writeInt32(writer, int32(len(value)))
+	for _, item := range value {
+		FfiConverterTypeRoomMemberINSTANCE.Write(writer, item)
+	}
+}
+
+type FfiDestroyerSequenceTypeRoomMember struct{}
+
+func (FfiDestroyerSequenceTypeRoomMember) Destroy(sequence []RoomMember) {
+	for _, value := range sequence {
+		FfiDestroyerTypeRoomMember{}.Destroy(value)
+	}
+}
+
+type FfiConverterSequenceTypeUserPowerLevelUpdate struct{}
+
+var FfiConverterSequenceTypeUserPowerLevelUpdateINSTANCE = FfiConverterSequenceTypeUserPowerLevelUpdate{}
+
+func (c FfiConverterSequenceTypeUserPowerLevelUpdate) Lift(rb RustBufferI) []UserPowerLevelUpdate {
+	return LiftFromRustBuffer[[]UserPowerLevelUpdate](c, rb)
+}
+
+func (c FfiConverterSequenceTypeUserPowerLevelUpdate) Read(reader io.Reader) []UserPowerLevelUpdate {
+	length := readInt32(reader)
+	if length == 0 {
+		return nil
+	}
+	result := make([]UserPowerLevelUpdate, 0, length)
+	for i := int32(0); i < length; i++ {
+		result = append(result, FfiConverterTypeUserPowerLevelUpdateINSTANCE.Read(reader))
+	}
+	return result
+}
+
+func (c FfiConverterSequenceTypeUserPowerLevelUpdate) Lower(value []UserPowerLevelUpdate) RustBuffer {
+	return LowerIntoRustBuffer[[]UserPowerLevelUpdate](c, value)
+}
+
+func (c FfiConverterSequenceTypeUserPowerLevelUpdate) Write(writer io.Writer, value []UserPowerLevelUpdate) {
+	if len(value) > math.MaxInt32 {
+		panic("[]UserPowerLevelUpdate is too large to fit into Int32")
+	}
+
+	writeInt32(writer, int32(len(value)))
+	for _, item := range value {
+		FfiConverterTypeUserPowerLevelUpdateINSTANCE.Write(writer, item)
+	}
+}
+
+type FfiDestroyerSequenceTypeUserPowerLevelUpdate struct{}
+
+func (FfiDestroyerSequenceTypeUserPowerLevelUpdate) Destroy(sequence []UserPowerLevelUpdate) {
+	for _, value := range sequence {
+		FfiDestroyerTypeUserPowerLevelUpdate{}.Destroy(value)
+	}
+}
+
 type FfiConverterSequenceTypeUserProfile struct{}
 
 var FfiConverterSequenceTypeUserProfileINSTANCE = FfiConverterSequenceTypeUserProfile{}
@@ -22226,6 +22863,50 @@ func (_ FfiDestroyerMapStringInt32) Destroy(mapValue map[string]int32) {
 	for key, value := range mapValue {
 		FfiDestroyerString{}.Destroy(key)
 		FfiDestroyerInt32{}.Destroy(value)
+	}
+}
+
+type FfiConverterMapStringInt64 struct{}
+
+var FfiConverterMapStringInt64INSTANCE = FfiConverterMapStringInt64{}
+
+func (c FfiConverterMapStringInt64) Lift(rb RustBufferI) map[string]int64 {
+	return LiftFromRustBuffer[map[string]int64](c, rb)
+}
+
+func (_ FfiConverterMapStringInt64) Read(reader io.Reader) map[string]int64 {
+	result := make(map[string]int64)
+	length := readInt32(reader)
+	for i := int32(0); i < length; i++ {
+		key := FfiConverterStringINSTANCE.Read(reader)
+		value := FfiConverterInt64INSTANCE.Read(reader)
+		result[key] = value
+	}
+	return result
+}
+
+func (c FfiConverterMapStringInt64) Lower(value map[string]int64) RustBuffer {
+	return LowerIntoRustBuffer[map[string]int64](c, value)
+}
+
+func (_ FfiConverterMapStringInt64) Write(writer io.Writer, mapValue map[string]int64) {
+	if len(mapValue) > math.MaxInt32 {
+		panic("map[string]int64 is too large to fit into Int32")
+	}
+
+	writeInt32(writer, int32(len(mapValue)))
+	for key, value := range mapValue {
+		FfiConverterStringINSTANCE.Write(writer, key)
+		FfiConverterInt64INSTANCE.Write(writer, value)
+	}
+}
+
+type FfiDestroyerMapStringInt64 struct{}
+
+func (_ FfiDestroyerMapStringInt64) Destroy(mapValue map[string]int64) {
+	for key, value := range mapValue {
+		FfiDestroyerString{}.Destroy(key)
+		FfiDestroyerInt64{}.Destroy(value)
 	}
 }
 
@@ -22644,4 +23325,16 @@ func SetupTracing(config TracingConfiguration) {
 		C.uniffi_matrix_sdk_ffi_fn_func_setup_tracing(FfiConverterTypeTracingConfigurationINSTANCE.Lower(config), _uniffiStatus)
 		return false
 	})
+}
+
+func SuggestedPowerLevelForRole(role matrix_sdk.RoomMemberRole) int64 {
+	return FfiConverterInt64INSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) C.int64_t {
+		return C.uniffi_matrix_sdk_ffi_fn_func_suggested_power_level_for_role(RustBufferFromExternal(matrix_sdk.FfiConverterTypeRoomMemberRoleINSTANCE.Lower(role)), _uniffiStatus)
+	}))
+}
+
+func SuggestedRoleForPowerLevel(powerLevel int64) matrix_sdk.RoomMemberRole {
+	return matrix_sdk.FfiConverterTypeRoomMemberRoleINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) matrix_sdk.RustBufferI {
+		return C.uniffi_matrix_sdk_ffi_fn_func_suggested_role_for_power_level(FfiConverterInt64INSTANCE.Lower(powerLevel), _uniffiStatus)
+	}))
 }
