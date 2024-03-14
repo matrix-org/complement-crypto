@@ -4131,6 +4131,7 @@ func (_self *Client) GetMediaContent(mediaSource *MediaSource) ([]byte, error) {
 			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Client) GetMediaFile(mediaSource *MediaSource, body *string, mimeType string, useCache bool, tempDir *string) (*MediaFileHandle, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Client")
 	defer _self.ffiObject.decrementPointer()
@@ -4155,6 +4156,7 @@ func (_self *Client) GetMediaFile(mediaSource *MediaSource, body *string, mimeTy
 			C.ffi_matrix_sdk_ffi_rust_future_free_pointer(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Client) GetMediaThumbnail(mediaSource *MediaSource, width uint64, height uint64) ([]byte, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Client")
 	defer _self.ffiObject.decrementPointer()
@@ -4179,6 +4181,7 @@ func (_self *Client) GetMediaThumbnail(mediaSource *MediaSource, width uint64, h
 			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Client) GetNotificationSettings() *NotificationSettings {
 	_pointer := _self.ffiObject.incrementPointer("*Client")
 	defer _self.ffiObject.decrementPointer()
@@ -4437,6 +4440,7 @@ func (_self *Client) UploadMedia(mimeType string, data []byte, progressWatcher *
 			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Client) UserId() (string, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Client")
 	defer _self.ffiObject.decrementPointer()
@@ -4710,6 +4714,7 @@ func (_self *Encryption) BackupExistsOnServer() (bool, error) {
 			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Encryption) BackupState() BackupState {
 	_pointer := _self.ffiObject.incrementPointer("*Encryption")
 	defer _self.ffiObject.decrementPointer()
@@ -4752,6 +4757,7 @@ func (_self *Encryption) DisableRecovery() error {
 			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Encryption) EnableBackups() error {
 	_pointer := _self.ffiObject.incrementPointer("*Encryption")
 	defer _self.ffiObject.decrementPointer()
@@ -4776,6 +4782,7 @@ func (_self *Encryption) EnableBackups() error {
 			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Encryption) EnableRecovery(waitForBackupsToUpload bool, progressListener EnableRecoveryProgressListener) (string, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Encryption")
 	defer _self.ffiObject.decrementPointer()
@@ -4800,6 +4807,7 @@ func (_self *Encryption) EnableRecovery(waitForBackupsToUpload bool, progressLis
 			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Encryption) IsLastDevice() (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Encryption")
 	defer _self.ffiObject.decrementPointer()
@@ -4824,6 +4832,7 @@ func (_self *Encryption) IsLastDevice() (bool, error) {
 			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Encryption) Recover(recoveryKey string) error {
 	_pointer := _self.ffiObject.incrementPointer("*Encryption")
 	defer _self.ffiObject.decrementPointer()
@@ -4848,6 +4857,7 @@ func (_self *Encryption) Recover(recoveryKey string) error {
 			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Encryption) RecoverAndReset(oldRecoveryKey string) (string, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Encryption")
 	defer _self.ffiObject.decrementPointer()
@@ -4872,6 +4882,7 @@ func (_self *Encryption) RecoverAndReset(oldRecoveryKey string) (string, error) 
 			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Encryption) RecoveryState() RecoveryState {
 	_pointer := _self.ffiObject.incrementPointer("*Encryption")
 	defer _self.ffiObject.decrementPointer()
@@ -4914,6 +4925,7 @@ func (_self *Encryption) ResetRecoveryKey() (string, error) {
 			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Encryption) WaitForBackupUploadSteadyState(progressListener *BackupSteadyStateListener) error {
 	_pointer := _self.ffiObject.incrementPointer("*Encryption")
 	defer _self.ffiObject.decrementPointer()
@@ -5655,6 +5667,7 @@ func (_self *NotificationSettings) CanPushEncryptedEventToDevice() bool {
 			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *NotificationSettings) ContainsKeywordsRules() bool {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
@@ -5678,6 +5691,7 @@ func (_self *NotificationSettings) ContainsKeywordsRules() bool {
 			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *NotificationSettings) GetDefaultRoomNotificationMode(isEncrypted bool, isOneToOne bool) RoomNotificationMode {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
@@ -5701,6 +5715,7 @@ func (_self *NotificationSettings) GetDefaultRoomNotificationMode(isEncrypted bo
 			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *NotificationSettings) GetRoomNotificationSettings(roomId string, isEncrypted bool, isOneToOne bool) (RoomNotificationSettings, error) {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
@@ -5725,6 +5740,7 @@ func (_self *NotificationSettings) GetRoomNotificationSettings(roomId string, is
 			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *NotificationSettings) GetRoomsWithUserDefinedRules(enabled *bool) []string {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
@@ -5748,6 +5764,7 @@ func (_self *NotificationSettings) GetRoomsWithUserDefinedRules(enabled *bool) [
 			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *NotificationSettings) GetUserDefinedRoomNotificationMode(roomId string) (*RoomNotificationMode, error) {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
@@ -5772,6 +5789,7 @@ func (_self *NotificationSettings) GetUserDefinedRoomNotificationMode(roomId str
 			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *NotificationSettings) IsCallEnabled() (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
@@ -5796,6 +5814,7 @@ func (_self *NotificationSettings) IsCallEnabled() (bool, error) {
 			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *NotificationSettings) IsInviteForMeEnabled() (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
@@ -5820,6 +5839,7 @@ func (_self *NotificationSettings) IsInviteForMeEnabled() (bool, error) {
 			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *NotificationSettings) IsRoomMentionEnabled() (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
@@ -5844,6 +5864,7 @@ func (_self *NotificationSettings) IsRoomMentionEnabled() (bool, error) {
 			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *NotificationSettings) IsUserMentionEnabled() (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
@@ -5868,6 +5889,7 @@ func (_self *NotificationSettings) IsUserMentionEnabled() (bool, error) {
 			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *NotificationSettings) RestoreDefaultRoomNotificationMode(roomId string) error {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
@@ -5892,6 +5914,7 @@ func (_self *NotificationSettings) RestoreDefaultRoomNotificationMode(roomId str
 			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *NotificationSettings) SetCallEnabled(enabled bool) error {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
@@ -5916,6 +5939,7 @@ func (_self *NotificationSettings) SetCallEnabled(enabled bool) error {
 			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *NotificationSettings) SetDefaultRoomNotificationMode(isEncrypted bool, isOneToOne bool, mode RoomNotificationMode) error {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
@@ -5940,6 +5964,7 @@ func (_self *NotificationSettings) SetDefaultRoomNotificationMode(isEncrypted bo
 			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *NotificationSettings) SetDelegate(delegate *NotificationSettingsDelegate) {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
@@ -5974,6 +5999,7 @@ func (_self *NotificationSettings) SetInviteForMeEnabled(enabled bool) error {
 			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *NotificationSettings) SetRoomMentionEnabled(enabled bool) error {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
@@ -5998,6 +6024,7 @@ func (_self *NotificationSettings) SetRoomMentionEnabled(enabled bool) error {
 			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *NotificationSettings) SetRoomNotificationMode(roomId string, mode RoomNotificationMode) error {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
@@ -6022,6 +6049,7 @@ func (_self *NotificationSettings) SetRoomNotificationMode(roomId string, mode R
 			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *NotificationSettings) SetUserMentionEnabled(enabled bool) error {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
@@ -6046,6 +6074,7 @@ func (_self *NotificationSettings) SetUserMentionEnabled(enabled bool) error {
 			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *NotificationSettings) UnmuteRoom(roomId string, isEncrypted bool, isOneToOne bool) error {
 	_pointer := _self.ffiObject.incrementPointer("*NotificationSettings")
 	defer _self.ffiObject.decrementPointer()
@@ -6227,6 +6256,7 @@ func (_self *Room) ApplyPowerLevelChanges(changes matrix_sdk.RoomPowerLevelChang
 			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Room) AvatarUrl() *string {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
@@ -6260,10 +6290,11 @@ func (_self *Room) BanUser(userId string, reason *string) error {
 			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Room) BuildPowerLevelChangesFromCurrent() (matrix_sdk.RoomPowerLevelChanges, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
-	return uniffiRustCallAsyncWithErrorAndResult[matrix_sdk.RustBufferI, matrix_sdk.RoomPowerLevelChanges](
+	return uniffiRustCallAsyncWithErrorAndResult(
 		FfiConverterTypeClientError{}, func(status *C.RustCallStatus) *C.void {
 			// rustFutureFunc
 			return (*C.void)(C.uniffi_matrix_sdk_ffi_fn_method_room_build_power_level_changes_from_current(
@@ -6284,6 +6315,7 @@ func (_self *Room) BuildPowerLevelChangesFromCurrent() (matrix_sdk.RoomPowerLeve
 			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Room) CanUserBan(userId string) (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
@@ -6308,6 +6340,7 @@ func (_self *Room) CanUserBan(userId string) (bool, error) {
 			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Room) CanUserInvite(userId string) (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
@@ -6332,6 +6365,7 @@ func (_self *Room) CanUserInvite(userId string) (bool, error) {
 			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Room) CanUserKick(userId string) (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
@@ -6356,6 +6390,7 @@ func (_self *Room) CanUserKick(userId string) (bool, error) {
 			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Room) CanUserRedactOther(userId string) (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
@@ -6380,6 +6415,7 @@ func (_self *Room) CanUserRedactOther(userId string) (bool, error) {
 			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Room) CanUserRedactOwn(userId string) (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
@@ -6404,6 +6440,7 @@ func (_self *Room) CanUserRedactOwn(userId string) (bool, error) {
 			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Room) CanUserSendMessage(userId string, message MessageLikeEventType) (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
@@ -6428,6 +6465,7 @@ func (_self *Room) CanUserSendMessage(userId string, message MessageLikeEventTyp
 			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Room) CanUserSendState(userId string, stateEvent StateEventType) (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
@@ -6452,6 +6490,7 @@ func (_self *Room) CanUserSendState(userId string, stateEvent StateEventType) (b
 			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Room) CanUserTriggerRoomNotification(userId string) (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
@@ -6476,6 +6515,7 @@ func (_self *Room) CanUserTriggerRoomNotification(userId string) (bool, error) {
 			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Room) CanonicalAlias() *string {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
@@ -6653,6 +6693,7 @@ func (_self *Room) KickUser(userId string, reason *string) error {
 			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Room) Leave() error {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
@@ -6688,6 +6729,7 @@ func (_self *Room) MarkAsRead(receiptType ReceiptType) error {
 			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Room) Member(userId string) (*RoomMember, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
@@ -6712,6 +6754,7 @@ func (_self *Room) Member(userId string) (*RoomMember, error) {
 			C.ffi_matrix_sdk_ffi_rust_future_free_pointer(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Room) MemberAvatarUrl(userId string) (*string, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
@@ -6766,6 +6809,7 @@ func (_self *Room) Members() (*RoomMembersIterator, error) {
 			C.ffi_matrix_sdk_ffi_rust_future_free_pointer(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Room) MembersNoSync() (*RoomMembersIterator, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
@@ -6790,6 +6834,7 @@ func (_self *Room) MembersNoSync() (*RoomMembersIterator, error) {
 			C.ffi_matrix_sdk_ffi_rust_future_free_pointer(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Room) Membership() Membership {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
@@ -6874,6 +6919,7 @@ func (_self *Room) RoomInfo() (RoomInfo, error) {
 			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Room) SetIsFavourite(isFavourite bool, tagOrder *float64) error {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
@@ -6898,6 +6944,7 @@ func (_self *Room) SetIsFavourite(isFavourite bool, tagOrder *float64) error {
 			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Room) SetIsLowPriority(isLowPriority bool, tagOrder *float64) error {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
@@ -6922,6 +6969,7 @@ func (_self *Room) SetIsLowPriority(isLowPriority bool, tagOrder *float64) error
 			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Room) SetName(name string) error {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
@@ -6968,6 +7016,7 @@ func (_self *Room) SetUnreadFlag(newValue bool) error {
 			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Room) SubscribeToRoomInfoUpdates(listener RoomInfoListener) *TaskHandle {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
@@ -7000,6 +7049,7 @@ func (_self *Room) SubscribeToTypingNotifications(listener TypingNotificationsLi
 			C.ffi_matrix_sdk_ffi_rust_future_free_pointer(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Room) Timeline() (*Timeline, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
@@ -7024,6 +7074,7 @@ func (_self *Room) Timeline() (*Timeline, error) {
 			C.ffi_matrix_sdk_ffi_rust_future_free_pointer(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Room) Topic() *string {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
@@ -7057,6 +7108,7 @@ func (_self *Room) TypingNotice(isTyping bool) error {
 			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Room) UnbanUser(userId string, reason *string) error {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
@@ -7081,6 +7133,7 @@ func (_self *Room) UnbanUser(userId string, reason *string) error {
 			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Room) UpdatePowerLevelForUser(userId string, powerLevel int64) error {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
@@ -7105,6 +7158,7 @@ func (_self *Room) UpdatePowerLevelForUser(userId string, powerLevel int64) erro
 			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Room) UploadAvatar(mimeType string, data []byte, mediaInfo *ImageInfo) error {
 	_pointer := _self.ffiObject.incrementPointer("*Room")
 	defer _self.ffiObject.decrementPointer()
@@ -7379,6 +7433,7 @@ func (_self *RoomListItem) FullRoom() (*Room, error) {
 			C.ffi_matrix_sdk_ffi_rust_future_free_pointer(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *RoomListItem) Id() string {
 	_pointer := _self.ffiObject.incrementPointer("*RoomListItem")
 	defer _self.ffiObject.decrementPointer()
@@ -7412,6 +7467,7 @@ func (_self *RoomListItem) InitTimeline(eventTypeFilter **TimelineEventTypeFilte
 			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *RoomListItem) IsDirect() bool {
 	_pointer := _self.ffiObject.incrementPointer("*RoomListItem")
 	defer _self.ffiObject.decrementPointer()
@@ -7453,6 +7509,7 @@ func (_self *RoomListItem) LatestEvent() **EventTimelineItem {
 			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *RoomListItem) Name() *string {
 	_pointer := _self.ffiObject.incrementPointer("*RoomListItem")
 	defer _self.ffiObject.decrementPointer()
@@ -7486,6 +7543,7 @@ func (_self *RoomListItem) RoomInfo() (RoomInfo, error) {
 			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *RoomListItem) Subscribe(settings *RoomSubscription) {
 	_pointer := _self.ffiObject.incrementPointer("*RoomListItem")
 	defer _self.ffiObject.decrementPointer()
@@ -7578,6 +7636,7 @@ func (_self *RoomListService) AllRooms() (*RoomList, error) {
 			C.ffi_matrix_sdk_ffi_rust_future_free_pointer(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *RoomListService) ApplyInput(input RoomListInput) error {
 	_pointer := _self.ffiObject.incrementPointer("*RoomListService")
 	defer _self.ffiObject.decrementPointer()
@@ -7602,6 +7661,7 @@ func (_self *RoomListService) ApplyInput(input RoomListInput) error {
 			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *RoomListService) Invites() (*RoomList, error) {
 	_pointer := _self.ffiObject.incrementPointer("*RoomListService")
 	defer _self.ffiObject.decrementPointer()
@@ -7626,6 +7686,7 @@ func (_self *RoomListService) Invites() (*RoomList, error) {
 			C.ffi_matrix_sdk_ffi_rust_future_free_pointer(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *RoomListService) Room(roomId string) (*RoomListItem, error) {
 	_pointer := _self.ffiObject.incrementPointer("*RoomListService")
 	defer _self.ffiObject.decrementPointer()
@@ -7865,7 +7926,7 @@ func (_self *RoomMember) PowerLevel() int64 {
 func (_self *RoomMember) SuggestedRoleForPowerLevel() matrix_sdk.RoomMemberRole {
 	_pointer := _self.ffiObject.incrementPointer("*RoomMember")
 	defer _self.ffiObject.decrementPointer()
-	return matrix_sdk.FfiConverterTypeRoomMemberRoleINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) RustBufferI {
+	return matrix_sdk.FfiConverterTypeRoomMemberRoleINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) matrix_sdk.RustBufferI {
 		return C.uniffi_matrix_sdk_ffi_fn_method_roommember_suggested_role_for_power_level(
 			_pointer, _uniffiStatus)
 	}))
@@ -8169,6 +8230,7 @@ func (_self *SessionVerificationController) ApproveVerification() error {
 			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *SessionVerificationController) CancelVerification() error {
 	_pointer := _self.ffiObject.incrementPointer("*SessionVerificationController")
 	defer _self.ffiObject.decrementPointer()
@@ -8193,6 +8255,7 @@ func (_self *SessionVerificationController) CancelVerification() error {
 			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *SessionVerificationController) DeclineVerification() error {
 	_pointer := _self.ffiObject.incrementPointer("*SessionVerificationController")
 	defer _self.ffiObject.decrementPointer()
@@ -8217,6 +8280,7 @@ func (_self *SessionVerificationController) DeclineVerification() error {
 			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *SessionVerificationController) IsVerified() (bool, error) {
 	_pointer := _self.ffiObject.incrementPointer("*SessionVerificationController")
 	defer _self.ffiObject.decrementPointer()
@@ -8241,6 +8305,7 @@ func (_self *SessionVerificationController) IsVerified() (bool, error) {
 			C.ffi_matrix_sdk_ffi_rust_future_free_i8(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *SessionVerificationController) RequestVerification() error {
 	_pointer := _self.ffiObject.incrementPointer("*SessionVerificationController")
 	defer _self.ffiObject.decrementPointer()
@@ -8265,6 +8330,7 @@ func (_self *SessionVerificationController) RequestVerification() error {
 			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *SessionVerificationController) SetDelegate(delegate *SessionVerificationControllerDelegate) {
 	_pointer := _self.ffiObject.incrementPointer("*SessionVerificationController")
 	defer _self.ffiObject.decrementPointer()
@@ -8535,6 +8601,7 @@ func (_self *SyncService) Start() {
 			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *SyncService) State(listener SyncServiceStateObserver) *TaskHandle {
 	_pointer := _self.ffiObject.incrementPointer("*SyncService")
 	defer _self.ffiObject.decrementPointer()
@@ -8641,6 +8708,7 @@ func (_self *SyncServiceBuilder) Finish() (*SyncService, error) {
 			C.ffi_matrix_sdk_ffi_rust_future_free_pointer(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *SyncServiceBuilder) WithCrossProcessLock(appIdentifier *string) *SyncServiceBuilder {
 	_pointer := _self.ffiObject.incrementPointer("*SyncServiceBuilder")
 	defer _self.ffiObject.decrementPointer()
@@ -8788,6 +8856,7 @@ func (_self *Timeline) AddListener(listener TimelineListener) RoomTimelineListen
 			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Timeline) CancelSend(txnId string) {
 	_pointer := _self.ffiObject.incrementPointer("*Timeline")
 	defer _self.ffiObject.decrementPointer()
@@ -8844,6 +8913,7 @@ func (_self *Timeline) EditPoll(question string, answers []string, maxSelections
 			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Timeline) EndPoll(pollStartId string, text string) error {
 	_pointer := _self.ffiObject.incrementPointer("*Timeline")
 	defer _self.ffiObject.decrementPointer()
@@ -8889,6 +8959,7 @@ func (_self *Timeline) FetchMembers() {
 			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Timeline) GetEventTimelineItemByEventId(eventId string) (*EventTimelineItem, error) {
 	_pointer := _self.ffiObject.incrementPointer("*Timeline")
 	defer _self.ffiObject.decrementPointer()
@@ -8942,6 +9013,7 @@ func (_self *Timeline) LatestEvent() **EventTimelineItem {
 			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Timeline) MarkAsRead(receiptType ReceiptType) error {
 	_pointer := _self.ffiObject.incrementPointer("*Timeline")
 	defer _self.ffiObject.decrementPointer()
@@ -8966,6 +9038,7 @@ func (_self *Timeline) MarkAsRead(receiptType ReceiptType) error {
 			C.ffi_matrix_sdk_ffi_rust_future_free_void(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *Timeline) PaginateBackwards(opts PaginationOptions) error {
 	_pointer := _self.ffiObject.incrementPointer("*Timeline")
 	defer _self.ffiObject.decrementPointer()
@@ -9384,6 +9457,7 @@ func TimelineEventTypeFilterExclude(eventTypes []FilterTimelineEventType) *Timel
 		return C.uniffi_matrix_sdk_ffi_fn_constructor_timelineeventtypefilter_exclude(FfiConverterSequenceTypeFilterTimelineEventTypeINSTANCE.Lower(eventTypes), _uniffiStatus)
 	}))
 }
+
 func TimelineEventTypeFilterInclude(eventTypes []FilterTimelineEventType) *TimelineEventTypeFilter {
 	return FfiConverterTimelineEventTypeFilterINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) unsafe.Pointer {
 		return C.uniffi_matrix_sdk_ffi_fn_constructor_timelineeventtypefilter_include(FfiConverterSequenceTypeFilterTimelineEventTypeINSTANCE.Lower(eventTypes), _uniffiStatus)
@@ -9758,6 +9832,7 @@ func (_self *WidgetDriverHandle) Recv() *string {
 			C.ffi_matrix_sdk_ffi_rust_future_free_rust_buffer(unsafe.Pointer(rustFuture), status)
 		})
 }
+
 func (_self *WidgetDriverHandle) Send(msg string) bool {
 	_pointer := _self.ffiObject.incrementPointer("*WidgetDriverHandle")
 	defer _self.ffiObject.decrementPointer()
@@ -15576,11 +15651,11 @@ func (self RecoveryErrorBackupExistsOnServer) Is(target error) bool {
 }
 
 type RecoveryErrorClient struct {
-	Source ClientError
+	Source *ClientError
 }
 
 func NewRecoveryErrorClient(
-	source ClientError,
+	source *ClientError,
 ) *RecoveryError {
 	return &RecoveryError{
 		err: &RecoveryErrorClient{
@@ -15649,7 +15724,7 @@ func (c FfiConverterTypeRecoveryError) Read(reader io.Reader) error {
 		return &RecoveryError{&RecoveryErrorBackupExistsOnServer{}}
 	case 2:
 		return &RecoveryError{&RecoveryErrorClient{
-			Source: FfiConverterTypeClientErrorINSTANCE.Read(reader).(ClientError),
+			Source: FfiConverterTypeClientErrorINSTANCE.Read(reader).(*ClientError),
 		}}
 	case 3:
 		return &RecoveryError{&RecoveryErrorSecretStorage{
@@ -15666,7 +15741,7 @@ func (c FfiConverterTypeRecoveryError) Write(writer io.Writer, value *RecoveryEr
 		writeInt32(writer, 1)
 	case *RecoveryErrorClient:
 		writeInt32(writer, 2)
-		FfiConverterTypeClientErrorINSTANCE.Write(writer, &variantValue.Source)
+		FfiConverterTypeClientErrorINSTANCE.Write(writer, variantValue.Source)
 	case *RecoveryErrorSecretStorage:
 		writeInt32(writer, 3)
 		FfiConverterStringINSTANCE.Write(writer, variantValue.ErrorMessage)
@@ -18139,7 +18214,6 @@ func (c *FfiConverterCallbackInterface[CallbackInterface]) Write(writer io.Write
 	writeUint64(writer, uint64(c.Lower(value)))
 }
 
-// Declaration and FfiConverters for BackPaginationStatusListener Callback Interface
 type BackPaginationStatusListener interface {
 	OnUpdate(status matrix_sdk_ui.BackPaginationStatus)
 }
@@ -18202,7 +18276,6 @@ type FfiDestroyerCallbackInterfaceBackPaginationStatusListener struct{}
 func (FfiDestroyerCallbackInterfaceBackPaginationStatusListener) Destroy(value BackPaginationStatusListener) {
 }
 
-// Declaration and FfiConverters for BackupStateListener Callback Interface
 type BackupStateListener interface {
 	OnUpdate(status BackupState)
 }
@@ -18265,7 +18338,6 @@ type FfiDestroyerCallbackInterfaceBackupStateListener struct{}
 func (FfiDestroyerCallbackInterfaceBackupStateListener) Destroy(value BackupStateListener) {
 }
 
-// Declaration and FfiConverters for BackupSteadyStateListener Callback Interface
 type BackupSteadyStateListener interface {
 	OnUpdate(status BackupUploadState)
 }
@@ -18328,9 +18400,9 @@ type FfiDestroyerCallbackInterfaceBackupSteadyStateListener struct{}
 func (FfiDestroyerCallbackInterfaceBackupSteadyStateListener) Destroy(value BackupSteadyStateListener) {
 }
 
-// Declaration and FfiConverters for ClientDelegate Callback Interface
 type ClientDelegate interface {
 	DidReceiveAuthError(isSoftLogout bool)
+
 	DidRefreshTokens()
 }
 
@@ -18402,9 +18474,9 @@ type FfiDestroyerCallbackInterfaceClientDelegate struct{}
 func (FfiDestroyerCallbackInterfaceClientDelegate) Destroy(value ClientDelegate) {
 }
 
-// Declaration and FfiConverters for ClientSessionDelegate Callback Interface
 type ClientSessionDelegate interface {
 	RetrieveSessionFromKeychain(userId string) (Session, *ClientError)
+
 	SaveSessionInKeychain(session Session)
 }
 
@@ -18487,7 +18559,6 @@ type FfiDestroyerCallbackInterfaceClientSessionDelegate struct{}
 func (FfiDestroyerCallbackInterfaceClientSessionDelegate) Destroy(value ClientSessionDelegate) {
 }
 
-// Declaration and FfiConverters for EnableRecoveryProgressListener Callback Interface
 type EnableRecoveryProgressListener interface {
 	OnUpdate(status EnableRecoveryProgress)
 }
@@ -18550,7 +18621,6 @@ type FfiDestroyerCallbackInterfaceEnableRecoveryProgressListener struct{}
 func (FfiDestroyerCallbackInterfaceEnableRecoveryProgressListener) Destroy(value EnableRecoveryProgressListener) {
 }
 
-// Declaration and FfiConverters for NotificationSettingsDelegate Callback Interface
 type NotificationSettingsDelegate interface {
 	SettingsDidChange()
 }
@@ -18612,7 +18682,6 @@ type FfiDestroyerCallbackInterfaceNotificationSettingsDelegate struct{}
 func (FfiDestroyerCallbackInterfaceNotificationSettingsDelegate) Destroy(value NotificationSettingsDelegate) {
 }
 
-// Declaration and FfiConverters for ProgressWatcher Callback Interface
 type ProgressWatcher interface {
 	TransmissionProgress(progress TransmissionProgress)
 }
@@ -18675,7 +18744,6 @@ type FfiDestroyerCallbackInterfaceProgressWatcher struct{}
 func (FfiDestroyerCallbackInterfaceProgressWatcher) Destroy(value ProgressWatcher) {
 }
 
-// Declaration and FfiConverters for RecoveryStateListener Callback Interface
 type RecoveryStateListener interface {
 	OnUpdate(status RecoveryState)
 }
@@ -18738,7 +18806,6 @@ type FfiDestroyerCallbackInterfaceRecoveryStateListener struct{}
 func (FfiDestroyerCallbackInterfaceRecoveryStateListener) Destroy(value RecoveryStateListener) {
 }
 
-// Declaration and FfiConverters for RoomInfoListener Callback Interface
 type RoomInfoListener interface {
 	Call(roomInfo RoomInfo)
 }
@@ -18801,7 +18868,6 @@ type FfiDestroyerCallbackInterfaceRoomInfoListener struct{}
 func (FfiDestroyerCallbackInterfaceRoomInfoListener) Destroy(value RoomInfoListener) {
 }
 
-// Declaration and FfiConverters for RoomListEntriesListener Callback Interface
 type RoomListEntriesListener interface {
 	OnUpdate(roomEntriesUpdate []RoomListEntriesUpdate)
 }
@@ -18864,7 +18930,6 @@ type FfiDestroyerCallbackInterfaceRoomListEntriesListener struct{}
 func (FfiDestroyerCallbackInterfaceRoomListEntriesListener) Destroy(value RoomListEntriesListener) {
 }
 
-// Declaration and FfiConverters for RoomListLoadingStateListener Callback Interface
 type RoomListLoadingStateListener interface {
 	OnUpdate(state RoomListLoadingState)
 }
@@ -18927,7 +18992,6 @@ type FfiDestroyerCallbackInterfaceRoomListLoadingStateListener struct{}
 func (FfiDestroyerCallbackInterfaceRoomListLoadingStateListener) Destroy(value RoomListLoadingStateListener) {
 }
 
-// Declaration and FfiConverters for RoomListServiceStateListener Callback Interface
 type RoomListServiceStateListener interface {
 	OnUpdate(state RoomListServiceState)
 }
@@ -18990,7 +19054,6 @@ type FfiDestroyerCallbackInterfaceRoomListServiceStateListener struct{}
 func (FfiDestroyerCallbackInterfaceRoomListServiceStateListener) Destroy(value RoomListServiceStateListener) {
 }
 
-// Declaration and FfiConverters for RoomListServiceSyncIndicatorListener Callback Interface
 type RoomListServiceSyncIndicatorListener interface {
 	OnUpdate(syncIndicator RoomListServiceSyncIndicator)
 }
@@ -19053,13 +19116,17 @@ type FfiDestroyerCallbackInterfaceRoomListServiceSyncIndicatorListener struct{}
 func (FfiDestroyerCallbackInterfaceRoomListServiceSyncIndicatorListener) Destroy(value RoomListServiceSyncIndicatorListener) {
 }
 
-// Declaration and FfiConverters for SessionVerificationControllerDelegate Callback Interface
 type SessionVerificationControllerDelegate interface {
 	DidAcceptVerificationRequest()
+
 	DidStartSasVerification()
+
 	DidReceiveVerificationData(data SessionVerificationData)
+
 	DidFail()
+
 	DidCancel()
+
 	DidFinish()
 }
 
@@ -19171,7 +19238,6 @@ type FfiDestroyerCallbackInterfaceSessionVerificationControllerDelegate struct{}
 func (FfiDestroyerCallbackInterfaceSessionVerificationControllerDelegate) Destroy(value SessionVerificationControllerDelegate) {
 }
 
-// Declaration and FfiConverters for SyncServiceStateObserver Callback Interface
 type SyncServiceStateObserver interface {
 	OnUpdate(state SyncServiceState)
 }
@@ -19234,7 +19300,6 @@ type FfiDestroyerCallbackInterfaceSyncServiceStateObserver struct{}
 func (FfiDestroyerCallbackInterfaceSyncServiceStateObserver) Destroy(value SyncServiceStateObserver) {
 }
 
-// Declaration and FfiConverters for TimelineListener Callback Interface
 type TimelineListener interface {
 	OnUpdate(diff []*TimelineDiff)
 }
@@ -19297,7 +19362,6 @@ type FfiDestroyerCallbackInterfaceTimelineListener struct{}
 func (FfiDestroyerCallbackInterfaceTimelineListener) Destroy(value TimelineListener) {
 }
 
-// Declaration and FfiConverters for TypingNotificationsListener Callback Interface
 type TypingNotificationsListener interface {
 	Call(typingUserIds []string)
 }
@@ -19360,7 +19424,6 @@ type FfiDestroyerCallbackInterfaceTypingNotificationsListener struct{}
 func (FfiDestroyerCallbackInterfaceTypingNotificationsListener) Destroy(value TypingNotificationsListener) {
 }
 
-// Declaration and FfiConverters for WidgetCapabilitiesProvider Callback Interface
 type WidgetCapabilitiesProvider interface {
 	AcquireCapabilities(capabilities WidgetCapabilities) WidgetCapabilities
 }
@@ -22299,8 +22362,8 @@ func (_ FfiDestroyerMapStringSequenceString) Destroy(mapValue map[string][]strin
 }
 
 const (
-	uniffiRustFuturePollReady      C.int8_t = 0
-	uniffiRustFuturePollMaybeReady C.int8_t = 1
+	uniffiRustFuturePollReady      int8 = 0
+	uniffiRustFuturePollMaybeReady int8 = 1
 )
 
 func uniffiRustCallAsync(
@@ -22407,8 +22470,8 @@ func uniffiRustCallAsyncInner(
 	pollFunc func(*C.void, unsafe.Pointer, *C.RustCallStatus),
 	freeFunc func(*C.void, *C.RustCallStatus),
 ) (*C.void, error) {
-	pollResult := C.int8_t(-1)
-	waiter := make(chan C.int8_t, 1)
+	pollResult := int8(-1)
+	waiter := make(chan int8, 1)
 	chanHandle := cgo.NewHandle(waiter)
 
 	rustFuture, err := rustCallWithError(converter, func(status *C.RustCallStatus) *C.void {
@@ -22442,8 +22505,8 @@ func uniffiRustCallAsyncInner(
 //export uniffiFutureContinuationCallbackmatrix_sdk_ffi
 func uniffiFutureContinuationCallbackmatrix_sdk_ffi(ptr unsafe.Pointer, pollResult C.int8_t) {
 	doneHandle := *(*cgo.Handle)(ptr)
-	done := doneHandle.Value().((chan C.int8_t))
-	done <- pollResult
+	done := doneHandle.Value().((chan int8))
+	done <- int8(pollResult)
 }
 
 func uniffiInitContinuationCallback() {
