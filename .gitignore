@@ -11,3 +11,4 @@ __pycache__
 /tests/logs/
 /tests/chromedp/
 /tests/rust_storage/
+_temp_rust_sdk
