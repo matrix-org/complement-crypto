@@ -224,7 +224,7 @@ In order to generate these bindings, follow these instructions:
 main uses a versioned uniffi release e.g 0.25.2)
 - Get the bindings generator:
 ```
-git clone https://github.com/NordSecurity/uniffi-bindgen-go.git # TODO: go back to NordSecurity once https://github.com/NordSecurity/uniffi-bindgen-go/pull/47 lands
+git clone https://github.com/kegsay/uniffi-bindgen-go.git # TODO: go back to NordSecurity once https://github.com/NordSecurity/uniffi-bindgen-go/pull/48 lands
 cd uniffi-bindgen-go
 git submodule init
 git submodule update
