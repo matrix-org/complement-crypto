@@ -31,13 +31,17 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-      - name: Checkout matrix-rust-sdk on 'main' branch
+      - name: Check out Rust SDK (branch 'main')
         run: |
-          mkdir rust-sdk
+          ./install_uniffi_bindgen_go.sh
+          mkdir rust-sdk # don't use HTTPS path in rebuild_rust_sdk.sh so we can use the rust-cache before building
           (wget -O - "https://github.com/matrix-org/matrix-rust-sdk/archive/main.tar.gz" | tar -xz --strip-components=1 -C rust-sdk)
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: "rust-sdk"
+          workspaces: "_temp_rust_sdk"
+      - name: Build Rust SDK
+        run: |
+          ./rebuild_rust_sdk.sh ./rust-sdk
       - name: "Install Complement Dependencies"
         run: |
           sudo apt-get update && sudo apt-get install -y libolm3 libolm-dev
@@ -53,12 +57,9 @@ jobs:
           docker pull ghcr.io/matrix-org/synapse-service:v1.94.0
           docker pull mitmproxy/mitmproxy:10.1.5
           docker tag ghcr.io/matrix-org/synapse-service:v1.94.0 homeserver:latest
-      - name: Build Rust SDK
-        run: |
-          ./rebuild_rust_sdk.sh https://github.com/matrix-org/matrix-rust-sdk@main
       - run: |
-          export LIBRARY_PATH="$(pwd)/_temp_rust_sdk/target/debug"
-          export LD_LIBRARY_PATH="$(pwd)/_temp_rust_sdk/target/debug"
+          export LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
+          export LD_LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
           set -o pipefail &&
           go test -v -json -timeout 15m ./tests | gotestfmt
         shell: bash # required for pipefail to be A Thing. pipefail is required to stop gotestfmt swallowing non-zero exit codes
