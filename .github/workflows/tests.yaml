@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3 # Checkout crypto tests
-      - name: Setup | Node.js 18.x
+      - name: Setup | Node.js 18.x # TODO: Remove when we have conditional builds
         uses: actions/setup-node@v3
         with:
           node-version: 18
@@ -46,7 +46,7 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y libolm3 libolm-dev
           go install -v github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
-      - name: Build JS SDK
+      - name: Build JS SDK # TODO: Remove when we have conditional builds
         run: |
           cat ./internal/api/js/js-sdk/package.json
           (cd ./internal/api/js/js-sdk && yarn install --frozen-lockfile && yarn build)
