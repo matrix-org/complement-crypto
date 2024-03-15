@@ -1,4 +1,5 @@
-#!/bin/bash -eo pipefail
+#!/bin/bash -e
+set -o pipefail
 
 JS_SDK_VERSION=$1
 

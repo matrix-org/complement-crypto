@@ -38,7 +38,7 @@ jobs:
           (wget -O - "https://github.com/matrix-org/matrix-rust-sdk/archive/main.tar.gz" | tar -xz --strip-components=1 -C rust-sdk)
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: "_temp_rust_sdk"
+          workspaces: "rust-sdk"
       - name: Build Rust SDK
         run: |
           ./rebuild_rust_sdk.sh ./rust-sdk

@@ -1,4 +1,5 @@
-#!/bin/bash -e -o pipefail
+#!/bin/bash -e
+set -o pipefail
 
 ARG=$1;
 RUST_SDK_DIR="$(pwd)/_temp_rust_sdk";
