@@ -1,10 +1,11 @@
-#!/bin/bash -eo pipefail
+#!/bin/bash -e
+set -o pipefail
 
 JS_SDK_VERSION=$1
 
 if [ -z "$JS_SDK_VERSION" ] || [ "$JS_SDK_VERSION" = "-h" ] || [ "$JS_SDK_VERSION" = "--help" ];
 then
-    echo "Rebuild the version of JS SDK used"
+    echo "Rebuild the version of JS SDK used. (requires on PATH: yarn)"
     echo "Usage: $0 [version]"
     echo "  [version]: the yarn/npm package to use. This is fed directly into 'yarn add' so branches/commits can be used"
     echo ""
