@@ -84,6 +84,9 @@ func ClientTypeMatrix(t *testing.T, subTest func(t *testing.T, clientTypeA, clie
 func ForEachClientType(t *testing.T, subTest func(t *testing.T, clientType api.ClientType)) {
 	for _, tc := range []api.ClientType{{Lang: api.ClientTypeRust, HS: "hs1"}, {Lang: api.ClientTypeJS, HS: "hs1"}} {
 		tc := tc
+		if !complementCryptoConfig.ShouldTest(tc.Lang) {
+			continue
+		}
 		t.Run(string(tc.Lang), func(t *testing.T) {
 			subTest(t, tc)
 		})

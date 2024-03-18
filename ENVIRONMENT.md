@@ -23,6 +23,7 @@ The client test matrix to run. Every test is run for each given permutation. The
  - `rj,rr`: Run the test twice. Run 1: Alice=rust, Bob=JS. Run 2: Alice=rust, Bob=rust. All on HS1.
  - `jJ`: Run the test once. Run 1: Alice=JS on HS1, Bob=JS on HS2. Tests federation.
  ```
+ If the matrix only consists of one leter (e.g all j's) then rust-specific tests will not run and vice versa.
  
  
 - Type: `[][]ClientType`
