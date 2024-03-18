@@ -17,8 +17,6 @@ import (
 // Ensure sending another message from C is decryptable.
 func TestNewUserCannotGetKeysForOfflineServer(t *testing.T) {
 	ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
-		// normally we would use ForEachClient or ClientTypeMatrix but due to federation we need
-		// to pin it to certain langs/servers.
 		tc := CreateTestContext(t, api.ClientType{
 			Lang: clientType.Lang,
 			HS:   "hs1",
