@@ -27,7 +27,12 @@ type ComplementCrypto struct {
 	//  - `rj,rr`: Run the test twice. Run 1: Alice=rust, Bob=JS. Run 2: Alice=rust, Bob=rust. All on HS1.
 	//  - `jJ`: Run the test once. Run 1: Alice=JS on HS1, Bob=JS on HS2. Tests federation.
 	// ```
+	// If the matrix only consists of one letter (e.g all j's) then rust-specific tests will not run and vice versa.
 	TestClientMatrix [][2]api.ClientType
+
+	// Which languages should be tested in ForEachClientType tests.
+	// Derived from TestClientMatrix
+	clientLangs map[api.ClientTypeLang]bool
 
 	// Name: COMPLEMENT_CRYPTO_TCPDUMP
 	// Default: 0
@@ -37,12 +42,17 @@ type ComplementCrypto struct {
 	TCPDump bool
 }
 
+func (c *ComplementCrypto) ShouldTest(lang api.ClientTypeLang) bool {
+	return c.clientLangs[lang]
+}
+
 func NewComplementCryptoConfigFromEnvVars() *ComplementCrypto {
 	matrix := os.Getenv("COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX")
 	if matrix == "" {
 		matrix = "jj,jr,rj,rr"
 	}
 	segs := strings.Split(matrix, ",")
+	clientLangs := make(map[api.ClientTypeLang]bool)
 	var testClientMatrix [][2]api.ClientType
 	for _, val := range segs { // e.g val == 'rj'
 		if len(val) != 2 {
@@ -56,21 +66,25 @@ func NewComplementCryptoConfigFromEnvVars() *ComplementCrypto {
 					Lang: api.ClientTypeRust,
 					HS:   "hs1",
 				}
+				clientLangs[api.ClientTypeRust] = true
 			case 'j':
 				testCase[i] = api.ClientType{
 					Lang: api.ClientTypeJS,
 					HS:   "hs1",
 				}
+				clientLangs[api.ClientTypeJS] = true
 			case 'J':
 				testCase[i] = api.ClientType{
 					Lang: api.ClientTypeJS,
 					HS:   "hs2",
 				}
+				clientLangs[api.ClientTypeJS] = true
 			case 'R':
 				testCase[i] = api.ClientType{
 					Lang: api.ClientTypeRust,
 					HS:   "hs2",
 				}
+				clientLangs[api.ClientTypeRust] = true
 			default:
 				panic("COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX bad value: " + val)
 			}
@@ -83,5 +97,6 @@ func NewComplementCryptoConfigFromEnvVars() *ComplementCrypto {
 	return &ComplementCrypto{
 		TCPDump:          os.Getenv("COMPLEMENT_CRYPTO_TCPDUMP") == "1",
 		TestClientMatrix: testClientMatrix,
+		clientLangs:      clientLangs,
 	}
 }
