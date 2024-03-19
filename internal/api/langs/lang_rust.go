@@ -14,7 +14,7 @@ import (
 
 func init() {
 	fmt.Println("Adding Rust bindings")
-	SetLangaugeBinding(api.ClientTypeRust, &RustLanguageBindings{})
+	SetLanguageBinding(api.ClientTypeRust, &RustLanguageBindings{})
 }
 
 type RustLanguageBindings struct{}

@@ -2,6 +2,7 @@
 
 package langs
 
+// Can't use tag name 'js' as that is used already for wasm bindings...
 import (
 	"fmt"
 	"os"
@@ -12,10 +13,9 @@ import (
 	"github.com/matrix-org/complement/must"
 )
 
-// Can't use tag name 'js' as that is used already for wasm bindings...
 func init() {
 	fmt.Println("Adding JS bindings")
-	SetLangaugeBinding(api.ClientTypeJS, &JSLanguageBindings{})
+	SetLanguageBinding(api.ClientTypeJS, &JSLanguageBindings{})
 }
 
 type JSLanguageBindings struct{}

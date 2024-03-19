@@ -17,7 +17,7 @@ var knownLanguages map[api.ClientTypeLang]api.LanguageBindings = map[api.ClientT
 
 // SetLanguageBinding sets language bindings for the given language. Last write wins
 // if the same language is given more than once.
-func SetLangaugeBinding(l api.ClientTypeLang, b api.LanguageBindings) {
+func SetLanguageBinding(l api.ClientTypeLang, b api.LanguageBindings) {
 	knownLanguages[l] = b
 }
 
