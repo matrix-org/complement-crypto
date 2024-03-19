@@ -9,8 +9,7 @@ import (
 
 	"github.com/matrix-org/complement"
 	"github.com/matrix-org/complement-crypto/internal/api"
-	"github.com/matrix-org/complement-crypto/internal/api/js"
-	"github.com/matrix-org/complement-crypto/internal/api/rust"
+	"github.com/matrix-org/complement-crypto/internal/api/langs"
 	"github.com/matrix-org/complement-crypto/internal/config"
 	"github.com/matrix-org/complement-crypto/internal/deploy"
 	"github.com/matrix-org/complement/client"
@@ -30,23 +29,19 @@ func TestMain(m *testing.M) {
 	complementCryptoConfig = config.NewComplementCryptoConfigFromEnvVars()
 	ssMutex = &sync.Mutex{}
 
-	// nuke persistent storage from previous run. We do this on startup rather than teardown
-	// to allow devs to introspect DBs / Chrome profiles if tests fail.
-	// TODO: ideally client packages would do this.
-	os.RemoveAll("./rust_storage")
-	os.RemoveAll("./chromedp")
-	rust.DeleteOldLogs("rust_sdk_logs")
-	rust.DeleteOldLogs("rust_sdk_inline_script")
-	rust.SetupLogs("rust_sdk_logs")
+	for _, binding := range complementCryptoConfig.Bindings() {
+		binding.PreTestRun()
+	}
 
-	js.SetupJSLogs("./logs/js_sdk.log")                  // rust sdk logs on its own
 	complement.TestMainWithCleanup(m, "crypto", func() { // always teardown even if panicking
 		ssMutex.Lock()
 		if ssDeployment != nil {
 			ssDeployment.Teardown()
 		}
 		ssMutex.Unlock()
-		js.WriteJSLogs()
+		for _, binding := range complementCryptoConfig.Bindings() {
+			binding.PostTestRun()
+		}
 	})
 }
 
@@ -97,19 +92,11 @@ func ForEachClientType(t *testing.T, subTest func(t *testing.T, clientType api.C
 //
 // Options can be provided to configure clients, such as enabling persistent storage.
 func MustCreateClient(t *testing.T, clientType api.ClientType, cfg api.ClientCreationOpts, opts ...func(api.Client, *api.ClientCreationOpts)) api.Client {
-	var c api.Client
-	switch clientType.Lang {
-	case api.ClientTypeRust:
-		client, err := rust.NewRustClient(t, cfg)
-		must.NotError(t, "NewRustClient: %s", err)
-		c = client
-	case api.ClientTypeJS:
-		client, err := js.NewJSClient(t, cfg)
-		must.NotError(t, "NewJSClient: %s", err)
-		c = client
-	default:
-		t.Fatalf("unknown client type %v", clientType)
+	bindings := langs.GetLanguageBindings(clientType.Lang)
+	if bindings == nil {
+		t.Fatalf("unknown language: %s", clientType.Lang)
 	}
+	c := bindings.MustCreateClient(t, cfg)
 	for _, o := range opts {
 		o(c, &cfg)
 	}

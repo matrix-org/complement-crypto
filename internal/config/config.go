@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
+	"github.com/matrix-org/complement-crypto/internal/api/langs"
 )
 
 // The config for running Complement Crypto. This is configured using environment variables. The comments
@@ -44,6 +45,20 @@ type ComplementCrypto struct {
 
 func (c *ComplementCrypto) ShouldTest(lang api.ClientTypeLang) bool {
 	return c.clientLangs[lang]
+}
+
+// Bindings returns all the known language bindings for this particular complement-crypto configuration. Panics on
+// unknown bindings.
+func (c *ComplementCrypto) Bindings() []api.LanguageBindings {
+	bindings := make([]api.LanguageBindings, 0, len(c.clientLangs))
+	for l := range c.clientLangs {
+		b := langs.GetLanguageBindings(l)
+		if b == nil {
+			panic("unknown language: " + l)
+		}
+		bindings = append(bindings, b)
+	}
+	return bindings
 }
 
 func NewComplementCryptoConfigFromEnvVars() *ComplementCrypto {
