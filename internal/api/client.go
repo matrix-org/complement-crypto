@@ -8,13 +8,6 @@ import (
 	"github.com/matrix-org/complement/ct"
 )
 
-type ClientTypeLang string
-
-var (
-	ClientTypeRust ClientTypeLang = "rust"
-	ClientTypeJS   ClientTypeLang = "js"
-)
-
 type ClientType struct {
 	Lang ClientTypeLang // rust or js
 	HS   string         // hs1 or hs2
