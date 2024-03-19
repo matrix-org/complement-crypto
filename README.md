@@ -14,7 +14,7 @@ It's currently pretty awful to run, as you need toolchains for both Rust and JS.
 You need to build Rust SDK FFI bindings _and_ JS SDK before you can get this to run. You also need a Complement homeserver image. When that is setup:
 
 ```
-COMPLEMENT_BASE_IMAGE=homeserver:latest go test -v ./tests
+COMPLEMENT_BASE_IMAGE=homeserver:latest go test -tags='rust,jssdk' -v ./tests
 ```
 
 TODO: consider checking in working builds so you can git clone and run. Git LFS for `libmatrix_sdk_ffi.so` given it's 60MB?

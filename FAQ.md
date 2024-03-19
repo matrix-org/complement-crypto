@@ -75,12 +75,18 @@ mind your changes only applying to the native Rust (and NOT applying to Rust
 within the JavaScript client, which is compiled to WASM) then you can modify it
 in-place and then recompile it.
 
-Edit files inside the `rust-sdk` directory (which is just a copy of
-a specific version of `matrix-rust-sdk`) and then `cargo build -p
-matrix-sdk-ffi` inside that directory.
+Ensure you have `uniffi-bindgen-go` installed and on your `PATH`:
+```
+./install_uniffi_bindgen_go.sh
+```
 
-Make sure you launch the tests with LIBRARY_PATH pointing to
-`rust-sdk/target/debug` so that the built code gets used.
+Check out matrix-rust-sdk, edit your files and then run:
+```
+./rebuild_rust_sdk.sh /path/to/your/matrix-rust-sdk
+```
+
+Make sure you launch the tests with `LIBRARY_PATH` pointing to
+`$matrix-rust-sdk/target/debug` so that the built code gets used.
 
 Make sure you add `-count=1` on the command line when you re-run the tests,
 because changes to the rust here won't trigger the framework to re-execute a
@@ -213,29 +219,8 @@ Rust tests, but I have not actually tried it.
 
 ### React to changed interfaces in the Rust
 
-Prerequisites:
- - A working Rust installation (1.72+)
- - A working Go installation (1.19+?)
-
-This repo has bindings to the `matrix_sdk` crate in rust SDK, in order to mimic Element X.
-
-In order to generate these bindings, follow these instructions:
-- Check out https://github.com/matrix-org/matrix-rust-sdk/tree/kegan/complement-crypto (TODO: go back to main when
-main uses a versioned uniffi release e.g 0.25.2)
-- Get the bindings generator:
-```
-git clone https://github.com/kegsay/uniffi-bindgen-go.git # TODO: go back to NordSecurity once https://github.com/NordSecurity/uniffi-bindgen-go/pull/48 lands
-cd uniffi-bindgen-go
-git submodule init
-git submodule update
-cd ..
-cargo install uniffi-bindgen-go --path ./uniffi-bindgen-go/bindgen
-```
-- Compile the rust SDK: `cargo build -p matrix-sdk-ffi`. Check that `target/debug/libmatrix_sdk_ffi.a` exists.
-- **In the matrix-rust-sdk working directory**: generate the Go bindings to `../complement-crypto/internal/api/rust`: `uniffi-bindgen-go -o ../complement-crypto/internal/api/rust --config ../complement-crypto/uniffi.toml --library ./target/debug/libmatrix_sdk_ffi.a`
-- Patch up the generated code as it's not quite right:
-    * Add `// #cgo LDFLAGS: -lmatrix_sdk_ffi` immediately after `// #include <matrix_sdk_ffi.h>` at the top of `matrix_sdk_ffi.go`.
-- Sanity check compile `LIBRARY_PATH="$LIBRARY_PATH:/path/to/matrix-rust-sdk/target/debug" go test -c ./tests`
+This should now be done for you by following the steps in "Changing the native Rust directly". In the past, this involved
+lots of manual steps installing `uniffi-bindgen-go` and manually editing the generated code to patch it up so it compiled.
 
 #### Add console logs
 
