@@ -87,8 +87,8 @@ jobs:
         # Run the tests
         - name: Run Complement Crypto Tests
           run: |
-            LIBRARY_PATH="$(pwd)$RUST_SDK_LIB_RELATIVE"
-            LD_LIBRARY_PATH="$(pwd)$RUST_SDK_LIB_RELATIVE"
+            export LIBRARY_PATH="$(pwd)$RUST_SDK_LIB_RELATIVE"
+            export LD_LIBRARY_PATH="$(pwd)$RUST_SDK_LIB_RELATIVE"
             cd complement-crypto &&
             set -o pipefail &&
             go test -v -json -tags=$GO_TAGS -timeout 15m ./tests | gotestfmt
