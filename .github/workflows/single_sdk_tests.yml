@@ -53,7 +53,6 @@ jobs:
           uses: actions/setup-node@v3
           with:
             node-version: 18
-            cache: 'yarn'
         - name: "Install JS SDK"
           if: ${{ inputs.use_js_sdk != '' }}
           env:
@@ -70,7 +69,7 @@ jobs:
           with:
             toolchain: stable
         - name: "Download Rust SDK" # no need to download rust SDK if we are using the local checkout.
-          if: ${{ inputs.use_rust_sdk != '' && inputs.use_rust_sdk == '.'}}
+          if: ${{ inputs.use_rust_sdk != '' && inputs.use_rust_sdk != '.'}}
           env:
             RUST_SDK: ${{ inputs.use_rust_sdk }} # TODO: allow custom forks
           run: |
