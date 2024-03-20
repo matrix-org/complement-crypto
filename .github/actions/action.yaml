@@ -1,0 +1,95 @@
+name: 'Complement Crypto'
+description: 'Run single SDK tests to check cryptography code'
+branding:
+  icon: lock
+  color: white
+inputs:
+  js-sdk:
+    description: 'tag/commit/branch of the JS SDK to test against'
+    required: false
+    default: ''
+  rust-sdk:
+    description: 'tag/commit/branch of the Rust SDK to test against'
+    required: false
+    default: ''
+runs:
+  using: "composite"
+  steps:
+      # Setup code we always need
+      - name: Pull synapse service v1.94.0 and mitmproxy
+        shell: bash
+        run: |
+          docker pull ghcr.io/matrix-org/synapse-service:v1.94.0
+          docker pull mitmproxy/mitmproxy:10.1.5
+          docker tag ghcr.io/matrix-org/synapse-service:v1.94.0 homeserver:latest
+      - name: Setup | Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+      - name: "Install Complement Dependencies"
+        shell: bash
+        run: |
+          sudo apt-get update && sudo apt-get install -y libolm3 libolm-dev
+          go install -v github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
+
+      # JS SDK only steps
+      - name: Setup | Node.js 18.x
+        if: ${{ inputs.js-sdk != '' }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+          cache: 'yarn'
+      - name: "Install JS SDK"
+        if: ${{ inputs.js-sdk != '' }}
+        env:
+          JS_SDK: ${{ inputs.js-sdk }}
+        run: |
+          echo "Installing matrix-js-sdk@$JS_SDK..."
+          ./rebuild_js_sdk.sh "matrix-js-sdk@https://github.com/matrix-org/matrix-js-sdk#$JS_SDK"
+
+      # Rust SDK only steps
+      - name: Setup | Rust
+        if: ${{ inputs.rust-sdk != '' }}
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - name: "Download Rust SDK"
+        if: ${{ inputs.rust-sdk != '' }}
+        env:
+          RUST_SDK: ${{ inputs.rust-sdk }}
+        run: |
+          ./install_uniffi_bindgen_go.sh
+          mkdir rust-sdk # don't use HTTPS path in rebuild_rust_sdk.sh so we can use the rust-cache before building
+          (wget -O - "https://github.com/matrix-org/matrix-rust-sdk/archive/$RUST_SDK.tar.gz" | tar -xz --strip-components=1 -C rust-sdk)
+      - uses: Swatinem/rust-cache@v2
+        if: ${{ inputs.rust-sdk != '' }}
+        with:
+          workspaces: "rust-sdk"
+      - name: Build Rust SDK
+        if: ${{ inputs.rust-sdk != '' }}
+        run: |
+          ./rebuild_rust_sdk.sh ./rust-sdk
+
+      # Run the tests
+      - name: Run Complement Crypto Tests
+        run: |
+          set -o pipefail &&
+          go test -v -json -tags=jssdk -timeout 15m ./tests | gotestfmt
+        shell: bash # required for pipefail to be A Thing. pipefail is required to stop gotestfmt swallowing non-zero exit codes
+        env:
+          COMPLEMENT_BASE_IMAGE: homeserver
+          COMPLEMENT_ENABLE_DIRTY_RUNS: 1
+          COMPLEMENT_CRYPTO_WRITE_CONTAINER_LOGS: 1
+          COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX: ${{ inputs.js-sdk != '' && 'jj' || 'rr' }} # TODO: brittle, we don't check rust-sdk input
+          COMPLEMENT_SHARE_ENV_PREFIX: PASS_
+          PASS_SYNAPSE_COMPLEMENT_DATABASE: sqlite
+          DOCKER_BUILDKIT: 1
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v2
+        if: ${{ failure() }}
+        with:
+          name: Logs - ${{ job.status }}
+          path: |
+            ./tests/logs/*
+
