@@ -163,24 +163,8 @@ func TestFallbackKeyIsUsedIfOneTimeKeysRunOut(t *testing.T) {
 				return nil
 			})
 
-			// now re-block /keys/upload, re-claim all otks, and check that the fallback key this time around is different
-			// to the first
-			tc.Deployment.WithMITMOptions(t, map[string]interface{}{
-				"statuscode": map[string]interface{}{
-					"return_status": http.StatusGatewayTimeout,
-					"block_request": true,
-					"filter":        "~u .*\\/keys\\/upload.*",
-				},
-			}, func() {
-				// claim all OTKs
-				mustClaimOTKs(t, otkGobbler, tc.Alice, int(otkCount))
-
-				// now claim the fallback key
-				secondFallbackKeyID, secondFallbackKey := mustClaimFallbackKey(t, otkGobbler, tc.Alice)
-				t.Logf("second fallback key %s => %s", secondFallbackKeyID, secondFallbackKey.Get("key").Str)
-				must.NotEqual(t, secondFallbackKeyID, fallbackKeyID, "fallback key id same as before, not cycled?")
-				must.NotEqual(t, fallbackKey.Get("key").Str, secondFallbackKey.Get("key").Str, "fallback key data same as before, not cycled?")
-			})
+			// We do not check if the fallback key is cycled because some clients don't trust the server to tell them.
+			// see https://github.com/matrix-org/matrix-rust-sdk/pull/3151
 		})
 	})
 }
