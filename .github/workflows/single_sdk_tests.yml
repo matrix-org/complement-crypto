@@ -87,6 +87,8 @@ jobs:
         # Run the tests
         - name: Run Complement Crypto Tests
           run: |
+            LIBRARY_PATH="$(pwd)$RUST_SDK_LIB_RELATIVE"
+            LD_LIBRARY_PATH="$(pwd)$RUST_SDK_LIB_RELATIVE"
             cd complement-crypto &&
             set -o pipefail &&
             go test -v -json -tags=$GO_TAGS -timeout 15m ./tests | gotestfmt
@@ -100,8 +102,7 @@ jobs:
             PASS_SYNAPSE_COMPLEMENT_DATABASE: sqlite
             DOCKER_BUILDKIT: 1
             GO_TAGS: ${{ inputs.use_js_sdk != '' && 'jssdk' || 'rust'}}
-            LIBRARY_PATH: ${{ inputs.use_rust_sdk == '.' &&  '../target/debug' || './rust-sdk/target/debug'}}
-            LD_LIBRARY_PATH: ${{ inputs.use_rust_sdk == '.' &&  '../target/debug' || './rust-sdk/target/debug'}}
+            RUST_SDK_LIB_RELATIVE: ${{ inputs.use_rust_sdk == '.' &&  '/target/debug' || '/complement-crypto/rust-sdk/target/debug'}}
 
         - name: Upload logs
           uses: actions/upload-artifact@v2
