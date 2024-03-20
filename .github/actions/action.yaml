@@ -16,6 +16,10 @@ runs:
   using: "composite"
   steps:
       # Setup code we always need
+      - name: Debug logging
+        run: |
+          echo "Action Path ${{github.action_path}}"
+          echo "Workspace Path ${{github.workspace}}"
       - name: Pull synapse service v1.94.0 and mitmproxy
         shell: bash
         run: |
@@ -43,9 +47,10 @@ runs:
         if: ${{ inputs.js-sdk != '' }}
         env:
           JS_SDK: ${{ inputs.js-sdk }}
+          ACTION_PATH: ${{ github.action_path }}
         run: |
           echo "Installing matrix-js-sdk@$JS_SDK..."
-          ./rebuild_js_sdk.sh "matrix-js-sdk@https://github.com/matrix-org/matrix-js-sdk#$JS_SDK"
+          cd $ACTION_PATH && ./rebuild_js_sdk.sh "matrix-js-sdk@https://github.com/matrix-org/matrix-js-sdk#$JS_SDK"
 
       # Rust SDK only steps
       - name: Setup | Rust
@@ -57,22 +62,28 @@ runs:
         if: ${{ inputs.rust-sdk != '' }}
         env:
           RUST_SDK: ${{ inputs.rust-sdk }}
+          REPO: ${{ github.repository }}
+          ACTION_PATH: ${{ github.action_path }}
         run: |
+          cd $ACTION_PATH
           ./install_uniffi_bindgen_go.sh
           mkdir rust-sdk # don't use HTTPS path in rebuild_rust_sdk.sh so we can use the rust-cache before building
-          (wget -O - "https://github.com/matrix-org/matrix-rust-sdk/archive/$RUST_SDK.tar.gz" | tar -xz --strip-components=1 -C rust-sdk)
+          (wget -O - "https://github.com/$REPO/archive/$RUST_SDK.tar.gz" | tar -xz --strip-components=1 -C rust-sdk)
       - uses: Swatinem/rust-cache@v2
         if: ${{ inputs.rust-sdk != '' }}
         with:
-          workspaces: "rust-sdk"
+          workspaces: "${{ action_path }}/rust-sdk"
       - name: Build Rust SDK
         if: ${{ inputs.rust-sdk != '' }}
+        env:
+          ACTION_PATH: ${{ github.action_path }}
         run: |
-          ./rebuild_rust_sdk.sh ./rust-sdk
+         cd $ACTION_PATH && ./rebuild_rust_sdk.sh ./rust-sdk
 
       # Run the tests
       - name: Run Complement Crypto Tests
         run: |
+          cd $ACTION_PATH &&
           set -o pipefail &&
           go test -v -json -tags=jssdk -timeout 15m ./tests | gotestfmt
         shell: bash # required for pipefail to be A Thing. pipefail is required to stop gotestfmt swallowing non-zero exit codes
@@ -84,6 +95,7 @@ runs:
           COMPLEMENT_SHARE_ENV_PREFIX: PASS_
           PASS_SYNAPSE_COMPLEMENT_DATABASE: sqlite
           DOCKER_BUILDKIT: 1
+          ACTION_PATH: ${{ github.action_path }}
 
       - name: Upload logs
         uses: actions/upload-artifact@v2
@@ -91,5 +103,5 @@ runs:
         with:
           name: Logs - ${{ job.status }}
           path: |
-            ./tests/logs/*
+            ${{github.action_path}}/tests/logs/*
 
