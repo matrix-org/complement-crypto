@@ -1,0 +1,112 @@
+# This reusable workflow runs complement-crypto against _either_ a specific rust SDK commit or JS SDK commit.
+#
+# It does this by checking out the 'main' branch of complement-crypto then checking out the specific commit
+# in the input. It runs single SDK only tests (e.g all JS clients _or_ all Rust clients, not a mixture).
+name: 'Complement Crypto'
+run-name: "Running Complement-Crypto"
+permissions: read-all
+on:
+  workflow_call:
+    inputs:
+      # TODO: we should improve the inputs here. We should also allow caller workflows the
+      # ability to run x-client tests if they wish.
+      use_js_sdk:
+        description: 'tag/commit/branch of the JS SDK to test against. If "." then the caller checkout is used.'
+        required: false
+        default: ''
+        type: string
+      use_rust_sdk:
+        description: 'tag/commit/branch of the Rust SDK to test against. If "." then the caller checkout is used.'
+        required: false
+        default: ''
+        type: string
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+        - name: Checkout repo
+          uses: actions/checkout@v3
+        - name: Checkout complement-crypto
+          run: |
+            mkdir complement-crypto
+            (wget -O - "https://github.com/matrix-org/complement-crypto/archive/main.tar.gz" | tar -xz --strip-components=1 -C complement-crypto)
+        # Setup code we always need
+        - name: Pull synapse service v1.94.0 and mitmproxy
+          shell: bash
+          run: |
+            docker pull ghcr.io/matrix-org/synapse-service:v1.94.0
+            docker pull mitmproxy/mitmproxy:10.1.5
+            docker tag ghcr.io/matrix-org/synapse-service:v1.94.0 homeserver:latest
+        - name: Setup | Go
+          uses: actions/setup-go@v4
+          with:
+            go-version: '1.21'
+        - name: "Install Complement Dependencies"
+          shell: bash
+          run: |
+            sudo apt-get update && sudo apt-get install -y libolm3 libolm-dev
+            go install -v github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
+
+        # JS SDK only steps
+        - name: Setup | Node.js 18.x
+          if: ${{ inputs.use_js_sdk != '' }}
+          uses: actions/setup-node@v3
+          with:
+            node-version: 18
+            cache: 'yarn'
+        - name: "Install JS SDK"
+          if: ${{ inputs.use_js_sdk != '' }}
+          env:
+            # figure out the right yarn add syntax TODO: allow custom forks
+            JS_SDK: ${{ inputs.use_js_sdk  == '.' && format('file:{0}',github.workspace) || format('https://github.com/matrix-org/matrix-js-sdk#{0}', inputs.use_js_sdk) }}
+          run: |
+            echo "Installing matrix-js-sdk @ $JS_SDK..."
+            (cd complement-crypto && ./rebuild_js_sdk.sh "matrix-js-sdk@$JS_SDK")
+
+        # Rust SDK only steps
+        - name: Setup | Rust
+          if: ${{ inputs.use_rust_sdk != '' }}
+          uses: dtolnay/rust-toolchain@stable
+          with:
+            toolchain: stable
+        - name: "Download Rust SDK" # no need to download rust SDK if we are using the local checkout.
+          if: ${{ inputs.use_rust_sdk != '' && inputs.use_rust_sdk == '.'}}
+          env:
+            RUST_SDK: ${{ inputs.use_rust_sdk }} # TODO: allow custom forks
+          run: |
+            cd complement-crypto
+            ./install_uniffi_bindgen_go.sh
+            mkdir rust-sdk # don't use HTTPS path in rebuild_rust_sdk.sh so we can use the rust-cache before building
+            (wget -O - "https://github.com/matrix-org/matrix-rust-sdk/archive/$RUST_SDK.tar.gz" | tar -xz --strip-components=1 -C rust-sdk)
+        - name: Build Rust SDK
+          if: ${{ inputs.use_rust_sdk != '' }}
+          env:
+            RUST_SDK_DIR: ${{ inputs.use_rust_sdk == '.' && '..' || './rust-sdk' }}
+          run: |
+            cd complement-crypto && ./rebuild_rust_sdk.sh $RUST_SDK_DIR
+
+        # Run the tests
+        - name: Run Complement Crypto Tests
+          run: |
+            cd complement-crypto &&
+            set -o pipefail &&
+            go test -v -json -tags=$GO_TAGS -timeout 15m ./tests | gotestfmt
+          shell: bash # required for pipefail to be A Thing. pipefail is required to stop gotestfmt swallowing non-zero exit codes
+          env:
+            COMPLEMENT_BASE_IMAGE: homeserver
+            COMPLEMENT_ENABLE_DIRTY_RUNS: 1
+            COMPLEMENT_CRYPTO_WRITE_CONTAINER_LOGS: 1
+            COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX: ${{ inputs.use_js_sdk != '' && 'jj' || 'rr' }} # TODO: brittle, we don't check rust-sdk input
+            COMPLEMENT_SHARE_ENV_PREFIX: PASS_
+            PASS_SYNAPSE_COMPLEMENT_DATABASE: sqlite
+            DOCKER_BUILDKIT: 1
+            GO_TAGS: ${{ inputs.use_js_sdk != '' && 'jssdk' || 'rust'}}
+
+        - name: Upload logs
+          uses: actions/upload-artifact@v2
+          if: ${{ failure() }}
+          with:
+            name: Logs - ${{ job.status }}
+            path: |
+              ./complement-crypto/tests/logs/*
+
