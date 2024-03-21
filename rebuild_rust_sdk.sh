@@ -3,10 +3,11 @@ set -o pipefail
 
 ARG=$1;
 RUST_SDK_DIR="$(pwd)/_temp_rust_sdk";
+COMPLEMENT_DIR="$(pwd)";
 
 if [ -z "$ARG" ] || [ "$ARG" = "-h" ] || [ "$ARG" = "--help" ];
 then
-    echo "Rebuild the version of rust SDK used. (requires on PATH: uniffi-bindgen-go, cargo, git)"
+    echo "Rebuild the version of rust SDK used. Execute this inside the complement-crypto directory. (requires on PATH: uniffi-bindgen-go, cargo, git)"
     echo "Usage: $0 [version|directory]"
     echo "  [version]: the rust SDK git repo and branch|tag to use. Syntax: '\$HTTPS_URL@\$TAG|\$BRANCH'"
     echo "             Stores repository in $RUST_SDK_DIR"
@@ -45,10 +46,10 @@ sed -i.bak 's/uniffi =.*/uniffi = "0\.25\.3"/' Cargo.toml
 sed -i.bak 's^uniffi_bindgen =.*^uniffi_bindgen = { git = "https:\/\/github.com\/mozilla\/uniffi-rs", rev = "0a03b713306d6ce3de033157fc2ce92a238c2e24" }^' Cargo.toml
 cargo build -p matrix-sdk-ffi
 # generate the bindings
-echo 'generating bindings to internal/api/rust...';
-uniffi-bindgen-go -o ../internal/api/rust --config ../uniffi.toml --library ./target/debug/libmatrix_sdk_ffi.a
+echo "generating bindings to $COMPLEMENT_DIR/internal/api/rust...";
+uniffi-bindgen-go -o $COMPLEMENT_DIR/internal/api/rust --config $COMPLEMENT_DIR/uniffi.toml --library ./target/debug/libmatrix_sdk_ffi.a
 # add LDFLAGS
-cd ..
+cd $COMPLEMENT_DIR
 sed -i.bak 's^// #include <matrix_sdk_ffi.h>^// #include <matrix_sdk_ffi.h>\n// #cgo LDFLAGS: -lmatrix_sdk_ffi^' internal/api/rust/matrix_sdk_ffi/matrix_sdk_ffi.go
 
 echo "OK! Ensure LIBRARY_PATH is set to $RUST_SDK_DIR/target/debug so the .a/.dylib file is picked up when 'go test' is run."
