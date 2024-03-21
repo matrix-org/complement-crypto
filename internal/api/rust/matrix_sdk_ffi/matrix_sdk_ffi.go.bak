@@ -1,7 +1,6 @@
 package matrix_sdk_ffi
 
 // #include <matrix_sdk_ffi.h>
-// #cgo LDFLAGS: -lmatrix_sdk_ffi
 import "C"
 
 import (

@@ -1,7 +1,6 @@
 package matrix_sdk_ffi
 
 // #include <matrix_sdk_ffi.h>
-// #cgo LDFLAGS: -lmatrix_sdk_ffi
 import "C"
 
 import (
@@ -355,6 +354,7 @@ func init() {
 	(&FfiConverterCallbackInterfaceSyncServiceStateObserver{}).register()
 	(&FfiConverterCallbackInterfaceTimelineListener{}).register()
 	(&FfiConverterCallbackInterfaceTypingNotificationsListener{}).register()
+	(&FfiConverterCallbackInterfaceUnableToDecryptDelegate{}).register()
 	(&FfiConverterCallbackInterfaceVerificationStateListener{}).register()
 	(&FfiConverterCallbackInterfaceWidgetCapabilitiesProvider{}).register()
 	uniffiInitContinuationCallback()
@@ -2633,6 +2633,15 @@ func uniffiCheckChecksums() {
 	}
 	{
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_syncservicebuilder_with_utd_hook(uniffiStatus)
+		})
+		if checksum != 37977 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_syncservicebuilder_with_utd_hook: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_matrix_sdk_ffi_checksum_method_taskhandle_cancel(uniffiStatus)
 		})
 		if checksum != 59047 {
@@ -3403,6 +3412,15 @@ func uniffiCheckChecksums() {
 		if checksum != 12563 {
 			// If this happens try cleaning and rebuilding your project
 			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_typingnotificationslistener_call: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_matrix_sdk_ffi_checksum_method_unabletodecryptdelegate_on_utd(uniffiStatus)
+		})
+		if checksum != 52027 {
+			// If this happens try cleaning and rebuilding your project
+			panic("matrix_sdk_ffi: uniffi_matrix_sdk_ffi_checksum_method_unabletodecryptdelegate_on_utd: UniFFI API checksum mismatch")
 		}
 	}
 	{
@@ -8647,6 +8665,15 @@ func (_self *SyncServiceBuilder) WithUnifiedInvitesInRoomList(withUnifiedInvites
 	}))
 }
 
+func (_self *SyncServiceBuilder) WithUtdHook(delegate UnableToDecryptDelegate) *SyncServiceBuilder {
+	_pointer := _self.ffiObject.incrementPointer("*SyncServiceBuilder")
+	defer _self.ffiObject.decrementPointer()
+	return FfiConverterSyncServiceBuilderINSTANCE.Lift(rustCall(func(_uniffiStatus *C.RustCallStatus) unsafe.Pointer {
+		return C.uniffi_matrix_sdk_ffi_fn_method_syncservicebuilder_with_utd_hook(
+			_pointer, FfiConverterCallbackInterfaceUnableToDecryptDelegateINSTANCE.Lower(delegate), _uniffiStatus)
+	}))
+}
+
 func (object *SyncServiceBuilder) Destroy() {
 	runtime.SetFinalizer(object, nil)
 	object.ffiObject.destroy()
@@ -9875,15 +9902,19 @@ func (_ FfiDestroyerTypeAudioInfo) Destroy(value AudioInfo) {
 }
 
 type AudioMessageContent struct {
-	Body   string
-	Source *MediaSource
-	Info   *AudioInfo
-	Audio  *UnstableAudioDetailsContent
-	Voice  *UnstableVoiceContent
+	Body      string
+	Formatted *FormattedBody
+	Filename  *string
+	Source    *MediaSource
+	Info      *AudioInfo
+	Audio     *UnstableAudioDetailsContent
+	Voice     *UnstableVoiceContent
 }
 
 func (r *AudioMessageContent) Destroy() {
 	FfiDestroyerString{}.Destroy(r.Body)
+	FfiDestroyerOptionalTypeFormattedBody{}.Destroy(r.Formatted)
+	FfiDestroyerOptionalString{}.Destroy(r.Filename)
 	FfiDestroyerMediaSource{}.Destroy(r.Source)
 	FfiDestroyerOptionalTypeAudioInfo{}.Destroy(r.Info)
 	FfiDestroyerOptionalTypeUnstableAudioDetailsContent{}.Destroy(r.Audio)
@@ -9901,6 +9932,8 @@ func (c FfiConverterTypeAudioMessageContent) Lift(rb RustBufferI) AudioMessageCo
 func (c FfiConverterTypeAudioMessageContent) Read(reader io.Reader) AudioMessageContent {
 	return AudioMessageContent{
 		FfiConverterStringINSTANCE.Read(reader),
+		FfiConverterOptionalTypeFormattedBodyINSTANCE.Read(reader),
+		FfiConverterOptionalStringINSTANCE.Read(reader),
 		FfiConverterMediaSourceINSTANCE.Read(reader),
 		FfiConverterOptionalTypeAudioInfoINSTANCE.Read(reader),
 		FfiConverterOptionalTypeUnstableAudioDetailsContentINSTANCE.Read(reader),
@@ -9914,6 +9947,8 @@ func (c FfiConverterTypeAudioMessageContent) Lower(value AudioMessageContent) Ru
 
 func (c FfiConverterTypeAudioMessageContent) Write(writer io.Writer, value AudioMessageContent) {
 	FfiConverterStringINSTANCE.Write(writer, value.Body)
+	FfiConverterOptionalTypeFormattedBodyINSTANCE.Write(writer, value.Formatted)
+	FfiConverterOptionalStringINSTANCE.Write(writer, value.Filename)
 	FfiConverterMediaSourceINSTANCE.Write(writer, value.Source)
 	FfiConverterOptionalTypeAudioInfoINSTANCE.Write(writer, value.Info)
 	FfiConverterOptionalTypeUnstableAudioDetailsContentINSTANCE.Write(writer, value.Audio)
@@ -10171,14 +10206,16 @@ func (_ FfiDestroyerTypeFileInfo) Destroy(value FileInfo) {
 }
 
 type FileMessageContent struct {
-	Body     string
-	Filename *string
-	Source   *MediaSource
-	Info     *FileInfo
+	Body      string
+	Formatted *FormattedBody
+	Filename  *string
+	Source    *MediaSource
+	Info      *FileInfo
 }
 
 func (r *FileMessageContent) Destroy() {
 	FfiDestroyerString{}.Destroy(r.Body)
+	FfiDestroyerOptionalTypeFormattedBody{}.Destroy(r.Formatted)
 	FfiDestroyerOptionalString{}.Destroy(r.Filename)
 	FfiDestroyerMediaSource{}.Destroy(r.Source)
 	FfiDestroyerOptionalTypeFileInfo{}.Destroy(r.Info)
@@ -10195,6 +10232,7 @@ func (c FfiConverterTypeFileMessageContent) Lift(rb RustBufferI) FileMessageCont
 func (c FfiConverterTypeFileMessageContent) Read(reader io.Reader) FileMessageContent {
 	return FileMessageContent{
 		FfiConverterStringINSTANCE.Read(reader),
+		FfiConverterOptionalTypeFormattedBodyINSTANCE.Read(reader),
 		FfiConverterOptionalStringINSTANCE.Read(reader),
 		FfiConverterMediaSourceINSTANCE.Read(reader),
 		FfiConverterOptionalTypeFileInfoINSTANCE.Read(reader),
@@ -10207,6 +10245,7 @@ func (c FfiConverterTypeFileMessageContent) Lower(value FileMessageContent) Rust
 
 func (c FfiConverterTypeFileMessageContent) Write(writer io.Writer, value FileMessageContent) {
 	FfiConverterStringINSTANCE.Write(writer, value.Body)
+	FfiConverterOptionalTypeFormattedBodyINSTANCE.Write(writer, value.Formatted)
 	FfiConverterOptionalStringINSTANCE.Write(writer, value.Filename)
 	FfiConverterMediaSourceINSTANCE.Write(writer, value.Source)
 	FfiConverterOptionalTypeFileInfoINSTANCE.Write(writer, value.Info)
@@ -10363,13 +10402,17 @@ func (_ FfiDestroyerTypeImageInfo) Destroy(value ImageInfo) {
 }
 
 type ImageMessageContent struct {
-	Body   string
-	Source *MediaSource
-	Info   *ImageInfo
+	Body      string
+	Formatted *FormattedBody
+	Filename  *string
+	Source    *MediaSource
+	Info      *ImageInfo
 }
 
 func (r *ImageMessageContent) Destroy() {
 	FfiDestroyerString{}.Destroy(r.Body)
+	FfiDestroyerOptionalTypeFormattedBody{}.Destroy(r.Formatted)
+	FfiDestroyerOptionalString{}.Destroy(r.Filename)
 	FfiDestroyerMediaSource{}.Destroy(r.Source)
 	FfiDestroyerOptionalTypeImageInfo{}.Destroy(r.Info)
 }
@@ -10385,6 +10428,8 @@ func (c FfiConverterTypeImageMessageContent) Lift(rb RustBufferI) ImageMessageCo
 func (c FfiConverterTypeImageMessageContent) Read(reader io.Reader) ImageMessageContent {
 	return ImageMessageContent{
 		FfiConverterStringINSTANCE.Read(reader),
+		FfiConverterOptionalTypeFormattedBodyINSTANCE.Read(reader),
+		FfiConverterOptionalStringINSTANCE.Read(reader),
 		FfiConverterMediaSourceINSTANCE.Read(reader),
 		FfiConverterOptionalTypeImageInfoINSTANCE.Read(reader),
 	}
@@ -10396,6 +10441,8 @@ func (c FfiConverterTypeImageMessageContent) Lower(value ImageMessageContent) Ru
 
 func (c FfiConverterTypeImageMessageContent) Write(writer io.Writer, value ImageMessageContent) {
 	FfiConverterStringINSTANCE.Write(writer, value.Body)
+	FfiConverterOptionalTypeFormattedBodyINSTANCE.Write(writer, value.Formatted)
+	FfiConverterOptionalStringINSTANCE.Write(writer, value.Filename)
 	FfiConverterMediaSourceINSTANCE.Write(writer, value.Source)
 	FfiConverterOptionalTypeImageInfoINSTANCE.Write(writer, value.Info)
 }
@@ -12162,6 +12209,46 @@ func (_ FfiDestroyerTypeTransmissionProgress) Destroy(value TransmissionProgress
 	value.Destroy()
 }
 
+type UnableToDecryptInfo struct {
+	EventId         string
+	TimeToDecryptMs *uint64
+}
+
+func (r *UnableToDecryptInfo) Destroy() {
+	FfiDestroyerString{}.Destroy(r.EventId)
+	FfiDestroyerOptionalUint64{}.Destroy(r.TimeToDecryptMs)
+}
+
+type FfiConverterTypeUnableToDecryptInfo struct{}
+
+var FfiConverterTypeUnableToDecryptInfoINSTANCE = FfiConverterTypeUnableToDecryptInfo{}
+
+func (c FfiConverterTypeUnableToDecryptInfo) Lift(rb RustBufferI) UnableToDecryptInfo {
+	return LiftFromRustBuffer[UnableToDecryptInfo](c, rb)
+}
+
+func (c FfiConverterTypeUnableToDecryptInfo) Read(reader io.Reader) UnableToDecryptInfo {
+	return UnableToDecryptInfo{
+		FfiConverterStringINSTANCE.Read(reader),
+		FfiConverterOptionalUint64INSTANCE.Read(reader),
+	}
+}
+
+func (c FfiConverterTypeUnableToDecryptInfo) Lower(value UnableToDecryptInfo) RustBuffer {
+	return LowerIntoRustBuffer[UnableToDecryptInfo](c, value)
+}
+
+func (c FfiConverterTypeUnableToDecryptInfo) Write(writer io.Writer, value UnableToDecryptInfo) {
+	FfiConverterStringINSTANCE.Write(writer, value.EventId)
+	FfiConverterOptionalUint64INSTANCE.Write(writer, value.TimeToDecryptMs)
+}
+
+type FfiDestroyerTypeUnableToDecryptInfo struct{}
+
+func (_ FfiDestroyerTypeUnableToDecryptInfo) Destroy(value UnableToDecryptInfo) {
+	value.Destroy()
+}
+
 type UnstableAudioDetailsContent struct {
 	Duration time.Duration
 	Waveform []uint16
@@ -12382,13 +12469,17 @@ func (_ FfiDestroyerTypeVideoInfo) Destroy(value VideoInfo) {
 }
 
 type VideoMessageContent struct {
-	Body   string
-	Source *MediaSource
-	Info   *VideoInfo
+	Body      string
+	Formatted *FormattedBody
+	Filename  *string
+	Source    *MediaSource
+	Info      *VideoInfo
 }
 
 func (r *VideoMessageContent) Destroy() {
 	FfiDestroyerString{}.Destroy(r.Body)
+	FfiDestroyerOptionalTypeFormattedBody{}.Destroy(r.Formatted)
+	FfiDestroyerOptionalString{}.Destroy(r.Filename)
 	FfiDestroyerMediaSource{}.Destroy(r.Source)
 	FfiDestroyerOptionalTypeVideoInfo{}.Destroy(r.Info)
 }
@@ -12404,6 +12495,8 @@ func (c FfiConverterTypeVideoMessageContent) Lift(rb RustBufferI) VideoMessageCo
 func (c FfiConverterTypeVideoMessageContent) Read(reader io.Reader) VideoMessageContent {
 	return VideoMessageContent{
 		FfiConverterStringINSTANCE.Read(reader),
+		FfiConverterOptionalTypeFormattedBodyINSTANCE.Read(reader),
+		FfiConverterOptionalStringINSTANCE.Read(reader),
 		FfiConverterMediaSourceINSTANCE.Read(reader),
 		FfiConverterOptionalTypeVideoInfoINSTANCE.Read(reader),
 	}
@@ -12415,6 +12508,8 @@ func (c FfiConverterTypeVideoMessageContent) Lower(value VideoMessageContent) Ru
 
 func (c FfiConverterTypeVideoMessageContent) Write(writer io.Writer, value VideoMessageContent) {
 	FfiConverterStringINSTANCE.Write(writer, value.Body)
+	FfiConverterOptionalTypeFormattedBodyINSTANCE.Write(writer, value.Formatted)
+	FfiConverterOptionalStringINSTANCE.Write(writer, value.Filename)
 	FfiConverterMediaSourceINSTANCE.Write(writer, value.Source)
 	FfiConverterOptionalTypeVideoInfoINSTANCE.Write(writer, value.Info)
 }
@@ -19873,6 +19968,68 @@ func (c *FfiConverterCallbackInterfaceTypingNotificationsListener) register() {
 type FfiDestroyerCallbackInterfaceTypingNotificationsListener struct{}
 
 func (FfiDestroyerCallbackInterfaceTypingNotificationsListener) Destroy(value TypingNotificationsListener) {
+}
+
+type UnableToDecryptDelegate interface {
+	OnUtd(info UnableToDecryptInfo)
+}
+
+// foreignCallbackCallbackInterfaceUnableToDecryptDelegate cannot be callable be a compiled function at a same time
+type foreignCallbackCallbackInterfaceUnableToDecryptDelegate struct{}
+
+//export matrix_sdk_ffi_cgo_UnableToDecryptDelegate
+func matrix_sdk_ffi_cgo_UnableToDecryptDelegate(handle C.uint64_t, method C.int32_t, argsPtr *C.uint8_t, argsLen C.int32_t, outBuf *C.RustBuffer) C.int32_t {
+	cb := FfiConverterCallbackInterfaceUnableToDecryptDelegateINSTANCE.Lift(uint64(handle))
+	switch method {
+	case 0:
+		// 0 means Rust is done with the callback, and the callback
+		// can be dropped by the foreign language.
+		*outBuf = FfiConverterCallbackInterfaceUnableToDecryptDelegateINSTANCE.drop(uint64(handle))
+		// See docs of ForeignCallback in `uniffi/src/ffi/foreigncallbacks.rs`
+		return C.int32_t(uniffiIdxCallbackFree)
+
+	case 1:
+		var result uniffiCallbackResult
+		args := unsafe.Slice((*byte)(argsPtr), argsLen)
+		result = foreignCallbackCallbackInterfaceUnableToDecryptDelegate{}.InvokeOnUtd(cb, args, outBuf)
+		return C.int32_t(result)
+
+	default:
+		// This should never happen, because an out of bounds method index won't
+		// ever be used. Once we can catch errors, we should return an InternalException.
+		// https://github.com/mozilla/uniffi-rs/issues/351
+		return C.int32_t(uniffiCallbackUnexpectedResultError)
+	}
+}
+
+func (foreignCallbackCallbackInterfaceUnableToDecryptDelegate) InvokeOnUtd(callback UnableToDecryptDelegate, args []byte, outBuf *C.RustBuffer) uniffiCallbackResult {
+	reader := bytes.NewReader(args)
+	callback.OnUtd(FfiConverterTypeUnableToDecryptInfoINSTANCE.Read(reader))
+
+	return uniffiCallbackResultSuccess
+}
+
+type FfiConverterCallbackInterfaceUnableToDecryptDelegate struct {
+	FfiConverterCallbackInterface[UnableToDecryptDelegate]
+}
+
+var FfiConverterCallbackInterfaceUnableToDecryptDelegateINSTANCE = &FfiConverterCallbackInterfaceUnableToDecryptDelegate{
+	FfiConverterCallbackInterface: FfiConverterCallbackInterface[UnableToDecryptDelegate]{
+		handleMap: newConcurrentHandleMap[UnableToDecryptDelegate](),
+	},
+}
+
+// This is a static function because only 1 instance is supported for registering
+func (c *FfiConverterCallbackInterfaceUnableToDecryptDelegate) register() {
+	rustCall(func(status *C.RustCallStatus) int32 {
+		C.uniffi_matrix_sdk_ffi_fn_init_callback_unabletodecryptdelegate(C.ForeignCallback(C.matrix_sdk_ffi_cgo_UnableToDecryptDelegate), status)
+		return 0
+	})
+}
+
+type FfiDestroyerCallbackInterfaceUnableToDecryptDelegate struct{}
+
+func (FfiDestroyerCallbackInterfaceUnableToDecryptDelegate) Destroy(value UnableToDecryptDelegate) {
 }
 
 type VerificationStateListener interface {
