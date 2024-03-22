@@ -30,7 +30,7 @@ func TestMain(m *testing.M) {
 	ssMutex = &sync.Mutex{}
 
 	for _, binding := range complementCryptoConfig.Bindings() {
-		binding.PreTestRun()
+		binding.PreTestRun("")
 	}
 
 	complement.TestMainWithCleanup(m, "crypto", func() { // always teardown even if panicking
@@ -40,7 +40,7 @@ func TestMain(m *testing.M) {
 		}
 		ssMutex.Unlock()
 		for _, binding := range complementCryptoConfig.Bindings() {
-			binding.PostTestRun()
+			binding.PostTestRun("")
 		}
 	})
 }

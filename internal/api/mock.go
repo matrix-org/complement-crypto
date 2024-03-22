@@ -11,16 +11,16 @@ type MockT struct {
 
 func (t *MockT) Helper() {}
 func (t *MockT) Logf(f string, args ...any) {
-	fmt.Printf(f, args...)
+	fmt.Printf(f+"\n", args...)
 }
 func (t *MockT) Skipf(f string, args ...any) {
-	fmt.Printf(f, args...)
+	fmt.Printf(f+"\n", args...)
 }
 func (t *MockT) Errorf(f string, args ...any) {
-	fmt.Printf(f, args...)
+	fmt.Printf(f+"\n", args...)
 }
 func (t *MockT) Fatalf(f string, args ...any) {
-	fmt.Printf(f, args...)
+	fmt.Printf(f+"\n", args...)
 	os.Exit(1)
 }
 func (t *MockT) Error(args ...any) {

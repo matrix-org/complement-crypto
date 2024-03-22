@@ -16,6 +16,8 @@ import (
 //
 //	func (t *T) MethodName(argType T1, replyType *T2) error
 type RPCServer struct {
+	contextID    string // test|user|device
+	bindings     api.LanguageBindings
 	activeClient api.Client
 	stopSyncing  func()
 	waiters      map[int]api.Waiter
@@ -32,30 +34,13 @@ func NewRPCServer() *RPCServer {
 
 type RPCClientCreationOpts struct {
 	api.ClientCreationOpts
-	Lang api.ClientTypeLang // need to know the type for pulling out the corret bindings
-}
-
-func (s *RPCServer) PreTestRun(clientLang api.ClientTypeLang, void *int) error {
-	bindings := langs.GetLanguageBindings(clientLang)
-	if bindings == nil {
-		return fmt.Errorf("RPC: PreTestRun: unknown language bindings %s : did you build the rpc server with the correct -tags?", clientLang)
-	}
-	bindings.PreTestRun()
-	return nil
-}
-
-func (s *RPCServer) PostTestRun(clientLang api.ClientTypeLang, void2 *int) error {
-	bindings := langs.GetLanguageBindings(clientLang)
-	if bindings == nil {
-		return fmt.Errorf("RPC: PostTestRun: unknown language bindings %s : did you build the rpc server with the correct -tags?", clientLang)
-	}
-	bindings.PostTestRun()
-	return nil
+	Lang      api.ClientTypeLang // need to know the type for pulling out the corret bindings
+	ContextID string
 }
 
 // MustCreateClient creates a given client and returns it to the caller, else returns an error.
 func (s *RPCServer) MustCreateClient(opts RPCClientCreationOpts, void *int) error {
-	log.Printf("MustCreateClient: %+v\n", opts)
+	fmt.Printf("RPCServer MustCreateClient: %+v\n", opts)
 	if s.activeClient != nil {
 		return fmt.Errorf("RPC: MustCreateClient: already have an activeClient")
 	}
@@ -63,13 +48,17 @@ func (s *RPCServer) MustCreateClient(opts RPCClientCreationOpts, void *int) erro
 	if bindings == nil {
 		return fmt.Errorf("RPC: MustCreateClient: unknown language bindings %s : did you build the rpc server with the correct -tags?", opts.Lang)
 	}
+	bindings.PreTestRun(opts.ContextID) // prepare logs
+	s.contextID = opts.ContextID
 	s.activeClient = bindings.MustCreateClient(&api.MockT{}, opts.ClientCreationOpts)
+	s.bindings = bindings
 	return nil
 }
 
 func (s *RPCServer) Close(testName string, void *int) error {
 	s.activeClient.Close(&api.MockT{TestName: testName})
-	// TODO: shutdown the RPC server?
+	// write logs
+	s.bindings.PostTestRun(s.contextID)
 	return nil
 }
 
@@ -79,6 +68,7 @@ func (s *RPCServer) DeletePersistentStorage(testName string, void *int) error {
 }
 
 func (s *RPCServer) Login(opts api.ClientCreationOpts, void *int) error {
+	log.Println("RPCServer.Login recv with opts ", opts)
 	return s.activeClient.Login(&api.MockT{}, opts)
 }
 
@@ -106,8 +96,8 @@ func (s *RPCServer) StopSyncing(testName string, void *int) error {
 }
 
 func (s *RPCServer) IsRoomEncrypted(roomID string, isEncrypted *bool) error {
-	isEnc, err := s.activeClient.IsRoomEncrypted(&api.MockT{}, roomID)
-	isEncrypted = &isEnc
+	var err error
+	*isEncrypted, err = s.activeClient.IsRoomEncrypted(&api.MockT{}, roomID)
 	return err
 }
 
@@ -118,45 +108,26 @@ type RPCSendMessage struct {
 }
 
 func (s *RPCServer) SendMessage(msg RPCSendMessage, eventID *string) error {
-	id := s.activeClient.SendMessage(&api.MockT{TestName: msg.TestName}, msg.RoomID, msg.Text)
-	eventID = &id
+	*eventID = s.activeClient.SendMessage(&api.MockT{TestName: msg.TestName}, msg.RoomID, msg.Text)
 	return nil
 }
 
 func (s *RPCServer) TrySendMessage(msg RPCSendMessage, eventID *string) error {
-	id, err := s.activeClient.TrySendMessage(&api.MockT{TestName: msg.TestName}, msg.RoomID, msg.Text)
+	var err error
+	*eventID, err = s.activeClient.TrySendMessage(&api.MockT{TestName: msg.TestName}, msg.RoomID, msg.Text)
 	if err != nil {
 		return err
 	}
-	eventID = &id
 	return nil
 }
 
 type RPCWaitUntilEvent struct {
-	TestName           string
-	RoomID             string
-	WantEvent          api.Event
-	FailedToDecryptSet bool
+	TestName string
+	RoomID   string
 }
 
 func (s *RPCServer) WaitUntilEventInRoom(input RPCWaitUntilEvent, waiterID *int) error {
-	fieldMatches := func(got, want any, isSet bool) bool {
-		if !isSet {
-			return true
-		}
-		return got == want
-	}
-
 	waiter := s.activeClient.WaitUntilEventInRoom(&api.MockT{TestName: input.TestName}, input.RoomID, func(e api.Event) bool {
-		// all fields must match (which may mean they are unset, which counts as a match)
-		if fieldMatches(e.ID, input.WantEvent.ID, input.WantEvent.ID != "") &&
-			fieldMatches(e.Membership, input.WantEvent.Membership, input.WantEvent.Membership != "") &&
-			fieldMatches(e.Sender, input.WantEvent.Sender, input.WantEvent.Sender != "") &&
-			fieldMatches(e.Target, input.WantEvent.Target, input.WantEvent.Target != "") &&
-			fieldMatches(e.Text, input.WantEvent.Text, input.WantEvent.Text != "") &&
-			fieldMatches(e.FailedToDecrypt, input.WantEvent.FailedToDecrypt, input.FailedToDecryptSet) {
-			return true
-		}
 		return false
 	})
 	s.waitersMu.Lock()
@@ -164,8 +135,11 @@ func (s *RPCServer) WaitUntilEventInRoom(input RPCWaitUntilEvent, waiterID *int)
 	nextID := s.nextWaiterID + 1
 	s.nextWaiterID = nextID
 	s.waiters[s.nextWaiterID] = waiter
-	waiterID = &nextID
+	*waiterID = nextID
 	return nil
+}
+
+type RPCCheck struct {
 }
 
 type RPCWait struct {
@@ -205,15 +179,13 @@ type RPCGetEvent struct {
 
 // MustGetEvent will return the client's view of this event, or fail the test if the event cannot be found.
 func (s *RPCServer) MustGetEvent(input RPCGetEvent, output *api.Event) error {
-	ev := s.activeClient.MustGetEvent(&api.MockT{TestName: input.TestName}, input.RoomID, input.EventID)
-	output = &ev
+	*output = s.activeClient.MustGetEvent(&api.MockT{TestName: input.TestName}, input.RoomID, input.EventID)
 	return nil
 }
 
 // MustBackupKeys will backup E2EE keys, else fail the test.
 func (s *RPCServer) MustBackupKeys(testName string, recoveryKey *string) error {
-	key := s.activeClient.MustBackupKeys(&api.MockT{TestName: testName})
-	recoveryKey = &key
+	*recoveryKey = s.activeClient.MustBackupKeys(&api.MockT{TestName: testName})
 	return nil
 }
 
@@ -234,17 +206,14 @@ func (s *RPCServer) Logf(input string, void *int) error {
 }
 
 func (s *RPCServer) UserID(void int, userID *string) error {
-	u := s.activeClient.UserID()
-	userID = &u
+	*userID = s.activeClient.UserID()
 	return nil
 }
 func (s *RPCServer) Type(void int, clientType *api.ClientTypeLang) error {
-	t := s.activeClient.Type()
-	clientType = &t
+	*clientType = s.activeClient.Type()
 	return nil
 }
 func (s *RPCServer) Opts(void int, opts *api.ClientCreationOpts) error {
-	o := s.activeClient.Opts()
-	opts = &o
+	*opts = s.activeClient.Opts()
 	return nil
 }

@@ -1,8 +1,14 @@
 package deploy
 
 import (
+	"bufio"
 	"fmt"
+	"log"
 	"net/rpc"
+	"os"
+	"os/exec"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
@@ -10,48 +16,126 @@ import (
 )
 
 // RPCLanguageBindings implements api.LanguageBindings and instead issues RPC calls to a remote server.
-// All fields must be serialisable with encoding/gob.
 type RPCLanguageBindings struct {
-	client     *rpc.Client
+	binaryPath string
 	clientType api.ClientTypeLang
 }
 
-func NewRPCLanguageBindings(address string, clientType api.ClientTypeLang) (*RPCLanguageBindings, error) {
-	client, err := rpc.DialHTTP("tcp", address)
-	if err != nil {
-		return nil, fmt.Errorf("NewRPCLanguageBindings: DialHTTP: %v", err)
-	}
+func NewRPCLanguageBindings(rpcBinaryPath string, clientType api.ClientTypeLang) (*RPCLanguageBindings, error) {
 	return &RPCLanguageBindings{
-		client:     client,
+		binaryPath: rpcBinaryPath,
 		clientType: clientType,
 	}, nil
 }
 
-func (r *RPCLanguageBindings) PreTestRun() {
-	var void int
-	err := r.client.Call("RPCServer.PreTestRun", r.clientType, &void)
-	if err != nil {
-		panic("RPCLanguageBindings.PreTestRun: " + err.Error())
-	}
+func (r *RPCLanguageBindings) PreTestRun(contextID string) {
+	// do nothing, as PreTestRun for all tests is meaningless for RPC clients.
+	// If we were to call the underlying bindings, we would delete logs prematurely.
+	// Instead, we do this call when RPC clients are made.
 }
-func (r *RPCLanguageBindings) PostTestRun() {
-	var void int
-	err := r.client.Call("RPCServer.PostTestRun", r.clientType, &void)
-	if err != nil {
-		panic("RPCLanguageBindings.PostTestRun: " + err.Error())
-	}
+func (r *RPCLanguageBindings) PostTestRun(contextID string) {
+	// do nothing, as PostTestRun for all tests is meaningless for RPC clients.
+	// If we were to call the underlying bindings, we would delete logs prematurely.
+	// Instead, we do this call when RPC clients are closed.
 }
-func (r *RPCLanguageBindings) MustCreateClient(t ct.TestLike, cfg api.ClientCreationOpts) api.Client {
-	var void int
-	r.client.Call("RPCServer.MustCreateClient", RPCClientCreationOpts{
-		ClientCreationOpts: cfg,
-		Lang:               r.clientType,
-	}, &void)
 
-	return &RPCClient{
-		client: r.client,
-		lang:   r.clientType,
+// MustCreateClient starts the RPC server and configures it to use the
+// correct language. Returns an error if:
+//   - the binary cannot be found or run
+//   - the server cannot be started
+//   - IPC via stdout fails (used to extract the random high numbered port)
+//   - the client cannot talk to the rpc server
+func (r *RPCLanguageBindings) MustCreateClient(t ct.TestLike, cfg api.ClientCreationOpts) api.Client {
+	contextID := fmt.Sprintf("%s|%s|%s", t.Name(), cfg.UserID, cfg.DeviceID)
+	// security: check it is a file not a random bash script...
+	if _, err := os.Stat(r.binaryPath); err != nil {
+		ct.Fatalf(t, "%s: RPC binary at %s does not exist or cannot be executed/read: %s", contextID, r.binaryPath, err)
 	}
+	rpcCmd := exec.Command(r.binaryPath)
+	stdout, err := rpcCmd.StdoutPipe()
+	if err != nil {
+		ct.Fatalf(t, "%s: cannot pipe stdout of rpc binary: %s", contextID, err)
+	}
+	rpcCmd.Stderr = rpcCmd.Stdout
+	if err := rpcCmd.Start(); err != nil { // this calls NewRPCServer() effectively
+		ct.Fatalf(t, "%s: cannot start RPC binary %s: %s", contextID, r.binaryPath, err)
+	}
+	// wait until we get a high-numbered port
+	portCh := make(chan struct {
+		port int
+		err  error
+	})
+	go func() {
+		rd := bufio.NewReader(stdout)
+		defer close(portCh)
+		defer func() {
+			// log stdout from the RPC server
+			go func() {
+				for {
+					str, err := rd.ReadString('\n')
+					if err != nil {
+						log.Print("RPC ERROR: " + err.Error())
+						break
+					}
+					log.Printf("  RPC (%s): %s", contextID, str)
+				}
+			}()
+			// we need to .Wait to ensure we clean up resources when the RPC server dies.
+			rpcCmd.Wait()
+		}()
+
+		var port int
+		for {
+			str, err := rd.ReadString('\n')
+			if port == 0 { // we need a port
+				if err != nil {
+					portCh <- struct {
+						port int
+						err  error
+					}{port: 0, err: fmt.Errorf("failed to read stdout line: %s", err)}
+					return
+				}
+				port, err = strconv.Atoi(strings.TrimSpace(str))
+				if err != nil {
+					log.Printf("  RPC (%s): %s", contextID, str)
+					continue
+				}
+				portCh <- struct {
+					port int
+					err  error
+				}{
+					port: port,
+					err:  nil,
+				}
+				break
+			}
+		}
+	}()
+	select {
+	case p := <-portCh:
+		rpcAddr := fmt.Sprintf("127.0.0.1:%d", p.port)
+		var void int
+		log.Println("RPCLanguageBindings.MustCreateClient")
+		client, err := rpc.DialHTTP("tcp", rpcAddr)
+		if err != nil {
+			t.Fatalf("DialHTTP: %s", err)
+		}
+
+		err = client.Call("RPCServer.MustCreateClient", RPCClientCreationOpts{
+			ClientCreationOpts: cfg,
+			ContextID:          contextID,
+			Lang:               r.clientType,
+		}, &void)
+		log.Println("RPCLanguageBindings.MustCreateClient: ", err)
+		time.Sleep(time.Second)
+		return &RPCClient{
+			client: client,
+			lang:   r.clientType,
+		}
+	case <-time.After(time.Second):
+		ct.Fatalf(t, "%s: timed out waiting for port number to be echoed to stdout. Did the RPC binary run, and is it actually the RPC binary? Path: %s", contextID, r.binaryPath)
+	}
+	panic("unreachable")
 }
 
 // RPCClient implements api.Client by making RPC calls to an RPC server, which actually has a concrete api.Client
@@ -66,10 +150,12 @@ type RPCClient struct {
 // log messages.
 func (c *RPCClient) Close(t ct.TestLike) {
 	var void int
+	fmt.Println("RPCClient.Close")
 	err := c.client.Call("RPCServer.Close", t.Name(), &void)
 	if err != nil {
 		t.Fatalf("RPCClient.Close: %s", err)
 	}
+	c.client.Close()
 }
 
 // Remove any persistent storage, if it was enabled.
@@ -82,10 +168,10 @@ func (c *RPCClient) DeletePersistentStorage(t ct.TestLike) {
 }
 func (c *RPCClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {
 	var void int
-	return c.client.Call("RPCServer.Login", RPCClientCreationOpts{
-		ClientCreationOpts: opts,
-		Lang:               c.lang,
-	}, &void)
+	fmt.Printf("RPCClient Calling login with %+v\n", opts)
+	err := c.client.Call("RPCServer.Login", opts, &void)
+	fmt.Println("RPCClient login returned => ", err)
+	return err
 }
 
 // MustStartSyncing to begin syncing from sync v2 / sliding sync.
