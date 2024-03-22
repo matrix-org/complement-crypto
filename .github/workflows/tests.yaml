@@ -120,7 +120,7 @@ jobs:
         run: |
           export LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
           export LD_LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
-          go build ./cmd/rpc
+          go build -tags=jssdk,rust ./cmd/rpc
 
       - name: "Ensuring client implementations work..."
         run: |
