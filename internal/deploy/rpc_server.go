@@ -20,14 +20,14 @@ type RPCServer struct {
 	bindings     api.LanguageBindings
 	activeClient api.Client
 	stopSyncing  func()
-	waiters      map[int]api.Waiter
+	waiters      map[int]*RPCServerWaiter
 	nextWaiterID int
 	waitersMu    *sync.Mutex
 }
 
 func NewRPCServer() *RPCServer {
 	return &RPCServer{
-		waiters:   make(map[int]api.Waiter),
+		waiters:   make(map[int]*RPCServerWaiter),
 		waitersMu: &sync.Mutex{},
 	}
 }
@@ -40,7 +40,7 @@ type RPCClientCreationOpts struct {
 
 // MustCreateClient creates a given client and returns it to the caller, else returns an error.
 func (s *RPCServer) MustCreateClient(opts RPCClientCreationOpts, void *int) error {
-	fmt.Printf("RPCServer MustCreateClient: %+v\n", opts)
+	fmt.Printf("RPCServer: Received MustCreateClient: %+v\n", opts)
 	if s.activeClient != nil {
 		return fmt.Errorf("RPC: MustCreateClient: already have an activeClient")
 	}
@@ -68,7 +68,6 @@ func (s *RPCServer) DeletePersistentStorage(testName string, void *int) error {
 }
 
 func (s *RPCServer) Login(opts api.ClientCreationOpts, void *int) error {
-	log.Println("RPCServer.Login recv with opts ", opts)
 	return s.activeClient.Login(&api.MockT{}, opts)
 }
 
@@ -128,13 +127,24 @@ type RPCWaitUntilEvent struct {
 
 func (s *RPCServer) WaitUntilEventInRoom(input RPCWaitUntilEvent, waiterID *int) error {
 	waiter := s.activeClient.WaitUntilEventInRoom(&api.MockT{TestName: input.TestName}, input.RoomID, func(e api.Event) bool {
+		s.waitersMu.Lock()
+		defer s.waitersMu.Unlock()
+		rpcWaiter := s.waiters[*waiterID]
+		if rpcWaiter == nil {
+			panic("waiter did not exist when it should have")
+		}
+		// remember this event so when the rpc client calls PollWait we can deliver them.
+		rpcWaiter.eventsToCheck = append(rpcWaiter.eventsToCheck, e)
+		s.waiters[*waiterID] = rpcWaiter
 		return false
 	})
 	s.waitersMu.Lock()
 	defer s.waitersMu.Unlock()
 	nextID := s.nextWaiterID + 1
 	s.nextWaiterID = nextID
-	s.waiters[s.nextWaiterID] = waiter
+	s.waiters[s.nextWaiterID] = &RPCServerWaiter{
+		Waiter: waiter,
+	}
 	*waiterID = nextID
 	return nil
 }
@@ -145,17 +155,53 @@ type RPCCheck struct {
 type RPCWait struct {
 	TestName string
 	WaiterID int
+	Msg      string
 	Timeout  time.Duration
 }
 
-func (s *RPCServer) Wait(input RPCWait, void *int) error {
+// WaiterStart is the RPC equivalent to Waiter.Waitf. It begins accumulating events for the RPC client to check.
+// Clients need to call WaiterPoll to get these new events.
+func (s *RPCServer) WaiterStart(input RPCWait, void *int) error {
 	s.waitersMu.Lock()
 	w := s.waiters[input.WaiterID]
-	s.waitersMu.Unlock()
 	if w == nil {
+		s.waitersMu.Unlock()
 		return fmt.Errorf("RPC: Wait: no waiter found with id %d", input.WaiterID)
 	}
-	w.Wait(&api.MockT{TestName: input.TestName}, input.Timeout)
+	if !w.startedAt.IsZero() {
+		s.waitersMu.Unlock()
+		return nil // already polling
+	}
+	w.startedAt = time.Now()
+	w.timeout = input.Timeout
+	s.waitersMu.Unlock()
+	// We do NOT call .Waitf here as timing out will be fatal. Instead, we TryWaitf, and only fail the test
+	// _once the client has fetched the events_ because checker functions are arbitrary. Effectively, calling
+	// this function just starts populating w.eventsToCheck. An error will ALWAYS be returned here because
+	// we ALWAYS return false in the checker function to keep fetching more events, hence consciously drop it.
+	// We need to do this in a goroutine so the client can start calling WaiterPoll.
+	go w.TryWaitf(&api.MockT{TestName: input.TestName}, input.Timeout, input.Msg)
+	return nil
+}
+
+func (s *RPCServer) WaiterPoll(waiterID int, eventsToCheck *[]api.Event) error {
+	fmt.Println("Acquiring lock")
+	s.waitersMu.Lock()
+	defer s.waitersMu.Unlock()
+	fmt.Println("Acquired!")
+	w := s.waiters[waiterID]
+	if w == nil {
+		return fmt.Errorf("unknown waiter id %d", waiterID)
+	}
+	if time.Since(w.startedAt) > w.timeout {
+		return fmt.Errorf("timed out after %v", w.timeout)
+	}
+	eventsToCheckCopy := make([]api.Event, len(w.eventsToCheck))
+	for i := range w.eventsToCheck {
+		eventsToCheckCopy[i] = w.eventsToCheck[i]
+	}
+	*eventsToCheck = eventsToCheckCopy
+	w.eventsToCheck = nil // reset the events to check
 	return nil
 }
 
@@ -216,4 +262,11 @@ func (s *RPCServer) Type(void int, clientType *api.ClientTypeLang) error {
 func (s *RPCServer) Opts(void int, opts *api.ClientCreationOpts) error {
 	*opts = s.activeClient.Opts()
 	return nil
+}
+
+type RPCServerWaiter struct {
+	api.Waiter
+	eventsToCheck []api.Event
+	startedAt     time.Time
+	timeout       time.Duration
 }

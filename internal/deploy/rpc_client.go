@@ -46,7 +46,7 @@ func (r *RPCLanguageBindings) PostTestRun(contextID string) {
 //   - IPC via stdout fails (used to extract the random high numbered port)
 //   - the client cannot talk to the rpc server
 func (r *RPCLanguageBindings) MustCreateClient(t ct.TestLike, cfg api.ClientCreationOpts) api.Client {
-	contextID := fmt.Sprintf("%s|%s|%s", t.Name(), cfg.UserID, cfg.DeviceID)
+	contextID := fmt.Sprintf("%s_%s", strings.Replace(cfg.UserID[1:], ":", "_", -1), cfg.DeviceID)
 	// security: check it is a file not a random bash script...
 	if _, err := os.Stat(r.binaryPath); err != nil {
 		ct.Fatalf(t, "%s: RPC binary at %s does not exist or cannot be executed/read: %s", contextID, r.binaryPath, err)
@@ -115,7 +115,6 @@ func (r *RPCLanguageBindings) MustCreateClient(t ct.TestLike, cfg api.ClientCrea
 	case p := <-portCh:
 		rpcAddr := fmt.Sprintf("127.0.0.1:%d", p.port)
 		var void int
-		log.Println("RPCLanguageBindings.MustCreateClient")
 		client, err := rpc.DialHTTP("tcp", rpcAddr)
 		if err != nil {
 			t.Fatalf("DialHTTP: %s", err)
@@ -126,8 +125,9 @@ func (r *RPCLanguageBindings) MustCreateClient(t ct.TestLike, cfg api.ClientCrea
 			ContextID:          contextID,
 			Lang:               r.clientType,
 		}, &void)
-		log.Println("RPCLanguageBindings.MustCreateClient: ", err)
-		time.Sleep(time.Second)
+		if err != nil {
+			ct.Fatalf(t, "%s: failed to create RPC client: %s", contextID, err)
+		}
 		return &RPCClient{
 			client: client,
 			lang:   r.clientType,
@@ -249,7 +249,6 @@ func (c *RPCClient) WaitUntilEventInRoom(t ct.TestLike, roomID string, checker f
 	err := c.client.Call("RPCServer.WaitUntilEventInRoom", RPCWaitUntilEvent{
 		TestName: t.Name(),
 		RoomID:   roomID,
-		// TODO WantEvent
 	}, &waiterID)
 	if err != nil {
 		t.Fatalf("RPCClient.WaitUntilEventInRoom: %s", err)
@@ -257,6 +256,7 @@ func (c *RPCClient) WaitUntilEventInRoom(t ct.TestLike, roomID string, checker f
 	return &RPCWaiter{
 		client:   c.client,
 		waiterID: waiterID,
+		checker:  checker,
 	}
 }
 
@@ -341,16 +341,50 @@ func (c *RPCClient) Opts() api.ClientCreationOpts {
 type RPCWaiter struct {
 	waiterID int
 	client   *rpc.Client
+	checker  func(e api.Event) bool
 }
 
-func (w *RPCWaiter) Wait(t ct.TestLike, s time.Duration) {
+func (w *RPCWaiter) Waitf(t ct.TestLike, s time.Duration, format string, args ...any) {
+	t.Helper()
+	err := w.TryWaitf(t, s, format, args...)
+	if err != nil {
+		ct.Fatalf(t, "RPCWaiter.Wait: %v", err)
+	}
+}
+
+func (w *RPCWaiter) TryWaitf(t ct.TestLike, s time.Duration, format string, args ...any) error {
+	t.Helper()
 	var void int
-	err := w.client.Call("RPCServer.Wait", RPCWait{
+	msg := fmt.Sprintf(format, args...)
+	t.Logf("RPCWaiter.TryWaitf: calling RPCServer.WaiterStart")
+	err := w.client.Call("RPCServer.WaiterStart", RPCWait{
 		TestName: t.Name(),
 		WaiterID: w.waiterID,
+		Msg:      msg,
 		Timeout:  s,
 	}, &void)
 	if err != nil {
-		t.Fatalf("RPCWaiter.Wait: %v", err)
+		return fmt.Errorf("WaiterStart: %s", err)
+	}
+	t.Logf("RPCWaiter.TryWaitf: calling RPCServer.WaiterStart OK")
+	// now we need to poll for events from the remote waiter
+	for {
+		var eventsToCheck []api.Event
+		t.Logf("RPCWaiter.TryWaitf: calling RPCServer.WaiterPoll")
+		err := w.client.Call("RPCServer.WaiterPoll", w.waiterID, &eventsToCheck)
+		if err != nil {
+			return fmt.Errorf("%s: %s", err, msg)
+		}
+		t.Logf("RPCWaiter.TryWaitf: calling RPCServer.WaiterPoll OK with %d events", len(eventsToCheck))
+		// for each event, check with the checker function if it passes
+		for _, ev := range eventsToCheck {
+			if w.checker(ev) {
+				// if it passes, we waited successfully!
+				t.Logf("RPC: checker function passes for event %+v", ev)
+				return nil
+			}
+		}
+		// otherwise, keep trying. The RPC server is tracking timeouts for us.
+		time.Sleep(100 * time.Millisecond)
 	}
 }
