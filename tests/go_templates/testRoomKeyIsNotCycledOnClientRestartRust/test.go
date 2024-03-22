@@ -36,7 +36,7 @@ func main() {
 	fmt.Println("Sent event " + eventID + " waiting for remote echo")
 
 	waiter := client.WaitUntilEventInRoom(t, roomID, api.CheckEventHasEventID(eventID))
-	waiter.Wait(t, 5*time.Second)
+	waiter.Waitf(t, 5*time.Second, "client did not see event %s", eventID)
 
 	time.Sleep(time.Second)
 	fmt.Println("exiting")

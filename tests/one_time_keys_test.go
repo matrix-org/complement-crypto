@@ -134,9 +134,9 @@ func TestFallbackKeyIsUsedIfOneTimeKeysRunOut(t *testing.T) {
 				)
 				tc.Charlie.MustJoinRoom(t, roomID, []string{keyConsumerClientType.HS})
 				tc.Alice.MustJoinRoom(t, roomID, []string{keyConsumerClientType.HS})
-				charlie.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(alice.UserID(), "join")).Wait(t, 5*time.Second)
-				bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(alice.UserID(), "join")).Wait(t, 5*time.Second)
-				alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(alice.UserID(), "join")).Wait(t, 5*time.Second)
+				charlie.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(alice.UserID(), "join")).Waitf(t, 5*time.Second, "charlie did not see alice's join")
+				bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(alice.UserID(), "join")).Waitf(t, 5*time.Second, "bob did not see alice's join")
+				alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(alice.UserID(), "join")).Waitf(t, 5*time.Second, "alice did not see own join")
 				bob.SendMessage(t, roomID, "Hello world!")
 				charlie.SendMessage(t, roomID, "Goodbye world!")
 				waiter = alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody("Hello world!"))
@@ -146,9 +146,9 @@ func TestFallbackKeyIsUsedIfOneTimeKeysRunOut(t *testing.T) {
 				must.Equal(t, otkCount, 0, "OTKs were uploaded when they should have been blocked by mitmproxy")
 			})
 			// rust sdk needs /keys/upload to 200 OK before it will decrypt the hello world msg
-			waiter.Wait(t, 5*time.Second)
+			waiter.Waitf(t, 5*time.Second, "alice did not see bob's message")
 			// check charlie's message is also here
-			alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody("Goodbye world!")).Wait(t, 5*time.Second)
+			alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody("Goodbye world!")).Waitf(t, 5*time.Second, "alice did not see charlie's message")
 
 			// now /keys/upload is unblocked, make sure we upload new keys
 			alice.SendMessage(t, roomID, "Kick the client to upload OTKs... hopefully")
@@ -253,7 +253,7 @@ func TestFailedKeysClaimRetries(t *testing.T) {
 				// call /keys/claim. We should retry though.
 				tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
 				time.Sleep(time.Second) // FIXME using WaitUntilEventInRoom panics on rust because the room isn't there yet
-				bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(tc.Bob.UserID, "join")).Wait(t, 5*time.Second)
+				bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(tc.Bob.UserID, "join")).Waitf(t, 5*time.Second, "bob did not see own join event")
 
 				// Now send a message. On Rust, just sending 1 msg is enough to kick retry schedule.
 				// JS SDK won't retry the /keys/claim automatically. Try sending another event to kick it.

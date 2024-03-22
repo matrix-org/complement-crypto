@@ -54,7 +54,7 @@ func TestClientRetriesSendToDevice(t *testing.T) {
 
 			// Bob receives the message
 			t.Logf("bob (%s) waiting for event %s", bob.Type(), evID)
-			waiter.Wait(t, 5*time.Second)
+			waiter.Waitf(t, 5*time.Second, "bob did not see event with body '%s'", wantMsgBody)
 		})
 	})
 }
@@ -87,7 +87,7 @@ func TestUnprocessedToDeviceMessagesArentLostOnRestart(t *testing.T) {
 			tc.WithClientSyncing(t, tc.AliceClientType, alice2, func(alice2 api.Client) { // sync to ensure alice2 has keys uploaded
 				// check the room works
 				alice.SendMessage(t, roomID, "Hello World!")
-				bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody("Hello World!")).Wait(t, 2*time.Second)
+				bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody("Hello World!")).Waitf(t, 2*time.Second, "bob did not see event with body 'Hello World!'")
 			})
 			// stop bob's client
 			bobStopSyncing()
