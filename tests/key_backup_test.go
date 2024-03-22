@@ -41,7 +41,7 @@ func TestCanBackupKeys(t *testing.T) {
 			waiter := backupCreator.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(body))
 			evID := backupCreator.SendMessage(t, roomID, body)
 			t.Logf("backupCreator (%s) waiting for event %s", backupCreator.Type(), evID)
-			waiter.Wait(t, 5*time.Second)
+			waiter.Waitf(t, 5*time.Second, "backup creator did not see own message %s", evID)
 
 			// Now backupCreator backs up his keys. Some clients may automatically do this, but let's be explicit about it.
 			recoveryKey := backupCreator.MustBackupKeys(t)
@@ -101,7 +101,7 @@ func TestBackupWrongRecoveryKeyFails(t *testing.T) {
 			waiter := backupCreator.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(body))
 			evID := backupCreator.SendMessage(t, roomID, body)
 			t.Logf("backupCreator (%s) waiting for event %s", backupCreator.Type(), evID)
-			waiter.Wait(t, 5*time.Second)
+			waiter.Waitf(t, 5*time.Second, "backup creator did not see own message %s", evID)
 
 			// Now backupCreator backs up his keys. Some clients may automatically do this, but let's be explicit about it.
 			recoveryKey := backupCreator.MustBackupKeys(t)

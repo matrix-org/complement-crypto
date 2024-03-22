@@ -54,7 +54,7 @@ func TestFailedDeviceKeyDownloadRetries(t *testing.T) {
 					t,
 					roomID,
 					api.CheckEventHasBody("checking whether we can send a message"),
-				).Wait(t, 5*time.Second)
+				).Waitf(t, 5*time.Second, "bob did not see alice's decrypted message")
 
 			})
 		})

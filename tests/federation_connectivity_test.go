@@ -40,7 +40,7 @@ func TestNewUserCannotGetKeysForOfflineServer(t *testing.T) {
 			waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 			evID := alice.SendMessage(t, roomID, wantMsgBody)
 			t.Logf("bob (%s) waiting for event %s", bob.Type(), evID)
-			waiter.Wait(t, 5*time.Second)
+			waiter.Waitf(t, 5*time.Second, "bob did not see alice's message '%s'", wantMsgBody)
 
 			// now bob's HS becomes unreachable
 			tc.Deployment.PauseServer(t, "hs2")
@@ -58,7 +58,7 @@ func TestNewUserCannotGetKeysForOfflineServer(t *testing.T) {
 				waiter = alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantUndecryptableMsgBody))
 				undecryptableEventID := charlie.SendMessage(t, roomID, wantUndecryptableMsgBody)
 				t.Logf("alice (%s) waiting for event %s", alice.Type(), undecryptableEventID)
-				waiter.Wait(t, 5*time.Second)
+				waiter.Waitf(t, 5*time.Second, "alice did not see charlie's messages '%s'", wantUndecryptableMsgBody)
 
 				// now bob's server comes back online
 				tc.Deployment.UnpauseServer(t, "hs2")
@@ -76,7 +76,7 @@ func TestNewUserCannotGetKeysForOfflineServer(t *testing.T) {
 				waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 				evID = charlie.SendMessage(t, roomID, wantMsgBody)
 				t.Logf("bob (%s) waiting for event %s", bob.Type(), evID)
-				waiter.Wait(t, 5*time.Second)
+				waiter.Waitf(t, 5*time.Second, "bob did not see charlie's message '%s'", wantMsgBody)
 
 				// make sure bob cannot decrypt the msg from when his server was offline
 				// TODO: this isn't ideal, see https://github.com/matrix-org/matrix-rust-sdk/issues/2864
@@ -122,11 +122,11 @@ func TestExistingSessionCannotGetKeysForOfflineServer(t *testing.T) {
 			waiter := bob.WaitUntilEventInRoom(t, roomIDab, api.CheckEventHasBody(wantMsgBody))
 			evID := alice.SendMessage(t, roomIDab, wantMsgBody)
 			t.Logf("bob (%s) waiting for event %s", bob.Type(), evID)
-			waiter.Wait(t, 5*time.Second)
+			waiter.Waitf(t, 5*time.Second, "bob did not see alice's message: '%s'", wantMsgBody)
 			waiter = bob.WaitUntilEventInRoom(t, roomIDbc, api.CheckEventHasBody(wantMsgBody))
 			evID = charlie.SendMessage(t, roomIDbc, wantMsgBody)
 			t.Logf("bob (%s) waiting for event %s", bob.Type(), evID)
-			waiter.Wait(t, 5*time.Second)
+			waiter.Waitf(t, 5*time.Second, "bob did not see charlie's message: '%s'", wantMsgBody)
 
 			// now bob's HS becomes unreachable
 			tc.Deployment.PauseServer(t, "hs2")
@@ -144,13 +144,13 @@ func TestExistingSessionCannotGetKeysForOfflineServer(t *testing.T) {
 			waiter = alice.WaitUntilEventInRoom(t, roomIDab, api.CheckEventHasBody(wantDecryptableMsgBody))
 			decryptableEventID := charlie.SendMessage(t, roomIDab, wantDecryptableMsgBody)
 			t.Logf("alice (%s) waiting for event %s", alice.Type(), decryptableEventID)
-			waiter.Wait(t, 5*time.Second)
+			waiter.Waitf(t, 5*time.Second, "alice did not see charlie's message: '%s'", wantDecryptableMsgBody)
 
 			// now bob's server comes back online
 			tc.Deployment.UnpauseServer(t, "hs2")
 
 			waiter = bob.WaitUntilEventInRoom(t, roomIDab, api.CheckEventHasBody(wantDecryptableMsgBody))
-			waiter.Wait(t, 10*time.Second) // longer time to allow for retries
+			waiter.Waitf(t, 10*time.Second, "bob did not see charlie's message: '%s'", wantDecryptableMsgBody) // longer time to allow for retries
 		})
 	})
 }
