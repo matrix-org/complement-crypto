@@ -202,9 +202,11 @@ func (c *TestContext) WithAliceSyncing(t *testing.T, callback func(alice api.Cli
 func (c *TestContext) WithAliceAndBobSyncing(t *testing.T, callback func(alice, bob api.Client)) {
 	t.Helper()
 	must.NotEqual(t, c.Bob, nil, "No Bob defined. Call CreateTestContext() with at least 2 api.ClientTypes.")
-	c.WithClientSyncing(t, c.AliceClientType, c.Alice, func(alice api.Client) {
+	// we invert the order here because _typically_ Alice encrypts for Bob, so we want to make sure Bob has
+	// uploaded device keys before Alice starts syncing.
+	c.WithClientSyncing(t, c.BobClientType, c.Bob, func(bob api.Client) {
 		t.Helper()
-		c.WithClientSyncing(t, c.BobClientType, c.Bob, func(bob api.Client) {
+		c.WithClientSyncing(t, c.AliceClientType, c.Alice, func(alice api.Client) {
 			t.Helper()
 			callback(alice, bob)
 		})
@@ -219,11 +221,13 @@ func (c *TestContext) WithAliceAndBobSyncing(t *testing.T, callback func(alice, 
 func (c *TestContext) WithAliceBobAndCharlieSyncing(t *testing.T, callback func(alice, bob, charlie api.Client)) {
 	t.Helper()
 	must.NotEqual(t, c.Charlie, nil, "No Charlie defined. Call CreateTestContext() with at least 3 api.ClientTypes.")
-	c.WithClientSyncing(t, c.AliceClientType, c.Alice, func(alice api.Client) {
+	// we invert the order here because _typically_ Alice encrypts for Bob & Charlie, so we want to make sure they have
+	// uploaded device keys before Alice starts syncing.
+	c.WithClientSyncing(t, c.CharlieClientType, c.Charlie, func(charlie api.Client) {
 		t.Helper()
 		c.WithClientSyncing(t, c.BobClientType, c.Bob, func(bob api.Client) {
 			t.Helper()
-			c.WithClientSyncing(t, c.CharlieClientType, c.Charlie, func(charlie api.Client) {
+			c.WithClientSyncing(t, c.AliceClientType, c.Alice, func(alice api.Client) {
 				t.Helper()
 				callback(alice, bob, charlie)
 			})
