@@ -13,11 +13,13 @@ var (
 // work with complement crypto.
 type LanguageBindings interface {
 	// PreTestRun is a hook which is executed before any tests run. This can be used to
-	// clean up old log files from previous runs.
-	PreTestRun()
+	// clean up old log files from previous runs. 'contextID' is any specific scoping information
+	// to consider.
+	PreTestRun(contextID string)
 	// PostTestRun is a hook which is executed after all tests have run. This can be used
-	// to flush test logs.
-	PostTestRun()
+	// to flush test logs. 'contextID' is any specific scoping information
+	// to consider.
+	PostTestRun(contextID string)
 	// MustCreateClient is called to create a new client in this language. If the client cannot
 	// be created, the test should be failed by calling ct.Fatalf(t, ...).
 	MustCreateClient(t ct.TestLike, cfg ClientCreationOpts) Client

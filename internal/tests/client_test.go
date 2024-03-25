@@ -5,6 +5,8 @@ package tests
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -54,6 +56,17 @@ func TestMain(m *testing.M) {
 		return client
 	}
 	clientFactories = append(clientFactories, rustClientCreator, jsClientCreator)
+
+	rpcBinary := os.Getenv("COMPLEMENT_CRYPTO_RPC_BINARY")
+	if rpcBinary != "" {
+		clientFactories = append(clientFactories, func(t *testing.T, cfg api.ClientCreationOpts) api.Client {
+			remoteBindings, err := deploy.NewRPCLanguageBindings(rpcBinary, api.ClientTypeRust)
+			if err != nil {
+				log.Fatal(err)
+			}
+			return remoteBindings.MustCreateClient(t, cfg)
+		})
+	}
 	rust.SetupLogs("rust_sdk_logs")
 	js.SetupJSLogs("./logs/js_sdk.log")                       // rust sdk logs on its own
 	complement.TestMainWithCleanup(m, "clienttests", func() { // always teardown even if panicking

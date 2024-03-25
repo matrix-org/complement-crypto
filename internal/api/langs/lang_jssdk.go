@@ -20,14 +20,19 @@ func init() {
 
 type JSLanguageBindings struct{}
 
-func (b *JSLanguageBindings) PreTestRun() {
+func (b *JSLanguageBindings) PreTestRun(contextID string) {
 	// nuke persistent storage from previous run. We do this on startup rather than teardown
 	// to allow devs to introspect DBs / Chrome profiles if tests fail.
-	os.RemoveAll("./chromedp")
-	js.SetupJSLogs("./logs/js_sdk.log")
+	if contextID == "" {
+		os.RemoveAll("./chromedp")
+	}
+	if contextID != "" {
+		contextID = "_" + contextID
+	}
+	js.SetupJSLogs(fmt.Sprintf("./logs/js_sdk%s.log", contextID))
 }
 
-func (b *JSLanguageBindings) PostTestRun() {
+func (b *JSLanguageBindings) PostTestRun(contextID string) {
 	js.WriteJSLogs()
 }
 

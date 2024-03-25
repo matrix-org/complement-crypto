@@ -116,10 +116,17 @@ jobs:
           env
           go test $(go list ./internal/... | grep -v 'internal/tests') -timeout 60s
 
+      - name: "Building RPC client"
+        run: |
+          export LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
+          export LD_LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
+          go build -tags=jssdk,rust ./cmd/rpc
+
       - name: "Ensuring client implementations work..."
         run: |
           export LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
           export LD_LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
+          export COMPLEMENT_CRYPTO_RPC_BINARY="$(pwd)/rpc"
           set -o pipefail &&
           go test -v -json -timeout 15m ./internal/tests | gotestfmt
         shell: bash # required for pipefail to be A Thing. pipefail is required to stop gotestfmt swallowing non-zero exit codes
