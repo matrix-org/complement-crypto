@@ -2,6 +2,7 @@ package tests
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -123,10 +124,10 @@ func TestRoomKeyIsCycledAfterEnoughMessages(t *testing.T) {
 		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
 			// And some messages were sent, but not enough to trigger resending
 			for i := 0; i < 4; i++ {
-				wantMsgBody := "Before we hit the threshold"
+				wantMsgBody := fmt.Sprintf("Before we hit the threshold %d", i)
 				waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 				alice.SendMessage(t, roomID, wantMsgBody)
-				waiter.Waitf(t, 5*time.Second, "bob did not see alice's message")
+				waiter.Waitf(t, 5*time.Second, "bob did not see alice's message '%s'", wantMsgBody)
 			}
 
 			// Sniff calls to /sendToDevice to ensure we see the new room key being sent.

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/matrix-org/complement"
 	"github.com/matrix-org/complement-crypto/internal/api"
@@ -206,6 +207,16 @@ func (c *TestContext) WithAliceAndBobSyncing(t *testing.T, callback func(alice, 
 		t.Helper()
 		c.WithClientSyncing(t, c.BobClientType, c.Bob, func(bob api.Client) {
 			t.Helper()
+
+			// Wait until Alice and Bob have probably both uploaded their room
+			// keys, so they can probably send each other messages.
+			// TODO: if we exposed client.encryption().wait_for_e2ee_initialization_tasks we could
+			// call that for Alice and Bob, instead of just sleeping for what we
+			// hope is long enough. See https://github.com/matrix-org/complement-crypto/issues/41
+			time.Sleep(time.Second)
+			// c.Alice.Client.Encryption().WaitForE2eeInitializationTasks()
+			// c.Bob.Client.Encryption().WaitForE2eeInitializationTasks()
+
 			callback(alice, bob)
 		})
 	})
