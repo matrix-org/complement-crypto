@@ -16,12 +16,14 @@ jobs:
     uses: ./.github/workflows/single_sdk_tests.yml
     with:
       use_js_sdk: 'develop'
+      use_complement_crypto: '.'
 
   rust-latest-main:
     name: Tests (Rust only, latest main)
     uses: ./.github/workflows/single_sdk_tests.yml
     with:
       use_rust_sdk: '628374b8d86653e733649a506f5ae70385cd4de1' # TODO: go back to main when it works with uniffi 0.25 again
+      use_complement_crypto: '.'
 
   complement:
     name: Tests
