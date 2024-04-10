@@ -16,12 +16,14 @@ jobs:
     uses: ./.github/workflows/single_sdk_tests.yml
     with:
       use_js_sdk: 'develop'
+      use_complement_crypto: '.'
 
   rust-latest-main:
     name: Tests (Rust only, latest main)
     uses: ./.github/workflows/single_sdk_tests.yml
     with:
       use_rust_sdk: '628374b8d86653e733649a506f5ae70385cd4de1' # TODO: go back to main when it works with uniffi 0.25 again
+      use_complement_crypto: '.'
 
   complement:
     name: Tests
@@ -47,7 +49,9 @@ jobs:
       - name: Checkout matrix-rust-sdk
         run: |
           mkdir rust-sdk
-          (wget -O - "https://github.com/matrix-org/matrix-rust-sdk/archive/kegan/complement-crypto.tar.gz" | tar -xz --strip-components=1 -C rust-sdk)
+          wget -O archive.tar.gz "https://github.com/matrix-org/matrix-rust-sdk/archive/kegan/complement-crypto.tar.gz"
+          zcat < archive.tar.gz | git get-tar-commit-id # useful for debugging
+          tar -xz --strip-components=1 -C rust-sdk < archive.tar.gz
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: "rust-sdk"
@@ -141,6 +145,7 @@ jobs:
       - run: |
           export LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
           export LD_LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
+          export COMPLEMENT_CRYPTO_RPC_BINARY="$(pwd)/rpc"
           set -o pipefail &&
           go test -v -json -tags='jssdk,rust' -timeout 15m ./tests | gotestfmt
         shell: bash # required for pipefail to be A Thing. pipefail is required to stop gotestfmt swallowing non-zero exit codes

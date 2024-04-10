@@ -4,6 +4,11 @@
 Complement-Crypto is configured exclusively through the use of environment variables. These variables are described below. Additional environment variables can be used, and are outlined at https://github.com/matrix-org/complement/blob/main/ENVIRONMENT.md 
 Complement-Crypto always runs in dirty mode (homeservers exist for the entire duration of the test suite) for performance reasons.
 
+#### `COMPLEMENT_CRYPTO_RPC_BINARY`
+The absolute path to the pre-built rpc binary file. This binary is generated via `go build -tags=jssdk,rust ./cmd/rpc`. This binary is used when running multiprocess tests. If this environment variable is not supplied, tests which try to use multiprocess clients will be skipped, making this environment variable optional.  
+- Type: `string`
+- Default: ""
+
 #### `COMPLEMENT_CRYPTO_TCPDUMP`
 If 1, automatically attempts to run `tcpdump` when the containers are running. Stops dumping when tests complete. This will probably require you to run `go test` with `sudo -E`. The `.pcap` file is written to `tests/test.pcap`.  
 - Type: `bool`
