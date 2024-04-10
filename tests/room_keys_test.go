@@ -3,7 +3,6 @@ package tests
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -11,7 +10,6 @@ import (
 	"github.com/matrix-org/complement"
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/deploy"
-	templates "github.com/matrix-org/complement-crypto/tests/go_templates"
 	"github.com/matrix-org/complement/client"
 	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/complement/must"
@@ -366,7 +364,7 @@ func TestRoomKeyIsNotCycled(t *testing.T) {
 // in the room. This is important to ensure that we don't cycle m.room_keys too frequently, which increases
 // the chances of seeing undecryptable events.
 func TestRoomKeyIsNotCycledOnClientRestart(t *testing.T) {
-	ForEachClientType(t, func(tt *testing.T, a api.ClientType) {
+	ForEachClientType(t, func(t *testing.T, a api.ClientType) {
 		switch a.Lang {
 		case api.ClientTypeRust:
 			testRoomKeyIsNotCycledOnClientRestartRust(t, a)
@@ -389,40 +387,19 @@ func testRoomKeyIsNotCycledOnClientRestartRust(t *testing.T, clientType api.Clie
 	tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
 
 	tc.WithClientSyncing(t, clientType, tc.Bob, func(bob api.Client) {
-		wantMsgBody := "test from the script"
-
-		// run a script which will login as alice and then send an event in the room.
-		// We will wait on that event as Bob to know when the script got to that point.
-		cmd, close := templates.PrepareGoScript(t, "testRoomKeyIsNotCycledOnClientRestartRust/test.go",
-			struct {
-				UserID            string
-				DeviceID          string
-				Password          string
-				BaseURL           string
-				SSURL             string
-				PersistentStorage bool
-				Body              string
-				RoomID            string
-			}{
-				UserID:            tc.Alice.UserID,
-				Password:          tc.Alice.Password,
-				DeviceID:          tc.Alice.DeviceID,
-				BaseURL:           tc.Alice.BaseURL,
-				PersistentStorage: true,
-				SSURL:             bob.Opts().SlidingSyncURL,
-				Body:              wantMsgBody,
-				RoomID:            roomID,
-			})
-		cmd.WaitDelay = 3 * time.Second
-		defer close()
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		must.NotError(t, "failed to run script", cmd.Run())
+		wantMsgBody := "test from another process"
+		// send a message as Alice in a different process
+		tc.WithMultiprocessClientSyncing(t, clientType.Lang, tc.ClientCreationOpts(t, tc.Alice, clientType.HS, WithPersistentStorage()),
+			func(remoteAlice api.Client) {
+				eventID := remoteAlice.SendMessage(t, roomID, wantMsgBody)
+				waiter := remoteAlice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasEventID(eventID))
+				waiter.Waitf(t, 5*time.Second, "client did not see event %s", eventID)
+			},
+		)
 
 		waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 		waiter.Waitf(t, 8*time.Second, "bob did not see alice's message")
 
-		// the script sent the msg and exited cleanly.
 		// Now recreate the same client and make sure we don't send new room keys.
 
 		// we're going to sniff calls to /sendToDevice to ensure we do NOT see a new room key being sent.

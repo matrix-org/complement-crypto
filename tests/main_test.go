@@ -188,25 +188,22 @@ func (c *TestContext) WithClientSyncing(t *testing.T, clientType api.ClientType,
 
 // WithMultiprocessClientSyncing is the same as WithClientSyncing but it spins up the client in a separate process.
 // Communication is done via net/rpc internally.
-func (c *TestContext) WithMultiprocessClientSyncing(t *testing.T, clientType api.ClientType, cli *client.CSAPI, callback func(cli api.Client)) {
+func (c *TestContext) WithMultiprocessClientSyncing(t *testing.T, lang api.ClientTypeLang, opts api.ClientCreationOpts, callback func(cli api.Client)) {
 	t.Helper()
 	if c.RPCBinaryPath == "" {
 		t.Skipf("RPC binary path not provided, skipping multiprocess test")
 		return
 	}
-	remoteBindings, err := deploy.NewRPCLanguageBindings(c.RPCBinaryPath, clientType.Lang)
+	remoteBindings, err := deploy.NewRPCLanguageBindings(c.RPCBinaryPath, lang)
 	if err != nil {
 		t.Fatalf("Failed to create new RPC language bindings: %s", err)
 	}
-	cfg := api.NewClientCreationOpts(cli)
-	cfg.SlidingSyncURL = c.Deployment.SlidingSyncURLForHS(t, clientType.HS)
-	remoteClient := remoteBindings.MustCreateClient(t, cfg)
+	remoteClient := remoteBindings.MustCreateClient(t, opts)
 	must.NotError(t, "failed to login client", remoteClient.Login(t, remoteClient.Opts()))
 	defer remoteClient.Close(t)
 	stopSyncing := remoteClient.MustStartSyncing(t)
 	defer stopSyncing()
 	callback(remoteClient)
-
 }
 
 // WithAliceSyncing is a helper function which creates a rust/js client and automatically logs in Alice and starts
@@ -354,20 +351,6 @@ func (encRoomOptions) RotationPeriodMsgs(numMsgs int) EncRoomOption {
 	}
 }
 
-// OptsFromClient converts a Complement client into a set of options which can be used to create an api.Client.
-func (c *TestContext) OptsFromClient(t *testing.T, existing *client.CSAPI, options ...func(*api.ClientCreationOpts)) api.ClientCreationOpts {
-	o := &api.ClientCreationOpts{
-		BaseURL:  existing.BaseURL,
-		UserID:   existing.UserID,
-		DeviceID: existing.DeviceID,
-		Password: existing.Password,
-	}
-	for _, opt := range options {
-		opt(o)
-	}
-	return *o
-}
-
 // MustRegisterNewDevice logs in a new device for this client, else fails the test.
 func (c *TestContext) MustRegisterNewDevice(t *testing.T, cli *client.CSAPI, hsName, newDeviceID string) *client.CSAPI {
 	return c.Deployment.Login(t, hsName, cli, helpers.LoginOpts{
@@ -376,16 +359,23 @@ func (c *TestContext) MustRegisterNewDevice(t *testing.T, cli *client.CSAPI, hsN
 	})
 }
 
+// ClientCreationOpts converts a Complement client into a set of real client options. Real client options are required in order to create
+// real rust/js clients.
+func (c *TestContext) ClientCreationOpts(t *testing.T, cli *client.CSAPI, hsName string, options ...func(*api.ClientCreationOpts)) api.ClientCreationOpts {
+	opts := api.NewClientCreationOpts(cli)
+	for _, opt := range options {
+		opt(&opts)
+	}
+	opts.SlidingSyncURL = c.Deployment.SlidingSyncURLForHS(t, hsName)
+	return opts
+}
+
 // MustCreateClient creates an api.Client from an existing Complement client and the specified client type. Additional options
 // can be set to configure the client beyond that of the Complement client e.g to add persistent storage.
 func (c *TestContext) MustCreateClient(t *testing.T, cli *client.CSAPI, clientType api.ClientType, options ...func(*api.ClientCreationOpts)) api.Client {
 	t.Helper()
-	cfg := api.NewClientCreationOpts(cli)
-	for _, opt := range options {
-		opt(&cfg)
-	}
-	cfg.SlidingSyncURL = c.Deployment.SlidingSyncURLForHS(t, clientType.HS)
-	client := MustCreateClient(t, clientType, cfg)
+	opts := c.ClientCreationOpts(t, cli, clientType.HS, options...)
+	client := MustCreateClient(t, clientType, opts)
 	return client
 }
 
