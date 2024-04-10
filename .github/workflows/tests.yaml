@@ -47,7 +47,9 @@ jobs:
       - name: Checkout matrix-rust-sdk
         run: |
           mkdir rust-sdk
-          (wget -O - "https://github.com/matrix-org/matrix-rust-sdk/archive/kegan/complement-crypto.tar.gz" | tar -xz --strip-components=1 -C rust-sdk)
+          wget -O archive.tar.gz "https://github.com/matrix-org/matrix-rust-sdk/archive/kegan/complement-crypto.tar.gz"
+          zcat < archive.tar.gz | git get-tar-commit-id # useful for debugging
+          tar -xz --strip-components=1 -C rust-sdk < archive.tar.gz
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: "rust-sdk"
