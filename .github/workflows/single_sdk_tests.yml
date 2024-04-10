@@ -98,9 +98,11 @@ jobs:
 
         - name: Build RPC client (rust)
           if: ${{ inputs.use_rust_sdk != '' }}
+          env:
+            RUST_SDK_LIB_RELATIVE: ${{ inputs.use_rust_sdk == '.' &&  '/target/debug' || '/complement-crypto/rust-sdk/target/debug'}}
           run: |
-            export LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
-            export LD_LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
+            export LIBRARY_PATH="$(pwd)$RUST_SDK_LIB_RELATIVE"
+            export LD_LIBRARY_PATH="$(pwd)$RUST_SDK_LIB_RELATIVE"
             cd complement-crypto && go build -tags=rust ./cmd/rpc
         - name: Build RPC client (js)
           if: ${{ inputs.use_js_sdk != '' }}
