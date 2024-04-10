@@ -121,7 +121,8 @@ func WithPersistentStorage() func(*api.ClientCreationOpts) {
 
 // TestContext provides a consistent set of variables which most tests will need access to.
 type TestContext struct {
-	Deployment *deploy.SlidingSyncDeployment
+	Deployment    *deploy.SlidingSyncDeployment
+	RPCBinaryPath string
 	// Alice is defined if at least 1 clientType is provided to CreateTestContext.
 	Alice           *client.CSAPI
 	AliceClientType api.ClientType
@@ -145,7 +146,8 @@ type TestContext struct {
 func CreateTestContext(t *testing.T, clientType ...api.ClientType) *TestContext {
 	deployment := Deploy(t)
 	tc := &TestContext{
-		Deployment: deployment,
+		Deployment:    deployment,
+		RPCBinaryPath: complementCryptoConfig.RPCBinaryPath,
 	}
 	// pre-register alice and bob, if told
 	if len(clientType) > 0 {
@@ -182,6 +184,29 @@ func (c *TestContext) WithClientSyncing(t *testing.T, clientType api.ClientType,
 	stopSyncing := clientUnderTest.MustStartSyncing(t)
 	defer stopSyncing()
 	callback(clientUnderTest)
+}
+
+// WithMultiprocessClientSyncing is the same as WithClientSyncing but it spins up the client in a separate process.
+// Communication is done via net/rpc internally.
+func (c *TestContext) WithMultiprocessClientSyncing(t *testing.T, clientType api.ClientType, cli *client.CSAPI, callback func(cli api.Client)) {
+	t.Helper()
+	if c.RPCBinaryPath == "" {
+		t.Skipf("RPC binary path not provided, skipping multiprocess test")
+		return
+	}
+	remoteBindings, err := deploy.NewRPCLanguageBindings(c.RPCBinaryPath, clientType.Lang)
+	if err != nil {
+		t.Fatalf("Failed to create new RPC language bindings: %s", err)
+	}
+	cfg := api.NewClientCreationOpts(cli)
+	cfg.SlidingSyncURL = c.Deployment.SlidingSyncURLForHS(t, clientType.HS)
+	remoteClient := remoteBindings.MustCreateClient(t, cfg)
+	must.NotError(t, "failed to login client", remoteClient.Login(t, remoteClient.Opts()))
+	defer remoteClient.Close(t)
+	stopSyncing := remoteClient.MustStartSyncing(t)
+	defer stopSyncing()
+	callback(remoteClient)
+
 }
 
 // WithAliceSyncing is a helper function which creates a rust/js client and automatically logs in Alice and starts
