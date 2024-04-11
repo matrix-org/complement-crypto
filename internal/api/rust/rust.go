@@ -111,6 +111,10 @@ func (c *RustClient) DeletePersistentStorage(t ct.TestLike) {
 		}
 	}
 }
+func (c *RustClient) ForceClose(t ct.TestLike) {
+	t.Helper()
+	t.Fatalf("Cannot force close a rust client, use an RPC client instead.")
+}
 
 func (c *RustClient) Close(t ct.TestLike) {
 	t.Helper()
