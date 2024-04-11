@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"io"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -65,15 +64,17 @@ func testSigkillBeforeKeysUploadResponseRust(t *testing.T, clientType api.Client
 		remoteClient := tc.MustCreateMultiprocessClient(t, api.ClientTypeRust, opts)
 		must.NotError(t, "failed to login", remoteClient.Login(t, remoteClient.Opts()))
 
+		clientTerminatedWaiter := helpers.NewWaiter()
 		terminateClient = func() {
 			terminated.Store(true)
 			t.Logf("got keys/upload: force closing client")
 			remoteClient.ForceClose(t)
 			t.Logf("force closed client")
+			clientTerminatedWaiter.Finish()
 		}
 		// tell the remote process to start syncing: this will cause a /keys/upload request and eventually cause terminateClient to be called
-		_, err := remoteClient.StartSyncing(t)
-		must.Equal(t, err, io.ErrUnexpectedEOF, "StartSyncing did not return eof error after rpc server was terminated")
+		_, _ = remoteClient.StartSyncing(t)
+		clientTerminatedWaiter.Waitf(t, 5*time.Second, "terminateClient was not called, probably because we didn't see /keys/upload")
 		t.Logf("terminated process, making new client")
 		// now make the same client
 		alice := MustCreateClient(t, clientType, opts)
