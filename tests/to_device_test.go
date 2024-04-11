@@ -3,13 +3,11 @@ package tests
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/deploy"
-	templates "github.com/matrix-org/complement-crypto/tests/go_templates"
 	"github.com/matrix-org/complement/helpers"
 	"github.com/matrix-org/complement/must"
 	"github.com/tidwall/gjson"
@@ -149,32 +147,15 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartRust(t *testing.T, tc *Tes
 		}
 	}, func() {
 		// bob comes back online, and will be killed a short while later.
-		t.Logf("recreating bob")
-		cmd, close := templates.PrepareGoScript(t, "testUnprocessedToDeviceMessagesArentLostOnRestartRust/test.go",
-			struct {
-				UserID            string
-				DeviceID          string
-				Password          string
-				BaseURL           string
-				SSURL             string
-				PersistentStorage bool
-			}{
-				UserID:            bobOpts.UserID,
-				Password:          bobOpts.Password,
-				DeviceID:          bobOpts.DeviceID,
-				BaseURL:           bobOpts.BaseURL,
-				PersistentStorage: bobOpts.PersistentStorage,
-				SSURL:             bobOpts.SlidingSyncURL,
-			})
-		cmd.WaitDelay = 3 * time.Second
-		defer close()
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Start()
+		remoteClient := tc.MustCreateMultiprocessClient(t, api.ClientTypeRust, bobOpts)
+		must.NotError(t, "failed to login", remoteClient.Login(t, remoteClient.Opts()))
+
+		// start syncing but don't wait, we wait for the to device event
+		go remoteClient.StartSyncing(t)
+
 		waitForRoomKey.Wait(t, 10*time.Second)
-		time.Sleep(time.Millisecond) // wait a bit to let the client be mid-processing
-		t.Logf("killing external process")
-		must.NotError(t, "failed to kill process", cmd.Process.Kill())
+		t.Logf("killing remote bob client")
+		remoteClient.ForceClose(t)
 
 		// Ensure Bob can decrypt new messages sent from Alice.
 		bob := tc.MustLoginClient(t, tc.Bob, tc.BobClientType, WithPersistentStorage())
