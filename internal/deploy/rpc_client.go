@@ -131,6 +131,7 @@ func (r *RPCLanguageBindings) MustCreateClient(t ct.TestLike, cfg api.ClientCrea
 		return &RPCClient{
 			client: client,
 			lang:   r.clientType,
+			rpcCmd: rpcCmd,
 		}
 	case <-time.After(time.Second):
 		ct.Fatalf(t, "%s: timed out waiting for port number to be echoed to stdout. Did the RPC binary run, and is it actually the RPC binary? Path: %s", contextID, r.binaryPath)
@@ -142,6 +143,15 @@ func (r *RPCLanguageBindings) MustCreateClient(t ct.TestLike, cfg api.ClientCrea
 type RPCClient struct {
 	client *rpc.Client
 	lang   api.ClientTypeLang
+	rpcCmd *exec.Cmd
+}
+
+func (c *RPCClient) ForceClose(t ct.TestLike) {
+	t.Helper()
+	err := c.rpcCmd.Process.Kill()
+	if err != nil {
+		t.Fatalf("failed to kill process: %s", err)
+	}
 }
 
 // Close is called to clean up resources.
@@ -149,6 +159,7 @@ type RPCClient struct {
 // If we get callbacks/events after this point, tests may panic if the callbacks
 // log messages.
 func (c *RPCClient) Close(t ct.TestLike) {
+	t.Helper()
 	var void int
 	fmt.Println("RPCClient.Close")
 	err := c.client.Call("RPCServer.Close", t.Name(), &void)

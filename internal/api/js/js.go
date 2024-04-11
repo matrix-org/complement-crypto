@@ -242,11 +242,18 @@ func (c *JSClient) DeletePersistentStorage(t ct.TestLike) {
 	`, indexedDBName, indexedDBCryptoName))
 }
 
+func (c *JSClient) ForceClose(t ct.TestLike) {
+	t.Helper()
+	t.Logf("force closing a JS client is the same as a normal close (closing browser)")
+	c.Close(t)
+}
+
 // Close is called to clean up resources.
 // Specifically, we need to shut off existing browsers and any FFI bindings.
 // If we get callbacks/events after this point, tests may panic if the callbacks
 // log messages.
 func (c *JSClient) Close(t ct.TestLike) {
+	t.Helper()
 	c.browser.Cancel()
 	c.listenersMu.Lock()
 	c.listeners = make(map[int32]func(roomID string, ev api.Event))

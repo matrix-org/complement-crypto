@@ -186,19 +186,25 @@ func (c *TestContext) WithClientSyncing(t *testing.T, clientType api.ClientType,
 	callback(clientUnderTest)
 }
 
-// WithMultiprocessClientSyncing is the same as WithClientSyncing but it spins up the client in a separate process.
-// Communication is done via net/rpc internally.
-func (c *TestContext) WithMultiprocessClientSyncing(t *testing.T, lang api.ClientTypeLang, opts api.ClientCreationOpts, callback func(cli api.Client)) {
+// MustCreateMultiprocessClient creates a new RPC process and instructs it to create a client given by the client creation options.
+func (c *TestContext) MustCreateMultiprocessClient(t *testing.T, lang api.ClientTypeLang, opts api.ClientCreationOpts) api.Client {
 	t.Helper()
 	if c.RPCBinaryPath == "" {
 		t.Skipf("RPC binary path not provided, skipping multiprocess test")
-		return
+		return nil
 	}
 	remoteBindings, err := deploy.NewRPCLanguageBindings(c.RPCBinaryPath, lang)
 	if err != nil {
 		t.Fatalf("Failed to create new RPC language bindings: %s", err)
 	}
-	remoteClient := remoteBindings.MustCreateClient(t, opts)
+	return remoteBindings.MustCreateClient(t, opts)
+}
+
+// WithMultiprocessClientSyncing is the same as WithClientSyncing but it spins up the client in a separate process.
+// Communication is done via net/rpc internally.
+func (c *TestContext) WithMultiprocessClientSyncing(t *testing.T, lang api.ClientTypeLang, opts api.ClientCreationOpts, callback func(cli api.Client)) {
+	t.Helper()
+	remoteClient := c.MustCreateMultiprocessClient(t, lang, opts)
 	must.NotError(t, "failed to login client", remoteClient.Login(t, remoteClient.Opts()))
 	defer remoteClient.Close(t)
 	stopSyncing := remoteClient.MustStartSyncing(t)
