@@ -20,6 +20,11 @@ on:
         required: false
         default: ''
         type: string
+      use_complement_crypto:
+        description: 'tag/commit/branch of Complement Crypto to test against. If "." then the caller checkout is used.'
+        required: false
+        default: 'main'
+        type: string
 jobs:
   tests:
     runs-on: ubuntu-latest
@@ -27,9 +32,16 @@ jobs:
         - name: Checkout repo
           uses: actions/checkout@v3
         - name: Checkout complement-crypto
+          if: ${{ inputs.use_complement_crypto != '.'}}
+          env:
+            COMPLEMENT_CRYPTO_SHA: ${{ inputs.use_complement_crypto }}
           run: |
             mkdir complement-crypto
-            (wget -O - "https://github.com/matrix-org/complement-crypto/archive/main.tar.gz" | tar -xz --strip-components=1 -C complement-crypto)
+            (wget -O - "https://github.com/matrix-org/complement-crypto/archive/$COMPLEMENT_CRYPTO_SHA.tar.gz" | tar -xz --strip-components=1 -C complement-crypto)
+        - name: Symlink complement-crypto
+          if: ${{ inputs.use_complement_crypto == '.'}}
+          run: |
+            ln -s . complement-crypto
         # Setup code we always need
         - name: Pull synapse service v1.94.0 and mitmproxy
           shell: bash
@@ -84,11 +96,25 @@ jobs:
           run: |
             cd complement-crypto && ./rebuild_rust_sdk.sh $RUST_SDK_DIR
 
+        - name: Build RPC client (rust)
+          if: ${{ inputs.use_rust_sdk != '' }}
+          env:
+            RUST_SDK_LIB_RELATIVE: ${{ inputs.use_rust_sdk == '.' &&  '/target/debug' || '/complement-crypto/rust-sdk/target/debug'}}
+          run: |
+            export LIBRARY_PATH="$(pwd)$RUST_SDK_LIB_RELATIVE"
+            export LD_LIBRARY_PATH="$(pwd)$RUST_SDK_LIB_RELATIVE"
+            cd complement-crypto && go build -tags=rust ./cmd/rpc
+        - name: Build RPC client (js)
+          if: ${{ inputs.use_js_sdk != '' }}
+          run: |
+            cd complement-crypto && go build -tags=jssdk ./cmd/rpc
+
         # Run the tests
         - name: Run Complement Crypto Tests
           run: |
             export LIBRARY_PATH="$(pwd)$RUST_SDK_LIB_RELATIVE"
             export LD_LIBRARY_PATH="$(pwd)$RUST_SDK_LIB_RELATIVE"
+            export COMPLEMENT_CRYPTO_RPC_BINARY="$(pwd)/complement-crypto/rpc"
             cd complement-crypto &&
             set -o pipefail &&
             go test -v -json -tags=$GO_TAGS -timeout 15m ./tests | gotestfmt

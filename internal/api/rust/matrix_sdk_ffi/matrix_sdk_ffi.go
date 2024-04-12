@@ -8,6 +8,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"github.com/matrix-org/complement-crypto/internal/api/rust/matrix_sdk"
+	"github.com/matrix-org/complement-crypto/internal/api/rust/matrix_sdk_ui"
 	"io"
 	"math"
 	"runtime"
@@ -16,9 +18,6 @@ import (
 	"sync/atomic"
 	"time"
 	"unsafe"
-
-	"github.com/matrix-org/complement-crypto/internal/api/rust/matrix_sdk"
-	"github.com/matrix-org/complement-crypto/internal/api/rust/matrix_sdk_ui"
 )
 
 type RustBuffer = C.RustBuffer

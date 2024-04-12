@@ -3,13 +3,11 @@ package tests
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/deploy"
-	templates "github.com/matrix-org/complement-crypto/tests/go_templates"
 	"github.com/matrix-org/complement/helpers"
 	"github.com/matrix-org/complement/must"
 	"github.com/tidwall/gjson"
@@ -54,7 +52,7 @@ func TestClientRetriesSendToDevice(t *testing.T) {
 
 			// Bob receives the message
 			t.Logf("bob (%s) waiting for event %s", bob.Type(), evID)
-			waiter.Wait(t, 5*time.Second)
+			waiter.Waitf(t, 5*time.Second, "bob did not see event with body '%s'", wantMsgBody)
 		})
 	})
 }
@@ -87,7 +85,7 @@ func TestUnprocessedToDeviceMessagesArentLostOnRestart(t *testing.T) {
 			tc.WithClientSyncing(t, tc.AliceClientType, alice2, func(alice2 api.Client) { // sync to ensure alice2 has keys uploaded
 				// check the room works
 				alice.SendMessage(t, roomID, "Hello World!")
-				bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody("Hello World!")).Wait(t, 2*time.Second)
+				bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody("Hello World!")).Waitf(t, 2*time.Second, "bob did not see event with body 'Hello World!'")
 			})
 			// stop bob's client
 			bobStopSyncing()
@@ -149,32 +147,15 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartRust(t *testing.T, tc *Tes
 		}
 	}, func() {
 		// bob comes back online, and will be killed a short while later.
-		t.Logf("recreating bob")
-		cmd, close := templates.PrepareGoScript(t, "testUnprocessedToDeviceMessagesArentLostOnRestartRust/test.go",
-			struct {
-				UserID            string
-				DeviceID          string
-				Password          string
-				BaseURL           string
-				SSURL             string
-				PersistentStorage bool
-			}{
-				UserID:            bobOpts.UserID,
-				Password:          bobOpts.Password,
-				DeviceID:          bobOpts.DeviceID,
-				BaseURL:           bobOpts.BaseURL,
-				PersistentStorage: bobOpts.PersistentStorage,
-				SSURL:             bobOpts.SlidingSyncURL,
-			})
-		cmd.WaitDelay = 3 * time.Second
-		defer close()
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Start()
+		remoteClient := tc.MustCreateMultiprocessClient(t, api.ClientTypeRust, bobOpts)
+		must.NotError(t, "failed to login", remoteClient.Login(t, remoteClient.Opts()))
+
+		// start syncing but don't wait, we wait for the to device event
+		go remoteClient.StartSyncing(t)
+
 		waitForRoomKey.Wait(t, 10*time.Second)
-		time.Sleep(time.Millisecond) // wait a bit to let the client be mid-processing
-		t.Logf("killing external process")
-		must.NotError(t, "failed to kill process", cmd.Process.Kill())
+		t.Logf("killing remote bob client")
+		remoteClient.ForceClose(t)
 
 		// Ensure Bob can decrypt new messages sent from Alice.
 		bob := tc.MustLoginClient(t, tc.Bob, tc.BobClientType, WithPersistentStorage())

@@ -111,6 +111,10 @@ func (c *RustClient) DeletePersistentStorage(t ct.TestLike) {
 		}
 	}
 }
+func (c *RustClient) ForceClose(t ct.TestLike) {
+	t.Helper()
+	t.Fatalf("Cannot force close a rust client, use an RPC client instead.")
+}
 
 func (c *RustClient) Close(t ct.TestLike) {
 	t.Helper()
@@ -604,7 +608,15 @@ type timelineWaiter struct {
 	client  *RustClient
 }
 
-func (w *timelineWaiter) Wait(t ct.TestLike, s time.Duration) {
+func (w *timelineWaiter) Waitf(t ct.TestLike, s time.Duration, format string, args ...any) {
+	t.Helper()
+	err := w.TryWaitf(t, s, format, args...)
+	if err != nil {
+		ct.Fatalf(t, err.Error())
+	}
+}
+
+func (w *timelineWaiter) TryWaitf(t ct.TestLike, s time.Duration, format string, args ...any) error {
 	t.Helper()
 
 	checkForEvent := func() bool {
@@ -629,7 +641,7 @@ func (w *timelineWaiter) Wait(t ct.TestLike, s time.Duration) {
 	}
 
 	if checkForEvent() {
-		return
+		return nil // event exists
 	}
 
 	updates := make(chan bool, 3)
@@ -653,21 +665,22 @@ func (w *timelineWaiter) Wait(t ct.TestLike, s time.Duration) {
 
 	// check again in case it was added after the previous checkForEvent but before AddListener
 	if checkForEvent() {
-		return
+		return nil // event exists
 	}
 
+	msg := fmt.Sprintf(format, args...)
 	// either no timeline or doesn't exist yet, start blocking
 	start := time.Now()
 	for {
 		timeLeft := s - time.Since(start)
 		if timeLeft <= 0 {
-			ct.Fatalf(t, "%s (rust): Wait[%s]: timed out", w.client.userID, w.roomID)
+			return fmt.Errorf("%s (rust): Wait[%s]: timed out: %s", w.client.userID, w.roomID, msg)
 		}
 		select {
 		case <-time.After(timeLeft):
-			ct.Fatalf(t, "%s (rust): Wait[%s]: timed out", w.client.userID, w.roomID)
+			return fmt.Errorf("%s (rust): Wait[%s]: timed out %s", w.client.userID, w.roomID, msg)
 		case <-updates:
-			return
+			return nil // event exists
 		}
 	}
 }

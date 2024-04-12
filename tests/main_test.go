@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/matrix-org/complement"
 	"github.com/matrix-org/complement-crypto/internal/api"
@@ -30,7 +31,7 @@ func TestMain(m *testing.M) {
 	ssMutex = &sync.Mutex{}
 
 	for _, binding := range complementCryptoConfig.Bindings() {
-		binding.PreTestRun()
+		binding.PreTestRun("")
 	}
 
 	complement.TestMainWithCleanup(m, "crypto", func() { // always teardown even if panicking
@@ -40,7 +41,7 @@ func TestMain(m *testing.M) {
 		}
 		ssMutex.Unlock()
 		for _, binding := range complementCryptoConfig.Bindings() {
-			binding.PostTestRun()
+			binding.PostTestRun("")
 		}
 	})
 }
@@ -120,7 +121,8 @@ func WithPersistentStorage() func(*api.ClientCreationOpts) {
 
 // TestContext provides a consistent set of variables which most tests will need access to.
 type TestContext struct {
-	Deployment *deploy.SlidingSyncDeployment
+	Deployment    *deploy.SlidingSyncDeployment
+	RPCBinaryPath string
 	// Alice is defined if at least 1 clientType is provided to CreateTestContext.
 	Alice           *client.CSAPI
 	AliceClientType api.ClientType
@@ -144,7 +146,8 @@ type TestContext struct {
 func CreateTestContext(t *testing.T, clientType ...api.ClientType) *TestContext {
 	deployment := Deploy(t)
 	tc := &TestContext{
-		Deployment: deployment,
+		Deployment:    deployment,
+		RPCBinaryPath: complementCryptoConfig.RPCBinaryPath,
 	}
 	// pre-register alice and bob, if told
 	if len(clientType) > 0 {
@@ -183,6 +186,32 @@ func (c *TestContext) WithClientSyncing(t *testing.T, clientType api.ClientType,
 	callback(clientUnderTest)
 }
 
+// MustCreateMultiprocessClient creates a new RPC process and instructs it to create a client given by the client creation options.
+func (c *TestContext) MustCreateMultiprocessClient(t *testing.T, lang api.ClientTypeLang, opts api.ClientCreationOpts) api.Client {
+	t.Helper()
+	if c.RPCBinaryPath == "" {
+		t.Skipf("RPC binary path not provided, skipping multiprocess test")
+		return nil
+	}
+	remoteBindings, err := deploy.NewRPCLanguageBindings(c.RPCBinaryPath, lang)
+	if err != nil {
+		t.Fatalf("Failed to create new RPC language bindings: %s", err)
+	}
+	return remoteBindings.MustCreateClient(t, opts)
+}
+
+// WithMultiprocessClientSyncing is the same as WithClientSyncing but it spins up the client in a separate process.
+// Communication is done via net/rpc internally.
+func (c *TestContext) WithMultiprocessClientSyncing(t *testing.T, lang api.ClientTypeLang, opts api.ClientCreationOpts, callback func(cli api.Client)) {
+	t.Helper()
+	remoteClient := c.MustCreateMultiprocessClient(t, lang, opts)
+	must.NotError(t, "failed to login client", remoteClient.Login(t, remoteClient.Opts()))
+	defer remoteClient.Close(t)
+	stopSyncing := remoteClient.MustStartSyncing(t)
+	defer stopSyncing()
+	callback(remoteClient)
+}
+
 // WithAliceSyncing is a helper function which creates a rust/js client and automatically logs in Alice and starts
 // a sync loop for her.
 //
@@ -208,6 +237,16 @@ func (c *TestContext) WithAliceAndBobSyncing(t *testing.T, callback func(alice, 
 		t.Helper()
 		c.WithClientSyncing(t, c.AliceClientType, c.Alice, func(alice api.Client) {
 			t.Helper()
+
+			// Wait until Alice and Bob have probably both uploaded their room
+			// keys, so they can probably send each other messages.
+			// TODO: if we exposed client.encryption().wait_for_e2ee_initialization_tasks we could
+			// call that for Alice and Bob, instead of just sleeping for what we
+			// hope is long enough. See https://github.com/matrix-org/complement-crypto/issues/41
+			time.Sleep(time.Second)
+			// c.Alice.Client.Encryption().WaitForE2eeInitializationTasks()
+			// c.Bob.Client.Encryption().WaitForE2eeInitializationTasks()
+
 			callback(alice, bob)
 		})
 	})
@@ -322,20 +361,6 @@ func (encRoomOptions) RotationPeriodMsgs(numMsgs int) EncRoomOption {
 	}
 }
 
-// OptsFromClient converts a Complement client into a set of options which can be used to create an api.Client.
-func (c *TestContext) OptsFromClient(t *testing.T, existing *client.CSAPI, options ...func(*api.ClientCreationOpts)) api.ClientCreationOpts {
-	o := &api.ClientCreationOpts{
-		BaseURL:  existing.BaseURL,
-		UserID:   existing.UserID,
-		DeviceID: existing.DeviceID,
-		Password: existing.Password,
-	}
-	for _, opt := range options {
-		opt(o)
-	}
-	return *o
-}
-
 // MustRegisterNewDevice logs in a new device for this client, else fails the test.
 func (c *TestContext) MustRegisterNewDevice(t *testing.T, cli *client.CSAPI, hsName, newDeviceID string) *client.CSAPI {
 	return c.Deployment.Login(t, hsName, cli, helpers.LoginOpts{
@@ -344,16 +369,23 @@ func (c *TestContext) MustRegisterNewDevice(t *testing.T, cli *client.CSAPI, hsN
 	})
 }
 
+// ClientCreationOpts converts a Complement client into a set of real client options. Real client options are required in order to create
+// real rust/js clients.
+func (c *TestContext) ClientCreationOpts(t *testing.T, cli *client.CSAPI, hsName string, options ...func(*api.ClientCreationOpts)) api.ClientCreationOpts {
+	opts := api.NewClientCreationOpts(cli)
+	for _, opt := range options {
+		opt(&opts)
+	}
+	opts.SlidingSyncURL = c.Deployment.SlidingSyncURLForHS(t, hsName)
+	return opts
+}
+
 // MustCreateClient creates an api.Client from an existing Complement client and the specified client type. Additional options
 // can be set to configure the client beyond that of the Complement client e.g to add persistent storage.
 func (c *TestContext) MustCreateClient(t *testing.T, cli *client.CSAPI, clientType api.ClientType, options ...func(*api.ClientCreationOpts)) api.Client {
 	t.Helper()
-	cfg := api.NewClientCreationOpts(cli)
-	for _, opt := range options {
-		opt(&cfg)
-	}
-	cfg.SlidingSyncURL = c.Deployment.SlidingSyncURLForHS(t, clientType.HS)
-	client := MustCreateClient(t, clientType, cfg)
+	opts := c.ClientCreationOpts(t, cli, clientType.HS, options...)
+	client := MustCreateClient(t, clientType, opts)
 	return client
 }
 

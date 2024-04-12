@@ -5,6 +5,8 @@ package tests
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -54,6 +56,17 @@ func TestMain(m *testing.M) {
 		return client
 	}
 	clientFactories = append(clientFactories, rustClientCreator, jsClientCreator)
+
+	rpcBinary := os.Getenv("COMPLEMENT_CRYPTO_RPC_BINARY")
+	if rpcBinary != "" {
+		clientFactories = append(clientFactories, func(t *testing.T, cfg api.ClientCreationOpts) api.Client {
+			remoteBindings, err := deploy.NewRPCLanguageBindings(rpcBinary, api.ClientTypeRust)
+			if err != nil {
+				log.Fatal(err)
+			}
+			return remoteBindings.MustCreateClient(t, cfg)
+		})
+	}
 	rust.SetupLogs("rust_sdk_logs")
 	js.SetupJSLogs("./logs/js_sdk.log")                       // rust sdk logs on its own
 	complement.TestMainWithCleanup(m, "clienttests", func() { // always teardown even if panicking
@@ -92,13 +105,13 @@ func TestReceiveTimeline(t *testing.T) {
 		stopSyncing := client.MustStartSyncing(t)
 		defer stopSyncing()
 		// wait until we see the latest event
-		client.WaitUntilEventInRoom(t, roomID, api.CheckEventHasEventID(eventIDs[len(eventIDs)-1])).Wait(t, 5*time.Second)
+		client.WaitUntilEventInRoom(t, roomID, api.CheckEventHasEventID(eventIDs[len(eventIDs)-1])).Waitf(t, 5*time.Second, "client did not see latest event")
 		// ensure we have backpaginated if we need to. It is valid for a client to only sync the latest
 		// event in the room, so we have to backpaginate here.
 		client.MustBackpaginate(t, roomID, len(eventIDs))
 		// ensure we see all the events
 		for _, eventID := range eventIDs {
-			client.WaitUntilEventInRoom(t, roomID, api.CheckEventHasEventID(eventID)).Wait(t, 5*time.Second)
+			client.WaitUntilEventInRoom(t, roomID, api.CheckEventHasEventID(eventID)).Waitf(t, 5*time.Second, "client did not see event %s", eventID)
 		}
 		// check event content is correct
 		for i, eventID := range eventIDs {
@@ -123,7 +136,7 @@ func TestReceiveTimeline(t *testing.T) {
 		// ensure we see all the events
 		for i, eventID := range eventIDs {
 			t.Logf("waiting for event %d : %s", i, eventID)
-			client.WaitUntilEventInRoom(t, roomID, api.CheckEventHasEventID(eventID)).Wait(t, 5*time.Second)
+			client.WaitUntilEventInRoom(t, roomID, api.CheckEventHasEventID(eventID)).Waitf(t, 5*time.Second, "client did not see event %s", eventID)
 		}
 		// now send another live event and ensure we see it. This ensure we can still wait for events after having
 		// previously waited for events.
@@ -135,7 +148,7 @@ func TestReceiveTimeline(t *testing.T) {
 				"body":    "Final",
 			},
 		})
-		waiter.Wait(t, 5*time.Second)
+		waiter.Waitf(t, 5*time.Second, "client did not see final message")
 
 		// check event content is correct
 		for i, eventID := range eventIDs {
@@ -165,7 +178,7 @@ func TestCanWaitUntilEventInRoomBeforeRoomIsKnown(t *testing.T) {
 		completed := helpers.NewWaiter()
 		waiter := client.WaitUntilEventInRoom(t, roomID, api.CheckEventHasEventID(eventID))
 		go func() {
-			waiter.Wait(t, 5*time.Second)
+			waiter.Waitf(t, 5*time.Second, "client did not seee event %s", eventID)
 			completed.Finish()
 		}()
 		t.Logf("waiting for event %s", eventID)

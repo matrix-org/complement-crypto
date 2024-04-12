@@ -21,6 +21,10 @@ type Client interface {
 	// If we get callbacks/events after this point, tests may panic if the callbacks
 	// log messages.
 	Close(t ct.TestLike)
+	// ForceClose should uncleanly shut down the client e.g
+	// sending SIGKILL. This is typically useful for tests which want to explicitly test
+	// unclean shutdowns.
+	ForceClose(t ct.TestLike)
 	// Remove any persistent storage, if it was enabled.
 	DeletePersistentStorage(t ct.TestLike)
 	Login(t ct.TestLike, opts ClientCreationOpts) error
@@ -77,6 +81,12 @@ func (c *LoggedClient) Close(t ct.TestLike) {
 	t.Helper()
 	c.Logf(t, "%s Close", c.logPrefix())
 	c.Client.Close(t)
+}
+
+func (c *LoggedClient) ForceClose(t ct.TestLike) {
+	t.Helper()
+	c.Logf(t, "%s ForceClose", c.logPrefix())
+	c.Client.ForceClose(t)
 }
 
 func (c *LoggedClient) MustGetEvent(t ct.TestLike, roomID, eventID string) Event {
@@ -206,7 +216,12 @@ type Event struct {
 }
 
 type Waiter interface {
-	Wait(t ct.TestLike, s time.Duration)
+	// Wait for something to happen, up until the timeout s. If nothing happens,
+	// fail the test with the formatted string provided.
+	Waitf(t ct.TestLike, s time.Duration, format string, args ...any)
+	// Wait for something to happen, up until the timeout s. If nothing happens,
+	// return an error with the formatted string provided.
+	TryWaitf(t ct.TestLike, s time.Duration, format string, args ...any) error
 }
 
 func CheckEventHasBody(body string) func(e Event) bool {

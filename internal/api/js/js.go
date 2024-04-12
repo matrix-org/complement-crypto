@@ -242,11 +242,18 @@ func (c *JSClient) DeletePersistentStorage(t ct.TestLike) {
 	`, indexedDBName, indexedDBCryptoName))
 }
 
+func (c *JSClient) ForceClose(t ct.TestLike) {
+	t.Helper()
+	t.Logf("force closing a JS client is the same as a normal close (closing browser)")
+	c.Close(t)
+}
+
 // Close is called to clean up resources.
 // Specifically, we need to shut off existing browsers and any FFI bindings.
 // If we get callbacks/events after this point, tests may panic if the callbacks
 // log messages.
 func (c *JSClient) Close(t ct.TestLike) {
+	t.Helper()
 	c.browser.Cancel()
 	c.listenersMu.Lock()
 	c.listeners = make(map[int32]func(roomID string, ev api.Event))
@@ -473,7 +480,15 @@ type jsTimelineWaiter struct {
 	client  *JSClient
 }
 
-func (w *jsTimelineWaiter) Wait(t ct.TestLike, s time.Duration) {
+func (w *jsTimelineWaiter) Waitf(t ct.TestLike, s time.Duration, format string, args ...any) {
+	t.Helper()
+	err := w.TryWaitf(t, s, format, args...)
+	if err != nil {
+		ct.Fatalf(t, err.Error())
+	}
+}
+
+func (w *jsTimelineWaiter) TryWaitf(t ct.TestLike, s time.Duration, format string, args ...any) error {
 	t.Helper()
 	updates := make(chan bool, 3)
 	cancel := w.client.listenForUpdates(func(roomID string, ev api.Event) {
@@ -494,17 +509,18 @@ func (w *jsTimelineWaiter) Wait(t ct.TestLike, s time.Duration) {
 		});`, w.roomID, CONSOLE_LOG_CONTROL_STRING,
 	))
 
+	msg := fmt.Sprintf(format, args...)
 	start := time.Now()
 	for {
 		timeLeft := s - time.Since(start)
 		if timeLeft <= 0 {
-			ct.Fatalf(t, "%s (js): Wait[%s]: timed out", w.client.userID, w.roomID)
+			return fmt.Errorf("%s (js): Wait[%s]: timed out: %s", w.client.userID, w.roomID, msg)
 		}
 		select {
 		case <-time.After(timeLeft):
-			ct.Fatalf(t, "%s (js): Wait[%s]: timed out", w.client.userID, w.roomID)
+			return fmt.Errorf("%s (js): Wait[%s]: timed out: %s", w.client.userID, w.roomID, msg)
 		case <-updates:
-			return
+			return nil // event exists
 		}
 	}
 }

@@ -2,7 +2,7 @@ package tests
 
 import (
 	"encoding/json"
-	"os"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -10,7 +10,6 @@ import (
 	"github.com/matrix-org/complement"
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/deploy"
-	templates "github.com/matrix-org/complement-crypto/tests/go_templates"
 	"github.com/matrix-org/complement/client"
 	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/complement/must"
@@ -47,14 +46,14 @@ func TestRoomKeyIsCycledOnDeviceLogout(t *testing.T) {
 					EncRoomOptions.Invite([]string{tc.Bob.UserID}),
 				)
 				tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
-				alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(tc.Bob.UserID, "join")).Wait(t, 5*time.Second)
+				alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(tc.Bob.UserID, "join")).Waitf(t, 5*time.Second, "alice did not see own join")
 				// check the room works
 				wantMsgBody := "Test Message"
 				waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 				waiter2 := alice2.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 				alice.SendMessage(t, roomID, wantMsgBody)
-				waiter.Wait(t, 5*time.Second)
-				waiter2.Wait(t, 5*time.Second)
+				waiter.Waitf(t, 5*time.Second, "bob did not see alice's message")
+				waiter2.Waitf(t, 5*time.Second, "alice2 did not see alice's message")
 
 				// we're going to sniff calls to /sendToDevice to ensure we see the new room key being sent.
 				ch := make(chan deploy.CallbackData, 10)
@@ -82,7 +81,7 @@ func TestRoomKeyIsCycledOnDeviceLogout(t *testing.T) {
 					wantMsgBody = "Another Test Message"
 					waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 					alice.SendMessage(t, roomID, wantMsgBody)
-					waiter.Wait(t, 5*time.Second)
+					waiter.Waitf(t, 5*time.Second, "bob did not see alice's new message")
 				})
 
 				// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
@@ -123,10 +122,10 @@ func TestRoomKeyIsCycledAfterEnoughMessages(t *testing.T) {
 		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
 			// And some messages were sent, but not enough to trigger resending
 			for i := 0; i < 4; i++ {
-				wantMsgBody := "Before we hit the threshold"
+				wantMsgBody := fmt.Sprintf("Before we hit the threshold %d", i)
 				waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 				alice.SendMessage(t, roomID, wantMsgBody)
-				waiter.Wait(t, 5*time.Second)
+				waiter.Waitf(t, 5*time.Second, "bob did not see alice's message '%s'", wantMsgBody)
 			}
 
 			// Sniff calls to /sendToDevice to ensure we see the new room key being sent.
@@ -150,12 +149,12 @@ func TestRoomKeyIsCycledAfterEnoughMessages(t *testing.T) {
 				// of these approaches will pass the test.
 				waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 				alice.SendMessage(t, roomID, wantMsgBody)
-				waiter.Wait(t, 5*time.Second)
+				waiter.Waitf(t, 5*time.Second, "bob did not see alice's message '%s'", wantMsgBody)
 
 				wantMsgBody = "After the threshold"
 				waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 				alice.SendMessage(t, roomID, wantMsgBody)
-				waiter.Wait(t, 5*time.Second)
+				waiter.Waitf(t, 5*time.Second, "bob did not seee alice's message '%s'", wantMsgBody)
 			})
 
 			// Then we did send out new keys
@@ -184,14 +183,14 @@ func TestRoomKeyIsCycledOnMemberLeaving(t *testing.T) {
 			)
 			tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 			tc.Charlie.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
-			alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(tc.Charlie.UserID, "join")).Wait(t, 5*time.Second)
+			alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(tc.Charlie.UserID, "join")).Waitf(t, 5*time.Second, "alice did not see charlie's join")
 			// check the room works
 			wantMsgBody := "Test Message"
 			waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 			waiter2 := charlie.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 			alice.SendMessage(t, roomID, wantMsgBody)
-			waiter.Wait(t, 5*time.Second)
-			waiter2.Wait(t, 5*time.Second)
+			waiter.Waitf(t, 5*time.Second, "bob did not see alice's message")
+			waiter2.Waitf(t, 5*time.Second, "charlie did not see alice's message")
 
 			// we're going to sniff calls to /sendToDevice to ensure we see the new room key being sent.
 			ch := make(chan deploy.CallbackData, 10)
@@ -218,7 +217,7 @@ func TestRoomKeyIsCycledOnMemberLeaving(t *testing.T) {
 				wantMsgBody = "Another Test Message"
 				waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 				alice.SendMessage(t, roomID, wantMsgBody)
-				waiter.Wait(t, 5*time.Second)
+				waiter.Waitf(t, 5*time.Second, "bob did not see alice's message")
 			})
 
 			// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
@@ -249,7 +248,7 @@ func TestRoomKeyIsNotCycled(t *testing.T) {
 			wantMsgBody := "Test Message"
 			waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 			alice.SendMessage(t, roomID, wantMsgBody)
-			waiter.Wait(t, 5*time.Second)
+			waiter.Waitf(t, 5*time.Second, "bob did not see alice's message")
 
 			// we're going to sniff calls to /sendToDevice to ensure we see the new room key being sent.
 			ch := make(chan deploy.CallbackData, 10)
@@ -279,7 +278,7 @@ func TestRoomKeyIsNotCycled(t *testing.T) {
 					wantMsgBody = "Another Test Message"
 					waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 					alice.SendMessage(t, roomID, wantMsgBody)
-					waiter.Wait(t, 5*time.Second)
+					waiter.Waitf(t, 5*time.Second, "bob did not see alice's message")
 				})
 
 				// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
@@ -319,7 +318,7 @@ func TestRoomKeyIsNotCycled(t *testing.T) {
 					wantMsgBody = "Yet Another Test Message"
 					waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 					alice.SendMessage(t, roomID, wantMsgBody)
-					waiter.Wait(t, 5*time.Second)
+					waiter.Waitf(t, 5*time.Second, "bob did not see alice's message")
 				})
 
 				// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
@@ -365,7 +364,7 @@ func TestRoomKeyIsNotCycled(t *testing.T) {
 // in the room. This is important to ensure that we don't cycle m.room_keys too frequently, which increases
 // the chances of seeing undecryptable events.
 func TestRoomKeyIsNotCycledOnClientRestart(t *testing.T) {
-	ForEachClientType(t, func(tt *testing.T, a api.ClientType) {
+	ForEachClientType(t, func(t *testing.T, a api.ClientType) {
 		switch a.Lang {
 		case api.ClientTypeRust:
 			testRoomKeyIsNotCycledOnClientRestartRust(t, a)
@@ -388,40 +387,19 @@ func testRoomKeyIsNotCycledOnClientRestartRust(t *testing.T, clientType api.Clie
 	tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
 
 	tc.WithClientSyncing(t, clientType, tc.Bob, func(bob api.Client) {
-		wantMsgBody := "test from the script"
-
-		// run a script which will login as alice and then send an event in the room.
-		// We will wait on that event as Bob to know when the script got to that point.
-		cmd, close := templates.PrepareGoScript(t, "testRoomKeyIsNotCycledOnClientRestartRust/test.go",
-			struct {
-				UserID            string
-				DeviceID          string
-				Password          string
-				BaseURL           string
-				SSURL             string
-				PersistentStorage bool
-				Body              string
-				RoomID            string
-			}{
-				UserID:            tc.Alice.UserID,
-				Password:          tc.Alice.Password,
-				DeviceID:          tc.Alice.DeviceID,
-				BaseURL:           tc.Alice.BaseURL,
-				PersistentStorage: true,
-				SSURL:             bob.Opts().SlidingSyncURL,
-				Body:              wantMsgBody,
-				RoomID:            roomID,
-			})
-		cmd.WaitDelay = 3 * time.Second
-		defer close()
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		must.NotError(t, "failed to run script", cmd.Run())
+		wantMsgBody := "test from another process"
+		// send a message as Alice in a different process
+		tc.WithMultiprocessClientSyncing(t, clientType.Lang, tc.ClientCreationOpts(t, tc.Alice, clientType.HS, WithPersistentStorage()),
+			func(remoteAlice api.Client) {
+				eventID := remoteAlice.SendMessage(t, roomID, wantMsgBody)
+				waiter := remoteAlice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasEventID(eventID))
+				waiter.Waitf(t, 5*time.Second, "client did not see event %s", eventID)
+			},
+		)
 
 		waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
-		waiter.Wait(t, 8*time.Second)
+		waiter.Waitf(t, 8*time.Second, "bob did not see alice's message")
 
-		// the script sent the msg and exited cleanly.
 		// Now recreate the same client and make sure we don't send new room keys.
 
 		// we're going to sniff calls to /sendToDevice to ensure we do NOT see a new room key being sent.
@@ -448,7 +426,7 @@ func testRoomKeyIsNotCycledOnClientRestartRust(t *testing.T, clientType api.Clie
 			wantMsgBody = "Another Test Message"
 			waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 			alice.SendMessage(t, roomID, wantMsgBody)
-			waiter.Wait(t, 5*time.Second)
+			waiter.Waitf(t, 5*time.Second, "bob did not see alice's message")
 		})
 
 		// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
@@ -484,7 +462,7 @@ func testRoomKeyIsNotCycledOnClientRestartJS(t *testing.T, clientType api.Client
 	wantMsgBody := "Test Message"
 	waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 	alice.SendMessage(t, roomID, wantMsgBody)
-	waiter.Wait(t, 5*time.Second)
+	waiter.Waitf(t, 5*time.Second, "bob did not see alice's message")
 
 	// we're going to sniff calls to /sendToDevice to ensure we do NOT see a new room key being sent.
 	ch := make(chan deploy.CallbackData, 10)
@@ -512,7 +490,7 @@ func testRoomKeyIsNotCycledOnClientRestartJS(t *testing.T, clientType api.Client
 		wantMsgBody = "Another Test Message"
 		waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 		alice.SendMessage(t, roomID, wantMsgBody)
-		waiter.Wait(t, 5*time.Second)
+		waiter.Waitf(t, 5*time.Second, "bob did not see alice's message")
 	})
 
 	// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle

@@ -41,6 +41,13 @@ type ComplementCrypto struct {
 	// tests complete. This will probably require you to run `go test` with `sudo -E`. The `.pcap` file is written to
 	// `tests/test.pcap`.
 	TCPDump bool
+
+	// Name: COMPLEMENT_CRYPTO_RPC_BINARY
+	// Default: ""
+	// Description: The absolute path to the pre-built rpc binary file. This binary is generated via `go build -tags=jssdk,rust ./cmd/rpc`.
+	// This binary is used when running multiprocess tests. If this environment variable is not supplied, tests which try to use multiprocess
+	// clients will be skipped, making this environment variable optional.
+	RPCBinaryPath string
 }
 
 func (c *ComplementCrypto) ShouldTest(lang api.ClientTypeLang) bool {
@@ -109,8 +116,15 @@ func NewComplementCryptoConfigFromEnvVars() *ComplementCrypto {
 	if len(testClientMatrix) == 0 {
 		panic("COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX: no tests will run as no matrix values are set")
 	}
+	rpcBinaryPath := os.Getenv("COMPLEMENT_CRYPTO_RPC_BINARY")
+	if rpcBinaryPath != "" {
+		if _, err := os.Stat(rpcBinaryPath); err != nil {
+			panic("COMPLEMENT_CRYPTO_RPC_BINARY must be the absolute path to a binary file: " + err.Error())
+		}
+	}
 	return &ComplementCrypto{
 		TCPDump:          os.Getenv("COMPLEMENT_CRYPTO_TCPDUMP") == "1",
+		RPCBinaryPath:    rpcBinaryPath,
 		TestClientMatrix: testClientMatrix,
 		clientLangs:      clientLangs,
 	}

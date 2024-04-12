@@ -19,16 +19,21 @@ func init() {
 
 type RustLanguageBindings struct{}
 
-func (b *RustLanguageBindings) PreTestRun() {
+func (b *RustLanguageBindings) PreTestRun(contextID string) {
 	// nuke persistent storage from previous run. We do this on startup rather than teardown
 	// to allow devs to introspect DBs / Chrome profiles if tests fail.
-	os.RemoveAll("./rust_storage")
-	rust.DeleteOldLogs("rust_sdk_logs")
-	rust.DeleteOldLogs("rust_sdk_inline_script")
-	rust.SetupLogs("rust_sdk_logs")
+	if contextID == "" {
+		os.RemoveAll("./rust_storage")
+	}
+	if contextID != "" {
+		contextID = "_" + contextID
+	}
+	rust.DeleteOldLogs("rust_sdk_logs" + contextID)
+	rust.DeleteOldLogs("rust_sdk_inline_script" + contextID)
+	rust.SetupLogs("rust_sdk_logs" + contextID)
 }
 
-func (b *RustLanguageBindings) PostTestRun() {
+func (b *RustLanguageBindings) PostTestRun(contextID string) {
 }
 
 func (b *RustLanguageBindings) MustCreateClient(t ct.TestLike, cfg api.ClientCreationOpts) api.Client {
