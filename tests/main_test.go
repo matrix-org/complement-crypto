@@ -226,25 +226,24 @@ func (c *TestContext) WithAliceSyncing(t *testing.T, callback func(alice api.Cli
 // WithAliceAndBobSyncing is a helper function which creates rust/js clients and automatically logs in Alice & Bob
 // and starts a sync loop for both.
 //
+// NOTE: Make sure Alice sends messages first!
+// This function ensures that Bob is logged in and E2EE-initialised before
+// logging in Alice. This means Alice is able to send messages immediately
+// to Bob, because when she does a /key/query request, Bob already has
+// devices. If Bob sends first, he may have an empty list of devices for
+// Alice, meaning Alice is unable to decrypt his messages.
+//
+// TODO: Find a less fragile way of handling this problem.
+//
 // The callback function is invoked after this, and cleanup functions are called on your behalf when the
 // callback function ends.
 func (c *TestContext) WithAliceAndBobSyncing(t *testing.T, callback func(alice, bob api.Client)) {
 	t.Helper()
 	must.NotEqual(t, c.Bob, nil, "No Bob defined. Call CreateTestContext() with at least 2 api.ClientTypes.")
-	c.WithClientSyncing(t, c.AliceClientType, c.Alice, func(alice api.Client) {
+	c.WithClientSyncing(t, c.BobClientType, c.Bob, func(bob api.Client) {
 		t.Helper()
-		c.WithClientSyncing(t, c.BobClientType, c.Bob, func(bob api.Client) {
+		c.WithClientSyncing(t, c.AliceClientType, c.Alice, func(alice api.Client) {
 			t.Helper()
-
-			// Wait until Alice and Bob have probably both uploaded their room
-			// keys, so they can probably send each other messages.
-			// TODO: if we exposed client.encryption().wait_for_e2ee_initialization_tasks we could
-			// call that for Alice and Bob, instead of just sleeping for what we
-			// hope is long enough. See https://github.com/matrix-org/complement-crypto/issues/41
-			time.Sleep(time.Second)
-			// c.Alice.Client.Encryption().WaitForE2eeInitializationTasks()
-			// c.Bob.Client.Encryption().WaitForE2eeInitializationTasks()
-
 			callback(alice, bob)
 		})
 	})
@@ -253,16 +252,25 @@ func (c *TestContext) WithAliceAndBobSyncing(t *testing.T, callback func(alice, 
 // WithAliceBobAndCharlieSyncing is a helper function which creates rust/js clients and automatically logs in Alice, Bob
 // and Charlie and starts a sync loop for all.
 //
+// NOTE: Make sure Alice sends messages first!
+// This function ensures that Bob & Charlie are logged in and E2EE-initialised before
+// logging in Alice. This means Alice is able to send messages immediately
+// to them, because when she does a /key/query request, they already have
+// devices. If Bob or Charile send first, they may have an empty list of devices for
+// Alice, meaning Alice is unable to decrypt their messages.
+//
+// TODO: Find a less fragile way of handling this problem.
+//
 // The callback function is invoked after this, and cleanup functions are called on your behalf when the
 // callback function ends.
 func (c *TestContext) WithAliceBobAndCharlieSyncing(t *testing.T, callback func(alice, bob, charlie api.Client)) {
 	t.Helper()
 	must.NotEqual(t, c.Charlie, nil, "No Charlie defined. Call CreateTestContext() with at least 3 api.ClientTypes.")
-	c.WithClientSyncing(t, c.AliceClientType, c.Alice, func(alice api.Client) {
+	c.WithClientSyncing(t, c.CharlieClientType, c.Charlie, func(charlie api.Client) {
 		t.Helper()
 		c.WithClientSyncing(t, c.BobClientType, c.Bob, func(bob api.Client) {
 			t.Helper()
-			c.WithClientSyncing(t, c.CharlieClientType, c.Charlie, func(charlie api.Client) {
+			c.WithClientSyncing(t, c.AliceClientType, c.Alice, func(alice api.Client) {
 				t.Helper()
 				callback(alice, bob, charlie)
 			})
