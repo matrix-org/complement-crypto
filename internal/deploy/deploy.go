@@ -357,7 +357,7 @@ func RunNewDeployment(t *testing.T, mitmProxyAddonsDir string, shouldTCPDump boo
 	if shouldTCPDump {
 		t.Log("Running tcpdump...")
 		urlsToTCPDump := []string{
-			ss1URL, ss2URL, csapi1.BaseURL, csapi2.BaseURL, rpHS1URL, rpHS2URL, controllerURL,
+			rpSS1URL, rpSS2URL, csapi1.BaseURL, csapi2.BaseURL, rpHS1URL, rpHS2URL, controllerURL,
 		}
 		tcpdumpFilter := []string{}
 		for _, u := range urlsToTCPDump {
