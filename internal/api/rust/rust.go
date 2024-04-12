@@ -587,7 +587,7 @@ func (c *RustClient) ensureListening(t ct.TestLike, roomID string) {
 		c.rooms[roomID].timeline = timeline
 		c.roomsListener.BroadcastUpdateForRoom(roomID)
 		for _, e := range newEvents {
-			c.Logf(t, "TimelineDiff change: %+v", e)
+			c.Logf(t, "[%s]TimelineDiff change: %+v", c.userID, e)
 		}
 	}})
 	events := make([]*api.Event, len(result.Items))
