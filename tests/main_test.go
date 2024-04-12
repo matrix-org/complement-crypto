@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/matrix-org/complement"
 	"github.com/matrix-org/complement-crypto/internal/api"
