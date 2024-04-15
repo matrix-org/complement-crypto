@@ -111,6 +111,7 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, erro
 				return nil, fmt.Errorf("NotificationClient failed: %s", err)
 			}
 			c.notifClient = notifClientBuilder.FilterByPushRules().Finish()
+			notifClientBuilder.Destroy()
 		}
 	}
 
@@ -212,6 +213,9 @@ func (c *RustClient) Close(t ct.TestLike) {
 	c.FFIClient.Encryption().Destroy()
 	c.FFIClient.Destroy()
 	c.FFIClient = nil
+	if c.notifClient != nil {
+		c.notifClient.Destroy()
+	}
 }
 
 func (c *RustClient) MustGetEvent(t ct.TestLike, roomID, eventID string) api.Event {
