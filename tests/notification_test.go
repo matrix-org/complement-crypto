@@ -39,6 +39,11 @@ func TestNSEReceive(t *testing.T) {
 		t.Skipf("rust only")
 		return
 	}
+	testNSEReceive(t, 0, 0)
+}
+
+func testNSEReceive(t *testing.T, numMsgsBefore, numMsgsAfter int) {
+	t.Helper()
 	tc, roomID := createAndJoinRoom(t)
 
 	// login as Alice (uploads OTKs/device keys) and remember the access token for NSE
@@ -55,18 +60,14 @@ func TestNSEReceive(t *testing.T) {
 	alice.Close(t)
 
 	// bob sends a message which we will be "pushed" for
-	pushNotifEventID := ""
-	tc.WithClientSyncing(t, tc.BobClientType, tc.Bob, func(bob api.Client) {
-		bob.Logf(t, "sending push notification message as bob")
-		pushNotifEventID = bob.SendMessage(t, roomID, "push notification")
-		bob.Logf(t, "sent push notification message as bob => %s", pushNotifEventID)
-	})
+	pushNotifEventID := bobSendsMessage(t, tc, roomID, "push notification", numMsgsBefore, numMsgsAfter)
 
 	// now make the "NSE" process and get bob's message
 	opts := tc.ClientCreationOpts(t, tc.Alice, tc.AliceClientType.HS, WithPersistentStorage())
 	opts.EnableCrossProcessRefreshLockProcessName = api.ProcessNameNSE
 	opts.AccessToken = accessToken
 	client := MustCreateClient(t, tc.AliceClientType, opts) // this should login already as we provided an access token
+	defer client.Close(t)
 	// we don't sync in the NSE process, just call GetNotification
 	notif, err := client.GetNotification(t, roomID, pushNotifEventID)
 	must.NotError(t, "failed to get notification", err)
@@ -74,52 +75,34 @@ func TestNSEReceive(t *testing.T) {
 	must.Equal(t, notif.FailedToDecrypt, false, "FailedToDecrypt but we should be able to decrypt")
 }
 
-// What happens if you get pushed for an event not in the SS repsonse?
+// What happens if you get pushed for an event not in the SS response? It should hit /context.
 func TestNSEReceiveForOldMessage(t *testing.T) {
 	if !ShouldTest(api.ClientTypeRust) {
 		t.Skipf("rust only")
 		return
 	}
-	tc, roomID := createAndJoinRoom(t)
+	testNSEReceive(t, 0, 30)
+}
 
-	// login as Alice (uploads OTKs/device keys) and remember the access token for NSE
-	alice := tc.MustLoginClient(t, tc.Alice, tc.AliceClientType, WithPersistentStorage())
-	alice.Logf(t, "syncing and sending dummy message to ensure e2ee keys are uploaded")
-	stopSyncing := alice.MustStartSyncing(t)
-	alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(tc.Bob.UserID, "join")).Waitf(t, 5*time.Second, "did not see bob's join")
-	alice.SendMessage(t, roomID, "test message to ensure E2EE keys are uploaded")
-	accessToken := alice.Opts().AccessToken
+// what happens if there's many events and you only get pushed for the last one?
+func TestNSEReceiveForMessageWithManyUnread(t *testing.T) {
+	if !ShouldTest(api.ClientTypeRust) {
+		t.Skipf("rust only")
+		return
+	}
+	testNSEReceive(t, 30, 0)
+}
 
-	// app is "backgrounded" so we tidy things up
-	alice.Logf(t, "stopping syncing and closing client to background the app")
-	stopSyncing()
-	alice.Close(t)
-
-	// bob sends a message which we will be "pushed" for
-	pushNotifEventID := ""
-	tc.WithClientSyncing(t, tc.BobClientType, tc.Bob, func(bob api.Client) {
-		bob.Logf(t, "sending push notification message as bob")
-		pushNotifEventID = bob.SendMessage(t, roomID, "push notification")
-		bob.Logf(t, "sent push notification message as bob => %s", pushNotifEventID)
-		for i := 0; i < 30; i++ {
-			// now send a bunch of other messages so sliding sync does not return  the event
-			bob.SendMessage(t, roomID, fmt.Sprintf("msg %d", i))
-		}
-	})
-
-	// now make the "NSE" process and get bob's OLD message
-	opts := tc.ClientCreationOpts(t, tc.Alice, tc.AliceClientType.HS, WithPersistentStorage())
-	opts.EnableCrossProcessRefreshLockProcessName = api.ProcessNameNSE
-	opts.AccessToken = accessToken
-	client := MustCreateClient(t, tc.AliceClientType, opts) // this should login already as we provided an access token
-	// we don't sync in the NSE process, just call GetNotification
-	notif, err := client.GetNotification(t, roomID, pushNotifEventID)
-	must.NotError(t, "failed to get notification", err)
-	must.Equal(t, notif.Text, "push notification", "failed to decrypt msg body")
-	must.Equal(t, notif.FailedToDecrypt, false, "FailedToDecrypt but we should be able to decrypt")
+// what happens if you receive an NSE event for a non-pre key message (i.e not the first encrypted msg sent by that user)
+func TestNSEReceiveForNonPreKeyMessage(t *testing.T) {
+	if !ShouldTest(api.ClientTypeRust) {
+		t.Skipf("rust only")
+		return
+	}
 }
 
 func createAndJoinRoom(t *testing.T) (tc *TestContext, roomID string) {
+	t.Helper()
 	clientType := api.ClientType{
 		Lang: api.ClientTypeRust,
 		HS:   "hs1",
@@ -133,4 +116,21 @@ func createAndJoinRoom(t *testing.T) (tc *TestContext, roomID string) {
 	)
 	tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
 	return
+}
+
+func bobSendsMessage(t *testing.T, tc *TestContext, roomID, text string, msgsBefore, msgsAfter int) (eventID string) {
+	t.Helper()
+	pushNotifEventID := ""
+	tc.WithClientSyncing(t, tc.BobClientType, tc.Bob, func(bob api.Client) {
+		for i := 0; i < msgsBefore; i++ {
+			bob.SendMessage(t, roomID, fmt.Sprintf("msg before %d", i))
+		}
+		bob.Logf(t, "sending push notification message as bob")
+		pushNotifEventID = bob.SendMessage(t, roomID, text)
+		bob.Logf(t, "sent push notification message as bob => %s", pushNotifEventID)
+		for i := 0; i < msgsAfter; i++ {
+			bob.SendMessage(t, roomID, fmt.Sprintf("msg after %d", i))
+		}
+	})
+	return pushNotifEventID
 }

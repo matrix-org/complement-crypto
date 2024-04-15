@@ -120,7 +120,7 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, erro
 
 func (c *RustClient) Opts() api.ClientCreationOpts {
 	// add access token if we weren't made with it
-	if c.opts.AccessToken == "" {
+	if c.opts.AccessToken == "" && c.FFIClient != nil {
 		session, err := c.FFIClient.Session()
 		if err == nil { // if we ain't logged in, we expect an error
 			c.opts.AccessToken = session.AccessToken
@@ -211,6 +211,7 @@ func (c *RustClient) Close(t ct.TestLike) {
 	c.roomsMu.Unlock()
 	c.FFIClient.Encryption().Destroy()
 	c.FFIClient.Destroy()
+	c.FFIClient = nil
 }
 
 func (c *RustClient) MustGetEvent(t ct.TestLike, roomID, eventID string) api.Event {
