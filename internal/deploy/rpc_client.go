@@ -169,6 +169,16 @@ func (c *RPCClient) Close(t ct.TestLike) {
 	c.client.Close()
 }
 
+func (c *RPCClient) GetNotification(t ct.TestLike, roomID, eventID string) (*api.Notification, error) {
+	var notification api.Notification
+	input := RPCGetNotification{
+		RoomID:  roomID,
+		EventID: eventID,
+	}
+	err := c.client.Call("RPCServer.GetNotification", input, &notification)
+	return &notification, err
+}
+
 // Remove any persistent storage, if it was enabled.
 func (c *RPCClient) DeletePersistentStorage(t ct.TestLike) {
 	var void int

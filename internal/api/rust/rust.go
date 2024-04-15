@@ -55,12 +55,21 @@ type RustClient struct {
 	userID                string
 	persistentStoragePath string
 	opts                  api.ClientCreationOpts
+
+	// for NSE tests
+	notifClient *matrix_sdk_ffi.NotificationClient
 }
 
 func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, error) {
 	t.Logf("NewRustClient[%s][%s] creating...", opts.UserID, opts.DeviceID)
 	matrix_sdk_ffi.LogEvent("rust.go", &zero, matrix_sdk_ffi.LogLevelInfo, t.Name(), fmt.Sprintf("NewRustClient[%s][%s] creating...", opts.UserID, opts.DeviceID))
 	ab := matrix_sdk_ffi.NewClientBuilder().HomeserverUrl(opts.BaseURL).SlidingSyncProxy(&opts.SlidingSyncURL)
+	var clientSessionDelegate matrix_sdk_ffi.ClientSessionDelegate
+	if opts.EnableCrossProcessRefreshLockProcessName != "" {
+		t.Logf("enabling cross process refresh lock with proc name=%s", opts.EnableCrossProcessRefreshLockProcessName)
+		clientSessionDelegate = NewMemoryClientSessionDelegate()
+		ab.EnableCrossProcessRefreshLock(opts.EnableCrossProcessRefreshLockProcessName, clientSessionDelegate)
+	}
 	var username string
 	if opts.PersistentStorage {
 		// @alice:hs1, FOOBAR => alice_hs1_FOOBAR
@@ -82,12 +91,80 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, erro
 	if opts.PersistentStorage {
 		c.persistentStoragePath = "./rust_storage/" + username
 	}
+	if opts.EnableCrossProcessRefreshLockProcessName == api.ProcessNameNSE && opts.AccessToken != "" {
+		session := matrix_sdk_ffi.Session{
+			AccessToken:      opts.AccessToken,
+			UserId:           opts.UserID,
+			DeviceId:         opts.DeviceID,
+			HomeserverUrl:    opts.BaseURL,
+			SlidingSyncProxy: &opts.SlidingSyncURL,
+		}
+		clientSessionDelegate.SaveSessionInKeychain(session)
+		t.Logf("configure NSE client with logged in user: %+v", session)
+		// We purposefully don't SetDelegate as it appears to be unnecessary.
+		client.RestoreSession(session)
+		notifClientBuilder, err := client.NotificationClient(matrix_sdk_ffi.NotificationProcessSetupMultipleProcesses{})
+		if err != nil {
+			return nil, fmt.Errorf("NotificationClient failed: %s", err)
+		}
+		c.notifClient = notifClientBuilder.FilterByPushRules().Finish()
+	}
 	c.Logf(t, "NewRustClient[%s] created client storage=%v", opts.UserID, c.persistentStoragePath)
 	return &api.LoggedClient{Client: c}, nil
 }
 
 func (c *RustClient) Opts() api.ClientCreationOpts {
+	// add access token if we weren't made with it
+	if c.opts.AccessToken == "" {
+		session, err := c.FFIClient.Session()
+		if err == nil { // if we ain't logged in, we expect an error
+			c.opts.AccessToken = session.AccessToken
+		}
+	}
 	return c.opts
+}
+
+func (c *RustClient) GetNotification(t ct.TestLike, roomID, eventID string) (*api.Notification, error) {
+	if c.notifClient == nil {
+		t.Errorf("RustClient misconfigured. You can only call GetNotification if this is an NSE process. " +
+			"Ensure opts.EnableCrossProcessRefreshLockProcessName and opts.AccessToken are set!")
+		return nil, fmt.Errorf("misconfigured rust client")
+	}
+	notifItem, err := c.notifClient.GetNotification(roomID, eventID)
+	if err != nil {
+		return nil, fmt.Errorf("GetNotification: %s", err)
+	}
+	// TODO: handle NotificationEventInvite
+	notifEvent := notifItem.Event.(matrix_sdk_ffi.NotificationEventTimeline)
+	// TODO: handle notifications other than messages..
+	evType, err := notifEvent.Event.EventType()
+	if err != nil {
+		return nil, fmt.Errorf("notifItem.Event.EventType => %s", err)
+	}
+	msgLike := evType.(matrix_sdk_ffi.TimelineEventTypeMessageLike)
+	failedToDecrypt := true
+	body := ""
+	switch msg := msgLike.Content.(type) {
+	case matrix_sdk_ffi.MessageLikeEventContentRoomEncrypted:
+		// failedToDecrypt = true
+	case matrix_sdk_ffi.MessageLikeEventContentRoomMessage:
+		failedToDecrypt = false
+		switch msgType := msg.MessageType.(type) {
+		case matrix_sdk_ffi.MessageTypeText:
+			body = msgType.Content.Body
+		}
+
+	}
+	n := api.Notification{
+		Event: api.Event{
+			ID:              notifEvent.Event.EventId(),
+			Sender:          notifEvent.Event.SenderId(),
+			Text:            body,
+			FailedToDecrypt: failedToDecrypt,
+		},
+		HasMentions: notifItem.HasMention,
+	}
+	return &n, nil
 }
 
 func (c *RustClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {

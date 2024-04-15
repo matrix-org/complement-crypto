@@ -235,6 +235,20 @@ func (s *RPCServer) MustBackupKeys(testName string, recoveryKey *string) error {
 	return nil
 }
 
+type RPCGetNotification struct {
+	RoomID  string
+	EventID string
+}
+
+func (s *RPCServer) GetNotification(input RPCGetNotification, output *api.Notification) (err error) {
+	var n *api.Notification
+	n, err = s.activeClient.GetNotification(&api.MockT{}, input.RoomID, input.EventID)
+	if err == nil {
+		*output = *n
+	}
+	return err
+}
+
 // MustLoadBackup will recover E2EE keys from the latest backup, else fail the test.
 func (s *RPCServer) MustLoadBackup(recoveryKey string, void *int) error {
 	s.activeClient.MustLoadBackup(&api.MockT{}, recoveryKey)

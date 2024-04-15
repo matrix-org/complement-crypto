@@ -75,6 +75,11 @@ func ClientTypeMatrix(t *testing.T, subTest func(t *testing.T, clientTypeA, clie
 	}
 }
 
+// ShouldTest returns true if this language should be tested.
+func ShouldTest(lang api.ClientTypeLang) bool {
+	return complementCryptoConfig.ShouldTest(lang)
+}
+
 // ForEachClientType enumerates all known client implementations and creates sub-tests for
 // each. Sub-tests are run in series. Always defaults to `hs1`.
 func ForEachClientType(t *testing.T, subTest func(t *testing.T, clientType api.ClientType)) {
