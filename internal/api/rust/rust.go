@@ -91,7 +91,7 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, erro
 	if opts.PersistentStorage {
 		c.persistentStoragePath = "./rust_storage/" + username
 	}
-	if opts.EnableCrossProcessRefreshLockProcessName == api.ProcessNameNSE && opts.AccessToken != "" {
+	if opts.AccessToken != "" { // restore the session
 		session := matrix_sdk_ffi.Session{
 			AccessToken:      opts.AccessToken,
 			UserId:           opts.UserID,
@@ -99,16 +99,21 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, erro
 			HomeserverUrl:    opts.BaseURL,
 			SlidingSyncProxy: &opts.SlidingSyncURL,
 		}
-		clientSessionDelegate.SaveSessionInKeychain(session)
-		t.Logf("configure NSE client with logged in user: %+v", session)
-		// We purposefully don't SetDelegate as it appears to be unnecessary.
-		client.RestoreSession(session)
-		notifClientBuilder, err := client.NotificationClient(matrix_sdk_ffi.NotificationProcessSetupMultipleProcesses{})
-		if err != nil {
-			return nil, fmt.Errorf("NotificationClient failed: %s", err)
+		if err := client.RestoreSession(session); err != nil {
+			return nil, fmt.Errorf("RestoreSession: %s", err)
 		}
-		c.notifClient = notifClientBuilder.FilterByPushRules().Finish()
+		if opts.EnableCrossProcessRefreshLockProcessName == api.ProcessNameNSE {
+			clientSessionDelegate.SaveSessionInKeychain(session)
+			t.Logf("configure NSE client with logged in user: %+v", session)
+			// We purposefully don't SetDelegate as it appears to be unnecessary.
+			notifClientBuilder, err := client.NotificationClient(matrix_sdk_ffi.NotificationProcessSetupMultipleProcesses{})
+			if err != nil {
+				return nil, fmt.Errorf("NotificationClient failed: %s", err)
+			}
+			c.notifClient = notifClientBuilder.FilterByPushRules().Finish()
+		}
 	}
+
 	c.Logf(t, "NewRustClient[%s] created client storage=%v", opts.UserID, c.persistentStoragePath)
 	return &api.LoggedClient{Client: c}, nil
 }

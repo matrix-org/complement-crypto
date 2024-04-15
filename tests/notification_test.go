@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -38,21 +39,10 @@ func TestNSEReceive(t *testing.T) {
 		t.Skipf("rust only")
 		return
 	}
-	clientType := api.ClientType{
-		Lang: api.ClientTypeRust,
-		HS:   "hs1",
-	}
-	tc := CreateTestContext(t, clientType, clientType)
-	roomID := tc.CreateNewEncryptedRoom(
-		t,
-		tc.Alice,
-		EncRoomOptions.PresetTrustedPrivateChat(),
-		EncRoomOptions.Invite([]string{tc.Bob.UserID}),
-	)
-	tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
+	tc, roomID := createAndJoinRoom(t)
 
 	// login as Alice (uploads OTKs/device keys) and remember the access token for NSE
-	alice := tc.MustLoginClient(t, tc.Alice, clientType, WithPersistentStorage())
+	alice := tc.MustLoginClient(t, tc.Alice, tc.AliceClientType, WithPersistentStorage())
 	alice.Logf(t, "syncing and sending dummy message to ensure e2ee keys are uploaded")
 	stopSyncing := alice.MustStartSyncing(t)
 	alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(tc.Bob.UserID, "join")).Waitf(t, 5*time.Second, "did not see bob's join")
@@ -73,13 +63,74 @@ func TestNSEReceive(t *testing.T) {
 	})
 
 	// now make the "NSE" process and get bob's message
-	opts := tc.ClientCreationOpts(t, tc.Alice, clientType.HS, WithPersistentStorage())
+	opts := tc.ClientCreationOpts(t, tc.Alice, tc.AliceClientType.HS, WithPersistentStorage())
 	opts.EnableCrossProcessRefreshLockProcessName = api.ProcessNameNSE
 	opts.AccessToken = accessToken
-	client := MustCreateClient(t, clientType, opts) // this should login already as we provided an access token
+	client := MustCreateClient(t, tc.AliceClientType, opts) // this should login already as we provided an access token
 	// we don't sync in the NSE process, just call GetNotification
 	notif, err := client.GetNotification(t, roomID, pushNotifEventID)
 	must.NotError(t, "failed to get notification", err)
 	must.Equal(t, notif.Text, "push notification", "failed to decrypt msg body")
 	must.Equal(t, notif.FailedToDecrypt, false, "FailedToDecrypt but we should be able to decrypt")
+}
+
+// What happens if you get pushed for an event not in the SS repsonse?
+func TestNSEReceiveForOldMessage(t *testing.T) {
+	if !ShouldTest(api.ClientTypeRust) {
+		t.Skipf("rust only")
+		return
+	}
+	tc, roomID := createAndJoinRoom(t)
+
+	// login as Alice (uploads OTKs/device keys) and remember the access token for NSE
+	alice := tc.MustLoginClient(t, tc.Alice, tc.AliceClientType, WithPersistentStorage())
+	alice.Logf(t, "syncing and sending dummy message to ensure e2ee keys are uploaded")
+	stopSyncing := alice.MustStartSyncing(t)
+	alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(tc.Bob.UserID, "join")).Waitf(t, 5*time.Second, "did not see bob's join")
+	alice.SendMessage(t, roomID, "test message to ensure E2EE keys are uploaded")
+	accessToken := alice.Opts().AccessToken
+
+	// app is "backgrounded" so we tidy things up
+	alice.Logf(t, "stopping syncing and closing client to background the app")
+	stopSyncing()
+	alice.Close(t)
+
+	// bob sends a message which we will be "pushed" for
+	pushNotifEventID := ""
+	tc.WithClientSyncing(t, tc.BobClientType, tc.Bob, func(bob api.Client) {
+		bob.Logf(t, "sending push notification message as bob")
+		pushNotifEventID = bob.SendMessage(t, roomID, "push notification")
+		bob.Logf(t, "sent push notification message as bob => %s", pushNotifEventID)
+		for i := 0; i < 30; i++ {
+			// now send a bunch of other messages so sliding sync does not return  the event
+			bob.SendMessage(t, roomID, fmt.Sprintf("msg %d", i))
+		}
+	})
+
+	// now make the "NSE" process and get bob's OLD message
+	opts := tc.ClientCreationOpts(t, tc.Alice, tc.AliceClientType.HS, WithPersistentStorage())
+	opts.EnableCrossProcessRefreshLockProcessName = api.ProcessNameNSE
+	opts.AccessToken = accessToken
+	client := MustCreateClient(t, tc.AliceClientType, opts) // this should login already as we provided an access token
+	// we don't sync in the NSE process, just call GetNotification
+	notif, err := client.GetNotification(t, roomID, pushNotifEventID)
+	must.NotError(t, "failed to get notification", err)
+	must.Equal(t, notif.Text, "push notification", "failed to decrypt msg body")
+	must.Equal(t, notif.FailedToDecrypt, false, "FailedToDecrypt but we should be able to decrypt")
+}
+
+func createAndJoinRoom(t *testing.T) (tc *TestContext, roomID string) {
+	clientType := api.ClientType{
+		Lang: api.ClientTypeRust,
+		HS:   "hs1",
+	}
+	tc = CreateTestContext(t, clientType, clientType)
+	roomID = tc.CreateNewEncryptedRoom(
+		t,
+		tc.Alice,
+		EncRoomOptions.PresetTrustedPrivateChat(),
+		EncRoomOptions.Invite([]string{tc.Bob.UserID}),
+	)
+	tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
+	return
 }
