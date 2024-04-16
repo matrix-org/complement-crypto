@@ -68,7 +68,7 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, erro
 	if opts.EnableCrossProcessRefreshLockProcessName != "" {
 		t.Logf("enabling cross process refresh lock with proc name=%s", opts.EnableCrossProcessRefreshLockProcessName)
 		clientSessionDelegate = NewMemoryClientSessionDelegate()
-		ab.EnableCrossProcessRefreshLock(opts.EnableCrossProcessRefreshLockProcessName, clientSessionDelegate)
+		ab = ab.EnableCrossProcessRefreshLock(opts.EnableCrossProcessRefreshLockProcessName, clientSessionDelegate)
 	}
 	var username string
 	if opts.PersistentStorage {
@@ -110,8 +110,13 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, erro
 			if err != nil {
 				return nil, fmt.Errorf("NotificationClient failed: %s", err)
 			}
-			c.notifClient = notifClientBuilder.FilterByPushRules().Finish()
+			// weirdly the ffi bindings make new NotificationClientBuilder ffi objects each time you call a chained function,
+			// so we need to destroy() the old one each time or else we can get random rust panics when the finalizer gets
+			// called by Go's GC with "there is no reactor running, must be called from the context of a Tokio 1.x runtime".
+			notifClientBuilder2 := notifClientBuilder.FilterByPushRules()
 			notifClientBuilder.Destroy()
+			c.notifClient = notifClientBuilder2.Finish()
+			notifClientBuilder2.Destroy()
 		}
 	}
 
