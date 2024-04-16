@@ -30,7 +30,7 @@ func SetupLogs(prefix string) {
 	// log new files
 	matrix_sdk_ffi.SetupTracing(matrix_sdk_ffi.TracingConfiguration{
 		WriteToStdoutOrSystem: false,
-		Filter:                "debug,hyper=warn,log=warn,eyeball=warn", //,matrix_sdk_ffi=trace,matrix_sdk=trace,matrix_sdk_crypto=trace,matrix_sdk_base=trace,matrix_sdk_ui=trace",
+		Filter:                "debug,hyper=warn,log=warn,eyeball=warn,matrix_sdk_common=trace", //,matrix_sdk_ffi=trace,matrix_sdk=trace,matrix_sdk_crypto=trace,matrix_sdk_base=trace,matrix_sdk_ui=trace",
 		WriteToFiles: &matrix_sdk_ffi.TracingFileConfiguration{
 			Path:       "./logs",
 			FilePrefix: prefix,
@@ -256,6 +256,11 @@ func (c *RustClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error)
 	//  > thread '<unnamed>' panicked at 'there is no reactor running, must be called from the context of a Tokio 1.x runtime'
 	// where the stack trace doesn't hit any test code, but does start at a `free_` function.
 	sb := c.FFIClient.SyncService()
+	if c.opts.EnableCrossProcessRefreshLockProcessName != "" {
+		sb2 := sb.WithCrossProcessLock(&c.opts.EnableCrossProcessRefreshLockProcessName)
+		sb.Destroy()
+		sb = sb2
+	}
 	defer sb.Destroy()
 	syncService, err := sb.Finish()
 	if err != nil {
