@@ -242,6 +242,10 @@ func (c *JSClient) DeletePersistentStorage(t ct.TestLike) {
 	`, indexedDBName, indexedDBCryptoName))
 }
 
+func (c *JSClient) GetNotification(t ct.TestLike, roomID, eventID string) (*api.Notification, error) {
+	return nil, fmt.Errorf("not implemented yet") // TODO
+}
+
 func (c *JSClient) ForceClose(t ct.TestLike) {
 	t.Helper()
 	t.Logf("force closing a JS client is the same as a normal close (closing browser)")
