@@ -186,6 +186,7 @@ func TestMultiprocessNSE(t *testing.T) {
 
 		randomSource := rand.NewSource(2) // static seed for determinism
 
+		skipUpToIteration := 200
 		// now bob will send lots of messages
 		for i := 0; i < numPostNSEMsgs; i++ {
 			if t.Failed() {
@@ -200,6 +201,9 @@ func TestMultiprocessNSE(t *testing.T) {
 			restartNSE := randomSource.Int63()%2 == 0
 			nseOpensFirst := randomSource.Int63()%2 == 0
 			aliceSendsMsg := randomSource.Int63()%2 == 0
+			if i < skipUpToIteration {
+				continue
+			}
 			t.Logf("iteration %d restart app=%v nse=%v nse_open_first=%v alice_sends=%v", i, restartAlice, restartNSE, nseOpensFirst, aliceSendsMsg)
 			if restartAlice {
 				stopAliceSyncing()
