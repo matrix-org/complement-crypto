@@ -124,6 +124,14 @@ func WithPersistentStorage() func(*api.ClientCreationOpts) {
 	}
 }
 
+// WithCrossProcessLock is an option which can be provided to MustCreateClient which will configure a cross process lock for Rust clients.
+// No-ops on non-rust clients.
+func WithCrossProcessLock(processName string) func(*api.ClientCreationOpts) {
+	return func(o *api.ClientCreationOpts) {
+		o.EnableCrossProcessRefreshLockProcessName = processName
+	}
+}
+
 // TestContext provides a consistent set of variables which most tests will need access to.
 type TestContext struct {
 	Deployment    *deploy.SlidingSyncDeployment
@@ -182,9 +190,9 @@ func CreateTestContext(t *testing.T, clientType ...api.ClientType) *TestContext 
 	return tc
 }
 
-func (c *TestContext) WithClientSyncing(t *testing.T, clientType api.ClientType, cli *client.CSAPI, callback func(cli api.Client)) {
+func (c *TestContext) WithClientSyncing(t *testing.T, clientType api.ClientType, cli *client.CSAPI, callback func(cli api.Client), options ...func(*api.ClientCreationOpts)) {
 	t.Helper()
-	clientUnderTest := c.MustLoginClient(t, cli, clientType)
+	clientUnderTest := c.MustLoginClient(t, cli, clientType, options...)
 	defer clientUnderTest.Close(t)
 	stopSyncing := clientUnderTest.MustStartSyncing(t)
 	defer stopSyncing()

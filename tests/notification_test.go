@@ -42,6 +42,24 @@ func TestNSEReceive(t *testing.T) {
 	testNSEReceive(t, 0, 0)
 }
 
+// What happens if you get pushed for an event not in the SS response? It should hit /context.
+func TestNSEReceiveForOldMessage(t *testing.T) {
+	if !ShouldTest(api.ClientTypeRust) {
+		t.Skipf("rust only")
+		return
+	}
+	testNSEReceive(t, 0, 30)
+}
+
+// what happens if there's many events and you only get pushed for the last one?
+func TestNSEReceiveForMessageWithManyUnread(t *testing.T) {
+	if !ShouldTest(api.ClientTypeRust) {
+		t.Skipf("rust only")
+		return
+	}
+	testNSEReceive(t, 30, 0)
+}
+
 func testNSEReceive(t *testing.T, numMsgsBefore, numMsgsAfter int) {
 	t.Helper()
 	tc, roomID := createAndJoinRoom(t)
@@ -75,30 +93,42 @@ func testNSEReceive(t *testing.T, numMsgsBefore, numMsgsAfter int) {
 	must.Equal(t, notif.FailedToDecrypt, false, "FailedToDecrypt but we should be able to decrypt")
 }
 
-// What happens if you get pushed for an event not in the SS response? It should hit /context.
-func TestNSEReceiveForOldMessage(t *testing.T) {
-	if !ShouldTest(api.ClientTypeRust) {
-		t.Skipf("rust only")
-		return
-	}
-	testNSEReceive(t, 0, 30)
-}
-
-// what happens if there's many events and you only get pushed for the last one?
-func TestNSEReceiveForMessageWithManyUnread(t *testing.T) {
-	if !ShouldTest(api.ClientTypeRust) {
-		t.Skipf("rust only")
-		return
-	}
-	testNSEReceive(t, 30, 0)
-}
-
 // what happens if you receive an NSE event for a non-pre key message (i.e not the first encrypted msg sent by that user)
 func TestNSEReceiveForNonPreKeyMessage(t *testing.T) {
 	if !ShouldTest(api.ClientTypeRust) {
 		t.Skipf("rust only")
 		return
 	}
+	tc, roomID := createAndJoinRoom(t)
+	// Alice starts syncing
+	alice := tc.MustLoginClient(t, tc.Alice, tc.AliceClientType, WithPersistentStorage(), WithCrossProcessLock("main"))
+	stopSyncing := alice.MustStartSyncing(t)
+	// Bob sends a message to alice
+	tc.WithClientSyncing(t, tc.BobClientType, tc.Bob, func(bob api.Client) {
+		// let bob realise alice exists and claims keys
+		time.Sleep(time.Second)
+		// Send a message as Bob, this will contain ensure an Olm session is set up already before we do NSE work
+		bob.SendMessage(t, roomID, "initial message")
+		alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody("initial message")).Waitf(t, 5*time.Second, "alice did not see bob's initial message")
+		// Alice goes into the background
+		accessToken := alice.Opts().AccessToken
+		stopSyncing()
+		alice.Close(t)
+		// Bob sends another message which the NSE process will get
+		eventID := bob.SendMessage(t, roomID, "for nse")
+		bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasEventID(eventID)).Waitf(t, 5*time.Second, "bob did not see his own message")
+		// now make the "NSE" process and get bob's message
+		opts := tc.ClientCreationOpts(t, tc.Alice, tc.AliceClientType.HS, WithPersistentStorage())
+		opts.EnableCrossProcessRefreshLockProcessName = api.ProcessNameNSE
+		opts.AccessToken = accessToken
+		client := MustCreateClient(t, tc.AliceClientType, opts) // this should login already as we provided an access token
+		defer client.Close(t)
+		// we don't sync in the NSE process, just call GetNotification
+		notif, err := client.GetNotification(t, roomID, eventID)
+		must.NotError(t, "failed to get notification", err)
+		must.Equal(t, notif.Text, "for nse", "failed to decrypt msg body")
+		must.Equal(t, notif.FailedToDecrypt, false, "FailedToDecrypt but we should be able to decrypt")
+	})
 }
 
 func createAndJoinRoom(t *testing.T) (tc *TestContext, roomID string) {
