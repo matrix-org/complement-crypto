@@ -139,6 +139,7 @@ func TestMultiprocessNSE(t *testing.T) {
 		t.Skipf("rust only")
 		return
 	}
+	t.Skipf("TODO: unskip when olm wedge test is fixed")
 	numPreBackgroundMsgs := 1
 	numPostNSEMsgs := 300
 	tc, roomID := createAndJoinRoom(t)
@@ -186,7 +187,6 @@ func TestMultiprocessNSE(t *testing.T) {
 
 		randomSource := rand.NewSource(2) // static seed for determinism
 
-		skipUpToIteration := 200
 		// now bob will send lots of messages
 		for i := 0; i < numPostNSEMsgs; i++ {
 			if t.Failed() {
@@ -201,9 +201,6 @@ func TestMultiprocessNSE(t *testing.T) {
 			restartNSE := randomSource.Int63()%2 == 0
 			nseOpensFirst := randomSource.Int63()%2 == 0
 			aliceSendsMsg := randomSource.Int63()%2 == 0
-			if i < skipUpToIteration {
-				continue
-			}
 			t.Logf("iteration %d restart app=%v nse=%v nse_open_first=%v alice_sends=%v", i, restartAlice, restartNSE, nseOpensFirst, aliceSendsMsg)
 			if restartAlice {
 				stopAliceSyncing()
@@ -234,6 +231,83 @@ func TestMultiprocessNSE(t *testing.T) {
 			if !nseOpensFirst {
 				checkNSECanDecryptEvent(nseAlice, roomID, eventID, msg)
 			}
+
+			alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(msg)).Waitf(t, 5*time.Second, "alice did not decrypt '%s'", msg)
+		}
+
+		nseAlice.Close(t)
+		stopAliceSyncing()
+	})
+}
+
+func TestMultiprocessNSEOlmSessionWedge(t *testing.T) {
+	if !ShouldTest(api.ClientTypeRust) {
+		t.Skipf("rust only")
+		return
+	}
+	tc, roomID := createAndJoinRoom(t)
+	// Alice starts syncing to get an encrypted room set up
+	alice := tc.MustLoginClient(t, tc.Alice, tc.AliceClientType, WithPersistentStorage(), WithCrossProcessLock("main"))
+	stopSyncing := alice.MustStartSyncing(t)
+	accessToken := alice.Opts().AccessToken
+	// Bob sends a message to alice
+	tc.WithClientSyncing(t, tc.BobClientType, tc.Bob, func(bob api.Client) {
+		// let bob realise alice exists and claims keys
+		time.Sleep(time.Second)
+		msg := "pre message"
+		bob.SendMessage(t, roomID, msg)
+		alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(msg)).Waitf(t, 5*time.Second, "alice did not see '%s'", msg)
+
+		stopAliceSyncing := func() {
+			if alice == nil {
+				t.Fatalf("stopAliceSyncing: alice was already not syncing")
+			}
+			alice.Close(t)
+			stopSyncing()
+			alice = nil
+		}
+		startAliceSyncing := func() {
+			if alice != nil {
+				t.Fatalf("startAliceSyncing: alice was already syncing")
+			}
+			alice = MustCreateClient(t, tc.AliceClientType, tc.ClientCreationOpts(t, tc.Alice, tc.AliceClientType.HS,
+				WithPersistentStorage(), WithAccessToken(accessToken), WithCrossProcessLock("main"),
+			)) // this should login already as we provided an access token
+			stopSyncing = alice.MustStartSyncing(t)
+		}
+		checkNSECanDecryptEvent := func(nseAlice api.Client, roomID, eventID, msg string) {
+			notif, err := nseAlice.GetNotification(t, roomID, eventID)
+			must.NotError(t, fmt.Sprintf("failed to get notification for event %s '%s'", eventID, msg), err)
+			must.Equal(t, notif.Text, msg, fmt.Sprintf("NSE failed to decrypt event %s '%s' => %+v", eventID, msg, notif))
+		}
+
+		// set up the nse process. It doesn't actively keep a sync loop so we don't need to do the close dance with it.
+		// Note we do not restart the NSE process in this test. This matches reality where the NSE process is often used
+		// to process multiple push notifs one after the other.
+		nseAlice := tc.MustCreateMultiprocessClient(t, tc.AliceClientType.Lang, tc.ClientCreationOpts(t, tc.Alice, tc.AliceClientType.HS,
+			WithPersistentStorage(), WithAccessToken(accessToken), WithCrossProcessLock(api.ProcessNameNSE),
+		)) // this should login already as we provided an access token
+
+		// we will flip this on each iteration
+		aliceSendsMsg := false
+
+		// now bob will send 4 messages
+		for i := 0; i < 4; i++ {
+			stopAliceSyncing()
+			msg := fmt.Sprintf("test message %d", i+1)
+			eventID := bob.SendMessage(t, roomID, msg)
+			t.Logf("event %s => '%s'", eventID, msg)
+
+			// both the nse process and the app process should be able to decrypt the event.
+			// NSE goes first (as it's the push notif process)
+			checkNSECanDecryptEvent(nseAlice, roomID, eventID, msg)
+			t.Logf("restarting alice")
+			startAliceSyncing()
+			if aliceSendsMsg { // this will cause the main app to update the crypto store
+				alice.SendMessage(t, roomID, "dummy")
+			}
+			// flip the send var so next time we do something different
+			aliceSendsMsg = !aliceSendsMsg
 
 			alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(msg)).Waitf(t, 5*time.Second, "alice did not decrypt '%s'", msg)
 		}
