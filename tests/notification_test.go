@@ -139,7 +139,7 @@ func TestMultiprocessNSE(t *testing.T) {
 		t.Skipf("rust only")
 		return
 	}
-	t.Skipf("TODO: unskip when olm wedge test is fixed")
+	t.Skipf("TODO: skipped until backup bug is fixed")
 	numPreBackgroundMsgs := 1
 	numPostNSEMsgs := 300
 	tc, roomID := createAndJoinRoom(t)
@@ -147,6 +147,8 @@ func TestMultiprocessNSE(t *testing.T) {
 	alice := tc.MustLoginClient(t, tc.Alice, tc.AliceClientType, WithPersistentStorage(), WithCrossProcessLock("main"))
 	stopSyncing := alice.MustStartSyncing(t)
 	accessToken := alice.Opts().AccessToken
+	recoveryKey := alice.MustBackupKeys(t)
+	var eventTimeline []string
 	// Bob sends a message to alice
 	tc.WithClientSyncing(t, tc.BobClientType, tc.Bob, func(bob api.Client) {
 		// let bob realise alice exists and claims keys
@@ -210,6 +212,7 @@ func TestMultiprocessNSE(t *testing.T) {
 			}
 			msg := fmt.Sprintf("numPostNSEMsgs %d", i)
 			eventID := bob.SendMessage(t, roomID, msg)
+			eventTimeline = append(eventTimeline, eventID)
 			t.Logf("event %s => '%s'", eventID, msg)
 			if restartNSE { // a new NSE process is created as a result of bob's message
 				nseAlice = tc.MustCreateMultiprocessClient(t, tc.AliceClientType.Lang, tc.ClientCreationOpts(t, tc.Alice, tc.AliceClientType.HS,
@@ -226,7 +229,8 @@ func TestMultiprocessNSE(t *testing.T) {
 				startAliceSyncing()
 			}
 			if aliceSendsMsg { // this will cause the main app to update the crypto store
-				alice.SendMessage(t, roomID, "dummy")
+				sentEventID := alice.SendMessage(t, roomID, "dummy")
+				eventTimeline = append(eventTimeline, sentEventID)
 			}
 			if !nseOpensFirst {
 				checkNSECanDecryptEvent(nseAlice, roomID, eventID, msg)
@@ -235,9 +239,115 @@ func TestMultiprocessNSE(t *testing.T) {
 			alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(msg)).Waitf(t, 5*time.Second, "alice did not decrypt '%s'", msg)
 		}
 
+		// let keys be backed up
+		time.Sleep(time.Second)
 		nseAlice.Close(t)
 		stopAliceSyncing()
 	})
+
+	// do a new login to alice and use the recovery key
+	newDevice := tc.MustRegisterNewDevice(t, tc.Alice, tc.AliceClientType.HS, "RESTORE")
+	alice2 := tc.MustLoginClient(t, newDevice, tc.AliceClientType, WithPersistentStorage(), WithCrossProcessLock("main"))
+	alice2.MustLoadBackup(t, recoveryKey)
+	stopSyncing = alice2.MustStartSyncing(t)
+	defer stopSyncing()
+	// scrollback all the messages and check we can read them
+	alice2.MustBackpaginate(t, roomID, len(eventTimeline))
+	time.Sleep(time.Second)
+	for _, eventID := range eventTimeline {
+		ev := alice2.MustGetEvent(t, roomID, eventID)
+		must.Equal(t, ev.FailedToDecrypt, false, fmt.Sprintf("failed to decrypt event ID %s : %+v", eventID, ev))
+	}
+}
+
+func TestMultiprocessNSEBackupKeyMacError(t *testing.T) {
+	if !ShouldTest(api.ClientTypeRust) {
+		t.Skipf("rust only")
+		return
+	}
+	tc, roomID := createAndJoinRoom(t)
+	// Alice starts syncing to get an encrypted room set up
+	alice := tc.MustLoginClient(t, tc.Alice, tc.AliceClientType, WithPersistentStorage(), WithCrossProcessLock("main"))
+	stopSyncing := alice.MustStartSyncing(t)
+	accessToken := alice.Opts().AccessToken
+	recoveryKey := alice.MustBackupKeys(t)
+	var eventTimeline []string
+
+	// Bob sends a message to alice
+	tc.WithClientSyncing(t, tc.BobClientType, tc.Bob, func(bob api.Client) {
+		// let bob realise alice exists and claims keys
+		time.Sleep(time.Second)
+
+		stopAliceSyncing := func() {
+			if alice == nil {
+				t.Fatalf("stopAliceSyncing: alice was already not syncing")
+			}
+			alice.Close(t)
+			stopSyncing()
+			alice = nil
+		}
+		startAliceSyncing := func() {
+			if alice != nil {
+				t.Fatalf("startAliceSyncing: alice was already syncing")
+			}
+			alice = MustCreateClient(t, tc.AliceClientType, tc.ClientCreationOpts(t, tc.Alice, tc.AliceClientType.HS,
+				WithPersistentStorage(), WithAccessToken(accessToken), WithCrossProcessLock("main"),
+			)) // this should login already as we provided an access token
+			stopSyncing = alice.MustStartSyncing(t)
+		}
+		checkNSECanDecryptEvent := func(nseAlice api.Client, roomID, eventID, msg string) {
+			notif, err := nseAlice.GetNotification(t, roomID, eventID)
+			must.NotError(t, fmt.Sprintf("failed to get notification for event %s '%s'", eventID, msg), err)
+			must.Equal(t, notif.Text, msg, fmt.Sprintf("NSE failed to decrypt event %s '%s' => %+v", eventID, msg, notif))
+		}
+
+		// set up the nse process. It doesn't actively keep a sync loop so we don't need to do the close dance with it.
+		nseAlice := tc.MustCreateMultiprocessClient(t, tc.AliceClientType.Lang, tc.ClientCreationOpts(t, tc.Alice, tc.AliceClientType.HS,
+			WithPersistentStorage(), WithAccessToken(accessToken), WithCrossProcessLock(api.ProcessNameNSE),
+		)) // this should login already as we provided an access token
+
+		msg := "first message"
+		eventID := bob.SendMessage(t, roomID, msg)
+		eventTimeline = append(eventTimeline, eventID)
+		t.Logf("first event %s => '%s'", eventID, msg)
+		checkNSECanDecryptEvent(nseAlice, roomID, eventID, msg)
+		alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(msg)).Waitf(t, 5*time.Second, "alice did not decrypt '%s'", msg)
+
+		// restart alice but keep nse process around
+		stopAliceSyncing()
+
+		// send finaly message
+		msg = "final message"
+		eventID = bob.SendMessage(t, roomID, msg)
+		eventTimeline = append(eventTimeline, eventID)
+		t.Logf("final event %s => '%s'", eventID, msg)
+
+		// both the nse process and the app process should be able to decrypt the event
+		checkNSECanDecryptEvent(nseAlice, roomID, eventID, msg)
+
+		t.Logf("restarting alice")
+		startAliceSyncing()
+		alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(msg)).Waitf(t, 5*time.Second, "alice did not decrypt '%s'", msg)
+
+		// let keys be backed up
+		time.Sleep(time.Second)
+		nseAlice.Close(t)
+		stopAliceSyncing()
+	})
+
+	// do a new login to alice and use the recovery key
+	newDevice := tc.MustRegisterNewDevice(t, tc.Alice, tc.AliceClientType.HS, "RESTORE")
+	alice2 := tc.MustLoginClient(t, newDevice, tc.AliceClientType, WithPersistentStorage(), WithCrossProcessLock("main"))
+	alice2.MustLoadBackup(t, recoveryKey)
+	stopSyncing = alice2.MustStartSyncing(t)
+	defer stopSyncing()
+	// scrollback all the messages and check we can read them
+	alice2.MustBackpaginate(t, roomID, len(eventTimeline))
+	time.Sleep(time.Second)
+	for _, eventID := range eventTimeline {
+		ev := alice2.MustGetEvent(t, roomID, eventID)
+		must.Equal(t, ev.FailedToDecrypt, false, fmt.Sprintf("failed to decrypt event using key from backup event ID %s : %+v", eventID, ev))
+	}
 }
 
 func TestMultiprocessNSEOlmSessionWedge(t *testing.T) {
