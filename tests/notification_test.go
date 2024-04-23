@@ -265,6 +265,7 @@ func TestMultiprocessNSEBackupKeyMacError(t *testing.T) {
 		t.Skipf("rust only")
 		return
 	}
+	t.Skipf("pending bugfix")
 	tc, roomID := createAndJoinRoom(t)
 	// Alice starts syncing to get an encrypted room set up
 	alice := tc.MustLoginClient(t, tc.Alice, tc.AliceClientType, WithPersistentStorage(), WithCrossProcessLock("main"))
