@@ -3,10 +3,12 @@ package tests
 import (
 	"fmt"
 	"math/rand"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
+	"github.com/matrix-org/complement-crypto/internal/deploy"
 	"github.com/matrix-org/complement/must"
 )
 
@@ -432,6 +434,77 @@ func TestMultiprocessNSEOlmSessionWedge(t *testing.T) {
 		nseAlice.Close(t)
 		stopAliceSyncing()
 	})
+}
+
+func TestMultiprocessDupeOTKUpload(t *testing.T) {
+	if !ShouldTest(api.ClientTypeRust) {
+		t.Skipf("rust only")
+		return
+	}
+	t.Skipf("WIP")
+	tc, roomID := createAndJoinRoom(t)
+
+	// start the "main" app
+	alice := tc.MustLoginClient(t, tc.Alice, tc.AliceClientType, WithPersistentStorage(), WithCrossProcessLock("main"))
+	aliceAccessToken := alice.Opts().AccessToken
+
+	// let OTKs be uploaded
+	time.Sleep(time.Second)
+
+	// prep nse process
+	nseAlice := tc.MustCreateMultiprocessClient(t, tc.AliceClientType.Lang, tc.ClientCreationOpts(t, tc.Alice, tc.AliceClientType.HS,
+		WithPersistentStorage(), WithAccessToken(aliceAccessToken), WithCrossProcessLock(api.ProcessNameNSE),
+	))
+
+	aliceUploadedNewKeys := false
+	// artificially slow down the HTTP responses, such that we will have 2 in-flight /keys/upload requests
+	// at once. If the NSE and main apps are talking to each other, they should be using the same key ID + key.
+	// If not... well, that's a bug because then the client will forget one of these keys.
+	tc.Deployment.WithSniffedEndpoint(t, "/keys/upload", func(cd deploy.CallbackData) {
+		if cd.AccessToken != aliceAccessToken {
+			return // let bob upload OTKs
+		}
+		aliceUploadedNewKeys = true
+		if cd.ResponseCode != 200 {
+			// we rely on the homeserver checking and rejecting when the same key ID is used with
+			// different keys.
+			t.Errorf("/keys/upload returned an error, duplicate key upload? %+v", cd)
+		}
+		// tarpit the response
+		t.Logf("tarpitting keys/upload response for 4 seconds")
+		time.Sleep(4 * time.Second)
+	}, func() {
+		var eventID string
+		// Bob appears and sends a message, causing Bob to claim one of Alice's OTKs.
+		// The main app will see this in /sync and then try to upload another OTK, which we will tarpit.
+		tc.WithClientSyncing(t, tc.BobClientType, tc.Bob, func(bob api.Client) {
+			eventID = bob.SendMessage(t, roomID, "Hello world!")
+		})
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go func() { // nse process
+			defer wg.Done()
+			// wake up NSE process as if it got a push notification. Calling this function
+			// should cause the NSE process to upload a OTK as it would have seen 1 has been used.
+			// The NSE and main app must talk to each other to ensure they use the same key.
+			nseAlice.Logf(t, "GetNotification %s, %s", roomID, eventID)
+			notif, err := nseAlice.GetNotification(t, roomID, eventID)
+			must.NotError(t, "failed to get notification", err)
+			must.Equal(t, notif.Text, "Hello world!", "failed to decrypt msg body")
+			must.Equal(t, notif.FailedToDecrypt, false, "FailedToDecrypt but we should be able to decrypt")
+		}()
+		go func() { // app process
+			defer wg.Done()
+			stopSyncing := alice.MustStartSyncing(t)
+			// let alice upload new OTK
+			time.Sleep(5 * time.Second)
+			stopSyncing()
+		}()
+		wg.Wait()
+	})
+	if !aliceUploadedNewKeys {
+		t.Errorf("Alice did not upload new OTKs")
+	}
 }
 
 func createAndJoinRoom(t *testing.T) (tc *TestContext, roomID string) {
