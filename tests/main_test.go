@@ -74,6 +74,11 @@ func ClientTypeMatrix(t *testing.T, subTest func(t *testing.T, clientTypeA, clie
 	}
 }
 
+// ShouldTest returns true if this language should be tested.
+func ShouldTest(lang api.ClientTypeLang) bool {
+	return complementCryptoConfig.ShouldTest(lang)
+}
+
 // ForEachClientType enumerates all known client implementations and creates sub-tests for
 // each. Sub-tests are run in series. Always defaults to `hs1`.
 func ForEachClientType(t *testing.T, subTest func(t *testing.T, clientType api.ClientType)) {
@@ -115,6 +120,14 @@ func WithDoLogin(t *testing.T) func(api.Client, *api.ClientCreationOpts) {
 func WithPersistentStorage() func(*api.ClientCreationOpts) {
 	return func(o *api.ClientCreationOpts) {
 		o.PersistentStorage = true
+	}
+}
+
+// WithCrossProcessLock is an option which can be provided to MustCreateClient which will configure a cross process lock for Rust clients.
+// No-ops on non-rust clients.
+func WithCrossProcessLock(processName string) func(*api.ClientCreationOpts) {
+	return func(o *api.ClientCreationOpts) {
+		o.EnableCrossProcessRefreshLockProcessName = processName
 	}
 }
 
@@ -176,9 +189,9 @@ func CreateTestContext(t *testing.T, clientType ...api.ClientType) *TestContext 
 	return tc
 }
 
-func (c *TestContext) WithClientSyncing(t *testing.T, clientType api.ClientType, cli *client.CSAPI, callback func(cli api.Client)) {
+func (c *TestContext) WithClientSyncing(t *testing.T, clientType api.ClientType, cli *client.CSAPI, callback func(cli api.Client), options ...func(*api.ClientCreationOpts)) {
 	t.Helper()
-	clientUnderTest := c.MustLoginClient(t, cli, clientType)
+	clientUnderTest := c.MustLoginClient(t, cli, clientType, options...)
 	defer clientUnderTest.Close(t)
 	stopSyncing := clientUnderTest.MustStartSyncing(t)
 	defer stopSyncing()
