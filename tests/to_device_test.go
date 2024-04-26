@@ -78,8 +78,9 @@ func TestUnprocessedToDeviceMessagesArentLostOnRestart(t *testing.T) {
 			Password: "complement-crypto-password",
 		})
 		// the initial setup for rust/js is the same.
+		// login bob first so we have OTKs
+		bob := tc.MustLoginClient(t, tc.Bob, tc.BobClientType, WithPersistentStorage())
 		tc.WithAliceSyncing(t, func(alice api.Client) {
-			bob := tc.MustLoginClient(t, tc.Bob, tc.BobClientType, WithPersistentStorage())
 			// we will close this in the test, no defer
 			bobStopSyncing := bob.MustStartSyncing(t)
 			tc.WithClientSyncing(t, tc.AliceClientType, alice2, func(alice2 api.Client) { // sync to ensure alice2 has keys uploaded
@@ -150,6 +151,9 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartRust(t *testing.T, tc *Tes
 		remoteClient := tc.MustCreateMultiprocessClient(t, api.ClientTypeRust, bobOpts)
 		must.NotError(t, "failed to login", remoteClient.Login(t, remoteClient.Opts()))
 
+		bob := tc.MustLoginClient(t, tc.Bob, tc.BobClientType, WithPersistentStorage())
+		defer bob.Close(t)
+
 		// start syncing but don't wait, we wait for the to device event
 		go remoteClient.StartSyncing(t)
 
@@ -158,8 +162,6 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartRust(t *testing.T, tc *Tes
 		remoteClient.ForceClose(t)
 
 		// Ensure Bob can decrypt new messages sent from Alice.
-		bob := tc.MustLoginClient(t, tc.Bob, tc.BobClientType, WithPersistentStorage())
-		defer bob.Close(t)
 		bobStopSyncing := bob.MustStartSyncing(t)
 		defer bobStopSyncing()
 		// we can't rely on MustStartSyncing returning to know that the room key has been received, as

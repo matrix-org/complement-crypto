@@ -60,7 +60,7 @@ type RustClient struct {
 func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, error) {
 	t.Logf("NewRustClient[%s][%s] creating...", opts.UserID, opts.DeviceID)
 	matrix_sdk_ffi.LogEvent("rust.go", &zero, matrix_sdk_ffi.LogLevelInfo, t.Name(), fmt.Sprintf("NewRustClient[%s][%s] creating...", opts.UserID, opts.DeviceID))
-	ab := matrix_sdk_ffi.NewClientBuilder().HomeserverUrl(opts.BaseURL).SlidingSyncProxy(&opts.SlidingSyncURL)
+	ab := matrix_sdk_ffi.NewClientBuilder().HomeserverUrl(opts.BaseURL).SlidingSyncProxy(&opts.SlidingSyncURL).AutoEnableCrossSigning(true)
 	var username string
 	if opts.PersistentStorage {
 		// @alice:hs1, FOOBAR => alice_hs1_FOOBAR
@@ -99,6 +99,8 @@ func (c *RustClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {
 	if err != nil {
 		return fmt.Errorf("Client.Login failed: %s", err)
 	}
+	// let the client upload device keys and OTKs
+	c.FFIClient.Encryption().WaitForE2eeInitializationTasks()
 	return nil
 }
 
@@ -395,9 +397,8 @@ func (c *RustClient) MustBackpaginate(t ct.TestLike, roomID string, count int) {
 	t.Helper()
 	r := c.findRoom(t, roomID)
 	must.NotEqual(t, r, nil, "unknown room")
-	must.NotError(t, "failed to backpaginate", mustGetTimeline(t, r).PaginateBackwards(matrix_sdk_ffi.PaginationOptionsSimpleRequest{
-		EventLimit: uint16(count),
-	}))
+	_, err := mustGetTimeline(t, r).PaginateBackwards(uint16(count))
+	must.NotError(t, "failed to backpaginate", err)
 }
 
 func (c *RustClient) UserID() string {
@@ -430,7 +431,7 @@ func (c *RustClient) findRoom(t ct.TestLike, roomID string) *matrix_sdk_ffi.Room
 			c.Logf(t, "allRooms.Room(%s) err: %s", roomID, err)
 		} else if roomListItem != nil {
 			if !roomListItem.IsTimelineInitialized() {
-				if err = roomListItem.InitTimeline(nil); err != nil {
+				if err = roomListItem.InitTimeline(nil, nil); err != nil {
 					c.Logf(t, "allRooms.InitTimeline(%s) err: %s", roomID, err)
 				}
 			}
