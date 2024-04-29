@@ -188,7 +188,9 @@ func (c *RustClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {
 		return fmt.Errorf("Client.Login failed: %s", err)
 	}
 	// let the client upload device keys and OTKs
-	c.FFIClient.Encryption().WaitForE2eeInitializationTasks()
+	e := c.FFIClient.Encryption()
+	e.WaitForE2eeInitializationTasks()
+	e.Destroy()
 	return nil
 }
 
@@ -217,7 +219,6 @@ func (c *RustClient) Close(t ct.TestLike) {
 		}
 	}
 	c.roomsMu.Unlock()
-	c.FFIClient.Encryption().Destroy()
 	c.FFIClient.Destroy()
 	c.FFIClient = nil
 	if c.notifClient != nil {
@@ -376,7 +377,9 @@ func (c *RustClient) MustBackupKeys(t ct.TestLike) (recoveryKey string) {
 	t.Helper()
 	genericListener := newGenericStateListener[matrix_sdk_ffi.EnableRecoveryProgress]()
 	var listener matrix_sdk_ffi.EnableRecoveryProgressListener = genericListener
-	recoveryKey, err := c.FFIClient.Encryption().EnableRecovery(true, listener)
+	e := c.FFIClient.Encryption()
+	defer e.Destroy()
+	recoveryKey, err := e.EnableRecovery(true, listener)
 	must.NotError(t, "Encryption.EnableRecovery", err)
 	for !genericListener.isClosed.Load() {
 		select {
@@ -401,7 +404,9 @@ func (c *RustClient) MustBackupKeys(t ct.TestLike) (recoveryKey string) {
 
 func (c *RustClient) LoadBackup(t ct.TestLike, recoveryKey string) error {
 	t.Helper()
-	return c.FFIClient.Encryption().Recover(recoveryKey)
+	e := c.FFIClient.Encryption()
+	defer e.Destroy()
+	return e.Recover(recoveryKey)
 }
 
 func (c *RustClient) MustLoadBackup(t ct.TestLike, recoveryKey string) {
