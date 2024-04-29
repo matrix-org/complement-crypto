@@ -69,6 +69,8 @@ jobs:
 
       - name: Build Rust FFI bindings
         run: |
+          sed -i.bak 's/uniffi =.*/uniffi = "0\.25\.3"/' rust-sdk/Cargo.toml
+          sed -i.bak 's^uniffi_bindgen =.*^uniffi_bindgen = { git = "https:\/\/github.com\/mozilla\/uniffi-rs", rev = "0a03b713306d6ce3de033157fc2ce92a238c2e24" }^' rust-sdk/Cargo.toml
           (cd rust-sdk && cargo build -p matrix-sdk-ffi)
           ls -alh rust-sdk/target/debug
 
