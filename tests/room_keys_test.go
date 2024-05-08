@@ -34,6 +34,13 @@ func sniffToDeviceEvent(t *testing.T, d complement.Deployment, ch chan deploy.Ca
 func TestRoomKeyIsCycledOnDeviceLogout(t *testing.T) {
 	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
 		tc := CreateTestContext(t, clientTypeA, clientTypeB)
+		roomID := tc.CreateNewEncryptedRoom(
+			t,
+			tc.Alice,
+			EncRoomOptions.PresetTrustedPrivateChat(),
+			EncRoomOptions.Invite([]string{tc.Bob.UserID}),
+		)
+		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 
 		// Alice, Alice2 and Bob are in a room.
 		csapiAlice2 := tc.MustRegisterNewDevice(t, tc.Alice, clientTypeA.HS, "OTHER_DEVICE")
@@ -41,13 +48,6 @@ func TestRoomKeyIsCycledOnDeviceLogout(t *testing.T) {
 		defer alice2.Close(t)
 		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
 			alice2StopSyncing := alice2.MustStartSyncing(t)
-			roomID := tc.CreateNewEncryptedRoom(
-				t,
-				tc.Alice,
-				EncRoomOptions.PresetTrustedPrivateChat(),
-				EncRoomOptions.Invite([]string{tc.Bob.UserID}),
-			)
-			tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 			alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(tc.Bob.UserID, "join")).Waitf(t, 5*time.Second, "alice did not see own join")
 			// check the room works
 			wantMsgBody := "Test Message"
