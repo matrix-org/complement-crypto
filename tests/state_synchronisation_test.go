@@ -10,7 +10,6 @@ import (
 	"github.com/matrix-org/complement-crypto/internal/deploy"
 	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/complement/helpers"
-	"github.com/matrix-org/complement/must"
 )
 
 func TestSigkillBeforeKeysUploadResponse(t *testing.T) {
@@ -133,10 +132,8 @@ func testSigkillBeforeKeysUploadResponseJS(t *testing.T, clientType api.ClientTy
 			waiter.Finish()
 		}
 		go func() {
-			must.NotError(t, "failed to login", clientWhichWillBeKilled.Login(t, clientWhichWillBeKilled.Opts()))
-			// need to start syncing to make JS do /keys/upload
-			// we don't need to stopSyncing because we'll SIGKILL this.
-			clientWhichWillBeKilled.StartSyncing(t)
+			// login to do /keys/upload
+			clientWhichWillBeKilled.Login(t, clientWhichWillBeKilled.Opts())
 			t.Logf("clientWhichWillBeKilled.Login returned")
 		}()
 		waiter.Wait(t, 5*time.Second) // wait for /keys/upload and subsequent SIGKILL
