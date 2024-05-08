@@ -187,7 +187,10 @@ func (c *JSClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {
 		user: "%s",
 		password: "%s",
 		device_id: %s,
-	});`, opts.UserID, opts.Password, deviceID))
+	});
+	// kick off outgoing requests which will upload OTKs and device keys
+	await window.__client.getCrypto().outgoingRequestsManager.doProcessOutgoingRequests();
+	`, opts.UserID, opts.Password, deviceID))
 
 	// any events need to log the control string so we get notified
 	chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`
