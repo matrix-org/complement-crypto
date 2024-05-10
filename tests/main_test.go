@@ -238,15 +238,6 @@ func (c *TestContext) WithAliceSyncing(t *testing.T, callback func(alice api.Cli
 // WithAliceAndBobSyncing is a helper function which creates rust/js clients and automatically logs in Alice & Bob
 // and starts a sync loop for both.
 //
-// NOTE: Make sure Alice sends messages first!
-// This function ensures that Bob is logged in and E2EE-initialised before
-// logging in Alice. This means Alice is able to send messages immediately
-// to Bob, because when she does a /key/query request, Bob already has
-// devices. If Bob sends first, he may have an empty list of devices for
-// Alice, meaning Alice is unable to decrypt his messages.
-//
-// TODO: Find a less fragile way of handling this problem.
-//
 // The callback function is invoked after this, and cleanup functions are called on your behalf when the
 // callback function ends.
 func (c *TestContext) WithAliceAndBobSyncing(t *testing.T, callback func(alice, bob api.Client)) {
@@ -269,21 +260,12 @@ func (c *TestContext) WithAliceAndBobSyncing(t *testing.T, callback func(alice, 
 // WithAliceBobAndCharlieSyncing is a helper function which creates rust/js clients and automatically logs in Alice, Bob
 // and Charlie and starts a sync loop for all.
 //
-// NOTE: Make sure Alice sends messages first!
-// This function ensures that Bob & Charlie are logged in and E2EE-initialised before
-// logging in Alice. This means Alice is able to send messages immediately
-// to them, because when she does a /key/query request, they already have
-// devices. If Bob or Charile send first, they may have an empty list of devices for
-// Alice, meaning Alice is unable to decrypt their messages.
-//
-// TODO: Find a less fragile way of handling this problem.
-//
 // The callback function is invoked after this, and cleanup functions are called on your behalf when the
 // callback function ends.
 func (c *TestContext) WithAliceBobAndCharlieSyncing(t *testing.T, callback func(alice, bob, charlie api.Client)) {
 	t.Helper()
 	must.NotEqual(t, c.Charlie, nil, "No Charlie defined. Call CreateTestContext() with at least 3 api.ClientTypes.")
-	// log both clients in first before syncing so both have device keys and OTKs
+	// log all clients in first before syncing so all have device keys and OTKs
 	alice := c.MustLoginClient(t, c.Alice, c.AliceClientType)
 	defer alice.Close(t)
 	bob := c.MustLoginClient(t, c.Bob, c.BobClientType)
