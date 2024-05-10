@@ -250,77 +250,64 @@ func TestOnNewDeviceBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 		// SDK testing below
 		// -----------------
 
-		// login both clients first, so OTKs etc are uploaded.
-		// Similarly to TestAliceBobEncryptionWorks, log Bob in first.
-		bob := tc.MustLoginClient(t, tc.Bob, clientTypeB)
-		defer bob.Close(t)
-		// FIXME: do we still need this?
-		time.Sleep(500 * time.Millisecond)
-		alice := tc.MustLoginClient(t, tc.Alice, clientTypeA)
-		defer alice.Close(t)
+		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+			// Alice sends a message which Bob should be able to decrypt.
+			onlyFirstDeviceBody := "Alice and Bob in a room"
+			waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(onlyFirstDeviceBody))
+			evID := alice.SendMessage(t, roomID, onlyFirstDeviceBody)
+			t.Logf("bob (%s) waiting for event %s", bob.Type(), evID)
+			waiter.Waitf(t, 5*time.Second, "bob did not see alice's message")
 
-		// Alice and Bob start syncing. Both are in the same room
-		aliceStopSyncing := alice.MustStartSyncing(t)
-		defer aliceStopSyncing()
-		bobStopSyncing := bob.MustStartSyncing(t)
-		defer bobStopSyncing()
+			// now bob logs in on a new device. He should NOT be able to decrypt this event (though can see it due to history visibility)
+			csapiBob2 := tc.MustRegisterNewDevice(t, tc.Bob, clientTypeB.HS, "NEW_DEVICE")
+			bob2 := tc.MustLoginClient(t, csapiBob2, clientTypeB)
+			bob2StopSyncing := bob2.MustStartSyncing(t)
+			bob2StoppedSyncing := false
+			defer func() {
+				if bob2StoppedSyncing {
+					return
+				}
+				bob2StopSyncing()
+			}()
+			time.Sleep(time.Second)             // let device keys propagate to alice
+			bob2.MustBackpaginate(t, roomID, 5) // ensure the older event is there
+			time.Sleep(time.Second)
+			undecryptableEvent := bob2.MustGetEvent(t, roomID, evID)
+			must.Equal(t, undecryptableEvent.FailedToDecrypt, true, "bob's new device was able to decrypt a message sent before he logged in")
 
-		// Alice sends a message which Bob should be able to decrypt.
-		onlyFirstDeviceBody := "Alice and Bob in a room"
-		waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(onlyFirstDeviceBody))
-		evID := alice.SendMessage(t, roomID, onlyFirstDeviceBody)
-		t.Logf("bob (%s) waiting for event %s", bob.Type(), evID)
-		waiter.Waitf(t, 5*time.Second, "bob did not see alice's message")
+			// now alice sends another message, which bob's new device should be able to decrypt.
+			decryptableBody := "Bob's new device can decrypt this"
+			waiter = bob2.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(decryptableBody))
+			evID = alice.SendMessage(t, roomID, decryptableBody)
+			t.Logf("bob2 (%s) waiting for event %s", bob2.Type(), evID)
+			waiter.Waitf(t, 5*time.Second, "bob2 did not see alice's message")
 
-		// now bob logs in on a new device. He should NOT be able to decrypt this event (though can see it due to history visibility)
-		csapiBob2 := tc.MustRegisterNewDevice(t, tc.Bob, clientTypeB.HS, "NEW_DEVICE")
-		bob2 := tc.MustLoginClient(t, csapiBob2, clientTypeB)
-		bob2StopSyncing := bob2.MustStartSyncing(t)
-		bob2StoppedSyncing := false
-		defer func() {
-			if bob2StoppedSyncing {
-				return
-			}
+			// now bob logs out
 			bob2StopSyncing()
-		}()
-		time.Sleep(time.Second)             // let device keys propagate to alice
-		bob2.MustBackpaginate(t, roomID, 5) // ensure the older event is there
-		time.Sleep(time.Second)
-		undecryptableEvent := bob2.MustGetEvent(t, roomID, evID)
-		must.Equal(t, undecryptableEvent.FailedToDecrypt, true, "bob's new device was able to decrypt a message sent before he logged in")
+			bob2StoppedSyncing = true
+			csapiBob2.MustDo(t, "POST", []string{"_matrix", "client", "v3", "logout"})
+			bob2.Close(t)
 
-		// now alice sends another message, which bob's new device should be able to decrypt.
-		decryptableBody := "Bob's new device can decrypt this"
-		waiter = bob2.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(decryptableBody))
-		evID = alice.SendMessage(t, roomID, decryptableBody)
-		t.Logf("bob2 (%s) waiting for event %s", bob2.Type(), evID)
-		waiter.Waitf(t, 5*time.Second, "bob2 did not see alice's message")
+			time.Sleep(time.Second) // let device keys propagate to alice
 
-		// now bob logs out
-		bob2StopSyncing()
-		bob2StoppedSyncing = true
-		csapiBob2.MustDo(t, "POST", []string{"_matrix", "client", "v3", "logout"})
-		bob2.Close(t)
+			// alice sends another message which should not be decryptable due to key cycling. The message should be decryptable
+			// by bob's other logged in device though.
+			undecryptableBody := "Bob's logged out device won't be able to decrypt this"
+			waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(undecryptableBody))
+			evID = alice.SendMessage(t, roomID, undecryptableBody)
+			t.Logf("bob (%s) waiting for event %s", bob.Type(), evID)
+			waiter.Waitf(t, 5*time.Second, "bob did not see alice's event %s", evID)
 
-		time.Sleep(time.Second) // let device keys propagate to alice
+			// now bob logs in again
+			bob2 = tc.MustLoginClient(t, csapiBob2, clientTypeB)
+			bob2StopSyncingAgain := bob2.MustStartSyncing(t)
+			defer bob2StopSyncingAgain()
 
-		// alice sends another message which should not be decryptable due to key cycling. The message should be decryptable
-		// by bob's other logged in device though.
-		undecryptableBody := "Bob's logged out device won't be able to decrypt this"
-		waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(undecryptableBody))
-		evID = alice.SendMessage(t, roomID, undecryptableBody)
-		t.Logf("bob (%s) waiting for event %s", bob.Type(), evID)
-		waiter.Waitf(t, 5*time.Second, "bob did not see alice's event %s", evID)
+			time.Sleep(time.Second) // let device keys propagate to alice
 
-		// now bob logs in again
-		bob2 = tc.MustLoginClient(t, csapiBob2, clientTypeB)
-		bob2StopSyncingAgain := bob2.MustStartSyncing(t)
-		defer bob2StopSyncingAgain()
-
-		time.Sleep(time.Second) // let device keys propagate to alice
-
-		undecryptableEvent = bob2.MustGetEvent(t, roomID, evID)
-		must.Equal(t, undecryptableEvent.FailedToDecrypt, true, "bob's new device was able to decrypt a message sent after he had logged out")
+			undecryptableEvent = bob2.MustGetEvent(t, roomID, evID)
+			must.Equal(t, undecryptableEvent.FailedToDecrypt, true, "bob's new device was able to decrypt a message sent after he had logged out")
+		})
 	})
 }
 

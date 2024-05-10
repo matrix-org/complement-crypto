@@ -490,6 +490,39 @@ func (_ FfiDestroyerTypeRoomPowerLevelChanges) Destroy(value RoomPowerLevelChang
 	value.Destroy()
 }
 
+type BackupDownloadStrategy uint
+
+const (
+	BackupDownloadStrategyOneShot                BackupDownloadStrategy = 1
+	BackupDownloadStrategyAfterDecryptionFailure BackupDownloadStrategy = 2
+	BackupDownloadStrategyManual                 BackupDownloadStrategy = 3
+)
+
+type FfiConverterTypeBackupDownloadStrategy struct{}
+
+var FfiConverterTypeBackupDownloadStrategyINSTANCE = FfiConverterTypeBackupDownloadStrategy{}
+
+func (c FfiConverterTypeBackupDownloadStrategy) Lift(rb RustBufferI) BackupDownloadStrategy {
+	return LiftFromRustBuffer[BackupDownloadStrategy](c, rb)
+}
+
+func (c FfiConverterTypeBackupDownloadStrategy) Lower(value BackupDownloadStrategy) RustBuffer {
+	return LowerIntoRustBuffer[BackupDownloadStrategy](c, value)
+}
+func (FfiConverterTypeBackupDownloadStrategy) Read(reader io.Reader) BackupDownloadStrategy {
+	id := readInt32(reader)
+	return BackupDownloadStrategy(id)
+}
+
+func (FfiConverterTypeBackupDownloadStrategy) Write(writer io.Writer, value BackupDownloadStrategy) {
+	writeInt32(writer, int32(value))
+}
+
+type FfiDestroyerTypeBackupDownloadStrategy struct{}
+
+func (_ FfiDestroyerTypeBackupDownloadStrategy) Destroy(value BackupDownloadStrategy) {
+}
+
 type RoomMemberRole uint
 
 const (

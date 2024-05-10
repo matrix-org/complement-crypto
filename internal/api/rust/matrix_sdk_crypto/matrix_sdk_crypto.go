@@ -1,6 +1,6 @@
-package matrix_sdk_ui
+package matrix_sdk_crypto
 
-// #include <matrix_sdk_ui.h>
+// #include <matrix_sdk_crypto.h>
 import "C"
 
 import (
@@ -50,7 +50,7 @@ func (cb RustBuffer) AsReader() *bytes.Reader {
 
 func (cb RustBuffer) Free() {
 	rustCall(func(status *C.RustCallStatus) bool {
-		C.ffi_matrix_sdk_ui_rustbuffer_free(cb, status)
+		C.ffi_matrix_sdk_crypto_rustbuffer_free(cb, status)
 		return false
 	})
 }
@@ -75,7 +75,7 @@ func bytesToRustBuffer(b []byte) RustBuffer {
 	}
 
 	return rustCall(func(status *C.RustCallStatus) RustBuffer {
-		return C.ffi_matrix_sdk_ui_rustbuffer_from_bytes(foreign, status)
+		return C.ffi_matrix_sdk_crypto_rustbuffer_from_bytes(foreign, status)
 	})
 }
 
@@ -336,11 +336,11 @@ func uniffiCheckChecksums() {
 	bindingsContractVersion := 24
 	// Get the scaffolding contract version by calling the into the dylib
 	scaffoldingContractVersion := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint32_t {
-		return C.ffi_matrix_sdk_ui_uniffi_contract_version(uniffiStatus)
+		return C.ffi_matrix_sdk_crypto_uniffi_contract_version(uniffiStatus)
 	})
 	if bindingsContractVersion != int(scaffoldingContractVersion) {
 		// If this happens try cleaning and rebuilding your project
-		panic("matrix_sdk_ui: UniFFI contract version mismatch")
+		panic("matrix_sdk_crypto: UniFFI contract version mismatch")
 	}
 }
 
@@ -394,68 +394,102 @@ type FfiDestroyerString struct{}
 
 func (FfiDestroyerString) Destroy(_ string) {}
 
-type EventItemOrigin uint
+type LocalTrust uint
 
 const (
-	EventItemOriginLocal      EventItemOrigin = 1
-	EventItemOriginSync       EventItemOrigin = 2
-	EventItemOriginPagination EventItemOrigin = 3
+	LocalTrustVerified    LocalTrust = 1
+	LocalTrustBlackListed LocalTrust = 2
+	LocalTrustIgnored     LocalTrust = 3
+	LocalTrustUnset       LocalTrust = 4
 )
 
-type FfiConverterTypeEventItemOrigin struct{}
+type FfiConverterTypeLocalTrust struct{}
 
-var FfiConverterTypeEventItemOriginINSTANCE = FfiConverterTypeEventItemOrigin{}
+var FfiConverterTypeLocalTrustINSTANCE = FfiConverterTypeLocalTrust{}
 
-func (c FfiConverterTypeEventItemOrigin) Lift(rb RustBufferI) EventItemOrigin {
-	return LiftFromRustBuffer[EventItemOrigin](c, rb)
+func (c FfiConverterTypeLocalTrust) Lift(rb RustBufferI) LocalTrust {
+	return LiftFromRustBuffer[LocalTrust](c, rb)
 }
 
-func (c FfiConverterTypeEventItemOrigin) Lower(value EventItemOrigin) RustBuffer {
-	return LowerIntoRustBuffer[EventItemOrigin](c, value)
+func (c FfiConverterTypeLocalTrust) Lower(value LocalTrust) RustBuffer {
+	return LowerIntoRustBuffer[LocalTrust](c, value)
 }
-func (FfiConverterTypeEventItemOrigin) Read(reader io.Reader) EventItemOrigin {
+func (FfiConverterTypeLocalTrust) Read(reader io.Reader) LocalTrust {
 	id := readInt32(reader)
-	return EventItemOrigin(id)
+	return LocalTrust(id)
 }
 
-func (FfiConverterTypeEventItemOrigin) Write(writer io.Writer, value EventItemOrigin) {
+func (FfiConverterTypeLocalTrust) Write(writer io.Writer, value LocalTrust) {
 	writeInt32(writer, int32(value))
 }
 
-type FfiDestroyerTypeEventItemOrigin struct{}
+type FfiDestroyerTypeLocalTrust struct{}
 
-func (_ FfiDestroyerTypeEventItemOrigin) Destroy(value EventItemOrigin) {
+func (_ FfiDestroyerTypeLocalTrust) Destroy(value LocalTrust) {
 }
 
-type PaginationStatus uint
+type SignatureState uint
 
 const (
-	PaginationStatusIdle               PaginationStatus = 1
-	PaginationStatusPaginating         PaginationStatus = 2
-	PaginationStatusTimelineEndReached PaginationStatus = 3
+	SignatureStateMissing            SignatureState = 1
+	SignatureStateInvalid            SignatureState = 2
+	SignatureStateValidButNotTrusted SignatureState = 3
+	SignatureStateValidAndTrusted    SignatureState = 4
 )
 
-type FfiConverterTypePaginationStatus struct{}
+type FfiConverterTypeSignatureState struct{}
 
-var FfiConverterTypePaginationStatusINSTANCE = FfiConverterTypePaginationStatus{}
+var FfiConverterTypeSignatureStateINSTANCE = FfiConverterTypeSignatureState{}
 
-func (c FfiConverterTypePaginationStatus) Lift(rb RustBufferI) PaginationStatus {
-	return LiftFromRustBuffer[PaginationStatus](c, rb)
+func (c FfiConverterTypeSignatureState) Lift(rb RustBufferI) SignatureState {
+	return LiftFromRustBuffer[SignatureState](c, rb)
 }
 
-func (c FfiConverterTypePaginationStatus) Lower(value PaginationStatus) RustBuffer {
-	return LowerIntoRustBuffer[PaginationStatus](c, value)
+func (c FfiConverterTypeSignatureState) Lower(value SignatureState) RustBuffer {
+	return LowerIntoRustBuffer[SignatureState](c, value)
 }
-func (FfiConverterTypePaginationStatus) Read(reader io.Reader) PaginationStatus {
+func (FfiConverterTypeSignatureState) Read(reader io.Reader) SignatureState {
 	id := readInt32(reader)
-	return PaginationStatus(id)
+	return SignatureState(id)
 }
 
-func (FfiConverterTypePaginationStatus) Write(writer io.Writer, value PaginationStatus) {
+func (FfiConverterTypeSignatureState) Write(writer io.Writer, value SignatureState) {
 	writeInt32(writer, int32(value))
 }
 
-type FfiDestroyerTypePaginationStatus struct{}
+type FfiDestroyerTypeSignatureState struct{}
 
-func (_ FfiDestroyerTypePaginationStatus) Destroy(value PaginationStatus) {
+func (_ FfiDestroyerTypeSignatureState) Destroy(value SignatureState) {
+}
+
+type UtdCause uint
+
+const (
+	UtdCauseUnknown    UtdCause = 1
+	UtdCauseMembership UtdCause = 2
+)
+
+type FfiConverterTypeUtdCause struct{}
+
+var FfiConverterTypeUtdCauseINSTANCE = FfiConverterTypeUtdCause{}
+
+func (c FfiConverterTypeUtdCause) Lift(rb RustBufferI) UtdCause {
+	return LiftFromRustBuffer[UtdCause](c, rb)
+}
+
+func (c FfiConverterTypeUtdCause) Lower(value UtdCause) RustBuffer {
+	return LowerIntoRustBuffer[UtdCause](c, value)
+}
+func (FfiConverterTypeUtdCause) Read(reader io.Reader) UtdCause {
+	id := readInt32(reader)
+	return UtdCause(id)
+}
+
+func (FfiConverterTypeUtdCause) Write(writer io.Writer, value UtdCause) {
+	writeInt32(writer, int32(value))
+}
+
+type FfiDestroyerTypeUtdCause struct{}
+
+func (_ FfiDestroyerTypeUtdCause) Destroy(value UtdCause) {
 }

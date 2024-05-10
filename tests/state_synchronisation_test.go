@@ -10,7 +10,6 @@ import (
 	"github.com/matrix-org/complement-crypto/internal/deploy"
 	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/complement/helpers"
-	"github.com/matrix-org/complement/must"
 )
 
 func TestSigkillBeforeKeysUploadResponse(t *testing.T) {
@@ -62,8 +61,6 @@ func testSigkillBeforeKeysUploadResponseRust(t *testing.T, clientType api.Client
 		// login in a different process
 		opts := tc.ClientCreationOpts(t, tc.Alice, clientType.HS, WithPersistentStorage())
 		remoteClient := tc.MustCreateMultiprocessClient(t, api.ClientTypeRust, opts)
-		must.NotError(t, "failed to login", remoteClient.Login(t, remoteClient.Opts()))
-
 		clientTerminatedWaiter := helpers.NewWaiter()
 		terminateClient = func() {
 			terminated.Store(true)
@@ -72,8 +69,10 @@ func testSigkillBeforeKeysUploadResponseRust(t *testing.T, clientType api.Client
 			t.Logf("force closed client")
 			clientTerminatedWaiter.Finish()
 		}
-		// tell the remote process to start syncing: this will cause a /keys/upload request and eventually cause terminateClient to be called
-		_, _ = remoteClient.StartSyncing(t)
+		// login after defining terminateClient as login will upload keys
+		// this will cause a /keys/upload request and eventually cause terminateClient to be called.
+		// We drop the error here as it will be EOF due to us SIGKILLing the RPC server.
+		_ = remoteClient.Login(t, remoteClient.Opts())
 		clientTerminatedWaiter.Waitf(t, 5*time.Second, "terminateClient was not called, probably because we didn't see /keys/upload")
 		t.Logf("terminated process, making new client")
 		// now make the same client
@@ -133,10 +132,8 @@ func testSigkillBeforeKeysUploadResponseJS(t *testing.T, clientType api.ClientTy
 			waiter.Finish()
 		}
 		go func() {
-			must.NotError(t, "failed to login", clientWhichWillBeKilled.Login(t, clientWhichWillBeKilled.Opts()))
-			// need to start syncing to make JS do /keys/upload
-			// we don't need to stopSyncing because we'll SIGKILL this.
-			clientWhichWillBeKilled.StartSyncing(t)
+			// login to do /keys/upload
+			clientWhichWillBeKilled.Login(t, clientWhichWillBeKilled.Opts())
 			t.Logf("clientWhichWillBeKilled.Login returned")
 		}()
 		waiter.Wait(t, 5*time.Second) // wait for /keys/upload and subsequent SIGKILL

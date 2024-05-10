@@ -63,7 +63,7 @@ type RustClient struct {
 func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, error) {
 	t.Logf("NewRustClient[%s][%s] creating...", opts.UserID, opts.DeviceID)
 	matrix_sdk_ffi.LogEvent("rust.go", &zero, matrix_sdk_ffi.LogLevelInfo, t.Name(), fmt.Sprintf("NewRustClient[%s][%s] creating...", opts.UserID, opts.DeviceID))
-	ab := matrix_sdk_ffi.NewClientBuilder().HomeserverUrl(opts.BaseURL).SlidingSyncProxy(&opts.SlidingSyncURL)
+	ab := matrix_sdk_ffi.NewClientBuilder().HomeserverUrl(opts.BaseURL).SlidingSyncProxy(&opts.SlidingSyncURL).AutoEnableCrossSigning(true)
 	var clientSessionDelegate matrix_sdk_ffi.ClientSessionDelegate
 	if opts.EnableCrossProcessRefreshLockProcessName != "" {
 		t.Logf("enabling cross process refresh lock with proc name=%s", opts.EnableCrossProcessRefreshLockProcessName)
@@ -187,6 +187,10 @@ func (c *RustClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {
 	if err != nil {
 		return fmt.Errorf("Client.Login failed: %s", err)
 	}
+	// let the client upload device keys and OTKs
+	e := c.FFIClient.Encryption()
+	e.WaitForE2eeInitializationTasks()
+	e.Destroy()
 	return nil
 }
 
@@ -215,7 +219,6 @@ func (c *RustClient) Close(t ct.TestLike) {
 		}
 	}
 	c.roomsMu.Unlock()
-	c.FFIClient.Encryption().Destroy()
 	c.FFIClient.Destroy()
 	c.FFIClient = nil
 	if c.notifClient != nil {
@@ -374,7 +377,9 @@ func (c *RustClient) MustBackupKeys(t ct.TestLike) (recoveryKey string) {
 	t.Helper()
 	genericListener := newGenericStateListener[matrix_sdk_ffi.EnableRecoveryProgress]()
 	var listener matrix_sdk_ffi.EnableRecoveryProgressListener = genericListener
-	recoveryKey, err := c.FFIClient.Encryption().EnableRecovery(true, listener)
+	e := c.FFIClient.Encryption()
+	defer e.Destroy()
+	recoveryKey, err := e.EnableRecovery(true, listener)
 	must.NotError(t, "Encryption.EnableRecovery", err)
 	for !genericListener.isClosed.Load() {
 		select {
@@ -399,7 +404,9 @@ func (c *RustClient) MustBackupKeys(t ct.TestLike) (recoveryKey string) {
 
 func (c *RustClient) LoadBackup(t ct.TestLike, recoveryKey string) error {
 	t.Helper()
-	return c.FFIClient.Encryption().Recover(recoveryKey)
+	e := c.FFIClient.Encryption()
+	defer e.Destroy()
+	return e.Recover(recoveryKey)
 }
 
 func (c *RustClient) MustLoadBackup(t ct.TestLike, recoveryKey string) {
@@ -487,9 +494,8 @@ func (c *RustClient) MustBackpaginate(t ct.TestLike, roomID string, count int) {
 	t.Helper()
 	r := c.findRoom(t, roomID)
 	must.NotEqual(t, r, nil, "unknown room")
-	must.NotError(t, "failed to backpaginate", mustGetTimeline(t, r).PaginateBackwards(matrix_sdk_ffi.PaginationOptionsSimpleRequest{
-		EventLimit: uint16(count),
-	}))
+	_, err := mustGetTimeline(t, r).PaginateBackwards(uint16(count))
+	must.NotError(t, "failed to backpaginate", err)
 }
 
 func (c *RustClient) UserID() string {
@@ -522,7 +528,7 @@ func (c *RustClient) findRoom(t ct.TestLike, roomID string) *matrix_sdk_ffi.Room
 			c.Logf(t, "allRooms.Room(%s) err: %s", roomID, err)
 		} else if roomListItem != nil {
 			if !roomListItem.IsTimelineInitialized() {
-				if err = roomListItem.InitTimeline(nil); err != nil {
+				if err = roomListItem.InitTimeline(nil, nil); err != nil {
 					c.Logf(t, "allRooms.InitTimeline(%s) err: %s", roomID, err)
 				}
 			}
