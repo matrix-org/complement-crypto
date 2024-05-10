@@ -182,21 +182,30 @@ func (c *JSClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {
 		deviceID = `"` + opts.DeviceID + `"`
 	}
 	// cannot use loginWithPassword as this generates a new device ID
-	chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`
+	_, err := chrome.RunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`
 	await window.__client.login("m.login.password", {
 		user: "%s",
 		password: "%s",
 		device_id: %s,
-	});`, opts.UserID, opts.Password, deviceID))
+	});
+	// kick off outgoing requests which will upload OTKs and device keys
+	await window.__client.getCrypto().outgoingRequestsManager.doProcessOutgoingRequests();
+	`, opts.UserID, opts.Password, deviceID))
+	if err != nil {
+		return err
+	}
 
 	// any events need to log the control string so we get notified
-	chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`
+	_, err = chrome.RunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`
 	window.__client.on("Event.decrypted", function(event) {
 		console.log("%s"+event.getRoomId()+"||"+JSON.stringify(event.getEffectiveEvent()));
 	});
 	window.__client.on("event", function(event) {
 		console.log("%s"+event.getRoomId()+"||"+JSON.stringify(event.getEffectiveEvent()));
 	});`, CONSOLE_LOG_CONTROL_STRING, CONSOLE_LOG_CONTROL_STRING))
+	if err != nil {
+		return err
+	}
 
 	if c.opts.PersistentStorage {
 		/* FIXME: this doesn't work. It doesn't seem to remember across restarts.

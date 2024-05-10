@@ -7,7 +7,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/matrix-org/complement"
 	"github.com/matrix-org/complement-crypto/internal/api"
@@ -255,23 +254,18 @@ func (c *TestContext) WithAliceSyncing(t *testing.T, callback func(alice api.Cli
 func (c *TestContext) WithAliceAndBobSyncing(t *testing.T, callback func(alice, bob api.Client)) {
 	t.Helper()
 	must.NotEqual(t, c.Bob, nil, "No Bob defined. Call CreateTestContext() with at least 2 api.ClientTypes.")
-	c.WithClientSyncing(t, c.AliceClientType, c.Alice, func(alice api.Client) {
-		t.Helper()
-		c.WithClientSyncing(t, c.BobClientType, c.Bob, func(bob api.Client) {
-			t.Helper()
+	// log both clients in first before syncing so both have device keys and OTKs
+	alice := c.MustLoginClient(t, c.Alice, c.AliceClientType)
+	defer alice.Close(t)
+	bob := c.MustLoginClient(t, c.Bob, c.BobClientType)
+	defer bob.Close(t)
 
-			// Wait until Alice and Bob have probably both uploaded their room
-			// keys, so they can probably send each other messages.
-			// TODO: if we exposed client.encryption().wait_for_e2ee_initialization_tasks we could
-			// call that for Alice and Bob, instead of just sleeping for what we
-			// hope is long enough. See https://github.com/matrix-org/complement-crypto/issues/41
-			time.Sleep(time.Second)
-			// c.Alice.Client.Encryption().WaitForE2eeInitializationTasks()
-			// c.Bob.Client.Encryption().WaitForE2eeInitializationTasks()
+	aliceStopSyncing := alice.MustStartSyncing(t)
+	defer aliceStopSyncing()
+	bobStopSyncing := bob.MustStartSyncing(t)
+	defer bobStopSyncing()
 
-			callback(alice, bob)
-		})
-	})
+	callback(alice, bob)
 }
 
 // WithAliceBobAndCharlieSyncing is a helper function which creates rust/js clients and automatically logs in Alice, Bob
@@ -282,16 +276,22 @@ func (c *TestContext) WithAliceAndBobSyncing(t *testing.T, callback func(alice, 
 func (c *TestContext) WithAliceBobAndCharlieSyncing(t *testing.T, callback func(alice, bob, charlie api.Client)) {
 	t.Helper()
 	must.NotEqual(t, c.Charlie, nil, "No Charlie defined. Call CreateTestContext() with at least 3 api.ClientTypes.")
-	c.WithClientSyncing(t, c.AliceClientType, c.Alice, func(alice api.Client) {
-		t.Helper()
-		c.WithClientSyncing(t, c.BobClientType, c.Bob, func(bob api.Client) {
-			t.Helper()
-			c.WithClientSyncing(t, c.CharlieClientType, c.Charlie, func(charlie api.Client) {
-				t.Helper()
-				callback(alice, bob, charlie)
-			})
-		})
-	})
+	// log all clients in first before syncing so all have device keys and OTKs
+	alice := c.MustLoginClient(t, c.Alice, c.AliceClientType)
+	defer alice.Close(t)
+	bob := c.MustLoginClient(t, c.Bob, c.BobClientType)
+	defer bob.Close(t)
+	charlie := c.MustLoginClient(t, c.Charlie, c.CharlieClientType)
+	defer charlie.Close(t)
+
+	aliceStopSyncing := alice.MustStartSyncing(t)
+	defer aliceStopSyncing()
+	bobStopSyncing := bob.MustStartSyncing(t)
+	defer bobStopSyncing()
+	charlieStopSyncing := charlie.MustStartSyncing(t)
+	defer charlieStopSyncing()
+
+	callback(alice, bob, charlie)
 }
 
 // An option to customise the behaviour of CreateNewEncryptedRoom

@@ -299,7 +299,7 @@ func RunNewDeployment(t *testing.T, mitmProxyAddonsDir string, shouldTCPDump boo
 	ss1Container, err := testcontainers.GenericContainer(ctx,
 		testcontainers.GenericContainerRequest{
 			ContainerRequest: testcontainers.ContainerRequest{
-				Image:        "ghcr.io/matrix-org/sliding-sync:v0.99.14",
+				Image:        "ghcr.io/matrix-org/sliding-sync:v0.99.17",
 				ExposedPorts: []string{ssExposedPort},
 				Env: map[string]string{
 					"SYNCV3_SECRET":    "secret",
@@ -320,7 +320,7 @@ func RunNewDeployment(t *testing.T, mitmProxyAddonsDir string, shouldTCPDump boo
 	ss2Container, err := testcontainers.GenericContainer(ctx,
 		testcontainers.GenericContainerRequest{
 			ContainerRequest: testcontainers.ContainerRequest{
-				Image:        "ghcr.io/matrix-org/sliding-sync:v0.99.14",
+				Image:        "ghcr.io/matrix-org/sliding-sync:v0.99.17",
 				ExposedPorts: []string{ssExposedPort},
 				Env: map[string]string{
 					"SYNCV3_SECRET":    "secret",

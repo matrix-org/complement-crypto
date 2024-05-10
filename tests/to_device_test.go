@@ -78,8 +78,9 @@ func TestUnprocessedToDeviceMessagesArentLostOnRestart(t *testing.T) {
 			Password: "complement-crypto-password",
 		})
 		// the initial setup for rust/js is the same.
+		// login bob first so we have OTKs
+		bob := tc.MustLoginClient(t, tc.Bob, tc.BobClientType, WithPersistentStorage())
 		tc.WithAliceSyncing(t, func(alice api.Client) {
-			bob := tc.MustLoginClient(t, tc.Bob, tc.BobClientType, WithPersistentStorage())
 			// we will close this in the test, no defer
 			bobStopSyncing := bob.MustStartSyncing(t)
 			tc.WithClientSyncing(t, tc.AliceClientType, alice2, func(alice2 api.Client) { // sync to ensure alice2 has keys uploaded
@@ -120,7 +121,7 @@ func TestUnprocessedToDeviceMessagesArentLostOnRestart(t *testing.T) {
 			// client specific impls to handle restarts.
 			switch clientType.Lang {
 			case api.ClientTypeRust:
-				testUnprocessedToDeviceMessagesArentLostOnRestartRust(t, tc, bob.Opts(), roomID, eventID)
+				testUnprocessedToDeviceMessagesArentLostOnRestartRust(t, tc, alice.UserID(), bob.Opts(), roomID, eventID)
 			case api.ClientTypeJS:
 				testUnprocessedToDeviceMessagesArentLostOnRestartJS(t, tc, bob.Opts(), roomID, eventID)
 			default:
@@ -130,11 +131,14 @@ func TestUnprocessedToDeviceMessagesArentLostOnRestart(t *testing.T) {
 	})
 }
 
-func testUnprocessedToDeviceMessagesArentLostOnRestartRust(t *testing.T, tc *TestContext, bobOpts api.ClientCreationOpts, roomID, eventID string) {
+// TODO: unsure if this is actually testing the regression now.
+func testUnprocessedToDeviceMessagesArentLostOnRestartRust(t *testing.T, tc *TestContext, aliceUserID string, bobOpts api.ClientCreationOpts, roomID, eventID string) {
 	// sniff /sync traffic
 	waitForRoomKey := helpers.NewWaiter()
+	waitForChangedDeviceList := helpers.NewWaiter()
 	tc.Deployment.WithSniffedEndpoint(t, "/sync", func(cd deploy.CallbackData) {
 		// When /sync shows a to-device message from Alice (indicating the room key), then SIGKILL Bob.
+		t.Logf("/sync => %v", string(cd.ResponseBody))
 		body := gjson.ParseBytes(cd.ResponseBody)
 		toDeviceEvents := body.Get("extensions.to_device.events").Array() // Sliding Sync form
 		if len(toDeviceEvents) > 0 {
@@ -145,15 +149,34 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartRust(t *testing.T, tc *Tes
 				}
 			}
 		}
+		for _, changed := range body.Get("extensions.e2ee.device_lists.changed").Array() {
+			if changed.Str == aliceUserID {
+				t.Logf("detected alice in device_lists.changed")
+				waitForChangedDeviceList.Finish()
+			}
+		}
 	}, func() {
 		// bob comes back online, and will be killed a short while later.
 		remoteClient := tc.MustCreateMultiprocessClient(t, api.ClientTypeRust, bobOpts)
 		must.NotError(t, "failed to login", remoteClient.Login(t, remoteClient.Opts()))
 
 		// start syncing but don't wait, we wait for the to device event
-		go remoteClient.StartSyncing(t)
+		go func() {
+			_, err := remoteClient.StartSyncing(t)
+			if err != nil {
+				t.Errorf("bob failed to start syncing: %s", err)
+			}
+		}()
 
-		waitForRoomKey.Wait(t, 10*time.Second)
+		// send a message which should cycle the room key. Whilst bob's client will be told
+		// that alice is in device_lists.changed, it won't eagerly cycle the room key when
+		// that happens, instead waiting for a message send.
+		waitForChangedDeviceList.Waitf(t, 5*time.Second, "did not see alice in device_lists.changed")
+		// now send a message after a brief pause to let the client process the device_list
+		time.Sleep(time.Second)
+		remoteClient.SendMessage(t, roomID, "kick to make a room key be sent")
+
+		waitForRoomKey.Waitf(t, 10*time.Second, "did not see room key")
 		t.Logf("killing remote bob client")
 		remoteClient.ForceClose(t)
 
