@@ -106,17 +106,11 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, erro
 			clientSessionDelegate.SaveSessionInKeychain(session)
 			t.Logf("configure NSE client with logged in user: %+v", session)
 			// We purposefully don't SetDelegate as it appears to be unnecessary.
-			notifClientBuilder, err := client.NotificationClient(matrix_sdk_ffi.NotificationProcessSetupMultipleProcesses{})
+			notifClient, err := client.NotificationClient(matrix_sdk_ffi.NotificationProcessSetupMultipleProcesses{})
 			if err != nil {
 				return nil, fmt.Errorf("NotificationClient failed: %s", err)
 			}
-			// weirdly the ffi bindings make new NotificationClientBuilder ffi objects each time you call a chained function,
-			// so we need to destroy() the old one each time or else we can get random rust panics when the finalizer gets
-			// called by Go's GC with "there is no reactor running, must be called from the context of a Tokio 1.x runtime".
-			notifClientBuilder2 := notifClientBuilder.FilterByPushRules()
-			notifClientBuilder.Destroy()
-			c.notifClient = notifClientBuilder2.Finish()
-			notifClientBuilder2.Destroy()
+			c.notifClient = notifClient
 		}
 	}
 
