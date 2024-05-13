@@ -1,5 +1,5 @@
 ## Complement-Crypto
-*EXPERIMENTAL: As of Jan 2024 this repo is under active development currently so things will break constantly.*
+*As of May 2024 this project is being used in CI for existing SDKs. As such, it has a stable API exposed via a Github Action.*
 
 Complement Crypto is an end-to-end test suite for next generation Matrix _clients_, designed to test the full spectrum of E2EE APIs. 
 
@@ -70,11 +70,19 @@ Anti-Goals:
 - UI testing. This is not a goal because it slows down tests, is less portable e.g needs emulators and is usually significantly more flakey than no-UI tests.
 
 
-### Github Action (TODO)
+### Github Action
 
-Inputs:
- - version/commit/branch of JS SDK
- - version/commit/branch of Rust SDK
- - version/commit/branch of synapse?
- - version/commit/branch of sliding sync proxy?
- - Test only JS, only Rust, mixed.
+To run tests for a single SDK, insert this action:
+
+```yaml
+    complement-crypto:
+        name: "Run Complement Crypto tests"
+        uses: matrix-org/complement-crypto/.github/workflows/single_sdk_tests.yml@main
+        with:
+            use_js_sdk: "." # example is for JS SDK, use the current checkout
+```
+
+The complete options for `with:` are as follows:
+ - `use_js_sdk`: Controls the source location of the JS SDK. Provide either a tag, commit or branch on `matrix-org/matrix-js-sdk`. Alternatively, if you have a local checkout somewhere, specify the path of the checkout e.g `.` for the working directory, or `/full/path/to/js/sdk`. Relative paths aren't supported.
+ - `use_rust_sdk`: same as `use_js_sdk` but for the rust SDK.
+ - `use_complement_crypto`: same as `use_js_sdk` but for Complement Crypto itself. Defaults to `main`.
