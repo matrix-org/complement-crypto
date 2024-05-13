@@ -22,7 +22,7 @@ jobs:
     name: Tests (Rust only, latest main)
     uses: ./.github/workflows/single_sdk_tests.yml
     with:
-      use_rust_sdk: 'dddc607e077511aa8c28a09856c0628d316c4dd4' # TODO: go back to main when it works with uniffi 0.25 again
+      use_rust_sdk: 'main'
       use_complement_crypto: '.'
 
   complement:
@@ -49,7 +49,7 @@ jobs:
       - name: Checkout matrix-rust-sdk
         run: |
           mkdir rust-sdk
-          wget -O archive.tar.gz "https://github.com/matrix-org/matrix-rust-sdk/archive/dddc607e077511aa8c28a09856c0628d316c4dd4.tar.gz"
+          wget -O archive.tar.gz "https://github.com/matrix-org/matrix-rust-sdk/archive/main.tar.gz"
           zcat < archive.tar.gz | git get-tar-commit-id # useful for debugging
           tar -xz --strip-components=1 -C rust-sdk < archive.tar.gz
       - uses: Swatinem/rust-cache@v2
@@ -134,7 +134,7 @@ jobs:
           export LD_LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
           export COMPLEMENT_CRYPTO_RPC_BINARY="$(pwd)/rpc"
           set -o pipefail &&
-          go test -v -json -timeout 15m ./internal/tests | gotestfmt
+          go test -v -json -count=1 -timeout 15m ./internal/tests | gotestfmt
         shell: bash # required for pipefail to be A Thing. pipefail is required to stop gotestfmt swallowing non-zero exit codes
         env:
           COMPLEMENT_BASE_IMAGE: homeserver
@@ -149,7 +149,7 @@ jobs:
           export LD_LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
           export COMPLEMENT_CRYPTO_RPC_BINARY="$(pwd)/rpc"
           set -o pipefail &&
-          go test -v -json -tags='jssdk,rust' -timeout 15m ./tests | gotestfmt
+          go test -v -json -tags='jssdk,rust' -count=1 -timeout 15m ./tests | gotestfmt
         shell: bash # required for pipefail to be A Thing. pipefail is required to stop gotestfmt swallowing non-zero exit codes
         name: Run Complement Crypto Tests
         env:
