@@ -8,7 +8,7 @@ It currently tests [rust SDK FFI bindings](https://github.com/matrix-org/matrix-
 ### Installing
 
 *Please ensure you have met Complement's [Dependencies](https://github.com/matrix-org/complement?tab=readme-ov-file#dependencies) first.
-In practice, this means you must have `go` and `libolm` installed.*
+In practice, this means you must have `go`, `docker` and `libolm` installed.*
 
 Complement Crypto can be compiled and run in different modes depending on which SDK is being tested. For example, if you only want
 to test JS SDK then you do not need to compile rust code or run rust tests, and vice versa. Conversely, if you want to test
