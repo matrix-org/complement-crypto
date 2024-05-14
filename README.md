@@ -68,9 +68,11 @@ To run only JS tests:
 ```
 COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX=jj \
 COMPLEMENT_BASE_IMAGE=ghcr.io/matrix-org/synapse-service:v1.94.0 \
-LIBRARY_PATH=$LIBRARY_PATH:/path/to/matrix-rust-sdk/target/debug \
 go test -v -count=1 -tags=jssdk -timeout 15m ./tests
 ```
+
+`COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX` controls which SDK is used to create test clients, and the `-tags` option
+controls conditional compilation so other SDKs don't need to be compiled for the tests to run.
 
 To test interoperability between the SDKs, `tcpdump` the traffic, run extra multiprocess tests and more,
 see [ENVIRONMENT.md](ENVIRONMENT.md) for the full configuration options.
