@@ -1,27 +1,81 @@
 ## Complement-Crypto
 *As of May 2024 this project is being used in CI for existing SDKs. As such, it has a stable API exposed via a Github Action.*
 
-Complement Crypto is an end-to-end test suite for next generation Matrix _clients_, designed to test the full spectrum of E2EE APIs. 
+Complement Crypto is an end-to-end test suite for next generation Matrix _clients_, designed to test the full spectrum of E2EE APIs.
+It currently tests [rust SDK FFI bindings](https://github.com/matrix-org/matrix-rust-sdk/tree/main/bindings/matrix-sdk-ffi) and
+[JS SDK](https://github.com/matrix-org/matrix-js-sdk/).
 
-### How do I run it?
+### Installing
 
-*See [FAQ.md](FAQ.md) for more information.*
+*Please ensure you have met Complement's [Dependencies](https://github.com/matrix-org/complement?tab=readme-ov-file#dependencies) first.
+In practice, this means you must have `go` and `libolm` installed.*
 
-Please ensure you have met Complement's [Dependencies](https://github.com/matrix-org/complement?tab=readme-ov-file#dependencies) first.
+Complement Crypto can be compiled and run in different modes depending on which SDK is being tested. For example, if you only want
+to test JS SDK then you do not need to compile rust code or run rust tests, and vice versa. Conversely, if you want to test
+interoperability between the two SDKs then you need to compile both SDKs.
 
-It's currently pretty awful to run, as you need toolchains for both Rust and JS. Working on improving this. All tests are run in Github Actions, so see https://github.com/matrix-org/complement-crypto/blob/main/.github/workflows/tests.yaml for a step-by-step process.
+#### JS SDK
 
-You need to build Rust SDK FFI bindings _and_ JS SDK before you can get this to run. You also need a Complement homeserver image. When that is setup:
-
+Run `./rebuild_js_sdk.sh` according to its help page:
 ```
-COMPLEMENT_BASE_IMAGE=homeserver:latest go test -tags='rust,jssdk' -v ./tests
+Rebuild the version of JS SDK used. (requires on PATH: yarn)
+Usage: ./rebuild_js_sdk.sh [version]
+  [version]: the yarn/npm package to use. This is fed directly into 'yarn add' so branches/commits can be used
+
+Examples:
+  Install a released version: ./rebuild_js_sdk.sh matrix-js-sdk@29.1.0
+  Install develop branch:     ./rebuild_js_sdk.sh matrix-js-sdk@https://github.com/matrix-org/matrix-js-sdk#develop
+  Install specific commit:    ./rebuild_js_sdk.sh matrix-js-sdk@https://github.com/matrix-org/matrix-js-sdk#36c958642cda08d32bc19c2303ebdfca470d03c1
 ```
 
-TODO: consider checking in working builds so you can git clone and run. Git LFS for `libmatrix_sdk_ffi.so` given it's 60MB?
-TODO: Dockerify JS SDK so developers don't _need_ an active npm install?
+#### Rust SDK
 
-#### Environment Variables
-See [ENVIRONMENT.md](ENVIRONMENT.md).
+Pre-requisites:
+ - `cargo` installed and on your PATH
+ - Install uniffi bindings for Go: `./install_uniffi_bindgen_go.sh` - ensure `uniffi-bindgen-go` is on your PATH.
+
+Run `./rebuild_rust_sdk.sh` according to its help page:
+```
+Rebuild the version of rust SDK used. Execute this inside the complement-crypto directory. (requires on PATH: uniffi-bindgen-go, cargo, git)
+Usage: ./rebuild_rust_sdk.sh [version|directory]
+  [version]: the rust SDK git repo and branch|tag to use. Syntax: '$HTTPS_URL@$TAG|$BRANCH'
+             Stores repository in $PWD/_temp_rust_sdk
+  [directory]: the local rust SDK checkout to use.
+
+Examples:
+  Install main branch:  ./rebuild_rust_sdk.sh https://github.com/matrix-org/matrix-rust-sdk@main
+  Install 0.7.1 tag:    ./rebuild_rust_sdk.sh https://github.com/matrix-org/matrix-rust-sdk@0.7.1
+  Install ./rust-sdk    ./rebuild_rust_sdk.sh ./rust-sdk
+
+[directory] is determined if the first character is a '.' or '/'. If neither, it is assumed to be a [version]
+The [version] is split into the URL and TAG|BRANCH then fed directly into 'git clone --depth 1 --branch <tag_name> <repo_url>'
+```
+
+### Running
+
+Find a complement-compatible homeserver image. If you don't care which image is used, use `ghcr.io/matrix-org/synapse-service:v1.94.0` 
+which will Just Work out-of-the-box.
+
+To run only rust tests:
+```
+COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX=rr \
+COMPLEMENT_BASE_IMAGE=ghcr.io/matrix-org/synapse-service:v1.94.0 \
+LIBRARY_PATH=$LIBRARY_PATH:/path/to/matrix-rust-sdk/target/debug \
+go test -v -count=1 -tags=rust -timeout 15m ./tests
+```
+
+To run only JS tests:
+```
+COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX=jj \
+COMPLEMENT_BASE_IMAGE=ghcr.io/matrix-org/synapse-service:v1.94.0 \
+LIBRARY_PATH=$LIBRARY_PATH:/path/to/matrix-rust-sdk/target/debug \
+go test -v -count=1 -tags=jssdk -timeout 15m ./tests
+```
+
+To test interoperability between the SDKs, `tcpdump` the traffic, run extra multiprocess tests and more,
+see [ENVIRONMENT.md](ENVIRONMENT.md) for the full configuration options.
+
+*See [FAQ.md](FAQ.md) for more information around debugging.*
 
 ### Test hitlist
 There is an exhaustive set of tests that this repository aims to exercise. See [TEST_HITLIST.md](TEST_HITLIST.md).
@@ -32,13 +86,15 @@ Tests sometimes require reverse proxy interception to let some requests pass thr
 
 ```
      Host        |       dockerd           
-                 |                          +----------+      +----------+
-                 |                     .--> | ss proxy | <--> | postgres |
- +----------+    |    +-----------+    |    +-----+----+      +----------+
- | Go tests | <--|--> | mitmproxy | <--+--> | hs1 |
- +----------+    |    +-----------+    |    +-----+
-                 |                     `--> | hs2 |
-                 |                          +-----+
+                 |                          +-----------+      
+                 |                     .--> | ss proxy1 | <------.
+ +----------+    |    +-----------+    |    +-----+-----+        V
+ | Go tests | <--|--> | mitmproxy | <--+--> | hs1 |          +----------+
+ +----------+    |    +-----------+    |    +-----+          | postgres |
+                 |                     +--> | hs2 |          +----------+
+                 |                     |    +-----+-----+        ^
+                 |                     `--> | ss proxy2 | <------`
+                 |                          +-----------+      
 ```
 
 TODO: flesh out mitm controller API
