@@ -202,7 +202,7 @@ func (c *TestContext) WithClientSyncing(t *testing.T, clientType api.ClientType,
 func (c *TestContext) MustCreateMultiprocessClient(t *testing.T, lang api.ClientTypeLang, opts api.ClientCreationOpts) api.Client {
 	t.Helper()
 	if c.RPCBinaryPath == "" {
-		t.Skipf("RPC binary path not provided, skipping multiprocess test")
+		t.Skipf("RPC binary path not provided, skipping multiprocess test. To run this test, set COMPLEMENT_CRYPTO_RPC_BINARY")
 		return nil
 	}
 	remoteBindings, err := deploy.NewRPCLanguageBindings(c.RPCBinaryPath, lang)
