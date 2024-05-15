@@ -29,6 +29,10 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
+        # At this stage we don't know which repo we have just checked out. We will reference this repo
+        # if the workflow uses '.'
+        - name: Checkout repo
+          uses: actions/checkout@v3
         - name: Resolve branches
           shell: bash
           # these env vars will be modified and used in subsequent steps
@@ -82,10 +86,6 @@ jobs:
             done
 
             echo "Resolved branches: JS_SDK=$JS_SDK, RUST_SDK=$RUST_SDK, CC=$CC"
-        # At this stage we don't know which repo we have just checked out. We will reference this repo
-        # if the workflow uses '.'
-        - name: Checkout repo
-          uses: actions/checkout@v3
 
         # The aim of these two steps is to guarantee that complement-crypto is at `./complement-crypto`
         - name: Checkout complement-crypto
