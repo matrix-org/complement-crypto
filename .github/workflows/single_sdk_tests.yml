@@ -11,17 +11,17 @@ on:
       # TODO: we should improve the inputs here. We should also allow caller workflows the
       # ability to run x-client tests if they wish.
       use_js_sdk:
-        description: 'tag/commit/branch of the JS SDK to test against. If "." then the caller checkout is used.'
+        description: 'tag/commit/branch of the JS SDK to test against. If "." then the caller checkout is used. If "MATCHING_BRANCH" then it tries to use the same branch as another "." input, falling back to the default branch.'
         required: false
         default: ''
         type: string
       use_rust_sdk:
-        description: 'tag/commit/branch of the Rust SDK to test against. If "." then the caller checkout is used.'
+        description: 'tag/commit/branch of the Rust SDK to test against. If "." then the caller checkout is used. If "MATCHING_BRANCH" then it tries to use the same branch as another "." input, falling back to the default branch.'
         required: false
         default: ''
         type: string
       use_complement_crypto:
-        description: 'tag/commit/branch of Complement Crypto to test against. If "." then the caller checkout is used.'
+        description: 'tag/commit/branch of Complement Crypto to test against. If "." then the caller checkout is used. If "MATCHING_BRANCH" then it tries to use the same branch as another "." input, falling back to the default branch.'
         required: false
         default: 'main'
         type: string
@@ -29,19 +29,75 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
+        - name: Resolve branches
+          shell: bash
+          # these env vars will be modified and used in subsequent steps
+          env:
+            JS_SDK: ${{ inputs.use_js_sdk }}
+            RUST_SDK: ${{ inputs.use_rust_sdk }}
+            CC: ${{ inputs.use_complement_crypto }}
+          run: |
+            # only 1 '.' is supported. Check it now.
+            count=0
+            input_name=""
+  
+            for var_name in JS_SDK RUST_SDK CC; do
+              if [ "${{ env.${var_name} }}" = "." ]; then
+                count=$((count + 1))
+                input_name=$var_name
+                echo "$var_name=${{ env.${var_name} }}" >> $GITHUB_ENV
+              fi
+            done
+  
+  
+            if [ "$count" -gt 1 ]; then
+              echo "Error: this workflow does not support > 1 '.' input for use_js_sdk, use_rust_sdk, use_complement_crypto"
+              exit 1
+            elif [ "$count" -eq 0 ]; then
+              echo "No variables are set to '.' so skipping check for MATCHING_BRANCH"
+              exit 0
+            fi
+
+            # we have 1 '.' var, so pull out the current branch name in this GHA, falling back to the targets default branch
+            CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+            declare -A input_to_repo_url
+            input_to_repo_url["JS_SDK"]="matrix-org/matrix-js-sdk"
+            input_to_repo_url["RUST_SDK"]="matrix-org/matrix-rust-sdk"
+            input_to_repo_url["CC"]="matrix-org/complement-crypto"
+
+            for var_name in JS_SDK RUST_SDK CC; do
+              if [ "${{ env.${var_name} }}" = "MATCHING_BRANCH" ]; then
+                # check if current branch exists on this repo
+                response=$(curl -s -o /dev/null -w "%{http_code}" "https://api.github.com/repos/${input_to_repo_url["$var_name"]}/branches/$CURRENT_BRANCH")
+                if [ "$response" = "200" ]; then
+                    echo "Branch $CURRENT_BRANCH exists in ${input_to_repo_url["$var_name"]}, using it for $var_name."
+                    echo "$var_name=$CURRENT_BRANCH" >> $GITHUB_ENV
+                else
+                    echo "Branch $CURRENT_BRANCH does not exist in ${input_to_repo_url["$var_name"]}, falling back to default branch for $var_name."
+                    DEFAULT_BRANCH=$(git ls-remote --symref https://github.com/${input_to_repo_url["$var_name"]}.git HEAD | grep 'ref: ' | sed 's@.*/@@' | cut -f 1)
+                    echo "$var_name=$DEFAULT_BRANCH" >> $GITHUB_ENV
+                fi
+              fi
+            done
+
+            echo "Resolved branches: JS_SDK=$JS_SDK, RUST_SDK=$RUST_SDK, CC=$CC"
+        # At this stage we don't know which repo we have just checked out. We will reference this repo
+        # if the workflow uses '.'
         - name: Checkout repo
           uses: actions/checkout@v3
+
+        # The aim of these two steps is to guarantee that complement-crypto is at `./complement-crypto`
         - name: Checkout complement-crypto
           if: ${{ inputs.use_complement_crypto != '.'}}
-          env:
-            COMPLEMENT_CRYPTO_SHA: ${{ inputs.use_complement_crypto }}
           run: |
             mkdir complement-crypto
-            (wget -O - "https://github.com/matrix-org/complement-crypto/archive/$COMPLEMENT_CRYPTO_SHA.tar.gz" | tar -xz --strip-components=1 -C complement-crypto)
+            (wget -O - "https://github.com/matrix-org/complement-crypto/archive/$CC.tar.gz" | tar -xz --strip-components=1 -C complement-crypto)
         - name: Symlink complement-crypto
           if: ${{ inputs.use_complement_crypto == '.'}}
           run: |
             ln -s . complement-crypto
+
         # Setup code we always need
         - name: Pull synapse service v1.94.0 and mitmproxy
           shell: bash
@@ -60,6 +116,7 @@ jobs:
             go install -v github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
 
         # JS SDK only steps
+        # The aim is to provide the right location of the JS SDK to rebuild_js_sdk.sh
         - name: Setup | Node.js 18.x
           if: ${{ inputs.use_js_sdk != '' }}
           uses: actions/setup-node@v3
@@ -67,14 +124,18 @@ jobs:
             node-version: 18
         - name: "Install JS SDK"
           if: ${{ inputs.use_js_sdk != '' }}
-          env:
-            # figure out the right yarn add syntax TODO: allow custom forks
-            JS_SDK: ${{ inputs.use_js_sdk  == '.' && format('file:{0}',github.workspace) || format('https://github.com/matrix-org/matrix-js-sdk#{0}', inputs.use_js_sdk) }}
+          shell: bash
           run: |
-            echo "Installing matrix-js-sdk @ $JS_SDK..."
+            echo "Installing matrix-js-sdk @ $JS_SDK"
+            YARN_PATH="https://github.com/matrix-org/matrix-js-sdk#$JS_SDK"
+            if [ "$JS_SDK" = "." ]; then
+              YARN_PATH="file:${{ github.workspace }}"
+            fi
             (cd complement-crypto && ./rebuild_js_sdk.sh "matrix-js-sdk@$JS_SDK")
 
-        # Rust SDK only steps
+        # Rust SDK only steps.
+        # The aim is to guarantee that rust-sdk is either at '.' or './complement-crypto/rust-sdk'
+        # which we then pass to rebuild_rust_sdk.sh
         - name: Setup | Rust
           if: ${{ inputs.use_rust_sdk != '' }}
           uses: dtolnay/rust-toolchain@stable
@@ -82,17 +143,16 @@ jobs:
             toolchain: stable
         - name: "Download Rust SDK" # no need to download rust SDK if we are using the local checkout.
           if: ${{ inputs.use_rust_sdk != '' && inputs.use_rust_sdk != '.'}}
-          env:
-            RUST_SDK: ${{ inputs.use_rust_sdk }} # TODO: allow custom forks
           run: |
             cd complement-crypto
-            mkdir rust-sdk # don't use HTTPS path in rebuild_rust_sdk.sh so we can use the rust-cache before building
+            mkdir rust-sdk
             (wget -O - "https://github.com/matrix-org/matrix-rust-sdk/archive/$RUST_SDK.tar.gz" | tar -xz --strip-components=1 -C rust-sdk)
         - name: Build Rust SDK
           if: ${{ inputs.use_rust_sdk != '' }}
           env:
             RUST_SDK_DIR: ${{ inputs.use_rust_sdk == '.' && '..' || './rust-sdk' }}
           run: |
+            echo "Compiling matrix-rust-sdk @ $RUST_SDK"
             cd complement-crypto && ./install_uniffi_bindgen_go.sh && ./rebuild_rust_sdk.sh $RUST_SDK_DIR
 
         - name: Build RPC client (rust)

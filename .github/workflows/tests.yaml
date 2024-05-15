@@ -12,17 +12,17 @@ jobs:
     uses: "matrix-org/backend-meta/.github/workflows/sign-off.yml@v2"
 
   js-latest-main:
-    name: Tests (JS only, latest develop)
+    name: Tests (JS only, latest)
     uses: ./.github/workflows/single_sdk_tests.yml
     with:
-      use_js_sdk: 'develop'
+      use_js_sdk: 'MATCHING_BRANCH'
       use_complement_crypto: '.'
 
   rust-latest-main:
-    name: Tests (Rust only, latest main)
+    name: Tests (Rust only, latest)
     uses: ./.github/workflows/single_sdk_tests.yml
     with:
-      use_rust_sdk: 'main'
+      use_rust_sdk: 'MATCHING_BRANCH'
       use_complement_crypto: '.'
 
   complement:
