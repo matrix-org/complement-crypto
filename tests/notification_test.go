@@ -318,7 +318,7 @@ func TestMultiprocessNSEBackupKeyMacError(t *testing.T) {
 		// restart alice but keep nse process around
 		stopAliceSyncing()
 
-		// send finaly message
+		// send final message
 		msg = "final message"
 		eventID = bob.SendMessage(t, roomID, msg)
 		eventTimeline = append(eventTimeline, eventID)
