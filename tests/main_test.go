@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/matrix-org/complement"
@@ -131,10 +132,19 @@ func WithCrossProcessLock(processName string) func(*api.ClientCreationOpts) {
 	}
 }
 
+// WithAccessToken is an option which can be provided to MustCreateClient which will configure an access token for the client.
+// No-ops on non-rust clients, for now. In theory this option should be generic to configure an already logged in client. TODO
+func WithAccessToken(accessToken string) func(*api.ClientCreationOpts) {
+	return func(o *api.ClientCreationOpts) {
+		o.AccessToken = accessToken
+	}
+}
+
 // TestContext provides a consistent set of variables which most tests will need access to.
 type TestContext struct {
 	Deployment    *deploy.SlidingSyncDeployment
 	RPCBinaryPath string
+	RPCInstance   atomic.Int32
 	// Alice is defined if at least 1 clientType is provided to CreateTestContext.
 	Alice           *client.CSAPI
 	AliceClientType api.ClientType
@@ -205,7 +215,8 @@ func (c *TestContext) MustCreateMultiprocessClient(t *testing.T, lang api.Client
 		t.Skipf("RPC binary path not provided, skipping multiprocess test. To run this test, set COMPLEMENT_CRYPTO_RPC_BINARY")
 		return nil
 	}
-	remoteBindings, err := deploy.NewRPCLanguageBindings(c.RPCBinaryPath, lang)
+	ctxPrefix := fmt.Sprintf("%d", c.RPCInstance.Add(1))
+	remoteBindings, err := deploy.NewRPCLanguageBindings(c.RPCBinaryPath, lang, ctxPrefix)
 	if err != nil {
 		t.Fatalf("Failed to create new RPC language bindings: %s", err)
 	}

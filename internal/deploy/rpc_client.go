@@ -17,14 +17,16 @@ import (
 
 // RPCLanguageBindings implements api.LanguageBindings and instead issues RPC calls to a remote server.
 type RPCLanguageBindings struct {
-	binaryPath string
-	clientType api.ClientTypeLang
+	binaryPath    string
+	clientType    api.ClientTypeLang
+	contextPrefix string
 }
 
-func NewRPCLanguageBindings(rpcBinaryPath string, clientType api.ClientTypeLang) (*RPCLanguageBindings, error) {
+func NewRPCLanguageBindings(rpcBinaryPath string, clientType api.ClientTypeLang, contextPrefix string) (*RPCLanguageBindings, error) {
 	return &RPCLanguageBindings{
-		binaryPath: rpcBinaryPath,
-		clientType: clientType,
+		binaryPath:    rpcBinaryPath,
+		clientType:    clientType,
+		contextPrefix: contextPrefix,
 	}, nil
 }
 
@@ -46,7 +48,7 @@ func (r *RPCLanguageBindings) PostTestRun(contextID string) {
 //   - IPC via stdout fails (used to extract the random high numbered port)
 //   - the client cannot talk to the rpc server
 func (r *RPCLanguageBindings) MustCreateClient(t ct.TestLike, cfg api.ClientCreationOpts) api.Client {
-	contextID := fmt.Sprintf("%s_%s", strings.Replace(cfg.UserID[1:], ":", "_", -1), cfg.DeviceID)
+	contextID := fmt.Sprintf("%s%s_%s", r.contextPrefix, strings.Replace(cfg.UserID[1:], ":", "_", -1), cfg.DeviceID)
 	// security: check it is a file not a random bash script...
 	if _, err := os.Stat(r.binaryPath); err != nil {
 		ct.Fatalf(t, "%s: RPC binary at %s does not exist or cannot be executed/read: %s", contextID, r.binaryPath, err)
