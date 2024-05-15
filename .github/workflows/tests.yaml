@@ -69,10 +69,7 @@ jobs:
 
       - name: Build Rust FFI bindings
         run: |
-          sed -i.bak 's/uniffi =.*/uniffi = "0\.25\.3"/' rust-sdk/Cargo.toml
-          sed -i.bak 's^uniffi_bindgen =.*^uniffi_bindgen = { git = "https:\/\/github.com\/mozilla\/uniffi-rs", rev = "0a03b713306d6ce3de033157fc2ce92a238c2e24" }^' rust-sdk/Cargo.toml
-          (cd rust-sdk && cargo build -p matrix-sdk-ffi)
-          ls -alh rust-sdk/target/debug
+          ./rebuild_rust_sdk ./rust-sdk
 
       # Temporary: as it takes 3m to build the complement synapse image >:(
       - name: Pull synapse service v1.94.0 and mitmproxy
@@ -119,7 +116,6 @@ jobs:
         run: |
           export LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
           export LD_LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
-          env
           go test $(go list ./internal/... | grep -v 'internal/tests') -timeout 60s
 
       - name: "Building RPC client"
