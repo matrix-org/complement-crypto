@@ -69,7 +69,7 @@ jobs:
 
       - name: Build Rust FFI bindings
         run: |
-          ./rebuild_rust_sdk.sh ./rust-sdk
+          ./install_uniffi_bindgen_go.sh && ./rebuild_rust_sdk.sh ./rust-sdk
 
       # Temporary: as it takes 3m to build the complement synapse image >:(
       - name: Pull synapse service v1.94.0 and mitmproxy
