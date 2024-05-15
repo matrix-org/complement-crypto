@@ -463,7 +463,7 @@ func TestMultiprocessDupeOTKUpload(t *testing.T) {
 		if cd.ResponseCode != 200 {
 			// we rely on the homeserver checking and rejecting when the same key ID is used with
 			// different keys.
-			t.Errorf("/keys/upload returned an error, duplicate key upload? %+v", cd)
+			t.Errorf("/keys/upload returned an error, duplicate key upload? %+v => %v", cd, string(cd.ResponseBody))
 		}
 		// tarpit the response
 		t.Logf("tarpitting keys/upload response for 4 seconds")
