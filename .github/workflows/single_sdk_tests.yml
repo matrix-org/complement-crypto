@@ -39,13 +39,13 @@ jobs:
           env:
             JS_SDK: ${{ inputs.use_js_sdk }}
             RUST_SDK: ${{ inputs.use_rust_sdk }}
-            CC: ${{ inputs.use_complement_crypto }}
+            COMPLEMENT_CRYPTO: ${{ inputs.use_complement_crypto }}
           run: |
             # only 1 '.' is supported. Check it now.
             count=0
             input_name=""
   
-            for var_name in JS_SDK RUST_SDK CC; do
+            for var_name in JS_SDK RUST_SDK COMPLEMENT_CRYPTO; do
               if [ "${!var_name}" = "." ]; then
                 count=$((count + 1))
                 input_name=$var_name
@@ -69,18 +69,18 @@ jobs:
             declare -A input_to_repo_url
             input_to_repo_url["JS_SDK"]="matrix-org/matrix-js-sdk"
             input_to_repo_url["RUST_SDK"]="matrix-org/matrix-rust-sdk"
-            input_to_repo_url["CC"]="matrix-org/complement-crypto"
+            input_to_repo_url["COMPLEMENT_CRYPTO"]="matrix-org/complement-crypto"
 
-            for var_name in JS_SDK RUST_SDK CC; do
+            for var_name in JS_SDK RUST_SDK COMPLEMENT_CRYPTO; do
               if [ "${!var_name}" = "MATCHING_BRANCH" ]; then
                 # check if current branch exists on this repo
                 response=$(curl -s -o /dev/null -w "%{http_code}" "https://api.github.com/repos/${input_to_repo_url["$var_name"]}/branches/$CURRENT_BRANCH")
                 if [ "$response" = "200" ]; then
-                    echo "Branch $CURRENT_BRANCH exists in ${input_to_repo_url["$var_name"]}, using it for $var_name."
+                    echo "Branch $CURRENT_BRANCH exists in ${input_to_repo_url["$var_name"]}, using $CURRENT_BRANCH for $var_name."
                     echo "$var_name=$CURRENT_BRANCH" >> $GITHUB_ENV
                 else
-                    echo "Branch $CURRENT_BRANCH does not exist in ${input_to_repo_url["$var_name"]}, falling back to default branch for $var_name."
                     DEFAULT_BRANCH=$(git ls-remote --symref https://github.com/${input_to_repo_url["$var_name"]}.git HEAD | grep 'ref: ' | sed 's@.*/@@' | cut -f 1)
+                    echo "Branch $CURRENT_BRANCH does not exist in ${input_to_repo_url["$var_name"]}, falling back and using default branch $DEFAULT_BRANCH."
                     echo "$var_name=$DEFAULT_BRANCH" >> $GITHUB_ENV
                 fi
               else
@@ -93,7 +93,7 @@ jobs:
           if: ${{ inputs.use_complement_crypto != '.'}}
           run: |
             mkdir complement-crypto
-            (wget -O - "https://github.com/matrix-org/complement-crypto/archive/$CC.tar.gz" | tar -xz --strip-components=1 -C complement-crypto)
+            (wget -O - "https://github.com/matrix-org/complement-crypto/archive/$COMPLEMENT_CRYPTO.tar.gz" | tar -xz --strip-components=1 -C complement-crypto)
         - name: Symlink complement-crypto
           if: ${{ inputs.use_complement_crypto == '.'}}
           run: |
