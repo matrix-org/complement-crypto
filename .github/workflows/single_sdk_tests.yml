@@ -63,7 +63,8 @@ jobs:
             fi
 
             # we have 1 '.' var, so pull out the current branch name in this GHA, falling back to the targets default branch
-            CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+            CURRENT_BRANCH=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}
+            echo "Current branch: $CURRENT_BRANCH"
 
             declare -A input_to_repo_url
             input_to_repo_url["JS_SDK"]="matrix-org/matrix-js-sdk"
@@ -82,10 +83,10 @@ jobs:
                     DEFAULT_BRANCH=$(git ls-remote --symref https://github.com/${input_to_repo_url["$var_name"]}.git HEAD | grep 'ref: ' | sed 's@.*/@@' | cut -f 1)
                     echo "$var_name=$DEFAULT_BRANCH" >> $GITHUB_ENV
                 fi
+              else
+                echo "Using ${!var_name} for ${input_to_repo_url["$var_name"]}"
               fi
             done
-
-            echo "Resolved branches: JS_SDK=$JS_SDK, RUST_SDK=$RUST_SDK, CC=$CC"
 
         # The aim of these two steps is to guarantee that complement-crypto is at `./complement-crypto`
         - name: Checkout complement-crypto
@@ -131,7 +132,7 @@ jobs:
             if [ "$JS_SDK" = "." ]; then
               YARN_PATH="file:${{ github.workspace }}"
             fi
-            (cd complement-crypto && ./rebuild_js_sdk.sh "matrix-js-sdk@$JS_SDK")
+            (cd complement-crypto && ./rebuild_js_sdk.sh "matrix-js-sdk@$YARN_PATH")
 
         # Rust SDK only steps.
         # The aim is to guarantee that rust-sdk is either at '.' or './complement-crypto/rust-sdk'
