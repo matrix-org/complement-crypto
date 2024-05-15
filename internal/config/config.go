@@ -21,7 +21,7 @@ type ComplementCrypto struct {
 	//  - `j`: Run a JS SDK client on hs1.
 	//  - `r`: Run a Rust SDK FFI client on hs1.
 	//  - `J`: Run a JS SDK client on hs2.
-	//  - `R`: Run a Rust SDK FFI client on hs2. TODO: needs additional SS proxy / postgres.
+	//  - `R`: Run a Rust SDK FFI client on hs2.
 	// ```
 	// For example, for a simple "Alice and Bob" test:
 	// ```

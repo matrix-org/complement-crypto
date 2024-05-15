@@ -86,7 +86,6 @@ jobs:
             RUST_SDK: ${{ inputs.use_rust_sdk }} # TODO: allow custom forks
           run: |
             cd complement-crypto
-            ./install_uniffi_bindgen_go.sh
             mkdir rust-sdk # don't use HTTPS path in rebuild_rust_sdk.sh so we can use the rust-cache before building
             (wget -O - "https://github.com/matrix-org/matrix-rust-sdk/archive/$RUST_SDK.tar.gz" | tar -xz --strip-components=1 -C rust-sdk)
         - name: Build Rust SDK
@@ -94,7 +93,7 @@ jobs:
           env:
             RUST_SDK_DIR: ${{ inputs.use_rust_sdk == '.' && '..' || './rust-sdk' }}
           run: |
-            cd complement-crypto && ./rebuild_rust_sdk.sh $RUST_SDK_DIR
+            cd complement-crypto && ./install_uniffi_bindgen_go.sh && ./rebuild_rust_sdk.sh $RUST_SDK_DIR
 
         - name: Build RPC client (rust)
           if: ${{ inputs.use_rust_sdk != '' }}
@@ -117,7 +116,7 @@ jobs:
             export COMPLEMENT_CRYPTO_RPC_BINARY="$(pwd)/complement-crypto/rpc"
             cd complement-crypto &&
             set -o pipefail &&
-            go test -v -json -tags=$GO_TAGS -timeout 15m ./tests | gotestfmt
+            go test -v -count=1 -json -tags=$GO_TAGS -timeout 15m ./tests | gotestfmt
           shell: bash # required for pipefail to be A Thing. pipefail is required to stop gotestfmt swallowing non-zero exit codes
           env:
             COMPLEMENT_BASE_IMAGE: homeserver
