@@ -267,7 +267,6 @@ func TestMultiprocessNSEBackupKeyMacError(t *testing.T) {
 		t.Skipf("rust only")
 		return
 	}
-	t.Skipf("pending bugfix")
 	tc, roomID := createAndJoinRoom(t)
 	// Alice starts syncing to get an encrypted room set up
 	alice := tc.MustLoginClient(t, tc.Alice, tc.AliceClientType, WithPersistentStorage(), WithCrossProcessLock("main"))
@@ -441,15 +440,11 @@ func TestMultiprocessDupeOTKUpload(t *testing.T) {
 		t.Skipf("rust only")
 		return
 	}
-	t.Skipf("WIP")
 	tc, roomID := createAndJoinRoom(t)
 
 	// start the "main" app
 	alice := tc.MustLoginClient(t, tc.Alice, tc.AliceClientType, WithPersistentStorage(), WithCrossProcessLock("main"))
 	aliceAccessToken := alice.Opts().AccessToken
-
-	// let OTKs be uploaded
-	time.Sleep(time.Second)
 
 	// prep nse process
 	nseAlice := tc.MustCreateMultiprocessClient(t, tc.AliceClientType.Lang, tc.ClientCreationOpts(t, tc.Alice, tc.AliceClientType.HS,
@@ -457,7 +452,7 @@ func TestMultiprocessDupeOTKUpload(t *testing.T) {
 	))
 
 	aliceUploadedNewKeys := false
-	// artificially slow down the HTTP responses, such that we will have 2 in-flight /keys/upload requests
+	// artificially slow down the HTTP responses, such that we will potentially have 2 in-flight /keys/upload requests
 	// at once. If the NSE and main apps are talking to each other, they should be using the same key ID + key.
 	// If not... well, that's a bug because then the client will forget one of these keys.
 	tc.Deployment.WithSniffedEndpoint(t, "/keys/upload", func(cd deploy.CallbackData) {
