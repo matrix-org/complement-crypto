@@ -14,6 +14,8 @@ Complement Crypto can be compiled and run in different modes depending on which 
 to test JS SDK then you do not need to compile rust code or run rust tests, and vice versa. Conversely, if you want to test
 interoperability between the two SDKs then you need to compile both SDKs.
 
+This means you MUST compile at least 1 SDK in order for Complement-Crypto to compile and run.
+
 #### JS SDK
 
 Run `./rebuild_js_sdk.sh` according to its help page:
@@ -23,9 +25,10 @@ Usage: ./rebuild_js_sdk.sh [version]
   [version]: the yarn/npm package to use. This is fed directly into 'yarn add' so branches/commits can be used
 
 Examples:
-  Install a released version: ./rebuild_js_sdk.sh matrix-js-sdk@29.1.0
-  Install develop branch:     ./rebuild_js_sdk.sh matrix-js-sdk@https://github.com/matrix-org/matrix-js-sdk#develop
-  Install specific commit:    ./rebuild_js_sdk.sh matrix-js-sdk@https://github.com/matrix-org/matrix-js-sdk#36c958642cda08d32bc19c2303ebdfca470d03c1
+  Install a released version:    ./rebuild_js_sdk.sh matrix-js-sdk@29.1.0
+  Install develop branch:        ./rebuild_js_sdk.sh matrix-js-sdk@https://github.com/matrix-org/matrix-js-sdk#develop
+  Install specific commit:       ./rebuild_js_sdk.sh matrix-js-sdk@https://github.com/matrix-org/matrix-js-sdk#36c958642cda08d32bc19c2303ebdfca470d03c1
+  Install from a local checkout: ./rebuild_js_sdk.sh matrix-js-sdk@file:/path/to/local/js/sdk"
 ```
 
 #### Rust SDK
