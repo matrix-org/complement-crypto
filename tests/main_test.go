@@ -109,13 +109,6 @@ func MustCreateClient(t *testing.T, clientType api.ClientType, cfg api.ClientCre
 	return c
 }
 
-// WithDoLogin is an option which can be provided to MustCreateClient which will automatically login, else fail the test.
-func WithDoLogin(t *testing.T) func(api.Client, *api.ClientCreationOpts) {
-	return func(c api.Client, opts *api.ClientCreationOpts) {
-		must.NotError(t, "failed to login", c.Login(t, *opts))
-	}
-}
-
 // WithPersistentStorage is an option which can be provided to MustCreateClient which will configure clients to use persistent storage,
 // e.g IndexedDB or sqlite3 files.
 func WithPersistentStorage() func(*api.ClientCreationOpts) {

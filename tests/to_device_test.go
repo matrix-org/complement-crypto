@@ -241,3 +241,72 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartJS(t *testing.T, tc *TestC
 		must.Equal(t, ev.Text, "Kick to make a new room key!", "event text mismatch")
 	})
 }
+
+// Regression test for https://github.com/element-hq/element-web/issues/24680
+//
+// It's important that room keys are sent out ASAP, else the encrypted event may arrive
+// before the keys, causing a temporary unable-to-decrypt error. Clients SHOULD be batching
+// to-device messages, but old implementations batched too low (20 messages per request).
+// This test asserts we batch at least 100 per request.
+//
+// It does this by creating an E2EE room with 100 E2EE users, and forces a key rotation
+// by sending a message with rotation_period_msgs=1. It does not ensure that the room key
+// is correctly sent to all 100 users as that would entail having 100 users running at
+// the same time (think 100 browsers = expensive). Instead, we sequentially spin up 100
+// clients and then close them before doing the test, and assert we send 100 events.
+//
+// In the future, it may be difficult to run this test for 1 user with 100 devices due to
+// HS limits on the number of devices and forced cross-signing.
+func TestToDeviceMessagesAreBatched(t *testing.T) {
+	ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
+		tc := CreateTestContext(t, clientType)
+		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, EncRoomOptions.RotationPeriodMsgs(1), EncRoomOptions.PresetPublicChat())
+		// create 100 users
+		for i := 0; i < 100; i++ {
+			cli := tc.Deployment.Register(t, clientType.HS, helpers.RegistrationOpts{
+				LocalpartSuffix: fmt.Sprintf("bob-%d", i),
+				Password:        "complement-crypto-password",
+			})
+			cli.MustJoinRoom(t, roomID, []string{clientType.HS})
+			// this blocks until it has uploaded OTKs/device keys
+			clientUnderTest := tc.MustLoginClient(t, cli, tc.AliceClientType)
+			clientUnderTest.Close(t)
+		}
+		waiter := helpers.NewWaiter()
+		tc.WithAliceSyncing(t, func(alice api.Client) {
+			// intercept /sendToDevice and check we are sending 100 messages per request
+			tc.Deployment.WithSniffedEndpoint(t, "/sendToDevice", func(cd deploy.CallbackData) {
+				if cd.Method != "PUT" {
+					return
+				}
+				// format is:
+				/*
+					{
+					  "messages": {
+					    "@alice:example.com": {
+					      "TLLBEANAAG": {
+					        "example_content_key": "value"
+					      }
+					    }
+					  }
+					}
+				*/
+				usersMap := gjson.GetBytes(cd.RequestBody, "messages")
+				if !usersMap.Exists() {
+					t.Logf("intercepted PUT /sendToDevice but no messages existed")
+					return
+				}
+				if len(usersMap.Map()) != 100 {
+					t.Errorf("PUT /sendToDevice did not batch messages, got %d want 100", len(usersMap.Map()))
+					t.Logf(usersMap.Raw)
+				}
+				waiter.Finish()
+			}, func() {
+				alice.SendMessage(t, roomID, "this should cause to-device msgs to be sent")
+				time.Sleep(time.Second)
+				waiter.Waitf(t, 5*time.Second, "did not see /sendToDevice")
+			})
+		})
+
+	})
+}
