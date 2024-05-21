@@ -85,6 +85,7 @@ jobs:
                 fi
               else
                 echo "Using ${!var_name} for ${input_to_repo_url["$var_name"]}"
+                echo "$var_name=${!var_name}" >> $GITHUB_ENV
               fi
             done
 
