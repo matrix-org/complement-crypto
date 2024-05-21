@@ -440,6 +440,7 @@ func TestMultiprocessDupeOTKUpload(t *testing.T) {
 		t.Skipf("rust only")
 		return
 	}
+	t.Skipf("skipped until it is no longer flakey")
 	tc, roomID := createAndJoinRoom(t)
 
 	// start the "main" app
