@@ -440,6 +440,7 @@ func (c *RustClient) SendMessage(t ct.TestLike, roomID, text string) (eventID st
 
 func (c *RustClient) TrySendMessage(t ct.TestLike, roomID, text string) (eventID string, err error) {
 	t.Helper()
+	var isChannelClosed atomic.Bool
 	ch := make(chan bool)
 	// we need a timeline listener before we can send messages, AND that listener must be attached to the
 	// same *Room you call .Send on :S
@@ -463,7 +464,9 @@ func (c *RustClient) TrySendMessage(t ct.TestLike, roomID, text string) (eventID
 				// else this will panic on the 2nd call.
 				if eventID == "" {
 					eventID = ev.ID
-					close(ch)
+					if isChannelClosed.CompareAndSwap(false, true) {
+						close(ch)
+					}
 				}
 			}
 		}
