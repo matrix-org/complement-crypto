@@ -36,7 +36,7 @@ func Deploy(t *testing.T) *deploy.SlidingSyncDeployment {
 	if ssDeployment != nil {
 		return ssDeployment
 	}
-	ssDeployment = deploy.RunNewDeployment(t, "", false)
+	ssDeployment = deploy.RunNewDeployment(t, "", "")
 	return ssDeployment
 }
 

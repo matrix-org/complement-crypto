@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -35,6 +34,8 @@ import (
 // must match the value in tests/addons/__init__.py
 const magicMITMURL = "http://mitm.code"
 
+const mitmDumpFilePathOnContainer = "/tmp/mitm.dump"
+
 type SlidingSyncDeployment struct {
 	complement.Deployment
 	extraContainers      map[string]testcontainers.Container
@@ -42,7 +43,7 @@ type SlidingSyncDeployment struct {
 	ControllerURL        string
 	dnsToReverseProxyURL map[string]string
 	mu                   sync.RWMutex
-	tcpdump              *exec.Cmd
+	mitmDumpFile         string
 }
 
 func (d *SlidingSyncDeployment) WithSniffedEndpoint(t *testing.T, partialPath string, onSniff func(CallbackData), inner func()) {
@@ -142,7 +143,29 @@ func (d *SlidingSyncDeployment) withReverseProxyURL(hsName string, c *client.CSA
 	return c
 }
 
+func (d *SlidingSyncDeployment) writeMITMDump() {
+	if d.mitmDumpFile == "" {
+		return
+	}
+	log.Printf("dumping mitmdump to '%s'\n", d.mitmDumpFile)
+	fileContents, err := d.extraContainers["mitmproxy"].CopyFileFromContainer(context.Background(), mitmDumpFilePathOnContainer)
+	if err != nil {
+		log.Printf("failed to copy mitmdump from container: %s", err)
+		return
+	}
+	contents, err := io.ReadAll(fileContents)
+	if err != nil {
+		log.Printf("failed to read mitmdump: %s", err)
+		return
+	}
+	if err = os.WriteFile(d.mitmDumpFile, contents, os.ModePerm); err != nil {
+		log.Printf("failed to write mitmdump to %s: %s", d.mitmDumpFile, err)
+		return
+	}
+}
+
 func (d *SlidingSyncDeployment) Teardown() {
+	d.writeMITMDump()
 	for name, c := range d.extraContainers {
 		filename := fmt.Sprintf("container-%s.log", name)
 		logs, err := c.Logs(context.Background())
@@ -186,13 +209,9 @@ func (d *SlidingSyncDeployment) Teardown() {
 			log.Fatalf("failed to stop %s: %s", name, err)
 		}
 	}
-	if d.tcpdump != nil {
-		fmt.Println("Sent SIGINT to tcpdump, waiting for it to exit, err=", d.tcpdump.Process.Signal(os.Interrupt))
-		fmt.Println("tcpdump finished, err=", d.tcpdump.Wait())
-	}
 }
 
-func RunNewDeployment(t *testing.T, mitmProxyAddonsDir string, shouldTCPDump bool) *SlidingSyncDeployment {
+func RunNewDeployment(t *testing.T, mitmProxyAddonsDir string, mitmDumpFile string) *SlidingSyncDeployment {
 	// allow time for everything to deploy
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -261,6 +280,7 @@ func RunNewDeployment(t *testing.T, mitmProxyAddonsDir string, shouldTCPDump boo
 			"--mode", "reverse:http://ssproxy1:6789@3002",
 			"--mode", "reverse:http://ssproxy2:6789@3003",
 			"--mode", "regular",
+			"-w", mitmDumpFilePathOnContainer,
 		},
 		Networks: []string{networkName},
 		NetworkAliases: map[string][]string{
@@ -353,25 +373,6 @@ func RunNewDeployment(t *testing.T, mitmProxyAddonsDir string, shouldTCPDump boo
 	t.Logf("  synapse:      hs2          %s (rp=%s)", csapi2.BaseURL, rpHS2URL)
 	t.Logf("  postgres:     postgres")
 	t.Logf("  mitmproxy:    mitmproxy    controller=%s", controllerURL)
-	var cmd *exec.Cmd
-	if shouldTCPDump {
-		t.Log("Running tcpdump...")
-		urlsToTCPDump := []string{
-			rpSS1URL, rpSS2URL, csapi1.BaseURL, csapi2.BaseURL, rpHS1URL, rpHS2URL, controllerURL,
-		}
-		tcpdumpFilter := []string{}
-		for _, u := range urlsToTCPDump {
-			parsedURL, _ := url.Parse(u)
-			tcpdumpFilter = append(tcpdumpFilter, fmt.Sprintf("port %s", parsedURL.Port()))
-		}
-		filter := fmt.Sprintf("tcp " + strings.Join(tcpdumpFilter, " or "))
-		cmd = exec.Command("tcpdump", "-i", "any", "-s", "0", filter, "-w", "test.pcap")
-		t.Log(cmd.String())
-		if err := cmd.Start(); err != nil {
-			t.Fatalf("tcpdump failed: %v", err)
-		}
-		t.Logf("Started tcpdumping (requires sudo): PID %d", cmd.Process.Pid)
-	}
 	// without this, GHA will fail when trying to hit the controller with "Post "http://mitm.code/options/lock": EOF"
 	// suspected IPv4 vs IPv6 problems in Docker as Flask is listening on v4/v6.
 	controllerURL = strings.Replace(controllerURL, "localhost", "127.0.0.1", 1)
@@ -385,7 +386,6 @@ func RunNewDeployment(t *testing.T, mitmProxyAddonsDir string, shouldTCPDump boo
 			"postgres":  postgresContainer,
 			"mitmproxy": mitmproxyContainer,
 		},
-		tcpdump:       cmd,
 		ControllerURL: controllerURL,
 		mitmClient: &http.Client{
 			Timeout: 5 * time.Second,
@@ -399,6 +399,7 @@ func RunNewDeployment(t *testing.T, mitmProxyAddonsDir string, shouldTCPDump boo
 			"ssproxy1": rpSS1URL,
 			"ssproxy2": rpSS2URL,
 		},
+		mitmDumpFile: mitmDumpFile,
 	}
 }
 
