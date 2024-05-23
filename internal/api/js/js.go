@@ -251,6 +251,12 @@ func (c *JSClient) DeletePersistentStorage(t ct.TestLike) {
 	`, indexedDBName, indexedDBCryptoName))
 }
 
+func (c *JSClient) CurrentAccessToken(t ct.TestLike) string {
+	token := chrome.MustRunAsyncFn[string](t, c.browser.Ctx, `
+		return window.__client.getAccessToken();`)
+	return *token
+}
+
 func (c *JSClient) GetNotification(t ct.TestLike, roomID, eventID string) (*api.Notification, error) {
 	return nil, fmt.Errorf("not implemented yet") // TODO
 }

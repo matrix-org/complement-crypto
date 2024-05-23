@@ -345,12 +345,14 @@ func TestToDeviceMessagesArentLostWhenKeysQueryFails(t *testing.T) {
 			})
 			defer closeCallbackServer()
 			var eventID string
+			bobAccessToken := bob.CurrentAccessToken(t)
+			t.Logf("Bob's token => %s", bobAccessToken)
 			tc.Deployment.WithMITMOptions(t, map[string]interface{}{
 				"statuscode": map[string]interface{}{
 					"return_status": http.StatusGatewayTimeout,
 					"block_request": true,
 					"count":         3,
-					"filter":        "~u .*/keys/query.*",
+					"filter":        "~u .*/keys/query.* ~hq " + bobAccessToken,
 				},
 				"callback": map[string]interface{}{
 					"callback_url": callbackURL,

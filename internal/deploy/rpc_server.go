@@ -100,6 +100,12 @@ func (s *RPCServer) DeletePersistentStorage(testName string, void *int) error {
 	return nil
 }
 
+func (s *RPCServer) CurrentAccessToken(testName string, token *string) error {
+	defer s.keepAlive()
+	*token = s.activeClient.CurrentAccessToken(&api.MockT{TestName: testName})
+	return nil
+}
+
 func (s *RPCServer) Login(opts api.ClientCreationOpts, void *int) error {
 	defer s.keepAlive()
 	return s.activeClient.Login(&api.MockT{}, opts)
