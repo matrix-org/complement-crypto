@@ -35,12 +35,11 @@ type ComplementCrypto struct {
 	// Derived from TestClientMatrix
 	clientLangs map[api.ClientTypeLang]bool
 
-	// Name: COMPLEMENT_CRYPTO_TCPDUMP
-	// Default: 0
-	// Description: If 1, automatically attempts to run `tcpdump` when the containers are running. Stops dumping when
-	// tests complete. This will probably require you to run `go test` with `sudo -E`. The `.pcap` file is written to
-	// `tests/test.pcap`.
-	TCPDump bool
+	// Name: COMPLEMENT_CRYPTO_MITMDUMP
+	// Default: ""
+	// Description: The path to dump the output from `mitmdump`. This file can then be used with mitmweb to view
+	// all the HTTP flows in the test.
+	MITMDump string
 
 	// Name: COMPLEMENT_CRYPTO_RPC_BINARY
 	// Default: ""
@@ -123,7 +122,7 @@ func NewComplementCryptoConfigFromEnvVars() *ComplementCrypto {
 		}
 	}
 	return &ComplementCrypto{
-		TCPDump:          os.Getenv("COMPLEMENT_CRYPTO_TCPDUMP") == "1",
+		MITMDump:         os.Getenv("COMPLEMENT_CRYPTO_MITMDUMP"),
 		RPCBinaryPath:    rpcBinaryPath,
 		TestClientMatrix: testClientMatrix,
 		clientLangs:      clientLangs,

@@ -59,7 +59,7 @@ func Deploy(t *testing.T) *deploy.SlidingSyncDeployment {
 		t.Fatalf("failed to find working directory: %s", err)
 	}
 	mitmProxyAddonsDir := filepath.Join(workingDir, "mitmproxy_addons")
-	ssDeployment = deploy.RunNewDeployment(t, mitmProxyAddonsDir, complementCryptoConfig.TCPDump)
+	ssDeployment = deploy.RunNewDeployment(t, mitmProxyAddonsDir, complementCryptoConfig.MITMDump)
 	return ssDeployment
 }
 
