@@ -372,7 +372,7 @@ func TestToDeviceMessagesArentLostWhenKeysQueryFails(t *testing.T) {
 				eventID = alice2.SendMessage(t, roomID, msg2)
 
 				waiter.Waitf(t, 3*time.Second, "did not see /keys/query")
-				time.Sleep(time.Second) // let Bob process the event
+				time.Sleep(3 * time.Second) // let Bob retry /keys/query
 			})
 			// now we aren't blocking /keys/query anymore.
 			// Bob should be able to decrypt this message.
