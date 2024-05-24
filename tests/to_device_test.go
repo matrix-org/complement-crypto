@@ -310,3 +310,75 @@ func TestToDeviceMessagesAreBatched(t *testing.T) {
 
 	})
 }
+
+// Regression test for https://github.com/element-hq/element-web/issues/24682
+//
+// When a to-device msg is received, the SDK may need to check that the device belongs
+// to the user in question. To do this, it needs an up-to-date device list. To get this,
+// it does a /keys/query request. If this request fails, the entire processing of the
+// to-device msg could fail, dropping the msg and the room key it contains.
+//
+// This test reproduces this by having an existing E2EE room between Alice and Bob, then:
+//   - Block /keys/query requests.
+//   - Alice logs in on a new device.
+//   - Alice sends a message on the new device.
+//   - Bob should get that message but may refuse to decrypt it as it cannot verify that the sender_key
+//     belongs to Alice.
+//   - Unblock /keys/query requests.
+//   - Bob should eventually retry and be able to decrypt the event.
+func TestToDeviceMessagesArentLostWhenKeysQueryFails(t *testing.T) {
+	ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
+		tc := CreateTestContext(t, clientType, clientType)
+		// get a normal E2EE room set up
+		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, EncRoomOptions.Invite([]string{tc.Bob.UserID}))
+		tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
+		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+			msg := "hello world"
+			msg2 := "new device message from alice"
+			alice.SendMessage(t, roomID, msg)
+			bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(msg)).Waitf(t, 5*time.Second, "bob failed to see message from alice")
+			// Block /keys/query requests
+			waiter := helpers.NewWaiter()
+			callbackURL, closeCallbackServer := deploy.NewCallbackServer(t, tc.Deployment, func(cd deploy.CallbackData) {
+				t.Logf("%+v", cd)
+				waiter.Finish()
+			})
+			defer closeCallbackServer()
+			var eventID string
+			bobAccessToken := bob.CurrentAccessToken(t)
+			t.Logf("Bob's token => %s", bobAccessToken)
+			tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+				"statuscode": map[string]interface{}{
+					"return_status": http.StatusGatewayTimeout,
+					"block_request": true,
+					"count":         3,
+					"filter":        "~u .*/keys/query.* ~hq " + bobAccessToken,
+				},
+				"callback": map[string]interface{}{
+					"callback_url": callbackURL,
+					"filter":       "~u .*/keys/query.*",
+				},
+			}, func() {
+				// Alice logs in on a new device.
+				csapiAlice2 := tc.MustRegisterNewDevice(t, tc.Alice, clientType.HS, "OTHER_DEVICE")
+				alice2 := tc.MustLoginClient(t, csapiAlice2, clientType)
+				defer alice2.Close(t)
+				alice2StopSyncing := alice2.MustStartSyncing(t)
+				defer alice2StopSyncing()
+				// we don't know how long it will take for the device list update to be processed, so wait 1s
+				time.Sleep(time.Second)
+
+				// Alice sends a message on the new device.
+				eventID = alice2.SendMessage(t, roomID, msg2)
+
+				waiter.Waitf(t, 3*time.Second, "did not see /keys/query")
+				time.Sleep(3 * time.Second) // let Bob retry /keys/query
+			})
+			// now we aren't blocking /keys/query anymore.
+			// Bob should be able to decrypt this message.
+			ev := bob.MustGetEvent(t, roomID, eventID)
+			must.Equal(t, ev.Text, msg2, "bob failed to decrypt "+eventID)
+		})
+
+	})
+}

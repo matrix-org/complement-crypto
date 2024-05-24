@@ -188,6 +188,14 @@ func (c *RustClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {
 	return nil
 }
 
+func (c *RustClient) CurrentAccessToken(t ct.TestLike) string {
+	s, err := c.FFIClient.Session()
+	if err != nil {
+		ct.Fatalf(t, "error retrieving session: %s", err)
+	}
+	return s.AccessToken
+}
+
 func (c *RustClient) DeletePersistentStorage(t ct.TestLike) {
 	t.Helper()
 	if c.persistentStoragePath != "" {

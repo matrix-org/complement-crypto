@@ -181,6 +181,15 @@ func (c *RPCClient) GetNotification(t ct.TestLike, roomID, eventID string) (*api
 	return &notification, err
 }
 
+func (c *RPCClient) CurrentAccessToken(t ct.TestLike) string {
+	var token string
+	err := c.client.Call("RPCServer.CurrentAccessToken", t.Name(), &token)
+	if err != nil {
+		ct.Fatalf(t, "RPCServer.CurrentAccessToken: %s", err)
+	}
+	return token
+}
+
 // Remove any persistent storage, if it was enabled.
 func (c *RPCClient) DeletePersistentStorage(t ct.TestLike) {
 	var void int

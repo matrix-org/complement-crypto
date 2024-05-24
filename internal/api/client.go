@@ -65,6 +65,8 @@ type Client interface {
 	Logf(t ct.TestLike, format string, args ...interface{})
 	// The user for this client
 	UserID() string
+	// The current access token for this client
+	CurrentAccessToken(t ct.TestLike) string
 	Type() ClientTypeLang
 	Opts() ClientCreationOpts
 }
@@ -76,6 +78,13 @@ type Notification struct {
 
 type LoggedClient struct {
 	Client
+}
+
+func (c *LoggedClient) CurrentAccessToken(t ct.TestLike) string {
+	t.Helper()
+	token := c.Client.CurrentAccessToken(t)
+	c.Logf(t, "%s CurrentAccessToken => %s", c.logPrefix(), token)
+	return token
 }
 
 func (c *LoggedClient) Login(t ct.TestLike, opts ClientCreationOpts) error {
