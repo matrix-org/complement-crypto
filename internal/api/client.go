@@ -21,6 +21,10 @@ type Client interface {
 	// If we get callbacks/events after this point, tests may panic if the callbacks
 	// log messages.
 	Close(t ct.TestLike)
+	// ForceClose should uncleanly shut down the client e.g
+	// sending SIGKILL. This is typically useful for tests which want to explicitly test
+	// unclean shutdowns.
+	ForceClose(t ct.TestLike)
 	// Remove any persistent storage, if it was enabled.
 	DeletePersistentStorage(t ct.TestLike)
 	Login(t ct.TestLike, opts ClientCreationOpts) error
@@ -55,16 +59,32 @@ type Client interface {
 	MustLoadBackup(t ct.TestLike, recoveryKey string)
 	// LoadBackup will recover E2EE keys from the latest backup, else return an error.
 	LoadBackup(t ct.TestLike, recoveryKey string) error
+	// GetNotification gets push notification-like information for the given event. If there is a problem, an error is returned.
+	GetNotification(t ct.TestLike, roomID, eventID string) (*Notification, error)
 	// Log something to stdout and the underlying client log file
 	Logf(t ct.TestLike, format string, args ...interface{})
 	// The user for this client
 	UserID() string
+	// The current access token for this client
+	CurrentAccessToken(t ct.TestLike) string
 	Type() ClientTypeLang
 	Opts() ClientCreationOpts
 }
 
+type Notification struct {
+	Event
+	HasMentions *bool
+}
+
 type LoggedClient struct {
 	Client
+}
+
+func (c *LoggedClient) CurrentAccessToken(t ct.TestLike) string {
+	t.Helper()
+	token := c.Client.CurrentAccessToken(t)
+	c.Logf(t, "%s CurrentAccessToken => %s", c.logPrefix(), token)
+	return token
 }
 
 func (c *LoggedClient) Login(t ct.TestLike, opts ClientCreationOpts) error {
@@ -77,6 +97,12 @@ func (c *LoggedClient) Close(t ct.TestLike) {
 	t.Helper()
 	c.Logf(t, "%s Close", c.logPrefix())
 	c.Client.Close(t)
+}
+
+func (c *LoggedClient) ForceClose(t ct.TestLike) {
+	t.Helper()
+	c.Logf(t, "%s ForceClose", c.logPrefix())
+	c.Client.ForceClose(t)
 }
 
 func (c *LoggedClient) MustGetEvent(t ct.TestLike, roomID, eventID string) Event {
@@ -165,10 +191,14 @@ func (c *LoggedClient) logPrefix() string {
 	return fmt.Sprintf("[%s](%s)", c.UserID(), c.Type())
 }
 
-// ClientCreationOpts are generic opts to use when creating crypto clients.
-// Because this is generic, some features possible in some clients are unsupported here, notably
-// you cannot provide an existing access_token to the FFI binding layer, hence you don't see
-// an AccessToken field here.
+// magic value for EnableCrossProcessRefreshLockProcessName which configures the FFI client
+// according to iOS NSE.
+const ProcessNameNSE string = "NSE"
+
+// ClientCreationOpts are options to use when creating crypto clients.
+//
+// This contains a mixture of generic options which can be used across any client, and specific
+// options which are only supported in some clients. These are clearly documented.
 type ClientCreationOpts struct {
 	// Required. The base URL of the homeserver.
 	BaseURL string
@@ -183,6 +213,12 @@ type ClientCreationOpts struct {
 	SlidingSyncURL string
 	// Optional. Set this to login with this device ID.
 	DeviceID string
+
+	// Rust only. If set, enables the cross process refresh lock on the FFI client with the process name provided.
+	EnableCrossProcessRefreshLockProcessName string
+	// Rust only. If set with EnableCrossProcessRefreshLockProcessName=ProcessNameNSE, the client will be seeded
+	// with a logged in session.
+	AccessToken string
 }
 
 func NewClientCreationOpts(c *client.CSAPI) ClientCreationOpts {

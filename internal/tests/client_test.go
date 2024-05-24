@@ -36,7 +36,7 @@ func Deploy(t *testing.T) *deploy.SlidingSyncDeployment {
 	if ssDeployment != nil {
 		return ssDeployment
 	}
-	ssDeployment = deploy.RunNewDeployment(t, "", false)
+	ssDeployment = deploy.RunNewDeployment(t, "", "")
 	return ssDeployment
 }
 
@@ -60,7 +60,7 @@ func TestMain(m *testing.M) {
 	rpcBinary := os.Getenv("COMPLEMENT_CRYPTO_RPC_BINARY")
 	if rpcBinary != "" {
 		clientFactories = append(clientFactories, func(t *testing.T, cfg api.ClientCreationOpts) api.Client {
-			remoteBindings, err := deploy.NewRPCLanguageBindings(rpcBinary, api.ClientTypeRust)
+			remoteBindings, err := deploy.NewRPCLanguageBindings(rpcBinary, api.ClientTypeRust, "")
 			if err != nil {
 				log.Fatal(err)
 			}

@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/matrix-org/complement"
 	"github.com/matrix-org/complement-crypto/internal/api"
@@ -59,7 +59,7 @@ func Deploy(t *testing.T) *deploy.SlidingSyncDeployment {
 		t.Fatalf("failed to find working directory: %s", err)
 	}
 	mitmProxyAddonsDir := filepath.Join(workingDir, "mitmproxy_addons")
-	ssDeployment = deploy.RunNewDeployment(t, mitmProxyAddonsDir, complementCryptoConfig.TCPDump)
+	ssDeployment = deploy.RunNewDeployment(t, mitmProxyAddonsDir, complementCryptoConfig.MITMDump)
 	return ssDeployment
 }
 
@@ -73,6 +73,11 @@ func ClientTypeMatrix(t *testing.T, subTest func(t *testing.T, clientTypeA, clie
 			subTest(t, tc[0], tc[1])
 		})
 	}
+}
+
+// ShouldTest returns true if this language should be tested.
+func ShouldTest(lang api.ClientTypeLang) bool {
+	return complementCryptoConfig.ShouldTest(lang)
 }
 
 // ForEachClientType enumerates all known client implementations and creates sub-tests for
@@ -104,13 +109,6 @@ func MustCreateClient(t *testing.T, clientType api.ClientType, cfg api.ClientCre
 	return c
 }
 
-// WithDoLogin is an option which can be provided to MustCreateClient which will automatically login, else fail the test.
-func WithDoLogin(t *testing.T) func(api.Client, *api.ClientCreationOpts) {
-	return func(c api.Client, opts *api.ClientCreationOpts) {
-		must.NotError(t, "failed to login", c.Login(t, *opts))
-	}
-}
-
 // WithPersistentStorage is an option which can be provided to MustCreateClient which will configure clients to use persistent storage,
 // e.g IndexedDB or sqlite3 files.
 func WithPersistentStorage() func(*api.ClientCreationOpts) {
@@ -119,9 +117,27 @@ func WithPersistentStorage() func(*api.ClientCreationOpts) {
 	}
 }
 
+// WithCrossProcessLock is an option which can be provided to MustCreateClient which will configure a cross process lock for Rust clients.
+// No-ops on non-rust clients.
+func WithCrossProcessLock(processName string) func(*api.ClientCreationOpts) {
+	return func(o *api.ClientCreationOpts) {
+		o.EnableCrossProcessRefreshLockProcessName = processName
+	}
+}
+
+// WithAccessToken is an option which can be provided to MustCreateClient which will configure an access token for the client.
+// No-ops on non-rust clients, for now. In theory this option should be generic to configure an already logged in client. TODO
+func WithAccessToken(accessToken string) func(*api.ClientCreationOpts) {
+	return func(o *api.ClientCreationOpts) {
+		o.AccessToken = accessToken
+	}
+}
+
 // TestContext provides a consistent set of variables which most tests will need access to.
 type TestContext struct {
-	Deployment *deploy.SlidingSyncDeployment
+	Deployment    *deploy.SlidingSyncDeployment
+	RPCBinaryPath string
+	RPCInstance   atomic.Int32
 	// Alice is defined if at least 1 clientType is provided to CreateTestContext.
 	Alice           *client.CSAPI
 	AliceClientType api.ClientType
@@ -145,7 +161,8 @@ type TestContext struct {
 func CreateTestContext(t *testing.T, clientType ...api.ClientType) *TestContext {
 	deployment := Deploy(t)
 	tc := &TestContext{
-		Deployment: deployment,
+		Deployment:    deployment,
+		RPCBinaryPath: complementCryptoConfig.RPCBinaryPath,
 	}
 	// pre-register alice and bob, if told
 	if len(clientType) > 0 {
@@ -175,13 +192,40 @@ func CreateTestContext(t *testing.T, clientType ...api.ClientType) *TestContext 
 	return tc
 }
 
-func (c *TestContext) WithClientSyncing(t *testing.T, clientType api.ClientType, cli *client.CSAPI, callback func(cli api.Client)) {
+func (c *TestContext) WithClientSyncing(t *testing.T, clientType api.ClientType, cli *client.CSAPI, callback func(cli api.Client), options ...func(*api.ClientCreationOpts)) {
 	t.Helper()
-	clientUnderTest := c.MustLoginClient(t, cli, clientType)
+	clientUnderTest := c.MustLoginClient(t, cli, clientType, options...)
 	defer clientUnderTest.Close(t)
 	stopSyncing := clientUnderTest.MustStartSyncing(t)
 	defer stopSyncing()
 	callback(clientUnderTest)
+}
+
+// MustCreateMultiprocessClient creates a new RPC process and instructs it to create a client given by the client creation options.
+func (c *TestContext) MustCreateMultiprocessClient(t *testing.T, lang api.ClientTypeLang, opts api.ClientCreationOpts) api.Client {
+	t.Helper()
+	if c.RPCBinaryPath == "" {
+		t.Skipf("RPC binary path not provided, skipping multiprocess test. To run this test, set COMPLEMENT_CRYPTO_RPC_BINARY")
+		return nil
+	}
+	ctxPrefix := fmt.Sprintf("%d", c.RPCInstance.Add(1))
+	remoteBindings, err := deploy.NewRPCLanguageBindings(c.RPCBinaryPath, lang, ctxPrefix)
+	if err != nil {
+		t.Fatalf("Failed to create new RPC language bindings: %s", err)
+	}
+	return remoteBindings.MustCreateClient(t, opts)
+}
+
+// WithMultiprocessClientSyncing is the same as WithClientSyncing but it spins up the client in a separate process.
+// Communication is done via net/rpc internally.
+func (c *TestContext) WithMultiprocessClientSyncing(t *testing.T, lang api.ClientTypeLang, opts api.ClientCreationOpts, callback func(cli api.Client)) {
+	t.Helper()
+	remoteClient := c.MustCreateMultiprocessClient(t, lang, opts)
+	must.NotError(t, "failed to login client", remoteClient.Login(t, remoteClient.Opts()))
+	defer remoteClient.Close(t)
+	stopSyncing := remoteClient.MustStartSyncing(t)
+	defer stopSyncing()
+	callback(remoteClient)
 }
 
 // WithAliceSyncing is a helper function which creates a rust/js client and automatically logs in Alice and starts
@@ -203,23 +247,18 @@ func (c *TestContext) WithAliceSyncing(t *testing.T, callback func(alice api.Cli
 func (c *TestContext) WithAliceAndBobSyncing(t *testing.T, callback func(alice, bob api.Client)) {
 	t.Helper()
 	must.NotEqual(t, c.Bob, nil, "No Bob defined. Call CreateTestContext() with at least 2 api.ClientTypes.")
-	c.WithClientSyncing(t, c.AliceClientType, c.Alice, func(alice api.Client) {
-		t.Helper()
-		c.WithClientSyncing(t, c.BobClientType, c.Bob, func(bob api.Client) {
-			t.Helper()
+	// log both clients in first before syncing so both have device keys and OTKs
+	alice := c.MustLoginClient(t, c.Alice, c.AliceClientType)
+	defer alice.Close(t)
+	bob := c.MustLoginClient(t, c.Bob, c.BobClientType)
+	defer bob.Close(t)
 
-			// Wait until Alice and Bob have probably both uploaded their room
-			// keys, so they can probably send each other messages.
-			// TODO: if we exposed client.encryption().wait_for_e2ee_initialization_tasks we could
-			// call that for Alice and Bob, instead of just sleeping for what we
-			// hope is long enough. See https://github.com/matrix-org/complement-crypto/issues/41
-			time.Sleep(time.Second)
-			// c.Alice.Client.Encryption().WaitForE2eeInitializationTasks()
-			// c.Bob.Client.Encryption().WaitForE2eeInitializationTasks()
+	aliceStopSyncing := alice.MustStartSyncing(t)
+	defer aliceStopSyncing()
+	bobStopSyncing := bob.MustStartSyncing(t)
+	defer bobStopSyncing()
 
-			callback(alice, bob)
-		})
-	})
+	callback(alice, bob)
 }
 
 // WithAliceBobAndCharlieSyncing is a helper function which creates rust/js clients and automatically logs in Alice, Bob
@@ -230,16 +269,22 @@ func (c *TestContext) WithAliceAndBobSyncing(t *testing.T, callback func(alice, 
 func (c *TestContext) WithAliceBobAndCharlieSyncing(t *testing.T, callback func(alice, bob, charlie api.Client)) {
 	t.Helper()
 	must.NotEqual(t, c.Charlie, nil, "No Charlie defined. Call CreateTestContext() with at least 3 api.ClientTypes.")
-	c.WithClientSyncing(t, c.AliceClientType, c.Alice, func(alice api.Client) {
-		t.Helper()
-		c.WithClientSyncing(t, c.BobClientType, c.Bob, func(bob api.Client) {
-			t.Helper()
-			c.WithClientSyncing(t, c.CharlieClientType, c.Charlie, func(charlie api.Client) {
-				t.Helper()
-				callback(alice, bob, charlie)
-			})
-		})
-	})
+	// log all clients in first before syncing so all have device keys and OTKs
+	alice := c.MustLoginClient(t, c.Alice, c.AliceClientType)
+	defer alice.Close(t)
+	bob := c.MustLoginClient(t, c.Bob, c.BobClientType)
+	defer bob.Close(t)
+	charlie := c.MustLoginClient(t, c.Charlie, c.CharlieClientType)
+	defer charlie.Close(t)
+
+	aliceStopSyncing := alice.MustStartSyncing(t)
+	defer aliceStopSyncing()
+	bobStopSyncing := bob.MustStartSyncing(t)
+	defer bobStopSyncing()
+	charlieStopSyncing := charlie.MustStartSyncing(t)
+	defer charlieStopSyncing()
+
+	callback(alice, bob, charlie)
 }
 
 // An option to customise the behaviour of CreateNewEncryptedRoom
@@ -340,20 +385,6 @@ func (encRoomOptions) RotationPeriodMs(milliseconds int) EncRoomOption {
 	}
 }
 
-// OptsFromClient converts a Complement client into a set of options which can be used to create an api.Client.
-func (c *TestContext) OptsFromClient(t *testing.T, existing *client.CSAPI, options ...func(*api.ClientCreationOpts)) api.ClientCreationOpts {
-	o := &api.ClientCreationOpts{
-		BaseURL:  existing.BaseURL,
-		UserID:   existing.UserID,
-		DeviceID: existing.DeviceID,
-		Password: existing.Password,
-	}
-	for _, opt := range options {
-		opt(o)
-	}
-	return *o
-}
-
 // MustRegisterNewDevice logs in a new device for this client, else fails the test.
 func (c *TestContext) MustRegisterNewDevice(t *testing.T, cli *client.CSAPI, hsName, newDeviceID string) *client.CSAPI {
 	return c.Deployment.Login(t, hsName, cli, helpers.LoginOpts{
@@ -362,16 +393,23 @@ func (c *TestContext) MustRegisterNewDevice(t *testing.T, cli *client.CSAPI, hsN
 	})
 }
 
+// ClientCreationOpts converts a Complement client into a set of real client options. Real client options are required in order to create
+// real rust/js clients.
+func (c *TestContext) ClientCreationOpts(t *testing.T, cli *client.CSAPI, hsName string, options ...func(*api.ClientCreationOpts)) api.ClientCreationOpts {
+	opts := api.NewClientCreationOpts(cli)
+	for _, opt := range options {
+		opt(&opts)
+	}
+	opts.SlidingSyncURL = c.Deployment.SlidingSyncURLForHS(t, hsName)
+	return opts
+}
+
 // MustCreateClient creates an api.Client from an existing Complement client and the specified client type. Additional options
 // can be set to configure the client beyond that of the Complement client e.g to add persistent storage.
 func (c *TestContext) MustCreateClient(t *testing.T, cli *client.CSAPI, clientType api.ClientType, options ...func(*api.ClientCreationOpts)) api.Client {
 	t.Helper()
-	cfg := api.NewClientCreationOpts(cli)
-	for _, opt := range options {
-		opt(&cfg)
-	}
-	cfg.SlidingSyncURL = c.Deployment.SlidingSyncURLForHS(t, clientType.HS)
-	client := MustCreateClient(t, clientType, cfg)
+	opts := c.ClientCreationOpts(t, cli, clientType.HS, options...)
+	client := MustCreateClient(t, clientType, opts)
 	return client
 }
 

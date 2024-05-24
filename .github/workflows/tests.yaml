@@ -12,16 +12,18 @@ jobs:
     uses: "matrix-org/backend-meta/.github/workflows/sign-off.yml@v2"
 
   js-latest-main:
-    name: Tests (JS only, latest develop)
+    name: Tests (JS only, latest)
     uses: ./.github/workflows/single_sdk_tests.yml
     with:
-      use_js_sdk: 'develop'
+      use_js_sdk: 'MATCHING_BRANCH'
+      use_complement_crypto: '.'
 
   rust-latest-main:
-    name: Tests (Rust only, latest main)
+    name: Tests (Rust only, latest)
     uses: ./.github/workflows/single_sdk_tests.yml
     with:
-      use_rust_sdk: '628374b8d86653e733649a506f5ae70385cd4de1' # TODO: go back to main when it works with uniffi 0.25 again
+      use_rust_sdk: 'MATCHING_BRANCH'
+      use_complement_crypto: '.'
 
   complement:
     name: Tests
@@ -47,7 +49,9 @@ jobs:
       - name: Checkout matrix-rust-sdk
         run: |
           mkdir rust-sdk
-          (wget -O - "https://github.com/matrix-org/matrix-rust-sdk/archive/kegan/complement-crypto.tar.gz" | tar -xz --strip-components=1 -C rust-sdk)
+          wget -O archive.tar.gz "https://github.com/matrix-org/matrix-rust-sdk/archive/main.tar.gz"
+          zcat < archive.tar.gz | git get-tar-commit-id # useful for debugging
+          tar -xz --strip-components=1 -C rust-sdk < archive.tar.gz
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: "rust-sdk"
@@ -65,8 +69,7 @@ jobs:
 
       - name: Build Rust FFI bindings
         run: |
-          (cd rust-sdk && cargo build -p matrix-sdk-ffi)
-          ls -alh rust-sdk/target/debug
+          ./install_uniffi_bindgen_go.sh && ./rebuild_rust_sdk.sh ./rust-sdk
 
       # Temporary: as it takes 3m to build the complement synapse image >:(
       - name: Pull synapse service v1.94.0 and mitmproxy
@@ -113,7 +116,6 @@ jobs:
         run: |
           export LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
           export LD_LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
-          env
           go test $(go list ./internal/... | grep -v 'internal/tests') -timeout 60s
 
       - name: "Building RPC client"
@@ -128,7 +130,7 @@ jobs:
           export LD_LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
           export COMPLEMENT_CRYPTO_RPC_BINARY="$(pwd)/rpc"
           set -o pipefail &&
-          go test -v -json -timeout 15m ./internal/tests | gotestfmt
+          go test -v -json -count=1 -timeout 15m ./internal/tests | gotestfmt
         shell: bash # required for pipefail to be A Thing. pipefail is required to stop gotestfmt swallowing non-zero exit codes
         env:
           COMPLEMENT_BASE_IMAGE: homeserver
@@ -141,8 +143,9 @@ jobs:
       - run: |
           export LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
           export LD_LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
+          export COMPLEMENT_CRYPTO_RPC_BINARY="$(pwd)/rpc"
           set -o pipefail &&
-          go test -v -json -tags='jssdk,rust' -timeout 15m ./tests | gotestfmt
+          go test -v -json -tags='jssdk,rust' -count=1 -timeout 15m ./tests | gotestfmt
         shell: bash # required for pipefail to be A Thing. pipefail is required to stop gotestfmt swallowing non-zero exit codes
         name: Run Complement Crypto Tests
         env:

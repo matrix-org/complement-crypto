@@ -182,21 +182,30 @@ func (c *JSClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {
 		deviceID = `"` + opts.DeviceID + `"`
 	}
 	// cannot use loginWithPassword as this generates a new device ID
-	chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`
+	_, err := chrome.RunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`
 	await window.__client.login("m.login.password", {
 		user: "%s",
 		password: "%s",
 		device_id: %s,
-	});`, opts.UserID, opts.Password, deviceID))
+	});
+	// kick off outgoing requests which will upload OTKs and device keys
+	await window.__client.getCrypto().outgoingRequestsManager.doProcessOutgoingRequests();
+	`, opts.UserID, opts.Password, deviceID))
+	if err != nil {
+		return err
+	}
 
 	// any events need to log the control string so we get notified
-	chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`
+	_, err = chrome.RunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`
 	window.__client.on("Event.decrypted", function(event) {
 		console.log("%s"+event.getRoomId()+"||"+JSON.stringify(event.getEffectiveEvent()));
 	});
 	window.__client.on("event", function(event) {
 		console.log("%s"+event.getRoomId()+"||"+JSON.stringify(event.getEffectiveEvent()));
 	});`, CONSOLE_LOG_CONTROL_STRING, CONSOLE_LOG_CONTROL_STRING))
+	if err != nil {
+		return err
+	}
 
 	if c.opts.PersistentStorage {
 		/* FIXME: this doesn't work. It doesn't seem to remember across restarts.
@@ -242,11 +251,28 @@ func (c *JSClient) DeletePersistentStorage(t ct.TestLike) {
 	`, indexedDBName, indexedDBCryptoName))
 }
 
+func (c *JSClient) CurrentAccessToken(t ct.TestLike) string {
+	token := chrome.MustRunAsyncFn[string](t, c.browser.Ctx, `
+		return window.__client.getAccessToken();`)
+	return *token
+}
+
+func (c *JSClient) GetNotification(t ct.TestLike, roomID, eventID string) (*api.Notification, error) {
+	return nil, fmt.Errorf("not implemented yet") // TODO
+}
+
+func (c *JSClient) ForceClose(t ct.TestLike) {
+	t.Helper()
+	t.Logf("force closing a JS client is the same as a normal close (closing browser)")
+	c.Close(t)
+}
+
 // Close is called to clean up resources.
 // Specifically, we need to shut off existing browsers and any FFI bindings.
 // If we get callbacks/events after this point, tests may panic if the callbacks
 // log messages.
 func (c *JSClient) Close(t ct.TestLike) {
+	t.Helper()
 	c.browser.Cancel()
 	c.listenersMu.Lock()
 	c.listeners = make(map[int32]func(roomID string, ev api.Event))

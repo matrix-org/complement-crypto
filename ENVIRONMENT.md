@@ -4,10 +4,15 @@
 Complement-Crypto is configured exclusively through the use of environment variables. These variables are described below. Additional environment variables can be used, and are outlined at https://github.com/matrix-org/complement/blob/main/ENVIRONMENT.md 
 Complement-Crypto always runs in dirty mode (homeservers exist for the entire duration of the test suite) for performance reasons.
 
-#### `COMPLEMENT_CRYPTO_TCPDUMP`
-If 1, automatically attempts to run `tcpdump` when the containers are running. Stops dumping when tests complete. This will probably require you to run `go test` with `sudo -E`. The `.pcap` file is written to `tests/test.pcap`.  
-- Type: `bool`
-- Default: 0
+#### `COMPLEMENT_CRYPTO_MITMDUMP`
+The path to dump the output from `mitmdump`. This file can then be used with mitmweb to view all the HTTP flows in the test.  
+- Type: `string`
+- Default: ""
+
+#### `COMPLEMENT_CRYPTO_RPC_BINARY`
+The absolute path to the pre-built rpc binary file. This binary is generated via `go build -tags=jssdk,rust ./cmd/rpc`. This binary is used when running multiprocess tests. If this environment variable is not supplied, tests which try to use multiprocess clients will be skipped, making this environment variable optional.  
+- Type: `string`
+- Default: ""
 
 #### `COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX`
 The client test matrix to run. Every test is run for each given permutation. The default matrix tests all JS/Rust permutations _ignoring federation_. 
@@ -16,7 +21,7 @@ The client test matrix to run. Every test is run for each given permutation. The
  - `j`: Run a JS SDK client on hs1.
  - `r`: Run a Rust SDK FFI client on hs1.
  - `J`: Run a JS SDK client on hs2.
- - `R`: Run a Rust SDK FFI client on hs2. TODO: needs additional SS proxy / postgres.
+ - `R`: Run a Rust SDK FFI client on hs2.
  ```
  For example, for a simple "Alice and Bob" test:
  ```

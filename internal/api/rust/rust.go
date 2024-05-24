@@ -30,7 +30,7 @@ func SetupLogs(prefix string) {
 	// log new files
 	matrix_sdk_ffi.SetupTracing(matrix_sdk_ffi.TracingConfiguration{
 		WriteToStdoutOrSystem: false,
-		Filter:                "debug,hyper=warn,log=warn,eyeball=warn", //,matrix_sdk_ffi=trace,matrix_sdk=trace,matrix_sdk_crypto=trace,matrix_sdk_base=trace,matrix_sdk_ui=trace",
+		Filter:                "debug,hyper=warn,log=warn,eyeball=warn,matrix_sdk_common=trace", //,matrix_sdk_ffi=trace,matrix_sdk=trace,matrix_sdk_crypto=trace,matrix_sdk_base=trace,matrix_sdk_ui=trace",
 		WriteToFiles: &matrix_sdk_ffi.TracingFileConfiguration{
 			Path:       "./logs",
 			FilePrefix: prefix,
@@ -55,12 +55,21 @@ type RustClient struct {
 	userID                string
 	persistentStoragePath string
 	opts                  api.ClientCreationOpts
+
+	// for NSE tests
+	notifClient *matrix_sdk_ffi.NotificationClient
 }
 
 func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, error) {
 	t.Logf("NewRustClient[%s][%s] creating...", opts.UserID, opts.DeviceID)
 	matrix_sdk_ffi.LogEvent("rust.go", &zero, matrix_sdk_ffi.LogLevelInfo, t.Name(), fmt.Sprintf("NewRustClient[%s][%s] creating...", opts.UserID, opts.DeviceID))
-	ab := matrix_sdk_ffi.NewClientBuilder().HomeserverUrl(opts.BaseURL).SlidingSyncProxy(&opts.SlidingSyncURL)
+	ab := matrix_sdk_ffi.NewClientBuilder().HomeserverUrl(opts.BaseURL).SlidingSyncProxy(&opts.SlidingSyncURL).AutoEnableCrossSigning(true)
+	var clientSessionDelegate matrix_sdk_ffi.ClientSessionDelegate
+	if opts.EnableCrossProcessRefreshLockProcessName != "" {
+		t.Logf("enabling cross process refresh lock with proc name=%s", opts.EnableCrossProcessRefreshLockProcessName)
+		clientSessionDelegate = NewMemoryClientSessionDelegate()
+		ab = ab.EnableCrossProcessRefreshLock(opts.EnableCrossProcessRefreshLockProcessName, clientSessionDelegate)
+	}
 	var username string
 	if opts.PersistentStorage {
 		// @alice:hs1, FOOBAR => alice_hs1_FOOBAR
@@ -82,12 +91,85 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, erro
 	if opts.PersistentStorage {
 		c.persistentStoragePath = "./rust_storage/" + username
 	}
+	if opts.AccessToken != "" { // restore the session
+		session := matrix_sdk_ffi.Session{
+			AccessToken:      opts.AccessToken,
+			UserId:           opts.UserID,
+			DeviceId:         opts.DeviceID,
+			HomeserverUrl:    opts.BaseURL,
+			SlidingSyncProxy: &opts.SlidingSyncURL,
+		}
+		if err := client.RestoreSession(session); err != nil {
+			return nil, fmt.Errorf("RestoreSession: %s", err)
+		}
+		if opts.EnableCrossProcessRefreshLockProcessName == api.ProcessNameNSE {
+			clientSessionDelegate.SaveSessionInKeychain(session)
+			t.Logf("configure NSE client with logged in user: %+v", session)
+			// We purposefully don't SetDelegate as it appears to be unnecessary.
+			notifClient, err := client.NotificationClient(matrix_sdk_ffi.NotificationProcessSetupMultipleProcesses{})
+			if err != nil {
+				return nil, fmt.Errorf("NotificationClient failed: %s", err)
+			}
+			c.notifClient = notifClient
+		}
+	}
+
 	c.Logf(t, "NewRustClient[%s] created client storage=%v", opts.UserID, c.persistentStoragePath)
 	return &api.LoggedClient{Client: c}, nil
 }
 
 func (c *RustClient) Opts() api.ClientCreationOpts {
+	// add access token if we weren't made with it
+	if c.opts.AccessToken == "" && c.FFIClient != nil {
+		session, err := c.FFIClient.Session()
+		if err == nil { // if we ain't logged in, we expect an error
+			c.opts.AccessToken = session.AccessToken
+		}
+	}
 	return c.opts
+}
+
+func (c *RustClient) GetNotification(t ct.TestLike, roomID, eventID string) (*api.Notification, error) {
+	if c.notifClient == nil {
+		t.Errorf("RustClient misconfigured. You can only call GetNotification if this is an NSE process. " +
+			"Ensure opts.EnableCrossProcessRefreshLockProcessName and opts.AccessToken are set!")
+		return nil, fmt.Errorf("misconfigured rust client")
+	}
+	notifItem, err := c.notifClient.GetNotification(roomID, eventID)
+	if err != nil {
+		return nil, fmt.Errorf("GetNotification: %s", err)
+	}
+	// TODO: handle NotificationEventInvite
+	notifEvent := notifItem.Event.(matrix_sdk_ffi.NotificationEventTimeline)
+	// TODO: handle notifications other than messages..
+	evType, err := notifEvent.Event.EventType()
+	if err != nil {
+		return nil, fmt.Errorf("notifItem.Event.EventType => %s", err)
+	}
+	msgLike := evType.(matrix_sdk_ffi.TimelineEventTypeMessageLike)
+	failedToDecrypt := true
+	body := ""
+	switch msg := msgLike.Content.(type) {
+	case matrix_sdk_ffi.MessageLikeEventContentRoomEncrypted:
+		// failedToDecrypt = true
+	case matrix_sdk_ffi.MessageLikeEventContentRoomMessage:
+		failedToDecrypt = false
+		switch msgType := msg.MessageType.(type) {
+		case matrix_sdk_ffi.MessageTypeText:
+			body = msgType.Content.Body
+		}
+
+	}
+	n := api.Notification{
+		Event: api.Event{
+			ID:              notifEvent.Event.EventId(),
+			Sender:          notifEvent.Event.SenderId(),
+			Text:            body,
+			FailedToDecrypt: failedToDecrypt,
+		},
+		HasMentions: notifItem.HasMention,
+	}
+	return &n, nil
 }
 
 func (c *RustClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {
@@ -99,7 +181,19 @@ func (c *RustClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {
 	if err != nil {
 		return fmt.Errorf("Client.Login failed: %s", err)
 	}
+	// let the client upload device keys and OTKs
+	e := c.FFIClient.Encryption()
+	e.WaitForE2eeInitializationTasks()
+	e.Destroy()
 	return nil
+}
+
+func (c *RustClient) CurrentAccessToken(t ct.TestLike) string {
+	s, err := c.FFIClient.Session()
+	if err != nil {
+		ct.Fatalf(t, "error retrieving session: %s", err)
+	}
+	return s.AccessToken
 }
 
 func (c *RustClient) DeletePersistentStorage(t ct.TestLike) {
@@ -110,6 +204,10 @@ func (c *RustClient) DeletePersistentStorage(t ct.TestLike) {
 			ct.Fatalf(t, "DeletePersistentStorage: %s", err)
 		}
 	}
+}
+func (c *RustClient) ForceClose(t ct.TestLike) {
+	t.Helper()
+	t.Fatalf("Cannot force close a rust client, use an RPC client instead.")
 }
 
 func (c *RustClient) Close(t ct.TestLike) {
@@ -123,8 +221,11 @@ func (c *RustClient) Close(t ct.TestLike) {
 		}
 	}
 	c.roomsMu.Unlock()
-	c.FFIClient.Encryption().Destroy()
 	c.FFIClient.Destroy()
+	c.FFIClient = nil
+	if c.notifClient != nil {
+		c.notifClient.Destroy()
+	}
 }
 
 func (c *RustClient) MustGetEvent(t ct.TestLike, roomID, eventID string) api.Event {
@@ -160,6 +261,11 @@ func (c *RustClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error)
 	//  > thread '<unnamed>' panicked at 'there is no reactor running, must be called from the context of a Tokio 1.x runtime'
 	// where the stack trace doesn't hit any test code, but does start at a `free_` function.
 	sb := c.FFIClient.SyncService()
+	if c.opts.EnableCrossProcessRefreshLockProcessName != "" {
+		sb2 := sb.WithCrossProcessLock(&c.opts.EnableCrossProcessRefreshLockProcessName)
+		sb.Destroy()
+		sb = sb2
+	}
 	defer sb.Destroy()
 	syncService, err := sb.Finish()
 	if err != nil {
@@ -278,7 +384,9 @@ func (c *RustClient) MustBackupKeys(t ct.TestLike) (recoveryKey string) {
 	t.Helper()
 	genericListener := newGenericStateListener[matrix_sdk_ffi.EnableRecoveryProgress]()
 	var listener matrix_sdk_ffi.EnableRecoveryProgressListener = genericListener
-	recoveryKey, err := c.FFIClient.Encryption().EnableRecovery(true, listener)
+	e := c.FFIClient.Encryption()
+	defer e.Destroy()
+	recoveryKey, err := e.EnableRecovery(true, listener)
 	must.NotError(t, "Encryption.EnableRecovery", err)
 	for !genericListener.isClosed.Load() {
 		select {
@@ -303,7 +411,9 @@ func (c *RustClient) MustBackupKeys(t ct.TestLike) (recoveryKey string) {
 
 func (c *RustClient) LoadBackup(t ct.TestLike, recoveryKey string) error {
 	t.Helper()
-	return c.FFIClient.Encryption().Recover(recoveryKey)
+	e := c.FFIClient.Encryption()
+	defer e.Destroy()
+	return e.Recover(recoveryKey)
 }
 
 func (c *RustClient) MustLoadBackup(t ct.TestLike, recoveryKey string) {
@@ -338,6 +448,7 @@ func (c *RustClient) SendMessage(t ct.TestLike, roomID, text string) (eventID st
 
 func (c *RustClient) TrySendMessage(t ct.TestLike, roomID, text string) (eventID string, err error) {
 	t.Helper()
+	var isChannelClosed atomic.Bool
 	ch := make(chan bool)
 	// we need a timeline listener before we can send messages, AND that listener must be attached to the
 	// same *Room you call .Send on :S
@@ -361,7 +472,9 @@ func (c *RustClient) TrySendMessage(t ct.TestLike, roomID, text string) (eventID
 				// else this will panic on the 2nd call.
 				if eventID == "" {
 					eventID = ev.ID
-					close(ch)
+					if isChannelClosed.CompareAndSwap(false, true) {
+						close(ch)
+					}
 				}
 			}
 		}
@@ -391,9 +504,8 @@ func (c *RustClient) MustBackpaginate(t ct.TestLike, roomID string, count int) {
 	t.Helper()
 	r := c.findRoom(t, roomID)
 	must.NotEqual(t, r, nil, "unknown room")
-	must.NotError(t, "failed to backpaginate", mustGetTimeline(t, r).PaginateBackwards(matrix_sdk_ffi.PaginationOptionsSimpleRequest{
-		EventLimit: uint16(count),
-	}))
+	_, err := mustGetTimeline(t, r).PaginateBackwards(uint16(count))
+	must.NotError(t, "failed to backpaginate", err)
 }
 
 func (c *RustClient) UserID() string {
@@ -426,7 +538,7 @@ func (c *RustClient) findRoom(t ct.TestLike, roomID string) *matrix_sdk_ffi.Room
 			c.Logf(t, "allRooms.Room(%s) err: %s", roomID, err)
 		} else if roomListItem != nil {
 			if !roomListItem.IsTimelineInitialized() {
-				if err = roomListItem.InitTimeline(nil); err != nil {
+				if err = roomListItem.InitTimeline(nil, nil); err != nil {
 					c.Logf(t, "allRooms.InitTimeline(%s) err: %s", roomID, err)
 				}
 			}
@@ -583,7 +695,7 @@ func (c *RustClient) ensureListening(t ct.TestLike, roomID string) {
 		c.rooms[roomID].timeline = timeline
 		c.roomsListener.BroadcastUpdateForRoom(roomID)
 		for _, e := range newEvents {
-			c.Logf(t, "TimelineDiff change: %+v", e)
+			c.Logf(t, "[%s]TimelineDiff change: %+v", c.userID, e)
 		}
 	}})
 	events := make([]*api.Event, len(result.Items))

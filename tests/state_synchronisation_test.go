@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -9,10 +8,8 @@ import (
 
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/deploy"
-	templates "github.com/matrix-org/complement-crypto/tests/go_templates"
 	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/complement/helpers"
-	"github.com/matrix-org/complement/must"
 )
 
 func TestSigkillBeforeKeysUploadResponse(t *testing.T) {
@@ -42,8 +39,7 @@ func testSigkillBeforeKeysUploadResponseRust(t *testing.T, clientType api.Client
 		if terminated.Load() {
 			// make sure the 2nd upload 200 OKs
 			if cd.ResponseCode != 200 {
-				// TODO: Errorf FIXME
-				t.Logf("2nd /keys/upload did not 200 OK => got %v", cd.ResponseCode)
+				t.Errorf("2nd /keys/upload did not 200 OK => got %v", cd.ResponseCode)
 			}
 			t.Logf("recv 2nd /keys/upload => HTTP %d", cd.ResponseCode)
 			seenSecondKeysUploadWaiter.Finish()
@@ -62,47 +58,26 @@ func testSigkillBeforeKeysUploadResponseRust(t *testing.T, clientType api.Client
 			"filter":       "~u .*\\/keys\\/upload.*",
 		},
 	}, func() {
-		cfg := api.NewClientCreationOpts(tc.Alice)
-		cfg.PersistentStorage = true
-		cfg.SlidingSyncURL = tc.Deployment.SlidingSyncURLForHS(t, clientType.HS)
-		// run some code in a separate process so we can kill it later
-		cmd, close := templates.PrepareGoScript(t, "testSigkillBeforeKeysUploadResponseRust/test.go",
-			struct {
-				UserID            string
-				DeviceID          string
-				Password          string
-				BaseURL           string
-				SSURL             string
-				PersistentStorage bool
-			}{
-				UserID:            cfg.UserID,
-				Password:          cfg.Password,
-				DeviceID:          cfg.DeviceID,
-				BaseURL:           cfg.BaseURL,
-				PersistentStorage: cfg.PersistentStorage,
-				SSURL:             cfg.SlidingSyncURL,
-			})
-		cmd.WaitDelay = 3 * time.Second
-		defer close()
-		waiter := helpers.NewWaiter()
+		// login in a different process
+		opts := tc.ClientCreationOpts(t, tc.Alice, clientType.HS, WithPersistentStorage())
+		remoteClient := tc.MustCreateMultiprocessClient(t, api.ClientTypeRust, opts)
+		clientTerminatedWaiter := helpers.NewWaiter()
 		terminateClient = func() {
 			terminated.Store(true)
-			t.Logf("got keys/upload: terminating process %v", cmd.Process.Pid)
-			if err := cmd.Process.Kill(); err != nil {
-				t.Errorf("failed to kill process: %s", err)
-				return
-			}
-			t.Logf("terminated process")
-			waiter.Finish()
+			t.Logf("got keys/upload: force closing client")
+			remoteClient.ForceClose(t)
+			t.Logf("force closed client")
+			clientTerminatedWaiter.Finish()
 		}
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		cmd.Start()
-		waiter.Waitf(t, 5*time.Second, "failed to terminate process")
+		// login after defining terminateClient as login will upload keys
+		// this will cause a /keys/upload request and eventually cause terminateClient to be called.
+		// We drop the error here as it will be EOF due to us SIGKILLing the RPC server.
+		_ = remoteClient.Login(t, remoteClient.Opts())
+		clientTerminatedWaiter.Waitf(t, 5*time.Second, "terminateClient was not called, probably because we didn't see /keys/upload")
 		t.Logf("terminated process, making new client")
 		// now make the same client
-		alice := MustCreateClient(t, clientType, cfg)
-		alice.Login(t, cfg) // login should work
+		alice := MustCreateClient(t, clientType, opts)
+		alice.Login(t, opts) // login should work
 		stopSyncing := alice.MustStartSyncing(t)
 		// ensure we see the 2nd keys/upload
 		seenSecondKeysUploadWaiter.Wait(t, 5*time.Second)
@@ -157,10 +132,8 @@ func testSigkillBeforeKeysUploadResponseJS(t *testing.T, clientType api.ClientTy
 			waiter.Finish()
 		}
 		go func() {
-			must.NotError(t, "failed to login", clientWhichWillBeKilled.Login(t, clientWhichWillBeKilled.Opts()))
-			// need to start syncing to make JS do /keys/upload
-			// we don't need to stopSyncing because we'll SIGKILL this.
-			clientWhichWillBeKilled.StartSyncing(t)
+			// login to do /keys/upload
+			clientWhichWillBeKilled.Login(t, clientWhichWillBeKilled.Opts())
 			t.Logf("clientWhichWillBeKilled.Login returned")
 		}()
 		waiter.Wait(t, 5*time.Second) // wait for /keys/upload and subsequent SIGKILL

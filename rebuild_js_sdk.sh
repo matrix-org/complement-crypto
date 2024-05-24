@@ -10,9 +10,10 @@ then
     echo "  [version]: the yarn/npm package to use. This is fed directly into 'yarn add' so branches/commits can be used"
     echo ""
     echo "Examples:"
-    echo "  Install a released version: $0 matrix-js-sdk@29.1.0"
-    echo "  Install develop branch:     $0 matrix-js-sdk@https://github.com/matrix-org/matrix-js-sdk#develop"
-    echo "  Install specific commit:    $0 matrix-js-sdk@https://github.com/matrix-org/matrix-js-sdk#36c958642cda08d32bc19c2303ebdfca470d03c1"
+    echo "  Install a released version:    $0 matrix-js-sdk@29.1.0"
+    echo "  Install develop branch:        $0 matrix-js-sdk@https://github.com/matrix-org/matrix-js-sdk#develop"
+    echo "  Install specific commit:       $0 matrix-js-sdk@https://github.com/matrix-org/matrix-js-sdk#36c958642cda08d32bc19c2303ebdfca470d03c1"
+    echo "  Install from a local checkout: $0 matrix-js-sdk@file:/path/to/local/js/sdk"
     exit 1
 fi
 

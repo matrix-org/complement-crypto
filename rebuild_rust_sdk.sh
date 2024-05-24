@@ -7,7 +7,7 @@ COMPLEMENT_DIR="$(pwd)";
 
 if [ -z "$ARG" ] || [ "$ARG" = "-h" ] || [ "$ARG" = "--help" ];
 then
-    echo "Rebuild the version of rust SDK used. Execute this inside the complement-crypto directory. (requires on PATH: uniffi-bindgen-go, cargo, git)"
+    echo "Rebuild the version of rust SDK used. Execute this inside the complement-crypto directory. (requires on PATH: uniffi-bindgen-go, cargo, git, sed)"
     echo "Usage: $0 [version|directory]"
     echo "  [version]: the rust SDK git repo and branch|tag to use. Syntax: '\$HTTPS_URL@\$TAG|\$BRANCH'"
     echo "             Stores repository in $RUST_SDK_DIR"

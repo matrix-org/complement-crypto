@@ -23,7 +23,7 @@ Now you can look around those log lines for any warnings/errors or unexpected be
 
 Sometimes the bug cannot be found via log files alone. You may want to see server logs. To do this, [enable writing container logs](https://github.com/matrix-org/complement-crypto/blob/main/ENVIRONMENT.md#complement_crypto_write_container_logs) then re-run the test. 
 
-Sometimes, even that isn't enough. Perhaps server logs aren't giving enough information. In that case, [enable tcpdump](https://github.com/matrix-org/complement-crypto/blob/main/ENVIRONMENT.md#complement_crypto_tcpdump) and open the `.pcap` file in Wireshark to see the raw HTTP request/responses made by all clients.
+Sometimes, even that isn't enough. Perhaps server logs aren't giving enough information. In that case, [enable mitmdump](https://github.com/matrix-org/complement-crypto/blob/main/ENVIRONMENT.md#complement_crypto_mitmdump) and open the dump file in mitmweb to see the raw HTTP request/responses made by all clients. If you don't have mitmweb, run `./open_mitmweb.sh` which will use the mitmproxy image.
 
 If you need to add console logging to clients, see below.
 

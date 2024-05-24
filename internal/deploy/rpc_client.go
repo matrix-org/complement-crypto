@@ -17,14 +17,16 @@ import (
 
 // RPCLanguageBindings implements api.LanguageBindings and instead issues RPC calls to a remote server.
 type RPCLanguageBindings struct {
-	binaryPath string
-	clientType api.ClientTypeLang
+	binaryPath    string
+	clientType    api.ClientTypeLang
+	contextPrefix string
 }
 
-func NewRPCLanguageBindings(rpcBinaryPath string, clientType api.ClientTypeLang) (*RPCLanguageBindings, error) {
+func NewRPCLanguageBindings(rpcBinaryPath string, clientType api.ClientTypeLang, contextPrefix string) (*RPCLanguageBindings, error) {
 	return &RPCLanguageBindings{
-		binaryPath: rpcBinaryPath,
-		clientType: clientType,
+		binaryPath:    rpcBinaryPath,
+		clientType:    clientType,
+		contextPrefix: contextPrefix,
 	}, nil
 }
 
@@ -46,7 +48,7 @@ func (r *RPCLanguageBindings) PostTestRun(contextID string) {
 //   - IPC via stdout fails (used to extract the random high numbered port)
 //   - the client cannot talk to the rpc server
 func (r *RPCLanguageBindings) MustCreateClient(t ct.TestLike, cfg api.ClientCreationOpts) api.Client {
-	contextID := fmt.Sprintf("%s_%s", strings.Replace(cfg.UserID[1:], ":", "_", -1), cfg.DeviceID)
+	contextID := fmt.Sprintf("%s%s_%s", r.contextPrefix, strings.Replace(cfg.UserID[1:], ":", "_", -1), cfg.DeviceID)
 	// security: check it is a file not a random bash script...
 	if _, err := os.Stat(r.binaryPath); err != nil {
 		ct.Fatalf(t, "%s: RPC binary at %s does not exist or cannot be executed/read: %s", contextID, r.binaryPath, err)
@@ -131,6 +133,7 @@ func (r *RPCLanguageBindings) MustCreateClient(t ct.TestLike, cfg api.ClientCrea
 		return &RPCClient{
 			client: client,
 			lang:   r.clientType,
+			rpcCmd: rpcCmd,
 		}
 	case <-time.After(time.Second):
 		ct.Fatalf(t, "%s: timed out waiting for port number to be echoed to stdout. Did the RPC binary run, and is it actually the RPC binary? Path: %s", contextID, r.binaryPath)
@@ -142,6 +145,15 @@ func (r *RPCLanguageBindings) MustCreateClient(t ct.TestLike, cfg api.ClientCrea
 type RPCClient struct {
 	client *rpc.Client
 	lang   api.ClientTypeLang
+	rpcCmd *exec.Cmd
+}
+
+func (c *RPCClient) ForceClose(t ct.TestLike) {
+	t.Helper()
+	err := c.rpcCmd.Process.Kill()
+	if err != nil {
+		t.Fatalf("failed to kill process: %s", err)
+	}
 }
 
 // Close is called to clean up resources.
@@ -149,6 +161,7 @@ type RPCClient struct {
 // If we get callbacks/events after this point, tests may panic if the callbacks
 // log messages.
 func (c *RPCClient) Close(t ct.TestLike) {
+	t.Helper()
 	var void int
 	fmt.Println("RPCClient.Close")
 	err := c.client.Call("RPCServer.Close", t.Name(), &void)
@@ -156,6 +169,25 @@ func (c *RPCClient) Close(t ct.TestLike) {
 		t.Fatalf("RPCClient.Close: %s", err)
 	}
 	c.client.Close()
+}
+
+func (c *RPCClient) GetNotification(t ct.TestLike, roomID, eventID string) (*api.Notification, error) {
+	var notification api.Notification
+	input := RPCGetNotification{
+		RoomID:  roomID,
+		EventID: eventID,
+	}
+	err := c.client.Call("RPCServer.GetNotification", input, &notification)
+	return &notification, err
+}
+
+func (c *RPCClient) CurrentAccessToken(t ct.TestLike) string {
+	var token string
+	err := c.client.Call("RPCServer.CurrentAccessToken", t.Name(), &token)
+	if err != nil {
+		ct.Fatalf(t, "RPCServer.CurrentAccessToken: %s", err)
+	}
+	return token
 }
 
 // Remove any persistent storage, if it was enabled.
