@@ -99,7 +99,7 @@ This refers to cases where the client has some state and wishes to synchronise i
 - [ ] The room key is cycled when history visibility changes to something more restrictive TODO: define precisely.
 - [ ] The room key is cycled when the encryption algorithm changes.
 - [x] The room key is cycled when `rotation_period_msgs` is met (default: 100). (TestRoomKeyIsCycledAfterEnoughMessages)
-- [ ] The room key is cycled when `rotation_period_ms` is exceeded (default: 1 week).
+- [x] The room key is cycled when `rotation_period_ms` is exceeded (default: 1 week). (TestRoomKeyIsCycledAfterEnoughTime)
 - [x] The room key is not cycled when one of a user's devices logs in.
 - [x] The room key is not cycled when the client restarts.
 - [x] The room key is not cycled when users change their display name.

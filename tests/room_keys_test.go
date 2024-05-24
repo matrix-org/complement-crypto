@@ -110,7 +110,7 @@ func TestRoomKeyIsCycledOnDeviceLogout(t *testing.T) {
 // See https://gitlab.matrix.org/matrix-org/olm/blob/master/docs/megolm.md#lack-of-backward-secrecy
 func TestRoomKeyIsCycledAfterEnoughMessages(t *testing.T) {
 	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
-		// Given a room containing Alice and Bob
+		// Given a room containing Alice and Bob, where we rotate keys every 5 messages
 		tc := CreateTestContext(t, clientTypeA, clientTypeB)
 		roomID := tc.CreateNewEncryptedRoom(
 			t,
@@ -140,7 +140,6 @@ func TestRoomKeyIsCycledAfterEnoughMessages(t *testing.T) {
 					"filter":       "~u .*\\/sendToDevice.*",
 				},
 			}, func() {
-				wantMsgBody := "This one hits the threshold"
 				// When we send two messages (one to hit the threshold and one to pass it)
 				//
 				// Note that we deliberately cover two possible valid behaviours
@@ -149,6 +148,7 @@ func TestRoomKeyIsCycledAfterEnoughMessages(t *testing.T) {
 				// - lazily on the next message that would take the count above the threshold
 				// By sending two messages, we ensure that clients using either
 				// of these approaches will pass the test.
+				wantMsgBody := "This one hits the threshold"
 				waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 				alice.SendMessage(t, roomID, wantMsgBody)
 				waiter.Waitf(t, 5*time.Second, "bob did not see alice's message '%s'", wantMsgBody)
@@ -156,7 +156,7 @@ func TestRoomKeyIsCycledAfterEnoughMessages(t *testing.T) {
 				wantMsgBody = "After the threshold"
 				waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 				alice.SendMessage(t, roomID, wantMsgBody)
-				waiter.Waitf(t, 5*time.Second, "bob did not seee alice's message '%s'", wantMsgBody)
+				waiter.Waitf(t, 5*time.Second, "bob did not see alice's message '%s'", wantMsgBody)
 			})
 
 			// Then we did send out new keys
@@ -165,6 +165,85 @@ func TestRoomKeyIsCycledAfterEnoughMessages(t *testing.T) {
 				// Success - keys were sent
 			default:
 				ct.Fatalf(t, "did not see /sendToDevice after sending rotation_period_msgs messages")
+			}
+		})
+	})
+}
+
+// The room key is cycled when `rotation_period_ms` is exceeded (default: 1 week).
+//
+// This test ensures we change the m.room_key when enough time has passed,
+// where "enough" means the number of milliseconds set in the
+// `m.room.encryption` event under the `rotation_period_ms` property.
+//
+// If the key were not changed, someone who stole the key would have access to
+// future messages.
+//
+// See https://gitlab.matrix.org/matrix-org/olm/blob/master/docs/megolm.md#lack-of-backward-secrecy
+func TestRoomKeyIsCycledAfterEnoughTime(t *testing.T) {
+	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
+		// Disable this test if the sender is on JS.
+		// We require a custom Rust build to enable the hidden feature flag
+		// `_disable-minimum-rotation-period-ms`, so that we can set the
+		// rotation period to a small value. We don't control the version of
+		// rust-sdk that is built into the JS, so we can't enable this flag.
+		// (For the Rust side, we modify Cargo.toml within `rebuild_js_sdk.sh`.)
+		if clientTypeA.Lang == api.ClientTypeJS {
+			t.Skipf("Skipping on JS since we require a custom Rust build to allow small rotation_period_ms")
+			return
+		}
+
+		// Given a room containing Alice and Bob, where we rotate keys every second
+		tc := CreateTestContext(t, clientTypeA, clientTypeB)
+		roomID := tc.CreateNewEncryptedRoom(
+			t,
+			tc.Alice,
+			EncRoomOptions.PresetTrustedPrivateChat(),
+			EncRoomOptions.Invite([]string{tc.Bob.UserID}),
+			EncRoomOptions.RotationPeriodMs(1000),
+		)
+		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+
+		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+			// Before we start, ensure some keys have already been sent, so we
+			// don't get a false positive.
+			wantMsgBody := "Before we start"
+			waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+			alice.SendMessage(t, roomID, wantMsgBody)
+			waiter.Waitf(t, 5*time.Second, "Did not see 'before we start' event in the room")
+
+			// Sniff calls to /sendToDevice to ensure we see the new room key being sent.
+			ch := make(chan deploy.CallbackData, 10)
+			callbackURL, close := sniffToDeviceEvent(t, tc.Deployment, ch)
+			defer close()
+			tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+				"callback": map[string]interface{}{
+					"callback_url": callbackURL,
+					"filter":       "~u .*\\/sendToDevice.*",
+				},
+			}, func() {
+				// Send a message to ensure the room is working, and any timer is set up
+				wantMsgBody := "Before the time expires"
+				waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+				alice.SendMessage(t, roomID, wantMsgBody)
+				waiter.Waitf(t, 5*time.Second, "Did not see 'before the time expires' event in the room")
+
+				// When we wait 1.5 seconds
+				time.Sleep(1500 * time.Millisecond)
+
+				// And send another message
+				wantMsgBody = "After the time expires"
+				waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+				alice.SendMessage(t, roomID, wantMsgBody)
+				waiter.Waitf(t, 5*time.Second, "Did not see 'after the time expires' event in the room")
+			})
+
+			// Then we sent out new keys because the rotation timer had expired
+			select {
+			case <-ch:
+				// Success - keys were sent
+			default:
+				ct.Fatalf(t, "did not see /sendToDevice after waiting rotation_period_ms milliseconds")
 			}
 		})
 	})

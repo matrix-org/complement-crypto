@@ -374,6 +374,17 @@ func (encRoomOptions) RotationPeriodMsgs(numMsgs int) EncRoomOption {
 	}
 }
 
+// An option for CreateNewEncryptedRoom that adds a `rotation_period_ms` field
+// to the `m.room.encryption` event supplied when the room is created.
+func (encRoomOptions) RotationPeriodMs(milliseconds int) EncRoomOption {
+	return func(reqBody map[string]interface{}) {
+		var initial_state = reqBody["initial_state"].([]map[string]interface{})
+		var event = initial_state[0]
+		var content = event["content"].(map[string]interface{})
+		content["rotation_period_ms"] = milliseconds
+	}
+}
+
 // MustRegisterNewDevice logs in a new device for this client, else fails the test.
 func (c *TestContext) MustRegisterNewDevice(t *testing.T, cli *client.CSAPI, hsName, newDeviceID string) *client.CSAPI {
 	return c.Deployment.Login(t, hsName, cli, helpers.LoginOpts{
