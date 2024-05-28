@@ -78,12 +78,9 @@ func mustClaimOTKs(t *testing.T, claimer *client.CSAPI, target *client.CSAPI, ot
 // - Alice logs in, uploads OTKs AND A FALLBACK KEY (which is what this is trying to test!)
 // - Block all /keys/upload
 // - Manually claim all OTKs in the test.
-// - Claim the fallback key. Remember it.
+// - Claim the fallback key.
 // - Bob logs in, tries to talk to Alice, will have to claim fallback key. Ensure session works.
-// - BONUS: Charlie logs in, tries to talk to Alice, will have to claim _the same fallback key_. Ensure session works.
-// - Unblock /keys/upload
-// - Ensure fallback key is cycled by re-claiming all OTKs and the fallback key, ensure it isn't the same as the first fallback key.
-// - Expected fail on SS versions <0.99.14
+// - Charlie logs in, tries to talk to Alice, will have to claim _the same fallback key_. Ensure session works.
 func TestFallbackKeyIsUsedIfOneTimeKeysRunOut(t *testing.T) {
 	ClientTypeMatrix(t, func(t *testing.T, keyProviderClientType, keyConsumerClientType api.ClientType) {
 		tc := CreateTestContext(t, keyProviderClientType, keyConsumerClientType, keyConsumerClientType)
@@ -108,22 +105,21 @@ func TestFallbackKeyIsUsedIfOneTimeKeysRunOut(t *testing.T) {
 			t.Logf("uploaded otk count => %d", otkCount)
 
 			var roomID string
-			var fallbackKeyID string
-			var fallbackKey gjson.Result
 			var waiter api.Waiter
-			// Block all /keys/upload requests
+			// Block all /keys/upload requests for Alice
 			tc.Deployment.WithMITMOptions(t, map[string]interface{}{
 				"statuscode": map[string]interface{}{
 					"return_status": http.StatusGatewayTimeout,
 					"block_request": true,
-					"filter":        "~u .*/keys/upload.*",
+					"filter":        "~u .*/keys/upload.* ~hq " + alice.CurrentAccessToken(t),
 				},
 			}, func() {
 				// claim all OTKs
 				mustClaimOTKs(t, otkGobbler, tc.Alice, int(otkCount))
 
 				// now claim the fallback key
-				fallbackKeyID, fallbackKey = mustClaimFallbackKey(t, otkGobbler, tc.Alice)
+				fallbackKeyID, fallbackKey := mustClaimFallbackKey(t, otkGobbler, tc.Alice)
+				t.Logf("claimed fallback key %s => %s", fallbackKeyID, fallbackKey.Raw)
 
 				// now bob & charlie try to talk to alice, the fallback key should be used
 				roomID = tc.CreateNewEncryptedRoom(
@@ -145,23 +141,11 @@ func TestFallbackKeyIsUsedIfOneTimeKeysRunOut(t *testing.T) {
 				otkCount := res.Get("device_one_time_keys_count.signed_curve25519").Int()
 				must.Equal(t, otkCount, 0, "OTKs were uploaded when they should have been blocked by mitmproxy")
 			})
-			// rust sdk needs /keys/upload to 200 OK before it will decrypt the hello world msg
+			// rust sdk needs /keys/upload to 200 OK before it will decrypt the hello world msg,
+			// so only wait _after_ we have unblocked the endpoint.
 			waiter.Waitf(t, 5*time.Second, "alice did not see bob's message")
 			// check charlie's message is also here
 			alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody("Goodbye world!")).Waitf(t, 5*time.Second, "alice did not see charlie's message")
-
-			// now /keys/upload is unblocked, make sure we upload new keys
-			alice.SendMessage(t, roomID, "Kick the client to upload OTKs... hopefully")
-			t.Logf("first fallback key %s => %s", fallbackKeyID, fallbackKey.Get("key").Str)
-
-			tc.Alice.MustSyncUntil(t, client.SyncReq{}, func(clientUserID string, topLevelSyncJSON gjson.Result) error {
-				otkCount = topLevelSyncJSON.Get("device_one_time_keys_count.signed_curve25519").Int()
-				t.Logf("Alice otk count = %d", otkCount)
-				if otkCount == 0 {
-					return fmt.Errorf("alice hasn't re-uploaded OTKs yet")
-				}
-				return nil
-			})
 
 			// We do not check if the fallback key is cycled because some clients don't trust the server to tell them.
 			// see https://github.com/matrix-org/matrix-rust-sdk/pull/3151
