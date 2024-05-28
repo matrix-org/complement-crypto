@@ -181,6 +181,10 @@ func TestRoomKeyIsCycledAfterEnoughMessages(t *testing.T) {
 //
 // See https://gitlab.matrix.org/matrix-org/olm/blob/master/docs/megolm.md#lack-of-backward-secrecy
 func TestRoomKeyIsCycledAfterEnoughTime(t *testing.T) {
+	// if this is too high, the test takes needlessly long to complete.
+	// if this is too low, it can cause flakey test failures as various assertions in rust SDK
+	// around expired sessions fail.
+	rotationPeriod := 3 * time.Second
 	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
 		// Disable this test if the sender is on JS.
 		// We require a custom Rust build to enable the hidden feature flag
@@ -200,7 +204,7 @@ func TestRoomKeyIsCycledAfterEnoughTime(t *testing.T) {
 			tc.Alice,
 			EncRoomOptions.PresetTrustedPrivateChat(),
 			EncRoomOptions.Invite([]string{tc.Bob.UserID}),
-			EncRoomOptions.RotationPeriodMs(1000),
+			EncRoomOptions.RotationPeriodMs(int(rotationPeriod.Milliseconds())),
 		)
 		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 
@@ -228,8 +232,8 @@ func TestRoomKeyIsCycledAfterEnoughTime(t *testing.T) {
 				alice.SendMessage(t, roomID, wantMsgBody)
 				waiter.Waitf(t, 5*time.Second, "Did not see 'before the time expires' event in the room")
 
-				// When we wait 1.5 seconds
-				time.Sleep(1500 * time.Millisecond)
+				// When we wait 1+period seconds
+				time.Sleep(rotationPeriod + time.Second)
 
 				// And send another message
 				wantMsgBody = "After the time expires"
