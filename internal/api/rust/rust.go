@@ -672,14 +672,18 @@ func (c *RustClient) ensureListening(t ct.TestLike, roomID string) {
 				if setData == nil {
 					continue
 				}
+				ev := timelineItemToEvent(setData.Item)
 				i := int(setData.Index)
-				if i >= len(timeline) {
+				if i > len(timeline) { // allow appends, hence > not >=
 					t.Logf("TimelineListener[%s] SET %d out of bounds of events timeline of size %d", roomID, i, len(timeline))
 					continue
+				} else if i < len(timeline) {
+					timeline[i] = ev
+				} else if i == len(timeline) {
+					timeline = append(timeline, ev)
 				}
-				timeline[i] = timelineItemToEvent(setData.Item)
-				c.logToFile(t, "[%s]_______ SET %+v\n", c.userID, timeline[i])
-				newEvents = append(newEvents, timeline[i])
+				c.logToFile(t, "[%s]_______ SET %+v\n", c.userID, ev)
+				newEvents = append(newEvents, ev)
 			case matrix_sdk_ffi.TimelineChangePushFront:
 				pushFrontData := d.PushFront()
 				if pushFrontData == nil {
