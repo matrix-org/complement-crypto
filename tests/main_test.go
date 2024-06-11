@@ -133,6 +133,14 @@ func WithAccessToken(accessToken string) func(*api.ClientCreationOpts) {
 	}
 }
 
+// BaseClient is a Complement client along with type information for the HS / language the client
+// is associated with.
+type BaseClient struct {
+	*client.CSAPI
+	ClientType api.ClientType
+	// TODO : Opts
+}
+
 // TestContext provides a consistent set of variables which most tests will need access to.
 type TestContext struct {
 	Deployment    *deploy.SlidingSyncDeployment
@@ -199,6 +207,20 @@ func (c *TestContext) WithClientSyncing(t *testing.T, clientType api.ClientType,
 	stopSyncing := clientUnderTest.MustStartSyncing(t)
 	defer stopSyncing()
 	callback(clientUnderTest)
+}
+
+func (c *TestContext) WithClientsSyncing(t *testing.T, clients []BaseClient, callback func(clients []api.Client), options ...func(*api.ClientCreationOpts)) {
+	t.Helper()
+	cryptoClients := make([]api.Client, len(clients))
+	for i, cli := range clients {
+		cryptoClients[i] = c.MustLoginClient(t, cli.CSAPI, cli.ClientType)
+		defer cryptoClients[i].Close(t)
+	}
+	for _, cli := range cryptoClients {
+		stopSyncing := cli.MustStartSyncing(t)
+		defer stopSyncing()
+	}
+	callback(cryptoClients)
 }
 
 // MustCreateMultiprocessClient creates a new RPC process and instructs it to create a client given by the client creation options.
