@@ -156,6 +156,18 @@ func (s *RPCServer) SendMessage(msg RPCSendMessage, eventID *string) error {
 	return nil
 }
 
+type RPCJoinRoom struct {
+	TestName    string
+	RoomID      string
+	ServerNames []string
+}
+
+func (s *RPCServer) MustJoinRoom(msg RPCJoinRoom, void *int) error {
+	defer s.keepAlive()
+	s.activeClient.MustJoinRoom(&api.MockT{TestName: msg.TestName}, msg.RoomID, msg.ServerNames)
+	return nil
+}
+
 func (s *RPCServer) TrySendMessage(msg RPCSendMessage, eventID *string) error {
 	defer s.keepAlive()
 	var err error

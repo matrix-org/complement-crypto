@@ -190,6 +190,18 @@ func (c *RPCClient) CurrentAccessToken(t ct.TestLike) string {
 	return token
 }
 
+func (c *RPCClient) MustJoinRoom(t ct.TestLike, roomID string, serverNames []string) {
+	var void int
+	err := c.client.Call("RPCServer.MustJoinRoom", RPCJoinRoom{
+		TestName:    t.Name(),
+		RoomID:      roomID,
+		ServerNames: serverNames,
+	}, &void)
+	if err != nil {
+		t.Fatalf("RPCClient.MustJoinRoom: %s", err)
+	}
+}
+
 // Remove any persistent storage, if it was enabled.
 func (c *RPCClient) DeletePersistentStorage(t ct.TestLike) {
 	var void int

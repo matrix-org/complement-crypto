@@ -380,6 +380,14 @@ func (c *RustClient) IsRoomEncrypted(t ct.TestLike, roomID string) (bool, error)
 	return r.IsEncrypted()
 }
 
+func (c *RustClient) MustJoinRoom(t ct.TestLike, roomID string, serverNames []string) {
+	t.Helper()
+	_, err := c.FFIClient.JoinRoomByIdOrAlias(roomID, serverNames)
+	if err != nil {
+		ct.Fatalf(t, "MustJoinRoom[%s]: %s", roomID, err)
+	}
+}
+
 func (c *RustClient) MustBackupKeys(t ct.TestLike) (recoveryKey string) {
 	t.Helper()
 	genericListener := newGenericStateListener[matrix_sdk_ffi.EnableRecoveryProgress]()

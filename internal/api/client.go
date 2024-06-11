@@ -57,6 +57,8 @@ type Client interface {
 	MustBackupKeys(t ct.TestLike) (recoveryKey string)
 	// MustLoadBackup will recover E2EE keys from the latest backup, else fail the test.
 	MustLoadBackup(t ct.TestLike, recoveryKey string)
+	// MustJoinRoom will join the given room ID, else fail the test.
+	MustJoinRoom(t ct.TestLike, roomID string, serverNames []string)
 	// LoadBackup will recover E2EE keys from the latest backup, else return an error.
 	LoadBackup(t ct.TestLike, recoveryKey string) error
 	// GetNotification gets push notification-like information for the given event. If there is a problem, an error is returned.
@@ -85,6 +87,12 @@ func (c *LoggedClient) CurrentAccessToken(t ct.TestLike) string {
 	token := c.Client.CurrentAccessToken(t)
 	c.Logf(t, "%s CurrentAccessToken => %s", c.logPrefix(), token)
 	return token
+}
+
+func (c *LoggedClient) MustJoinRoom(t ct.TestLike, roomID string, serverNames []string) {
+	t.Helper()
+	c.Logf(t, "%s MustJoinRoom: %v %v", c.logPrefix(), roomID, serverNames)
+	c.Client.MustJoinRoom(t, roomID, serverNames)
 }
 
 func (c *LoggedClient) Login(t ct.TestLike, opts ClientCreationOpts) error {

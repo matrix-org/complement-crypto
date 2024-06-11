@@ -261,6 +261,14 @@ func (c *JSClient) GetNotification(t ct.TestLike, roomID, eventID string) (*api.
 	return nil, fmt.Errorf("not implemented yet") // TODO
 }
 
+func (c *JSClient) MustJoinRoom(t ct.TestLike, roomID string, serverNames []string) {
+	t.Helper()
+	serverList, _ := json.Marshal(serverNames)
+	chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`
+		await window.__client.joinRoom("%s", { viaServers: %s });`, roomID, string(serverList)),
+	)
+}
+
 func (c *JSClient) ForceClose(t ct.TestLike) {
 	t.Helper()
 	t.Logf("force closing a JS client is the same as a normal close (closing browser)")
