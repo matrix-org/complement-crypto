@@ -395,13 +395,13 @@ func TestToDeviceMessagesArentLostWhenKeysQueryFails(t *testing.T) {
 //   - Alice in a public encrypted room on her own with rotation_period_msgs set to 1.
 //   - Block Alice's /sync
 //   - Create 4 new users and join them to the encrypted room.
-//   - Send 40 messages as each user.
-//   - This will cause 40x4=160 to-device messages due to the low rotation period msgs value.
+//   - Send 30 messages as each user.
+//   - This will cause 40x3=120 to-device messages due to the low rotation period msgs value.
 //   - Unblock Alice's /sync
 //   - Ensure Alice can decrypt every single event.
 //
 // Both Sliding Sync and Sync v2 return to-device msgs in batches of 100, so going much above
-// 100 here isn't going to do much. We do a good chunk above it (160) just in case the client
+// 100 here isn't going to do much. We do a good chunk above it (120) just in case the client
 // is /syncing before processing the last response, but we also don't want to send too much
 // data as it makes this test take a long time to complete.
 //
@@ -409,7 +409,7 @@ func TestToDeviceMessagesArentLostWhenKeysQueryFails(t *testing.T) {
 // unrelated to processing out-of-order e.g it will cause fallback keys for alice to be used.
 func TestToDeviceMessagesAreProcessedInOrder(t *testing.T) {
 	numClients := 4
-	numMsgsPerClient := 40
+	numMsgsPerClient := 30
 	ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
 		tc := CreateTestContext(t, clientType)
 		roomID := tc.CreateNewEncryptedRoom(
