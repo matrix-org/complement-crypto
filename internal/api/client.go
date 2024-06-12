@@ -59,6 +59,8 @@ type Client interface {
 	MustLoadBackup(t ct.TestLike, recoveryKey string)
 	// MustJoinRoom will join the given room ID, else fail the test.
 	MustJoinRoom(t ct.TestLike, roomID string, serverNames []string)
+	// MustGetMembers returns the members in the room, else fails the test.
+	MustGetMembers(t ct.TestLike, roomID string) []Member
 	// LoadBackup will recover E2EE keys from the latest backup, else return an error.
 	LoadBackup(t ct.TestLike, recoveryKey string) error
 	// GetNotification gets push notification-like information for the given event. If there is a problem, an error is returned.
@@ -76,6 +78,12 @@ type Client interface {
 type Notification struct {
 	Event
 	HasMentions *bool
+}
+
+type Member struct {
+	UserID      string
+	DisplayName *string
+	Avatar      *string
 }
 
 type LoggedClient struct {

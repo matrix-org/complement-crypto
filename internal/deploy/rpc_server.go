@@ -94,6 +94,12 @@ func (s *RPCServer) Close(testName string, void *int) error {
 	return nil
 }
 
+func (s *RPCServer) MustGetMembers(roomID string, members *[]api.Member) error {
+	defer s.keepAlive()
+	*members = s.activeClient.MustGetMembers(&api.MockT{}, roomID)
+	return nil
+}
+
 func (s *RPCServer) DeletePersistentStorage(testName string, void *int) error {
 	defer s.keepAlive()
 	s.activeClient.DeletePersistentStorage(&api.MockT{TestName: testName})

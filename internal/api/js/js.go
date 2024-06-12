@@ -261,6 +261,10 @@ func (c *JSClient) GetNotification(t ct.TestLike, roomID, eventID string) (*api.
 	return nil, fmt.Errorf("not implemented yet") // TODO
 }
 
+func (c *JSClient) MustGetMembers(t ct.TestLike, roomID string) []api.Member {
+	return nil // TODO
+}
+
 func (c *JSClient) MustJoinRoom(t ct.TestLike, roomID string, serverNames []string) {
 	t.Helper()
 	serverList, _ := json.Marshal(serverNames)

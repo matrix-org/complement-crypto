@@ -389,6 +389,28 @@ func (c *RustClient) MustJoinRoom(t ct.TestLike, roomID string, serverNames []st
 	}
 }
 
+func (c *RustClient) MustGetMembers(t ct.TestLike, roomID string) []api.Member {
+	t.Helper()
+	r := c.findRoom(t, roomID)
+	if r == nil {
+		ct.Fatalf(t, "room %s does not exist", roomID)
+	}
+	iter, err := r.Members()
+	if err != nil {
+		ct.Fatalf(t, "Members: %s", err)
+	}
+	ffiMembers := iter.NextChunk(iter.Len())
+	members := make([]api.Member, 0, len(*ffiMembers))
+	for _, fm := range *ffiMembers {
+		members = append(members, api.Member{
+			UserID:      fm.UserId,
+			DisplayName: fm.DisplayName,
+			Avatar:      fm.AvatarUrl,
+		})
+	}
+	return members
+}
+
 func (c *RustClient) MustBackupKeys(t ct.TestLike) (recoveryKey string) {
 	t.Helper()
 	genericListener := newGenericStateListener[matrix_sdk_ffi.EnableRecoveryProgress]()

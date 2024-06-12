@@ -171,6 +171,15 @@ func (c *RPCClient) Close(t ct.TestLike) {
 	c.client.Close()
 }
 
+func (c *RPCClient) MustGetMembers(t ct.TestLike, roomID string) []api.Member {
+	var members []api.Member
+	err := c.client.Call("RPCServer.MustGetMembers", roomID, &members)
+	if err != nil {
+		ct.Fatalf(t, "RPCClient.MustGetMembers: %s", err)
+	}
+	return members
+}
+
 func (c *RPCClient) GetNotification(t ct.TestLike, roomID, eventID string) (*api.Notification, error) {
 	var notification api.Notification
 	input := RPCGetNotification{
