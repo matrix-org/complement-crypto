@@ -664,6 +664,18 @@ func (c *RustClient) ensureListening(t ct.TestLike, roomID string) {
 					c.logToFile(t, "[%s]_______ APPEND %+v\n", c.userID, ev)
 					newEvents = append(newEvents, ev)
 				}
+			case matrix_sdk_ffi.TimelineChangeReset:
+				resetItems := d.Reset()
+				if resetItems == nil {
+					continue
+				}
+                timeline = make([]*api.Event, len(*resetItems))
+				for i, item := range *resetItems {
+					ev := timelineItemToEvent(item)
+					timeline[i] = ev
+					c.logToFile(t, "[%s]_______ RESET %+v\n", c.userID, ev)
+					newEvents = append(newEvents, ev)
+				}
 			case matrix_sdk_ffi.TimelineChangePushBack: // append but 1 element
 				pbData := d.PushBack()
 				if pbData == nil {
@@ -708,17 +720,10 @@ func (c *RustClient) ensureListening(t ct.TestLike, roomID string) {
 			c.Logf(t, "[%s]TimelineDiff change: %+v", c.userID, e)
 		}
 	}})
-	events := make([]*api.Event, len(result.Items))
-	for i := range result.Items {
-		events[i] = timelineItemToEvent(result.Items[i])
-	}
-	c.rooms[roomID].stream = result.ItemsStream
-	c.rooms[roomID].timeline = events
-	c.Logf(t, "[%s]AddTimelineListener[%s] result.Items len=%d", c.userID, roomID, len(result.Items))
+	c.rooms[roomID].stream = result
+	c.rooms[roomID].timeline = make([]*api.Event, 0)
+	c.Logf(t, "[%s]AddTimelineListener[%s] set up", c.userID, roomID)
 	waiter.Finish()
-	if len(events) > 0 {
-		c.roomsListener.BroadcastUpdateForRoom(roomID)
-	}
 }
 
 type timelineWaiter struct {
