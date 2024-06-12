@@ -12,6 +12,7 @@ import (
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/api/rust/matrix_sdk_ffi"
 	"github.com/matrix-org/complement/ct"
+	"github.com/matrix-org/complement/helpers"
 	"github.com/matrix-org/complement/must"
 	"golang.org/x/exp/slices"
 )
@@ -611,8 +612,13 @@ func (c *RustClient) ensureListening(t ct.TestLike, roomID string) {
 	}
 
 	c.Logf(t, "[%s]AddTimelineListener[%s]", c.userID, roomID)
-	// we need a timeline listener before we can send messages
+	// we need a timeline listener before we can send messages. Ensure we insert the initial
+	// set of items prior to handling updates. If we don't wait, we risk the listener firing
+	// _before_ we have set the initial entries in the timeline. This would cause a lost update
+	// as setting the initial entries clears the timeline, which can then result in test flakes.
+	waiter := helpers.NewWaiter()
 	result := mustGetTimeline(t, r).AddListener(&timelineListener{fn: func(diff []*matrix_sdk_ffi.TimelineDiff) {
+		waiter.Waitf(t, 5*time.Second, "timed out waiting for Timeline.AddListener to return")
 		timeline := c.rooms[roomID].timeline
 		var newEvents []*api.Event
 		c.Logf(t, "[%s]AddTimelineListener[%s] TimelineDiff len=%d", c.userID, roomID, len(diff))
@@ -709,6 +715,7 @@ func (c *RustClient) ensureListening(t ct.TestLike, roomID string) {
 	c.rooms[roomID].stream = result.ItemsStream
 	c.rooms[roomID].timeline = events
 	c.Logf(t, "[%s]AddTimelineListener[%s] result.Items len=%d", c.userID, roomID, len(result.Items))
+	waiter.Finish()
 	if len(events) > 0 {
 		c.roomsListener.BroadcastUpdateForRoom(roomID)
 	}
