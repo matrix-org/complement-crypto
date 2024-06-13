@@ -12,13 +12,13 @@ import (
 // Test that backups can be created and stored in secret storage.
 // Test that backups can be restored using secret storage and the recovery key.
 func TestCanBackupKeys(t *testing.T) {
-	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
+	Instance().ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
 		if clientTypeA.HS != clientTypeB.HS {
 			t.Skipf("client A and B must be on the same HS as this is testing key backups so A=backup creator B=backup restorer")
 			return
 		}
 		t.Logf("backup creator = %s backup restorer = %s", clientTypeA.Lang, clientTypeB.Lang)
-		tc := CreateTestContext(t, clientTypeA)
+		tc := Instance().CreateTestContext(t, clientTypeA)
 		roomID := tc.Alice.MustCreateRoom(t, map[string]interface{}{
 			"name":   t.Name(),
 			"preset": "public_chat", // shared history visibility
@@ -72,13 +72,13 @@ func TestCanBackupKeys(t *testing.T) {
 }
 
 func TestBackupWrongRecoveryKeyFails(t *testing.T) {
-	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
+	Instance().ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
 		if clientTypeA.HS != clientTypeB.HS {
 			t.Skipf("client A and B must be on the same HS as this is testing key backups so A=backup creator B=backup restorer")
 			return
 		}
 		t.Logf("backup creator = %s backup restorer = %s", clientTypeA.Lang, clientTypeB.Lang)
-		tc := CreateTestContext(t, clientTypeA)
+		tc := Instance().CreateTestContext(t, clientTypeA)
 		roomID := tc.Alice.MustCreateRoom(t, map[string]interface{}{
 			"name":   t.Name(),
 			"preset": "public_chat", // shared history visibility

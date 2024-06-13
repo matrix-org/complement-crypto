@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
+	"github.com/matrix-org/complement-crypto/internal/cc"
 	"github.com/matrix-org/complement/must"
 )
 
@@ -20,14 +21,14 @@ import (
 // asserting that isEncrypted() returns true. This test may be expanded in the
 // future to assert things like "there is a ciphertext".
 func TestAliceBobEncryptionWorks(t *testing.T) {
-	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
-		tc := CreateTestContext(t, clientTypeA, clientTypeB)
+	Instance().ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
+		tc := Instance().CreateTestContext(t, clientTypeA, clientTypeB)
 		// Alice invites Bob to the encrypted room
 		roomID := tc.CreateNewEncryptedRoom(
 			t,
 			tc.Alice,
-			EncRoomOptions.PresetTrustedPrivateChat(),
-			EncRoomOptions.Invite([]string{tc.Bob.UserID}),
+			cc.EncRoomOptions.PresetTrustedPrivateChat(),
+			cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}),
 		)
 		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 
@@ -62,14 +63,14 @@ func TestAliceBobEncryptionWorks(t *testing.T) {
 // - Bob joins the room and backpaginates.
 // - Ensure Bob can see the decrypted content.
 func TestCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T) {
-	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
-		tc := CreateTestContext(t, clientTypeA, clientTypeB)
+	Instance().ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
+		tc := Instance().CreateTestContext(t, clientTypeA, clientTypeB)
 		// Alice invites Bob to the encrypted room
 		roomID := tc.CreateNewEncryptedRoom(
 			t,
 			tc.Alice,
-			EncRoomOptions.PresetTrustedPrivateChat(),
-			EncRoomOptions.Invite([]string{tc.Bob.UserID}),
+			cc.EncRoomOptions.PresetTrustedPrivateChat(),
+			cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}),
 		)
 
 		// SDK testing below
@@ -130,10 +131,10 @@ func TestCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T) {
 // In a public, `shared` history visibility room, a new user Bob cannot decrypt earlier messages prior to his join,
 // despite being able to see the events. Subsequent messages are decryptable.
 func TestBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
-	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
-		tc := CreateTestContext(t, clientTypeA, clientTypeB)
+	Instance().ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
+		tc := Instance().CreateTestContext(t, clientTypeA, clientTypeB)
 		// shared history visibility
-		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, EncRoomOptions.PresetPublicChat())
+		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.PresetPublicChat())
 
 		// SDK testing below
 		// -----------------
@@ -164,16 +165,16 @@ func TestBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 
 // Bob leaves the room. Some messages are sent. Bob rejoins and cannot decrypt the messages sent whilst he was gone (ensuring we cycle keys).
 func TestOnRejoinBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
-	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
+	Instance().ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
 		// disable this test if A) it's over federation and B) the HS2 user is on JS
 		// due to https://github.com/element-hq/synapse/issues/15717
 		if clientTypeA.HS != clientTypeB.HS && clientTypeB.Lang == api.ClientTypeJS {
 			t.Skipf("skipping due to https://github.com/element-hq/synapse/issues/15717")
 			return
 		}
-		tc := CreateTestContext(t, clientTypeA, clientTypeB)
+		tc := Instance().CreateTestContext(t, clientTypeA, clientTypeB)
 		// shared history visibility
-		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, EncRoomOptions.PresetPublicChat())
+		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.PresetPublicChat())
 		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 
 		// SDK testing below
@@ -241,10 +242,10 @@ func TestOnRejoinBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 // then messages aren't decryptable. Likewise, if the device DID exist but no longer does (due to /logout), ensure messages sent whilst
 // logged out are not decryptable.
 func TestOnNewDeviceBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
-	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
-		tc := CreateTestContext(t, clientTypeA, clientTypeB)
+	Instance().ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
+		tc := Instance().CreateTestContext(t, clientTypeA, clientTypeB)
 		// shared history visibility
-		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, EncRoomOptions.PresetPublicChat())
+		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.PresetPublicChat())
 		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 
 		// SDK testing below
@@ -314,10 +315,10 @@ func TestOnNewDeviceBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 // This test is an EXPECTED FAIL in today's Matrix, due to lack of re-encryption for new devices
 // Alice invites Bob, Bob changes their device, then Bob joins. Bob should be able to see Alice's message.
 func TestChangingDeviceAfterInviteReEncrypts(t *testing.T) {
-	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
-		tc := CreateTestContext(t, clientTypeA, clientTypeB)
+	Instance().ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
+		tc := Instance().CreateTestContext(t, clientTypeA, clientTypeB)
 		// shared history visibility
-		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, EncRoomOptions.PresetPublicChat())
+		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.PresetPublicChat())
 
 		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
 			// Alice invites Bob and then she sends an event

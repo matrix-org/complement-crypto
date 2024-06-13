@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
+	"github.com/matrix-org/complement-crypto/internal/cc"
 	"github.com/matrix-org/complement-crypto/internal/deploy"
 	"github.com/matrix-org/complement/must"
 )
@@ -38,7 +39,7 @@ import (
 // These tests try to trip up this logic by providing multiple notifications to a single process, etc.
 
 func TestNSEReceive(t *testing.T) {
-	if !ShouldTest(api.ClientTypeRust) {
+	if !Instance().ShouldTest(api.ClientTypeRust) {
 		t.Skipf("rust only")
 		return
 	}
@@ -47,7 +48,7 @@ func TestNSEReceive(t *testing.T) {
 
 // What happens if you get pushed for an event not in the SS response? It should hit /context.
 func TestNSEReceiveForOldMessage(t *testing.T) {
-	if !ShouldTest(api.ClientTypeRust) {
+	if !Instance().ShouldTest(api.ClientTypeRust) {
 		t.Skipf("rust only")
 		return
 	}
@@ -56,7 +57,7 @@ func TestNSEReceiveForOldMessage(t *testing.T) {
 
 // what happens if there's many events and you only get pushed for the last one?
 func TestNSEReceiveForMessageWithManyUnread(t *testing.T) {
-	if !ShouldTest(api.ClientTypeRust) {
+	if !Instance().ShouldTest(api.ClientTypeRust) {
 		t.Skipf("rust only")
 		return
 	}
@@ -68,7 +69,7 @@ func testNSEReceive(t *testing.T, numMsgsBefore, numMsgsAfter int) {
 	tc, roomID := createAndJoinRoom(t)
 
 	// login as Alice (uploads OTKs/device keys) and remember the access token for NSE
-	alice := tc.MustLoginClient(t, tc.Alice, tc.AliceClientType, WithPersistentStorage(), WithCrossProcessLock("main"))
+	alice := tc.MustLoginClient(t, tc.Alice, tc.AliceClientType, cc.WithPersistentStorage(), cc.WithCrossProcessLock("main"))
 	alice.Logf(t, "syncing and sending dummy message to ensure e2ee keys are uploaded")
 	stopSyncing := alice.MustStartSyncing(t)
 	alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(tc.Bob.UserID, "join")).Waitf(t, 5*time.Second, "did not see bob's join")
@@ -84,7 +85,7 @@ func testNSEReceive(t *testing.T, numMsgsBefore, numMsgsAfter int) {
 	pushNotifEventID := bobSendsMessage(t, tc, roomID, "push notification", numMsgsBefore, numMsgsAfter)
 
 	// now make the "NSE" process and get bob's message
-	opts := tc.ClientCreationOpts(t, tc.Alice, tc.AliceClientType.HS, WithPersistentStorage())
+	opts := tc.ClientCreationOpts(t, tc.Alice, tc.AliceClientType.HS, cc.WithPersistentStorage())
 	opts.EnableCrossProcessRefreshLockProcessName = api.ProcessNameNSE
 	opts.AccessToken = accessToken
 	client := tc.MustCreateMultiprocessClient(t, tc.AliceClientType.Lang, opts) // this should login already as we provided an access token
@@ -98,13 +99,13 @@ func testNSEReceive(t *testing.T, numMsgsBefore, numMsgsAfter int) {
 
 // what happens if you receive an NSE event for a non-pre key message (i.e not the first encrypted msg sent by that user)
 func TestNSEReceiveForNonPreKeyMessage(t *testing.T) {
-	if !ShouldTest(api.ClientTypeRust) {
+	if !Instance().ShouldTest(api.ClientTypeRust) {
 		t.Skipf("rust only")
 		return
 	}
 	tc, roomID := createAndJoinRoom(t)
 	// Alice starts syncing
-	alice := tc.MustLoginClient(t, tc.Alice, tc.AliceClientType, WithPersistentStorage(), WithCrossProcessLock("main"))
+	alice := tc.MustLoginClient(t, tc.Alice, tc.AliceClientType, cc.WithPersistentStorage(), cc.WithCrossProcessLock("main"))
 	stopSyncing := alice.MustStartSyncing(t)
 	// Bob sends a message to alice
 	tc.WithClientSyncing(t, tc.BobClientType, tc.Bob, func(bob api.Client) {
@@ -121,10 +122,10 @@ func TestNSEReceiveForNonPreKeyMessage(t *testing.T) {
 		eventID := bob.SendMessage(t, roomID, "for nse")
 		bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasEventID(eventID)).Waitf(t, 5*time.Second, "bob did not see his own message")
 		// now make the "NSE" process and get bob's message
-		opts := tc.ClientCreationOpts(t, tc.Alice, tc.AliceClientType.HS, WithPersistentStorage())
+		opts := tc.ClientCreationOpts(t, tc.Alice, tc.AliceClientType.HS, cc.WithPersistentStorage())
 		opts.EnableCrossProcessRefreshLockProcessName = api.ProcessNameNSE
 		opts.AccessToken = accessToken
-		client := MustCreateClient(t, tc.AliceClientType, opts) // this should login already as we provided an access token
+		client := cc.MustCreateClient(t, tc.AliceClientType, opts) // this should login already as we provided an access token
 		defer client.Close(t)
 		// we don't sync in the NSE process, just call GetNotification
 		notif, err := client.GetNotification(t, roomID, eventID)
@@ -137,7 +138,7 @@ func TestNSEReceiveForNonPreKeyMessage(t *testing.T) {
 // Get an encrypted room set up with keys exchanged, then concurrently receive messages and see if we end up with a wedged
 // session. We should see "Crypto store generation mismatch" log lines in rust SDK.
 func TestMultiprocessNSE(t *testing.T) {
-	if !ShouldTest(api.ClientTypeRust) {
+	if !Instance().ShouldTest(api.ClientTypeRust) {
 		t.Skipf("rust only")
 		return
 	}
@@ -146,7 +147,7 @@ func TestMultiprocessNSE(t *testing.T) {
 	numPostNSEMsgs := 300
 	tc, roomID := createAndJoinRoom(t)
 	// Alice starts syncing to get an encrypted room set up
-	alice := tc.MustLoginClient(t, tc.Alice, tc.AliceClientType, WithPersistentStorage(), WithCrossProcessLock("main"))
+	alice := tc.MustLoginClient(t, tc.Alice, tc.AliceClientType, cc.WithPersistentStorage(), cc.WithCrossProcessLock("main"))
 	stopSyncing := alice.MustStartSyncing(t)
 	accessToken := alice.Opts().AccessToken
 	recoveryKey := alice.MustBackupKeys(t)
@@ -173,8 +174,8 @@ func TestMultiprocessNSE(t *testing.T) {
 			if alice != nil {
 				t.Fatalf("startAliceSyncing: alice was already syncing")
 			}
-			alice = MustCreateClient(t, tc.AliceClientType, tc.ClientCreationOpts(t, tc.Alice, tc.AliceClientType.HS,
-				WithPersistentStorage(), WithAccessToken(accessToken), WithCrossProcessLock("main"),
+			alice = cc.MustCreateClient(t, tc.AliceClientType, tc.ClientCreationOpts(t, tc.Alice, tc.AliceClientType.HS,
+				cc.WithPersistentStorage(), cc.WithAccessToken(accessToken), cc.WithCrossProcessLock("main"),
 			)) // this should login already as we provided an access token
 			stopSyncing = alice.MustStartSyncing(t)
 		}
@@ -186,7 +187,7 @@ func TestMultiprocessNSE(t *testing.T) {
 
 		// set up the nse process. It doesn't actively keep a sync loop so we don't need to do the close dance with it.
 		nseAlice := tc.MustCreateMultiprocessClient(t, tc.AliceClientType.Lang, tc.ClientCreationOpts(t, tc.Alice, tc.AliceClientType.HS,
-			WithPersistentStorage(), WithAccessToken(accessToken), WithCrossProcessLock(api.ProcessNameNSE),
+			cc.WithPersistentStorage(), cc.WithAccessToken(accessToken), cc.WithCrossProcessLock(api.ProcessNameNSE),
 		)) // this should login already as we provided an access token
 
 		randomSource := rand.NewSource(2) // static seed for determinism
@@ -218,7 +219,7 @@ func TestMultiprocessNSE(t *testing.T) {
 			t.Logf("event %s => '%s'", eventID, msg)
 			if restartNSE { // a new NSE process is created as a result of bob's message
 				nseAlice = tc.MustCreateMultiprocessClient(t, tc.AliceClientType.Lang, tc.ClientCreationOpts(t, tc.Alice, tc.AliceClientType.HS,
-					WithPersistentStorage(), WithAccessToken(accessToken), WithCrossProcessLock(api.ProcessNameNSE),
+					cc.WithPersistentStorage(), cc.WithAccessToken(accessToken), cc.WithCrossProcessLock(api.ProcessNameNSE),
 				))
 			} // else we reuse the same NSE process for bob's message
 
@@ -249,7 +250,7 @@ func TestMultiprocessNSE(t *testing.T) {
 
 	// do a new login to alice and use the recovery key
 	newDevice := tc.MustRegisterNewDevice(t, tc.Alice, tc.AliceClientType.HS, "RESTORE")
-	alice2 := tc.MustLoginClient(t, newDevice, tc.AliceClientType, WithPersistentStorage(), WithCrossProcessLock("main"))
+	alice2 := tc.MustLoginClient(t, newDevice, tc.AliceClientType, cc.WithPersistentStorage(), cc.WithCrossProcessLock("main"))
 	alice2.MustLoadBackup(t, recoveryKey)
 	stopSyncing = alice2.MustStartSyncing(t)
 	defer stopSyncing()
@@ -263,13 +264,13 @@ func TestMultiprocessNSE(t *testing.T) {
 }
 
 func TestMultiprocessNSEBackupKeyMacError(t *testing.T) {
-	if !ShouldTest(api.ClientTypeRust) {
+	if !Instance().ShouldTest(api.ClientTypeRust) {
 		t.Skipf("rust only")
 		return
 	}
 	tc, roomID := createAndJoinRoom(t)
 	// Alice starts syncing to get an encrypted room set up
-	alice := tc.MustLoginClient(t, tc.Alice, tc.AliceClientType, WithPersistentStorage(), WithCrossProcessLock("main"))
+	alice := tc.MustLoginClient(t, tc.Alice, tc.AliceClientType, cc.WithPersistentStorage(), cc.WithCrossProcessLock("main"))
 	stopSyncing := alice.MustStartSyncing(t)
 	accessToken := alice.Opts().AccessToken
 	recoveryKey := alice.MustBackupKeys(t)
@@ -292,8 +293,8 @@ func TestMultiprocessNSEBackupKeyMacError(t *testing.T) {
 			if alice != nil {
 				t.Fatalf("startAliceSyncing: alice was already syncing")
 			}
-			alice = MustCreateClient(t, tc.AliceClientType, tc.ClientCreationOpts(t, tc.Alice, tc.AliceClientType.HS,
-				WithPersistentStorage(), WithAccessToken(accessToken), WithCrossProcessLock("main"),
+			alice = cc.MustCreateClient(t, tc.AliceClientType, tc.ClientCreationOpts(t, tc.Alice, tc.AliceClientType.HS,
+				cc.WithPersistentStorage(), cc.WithAccessToken(accessToken), cc.WithCrossProcessLock("main"),
 			)) // this should login already as we provided an access token
 			stopSyncing = alice.MustStartSyncing(t)
 		}
@@ -305,7 +306,7 @@ func TestMultiprocessNSEBackupKeyMacError(t *testing.T) {
 
 		// set up the nse process. It doesn't actively keep a sync loop so we don't need to do the close dance with it.
 		nseAlice := tc.MustCreateMultiprocessClient(t, tc.AliceClientType.Lang, tc.ClientCreationOpts(t, tc.Alice, tc.AliceClientType.HS,
-			WithPersistentStorage(), WithAccessToken(accessToken), WithCrossProcessLock(api.ProcessNameNSE),
+			cc.WithPersistentStorage(), cc.WithAccessToken(accessToken), cc.WithCrossProcessLock(api.ProcessNameNSE),
 		)) // this should login already as we provided an access token
 
 		msg := "first message"
@@ -339,7 +340,7 @@ func TestMultiprocessNSEBackupKeyMacError(t *testing.T) {
 
 	// do a new login to alice and use the recovery key
 	newDevice := tc.MustRegisterNewDevice(t, tc.Alice, tc.AliceClientType.HS, "RESTORE")
-	alice2 := tc.MustLoginClient(t, newDevice, tc.AliceClientType, WithPersistentStorage(), WithCrossProcessLock("main"))
+	alice2 := tc.MustLoginClient(t, newDevice, tc.AliceClientType, cc.WithPersistentStorage(), cc.WithCrossProcessLock("main"))
 	alice2.MustLoadBackup(t, recoveryKey)
 	stopSyncing = alice2.MustStartSyncing(t)
 	defer stopSyncing()
@@ -353,13 +354,13 @@ func TestMultiprocessNSEBackupKeyMacError(t *testing.T) {
 }
 
 func TestMultiprocessNSEOlmSessionWedge(t *testing.T) {
-	if !ShouldTest(api.ClientTypeRust) {
+	if !Instance().ShouldTest(api.ClientTypeRust) {
 		t.Skipf("rust only")
 		return
 	}
 	tc, roomID := createAndJoinRoom(t)
 	// Alice starts syncing to get an encrypted room set up
-	alice := tc.MustLoginClient(t, tc.Alice, tc.AliceClientType, WithPersistentStorage(), WithCrossProcessLock("main"))
+	alice := tc.MustLoginClient(t, tc.Alice, tc.AliceClientType, cc.WithPersistentStorage(), cc.WithCrossProcessLock("main"))
 	stopSyncing := alice.MustStartSyncing(t)
 	accessToken := alice.Opts().AccessToken
 	// Bob sends a message to alice
@@ -384,8 +385,8 @@ func TestMultiprocessNSEOlmSessionWedge(t *testing.T) {
 			if alice != nil {
 				t.Fatalf("startAliceSyncing: alice was already syncing")
 			}
-			alice = MustCreateClient(t, tc.AliceClientType, tc.ClientCreationOpts(t, tc.Alice, tc.AliceClientType.HS,
-				WithPersistentStorage(), WithAccessToken(accessToken), WithCrossProcessLock("main"),
+			alice = cc.MustCreateClient(t, tc.AliceClientType, tc.ClientCreationOpts(t, tc.Alice, tc.AliceClientType.HS,
+				cc.WithPersistentStorage(), cc.WithAccessToken(accessToken), cc.WithCrossProcessLock("main"),
 			)) // this should login already as we provided an access token
 			stopSyncing = alice.MustStartSyncing(t)
 		}
@@ -401,7 +402,7 @@ func TestMultiprocessNSEOlmSessionWedge(t *testing.T) {
 		// Note we do not restart the NSE process in this test. This matches reality where the NSE process is often used
 		// to process multiple push notifs one after the other.
 		nseAlice := tc.MustCreateMultiprocessClient(t, tc.AliceClientType.Lang, tc.ClientCreationOpts(t, tc.Alice, tc.AliceClientType.HS,
-			WithPersistentStorage(), WithAccessToken(accessToken), WithCrossProcessLock(api.ProcessNameNSE),
+			cc.WithPersistentStorage(), cc.WithAccessToken(accessToken), cc.WithCrossProcessLock(api.ProcessNameNSE),
 		)) // this should login already as we provided an access token
 
 		stopAliceSyncing()
@@ -436,7 +437,7 @@ func TestMultiprocessNSEOlmSessionWedge(t *testing.T) {
 }
 
 func TestMultiprocessDupeOTKUpload(t *testing.T) {
-	if !ShouldTest(api.ClientTypeRust) {
+	if !Instance().ShouldTest(api.ClientTypeRust) {
 		t.Skipf("rust only")
 		return
 	}
@@ -444,12 +445,12 @@ func TestMultiprocessDupeOTKUpload(t *testing.T) {
 	tc, roomID := createAndJoinRoom(t)
 
 	// start the "main" app
-	alice := tc.MustLoginClient(t, tc.Alice, tc.AliceClientType, WithPersistentStorage(), WithCrossProcessLock("main"))
+	alice := tc.MustLoginClient(t, tc.Alice, tc.AliceClientType, cc.WithPersistentStorage(), cc.WithCrossProcessLock("main"))
 	aliceAccessToken := alice.Opts().AccessToken
 
 	// prep nse process
 	nseAlice := tc.MustCreateMultiprocessClient(t, tc.AliceClientType.Lang, tc.ClientCreationOpts(t, tc.Alice, tc.AliceClientType.HS,
-		WithPersistentStorage(), WithAccessToken(aliceAccessToken), WithCrossProcessLock(api.ProcessNameNSE),
+		cc.WithPersistentStorage(), cc.WithAccessToken(aliceAccessToken), cc.WithCrossProcessLock(api.ProcessNameNSE),
 	))
 
 	aliceUploadedNewKeys := false
@@ -503,28 +504,28 @@ func TestMultiprocessDupeOTKUpload(t *testing.T) {
 	}
 }
 
-func createAndJoinRoom(t *testing.T) (tc *TestContext, roomID string) {
+func createAndJoinRoom(t *testing.T) (tc *cc.TestContext, roomID string) {
 	t.Helper()
 	clientType := api.ClientType{
 		Lang: api.ClientTypeRust,
 		HS:   "hs1",
 	}
-	tc = CreateTestContext(t, clientType, clientType)
+	tc = Instance().CreateTestContext(t, clientType, clientType)
 	roomID = tc.CreateNewEncryptedRoom(
 		t,
 		tc.Alice,
-		EncRoomOptions.PresetTrustedPrivateChat(),
-		EncRoomOptions.Invite([]string{tc.Bob.UserID}),
+		cc.EncRoomOptions.PresetTrustedPrivateChat(),
+		cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}),
 		// purposefully low rotation period to force room keys to be updated more frequently.
 		// Wedged olm sessions can only happen when we send olm messages, which only happens
 		// when we send new room keys!
-		EncRoomOptions.RotationPeriodMsgs(1),
+		cc.EncRoomOptions.RotationPeriodMsgs(1),
 	)
 	tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
 	return
 }
 
-func bobSendsMessage(t *testing.T, tc *TestContext, roomID, text string, msgsBefore, msgsAfter int) (eventID string) {
+func bobSendsMessage(t *testing.T, tc *cc.TestContext, roomID, text string, msgsBefore, msgsAfter int) (eventID string) {
 	t.Helper()
 	pushNotifEventID := ""
 	tc.WithClientSyncing(t, tc.BobClientType, tc.Bob, func(bob api.Client) {

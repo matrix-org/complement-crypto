@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
+	"github.com/matrix-org/complement-crypto/internal/cc"
 	"github.com/matrix-org/complement-crypto/internal/deploy"
 	"github.com/matrix-org/complement/helpers"
 	"github.com/matrix-org/complement/must"
@@ -15,9 +16,9 @@ import (
 
 // Test that if a client is unable to call /sendToDevice, it retries.
 func TestClientRetriesSendToDevice(t *testing.T) {
-	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
-		tc := CreateTestContext(t, clientTypeA, clientTypeB)
-		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, EncRoomOptions.PresetPublicChat())
+	Instance().ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
+		tc := Instance().CreateTestContext(t, clientTypeA, clientTypeB)
+		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.PresetPublicChat())
 		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
 			// lets device keys be exchanged
@@ -68,16 +69,16 @@ func TestClientRetriesSendToDevice(t *testing.T) {
 // - Restart Bob's client.
 // - Ensure Bob can decrypt new messages sent from Alice.
 func TestUnprocessedToDeviceMessagesArentLostOnRestart(t *testing.T) {
-	ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
+	Instance().ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
 		// prepare for the test: register all 3 clients and create the room
-		tc := CreateTestContext(t, clientType, clientType)
+		tc := Instance().CreateTestContext(t, clientType, clientType)
 		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice,
-			EncRoomOptions.Invite([]string{tc.Bob.UserID}), EncRoomOptions.RotationPeriodMsgs(1),
+			cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}), cc.EncRoomOptions.RotationPeriodMsgs(1),
 		)
 		tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
 		// the initial setup for rust/js is the same.
 		// login bob first so we have OTKs
-		bob := tc.MustLoginClient(t, tc.Bob, tc.BobClientType, WithPersistentStorage())
+		bob := tc.MustLoginClient(t, tc.Bob, tc.BobClientType, cc.WithPersistentStorage())
 		tc.WithAliceSyncing(t, func(alice api.Client) {
 			// we will close this in the test, no defer
 			bobStopSyncing := bob.MustStartSyncing(t)
@@ -121,7 +122,7 @@ func TestUnprocessedToDeviceMessagesArentLostOnRestart(t *testing.T) {
 	})
 }
 
-func testUnprocessedToDeviceMessagesArentLostOnRestartRust(t *testing.T, tc *TestContext, bobOpts api.ClientCreationOpts, roomID, eventID string) {
+func testUnprocessedToDeviceMessagesArentLostOnRestartRust(t *testing.T, tc *cc.TestContext, bobOpts api.ClientCreationOpts, roomID, eventID string) {
 	// sniff /sync traffic
 	waitForRoomKey := helpers.NewWaiter()
 	tc.Deployment.WithSniffedEndpoint(t, "/sync", func(cd deploy.CallbackData) {
@@ -156,7 +157,7 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartRust(t *testing.T, tc *Tes
 		remoteClient.ForceClose(t)
 
 		// Ensure Bob can decrypt new messages sent from Alice.
-		bob := tc.MustLoginClient(t, tc.Bob, tc.BobClientType, WithPersistentStorage())
+		bob := tc.MustLoginClient(t, tc.Bob, tc.BobClientType, cc.WithPersistentStorage())
 		defer bob.Close(t)
 		bobStopSyncing := bob.MustStartSyncing(t)
 		defer bobStopSyncing()
@@ -170,7 +171,7 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartRust(t *testing.T, tc *Tes
 	})
 }
 
-func testUnprocessedToDeviceMessagesArentLostOnRestartJS(t *testing.T, tc *TestContext, bobOpts api.ClientCreationOpts, roomID, eventID string) {
+func testUnprocessedToDeviceMessagesArentLostOnRestartJS(t *testing.T, tc *cc.TestContext, bobOpts api.ClientCreationOpts, roomID, eventID string) {
 	// sniff /sync traffic
 	waitForRoomKey := helpers.NewWaiter()
 	tc.Deployment.WithSniffedEndpoint(t, "/sync", func(cd deploy.CallbackData) {
@@ -186,7 +187,7 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartJS(t *testing.T, tc *TestC
 			}
 		}
 	}, func() {
-		bob := tc.MustLoginClient(t, tc.Bob, tc.BobClientType, WithPersistentStorage()) // no need to login as we have an account in storage already
+		bob := tc.MustLoginClient(t, tc.Bob, tc.BobClientType, cc.WithPersistentStorage()) // no need to login as we have an account in storage already
 		// this is time-sensitive: start waiting for waitForRoomKey BEFORE we call MustStartSyncing
 		// which itself needs to be in a separate goroutine.
 		browserIsClosed := helpers.NewWaiter()
@@ -205,7 +206,7 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartJS(t *testing.T, tc *TestC
 		browserIsClosed.Wait(t, 10*time.Second)
 
 		// Ensure Bob can decrypt new messages sent from Alice.
-		bob = tc.MustLoginClient(t, tc.Bob, tc.BobClientType, WithPersistentStorage())
+		bob = tc.MustLoginClient(t, tc.Bob, tc.BobClientType, cc.WithPersistentStorage())
 		defer bob.Close(t)
 		bobStopSyncing := bob.MustStartSyncing(t)
 		defer bobStopSyncing()
@@ -233,9 +234,9 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartJS(t *testing.T, tc *TestC
 // In the future, it may be difficult to run this test for 1 user with 100 devices due to
 // HS limits on the number of devices and forced cross-signing.
 func TestToDeviceMessagesAreBatched(t *testing.T) {
-	ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
-		tc := CreateTestContext(t, clientType)
-		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, EncRoomOptions.RotationPeriodMsgs(1), EncRoomOptions.PresetPublicChat())
+	Instance().ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
+		tc := Instance().CreateTestContext(t, clientType)
+		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.RotationPeriodMsgs(1), cc.EncRoomOptions.PresetPublicChat())
 		// create 100 users
 		for i := 0; i < 100; i++ {
 			cli := tc.Deployment.Register(t, clientType.HS, helpers.RegistrationOpts{
@@ -302,10 +303,10 @@ func TestToDeviceMessagesAreBatched(t *testing.T) {
 //   - Unblock /keys/query requests.
 //   - Bob should eventually retry and be able to decrypt the event.
 func TestToDeviceMessagesArentLostWhenKeysQueryFails(t *testing.T) {
-	ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
-		tc := CreateTestContext(t, clientType, clientType)
+	Instance().ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
+		tc := Instance().CreateTestContext(t, clientType, clientType)
 		// get a normal E2EE room set up
-		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, EncRoomOptions.Invite([]string{tc.Bob.UserID}))
+		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}))
 		tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
 		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
 			msg := "hello world"
@@ -385,10 +386,10 @@ func TestToDeviceMessagesArentLostWhenKeysQueryFails(t *testing.T) {
 func TestToDeviceMessagesAreProcessedInOrder(t *testing.T) {
 	numClients := 4
 	numMsgsPerClient := 30
-	ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
-		tc := CreateTestContext(t, clientType)
+	Instance().ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
+		tc := Instance().CreateTestContext(t, clientType)
 		roomID := tc.CreateNewEncryptedRoom(
-			t, tc.Alice, EncRoomOptions.RotationPeriodMsgs(1), EncRoomOptions.PresetPublicChat(),
+			t, tc.Alice, cc.EncRoomOptions.RotationPeriodMsgs(1), cc.EncRoomOptions.PresetPublicChat(),
 		)
 		// intercept /sync just so we can observe the number of to-device msgs coming down.
 		// We also synchronise on this to know when the client has received the to-device msgs
@@ -421,9 +422,9 @@ func TestToDeviceMessagesAreProcessedInOrder(t *testing.T) {
 				},
 			}, func() {
 				// create 10 users and join the room
-				baseClients := make([]BaseClient, numClients)
+				baseClients := make([]cc.BaseClient, numClients)
 				for i := range baseClients {
-					baseClients[i] = BaseClient{
+					baseClients[i] = cc.BaseClient{
 						CSAPI: tc.Deployment.Register(t, clientType.HS, helpers.RegistrationOpts{
 							LocalpartSuffix: "ilikebots",
 							Password:        "complement-crypto-password",

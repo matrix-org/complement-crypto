@@ -7,13 +7,14 @@ import (
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
+	"github.com/matrix-org/complement-crypto/internal/cc"
 	"github.com/matrix-org/complement-crypto/internal/deploy"
 	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/complement/helpers"
 )
 
 func TestSigkillBeforeKeysUploadResponse(t *testing.T) {
-	ForEachClientType(t, func(t *testing.T, a api.ClientType) {
+	Instance().ForEachClientType(t, func(t *testing.T, a api.ClientType) {
 		switch a.Lang {
 		case api.ClientTypeRust:
 			testSigkillBeforeKeysUploadResponseRust(t, a)
@@ -34,7 +35,7 @@ func testSigkillBeforeKeysUploadResponseRust(t *testing.T, clientType api.Client
 	var terminated atomic.Bool
 	var terminateClient func()
 	seenSecondKeysUploadWaiter := helpers.NewWaiter()
-	tc := CreateTestContext(t, clientType, clientType)
+	tc := Instance().CreateTestContext(t, clientType, clientType)
 	callbackURL, close := deploy.NewCallbackServer(t, tc.Deployment, func(cd deploy.CallbackData) {
 		if terminated.Load() {
 			// make sure the 2nd upload 200 OKs
@@ -59,7 +60,7 @@ func testSigkillBeforeKeysUploadResponseRust(t *testing.T, clientType api.Client
 		},
 	}, func() {
 		// login in a different process
-		opts := tc.ClientCreationOpts(t, tc.Alice, clientType.HS, WithPersistentStorage())
+		opts := tc.ClientCreationOpts(t, tc.Alice, clientType.HS, cc.WithPersistentStorage())
 		remoteClient := tc.MustCreateMultiprocessClient(t, api.ClientTypeRust, opts)
 		clientTerminatedWaiter := helpers.NewWaiter()
 		terminateClient = func() {
@@ -76,7 +77,7 @@ func testSigkillBeforeKeysUploadResponseRust(t *testing.T, clientType api.Client
 		clientTerminatedWaiter.Waitf(t, 5*time.Second, "terminateClient was not called, probably because we didn't see /keys/upload")
 		t.Logf("terminated process, making new client")
 		// now make the same client
-		alice := MustCreateClient(t, clientType, opts)
+		alice := cc.MustCreateClient(t, clientType, opts)
 		alice.Login(t, opts) // login should work
 		stopSyncing := alice.MustStartSyncing(t)
 		// ensure we see the 2nd keys/upload
@@ -91,7 +92,7 @@ func testSigkillBeforeKeysUploadResponseJS(t *testing.T, clientType api.ClientTy
 	var terminated atomic.Bool
 	var terminateClient func()
 	seenSecondKeysUploadWaiter := helpers.NewWaiter()
-	tc := CreateTestContext(t, clientType, clientType)
+	tc := Instance().CreateTestContext(t, clientType, clientType)
 	callbackURL, close := deploy.NewCallbackServer(t, tc.Deployment, func(cd deploy.CallbackData) {
 		if cd.Method == "OPTIONS" {
 			return // ignore CORS
@@ -121,7 +122,7 @@ func testSigkillBeforeKeysUploadResponseJS(t *testing.T, clientType api.ClientTy
 			"filter":       "~u .*\\/keys\\/upload.*",
 		},
 	}, func() {
-		clientWhichWillBeKilled := tc.MustCreateClient(t, tc.Alice, clientType, WithPersistentStorage())
+		clientWhichWillBeKilled := tc.MustCreateClient(t, tc.Alice, clientType, cc.WithPersistentStorage())
 		// attempt to login, this should cause OTKs to be uploaded
 		waiter := helpers.NewWaiter()
 		terminateClient = func() {
@@ -139,7 +140,7 @@ func testSigkillBeforeKeysUploadResponseJS(t *testing.T, clientType api.ClientTy
 		waiter.Wait(t, 5*time.Second) // wait for /keys/upload and subsequent SIGKILL
 		t.Logf("terminated browser, making new client")
 		// now make the same client
-		recreatedClient := tc.MustCreateClient(t, tc.Alice, clientType, WithPersistentStorage())
+		recreatedClient := tc.MustCreateClient(t, tc.Alice, clientType, cc.WithPersistentStorage())
 		recreatedClient.Login(t, recreatedClient.Opts()) // login should work
 		recreatedClient.StartSyncing(t)                  // ignore errors, we just need to kick it to /keys/upload
 

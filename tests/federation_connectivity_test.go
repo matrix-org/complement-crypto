@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
+	"github.com/matrix-org/complement-crypto/internal/cc"
 	"github.com/matrix-org/complement/must"
 )
 
@@ -16,8 +17,8 @@ import (
 // B will be unable to decrypt C's message. TODO: see https://github.com/matrix-org/matrix-rust-sdk/issues/2864
 // Ensure sending another message from C is decryptable.
 func TestNewUserCannotGetKeysForOfflineServer(t *testing.T) {
-	ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
-		tc := CreateTestContext(t, api.ClientType{
+	Instance().ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
+		tc := Instance().CreateTestContext(t, api.ClientType{
 			Lang: clientType.Lang,
 			HS:   "hs1",
 		}, api.ClientType{
@@ -27,7 +28,7 @@ func TestNewUserCannotGetKeysForOfflineServer(t *testing.T) {
 			Lang: clientType.Lang,
 			HS:   "hs1",
 		})
-		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, EncRoomOptions.Invite([]string{tc.Bob.UserID}))
+		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}))
 		t.Logf("%s joining room %s", tc.Bob.UserID, roomID)
 		tc.Bob.MustJoinRoom(t, roomID, []string{"hs1"})
 
@@ -96,8 +97,8 @@ func TestNewUserCannotGetKeysForOfflineServer(t *testing.T) {
 // B will be able to decrypt C's message.
 // This is ultimately checking that Olm sessions are per-device and not per-room.
 func TestExistingSessionCannotGetKeysForOfflineServer(t *testing.T) {
-	ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
-		tc := CreateTestContext(t, api.ClientType{
+	Instance().ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
+		tc := Instance().CreateTestContext(t, api.ClientType{
 			Lang: clientType.Lang,
 			HS:   "hs1",
 		}, api.ClientType{
@@ -107,8 +108,8 @@ func TestExistingSessionCannotGetKeysForOfflineServer(t *testing.T) {
 			Lang: clientType.Lang,
 			HS:   "hs1",
 		})
-		roomIDbc := tc.CreateNewEncryptedRoom(t, tc.Charlie, EncRoomOptions.Invite([]string{tc.Bob.UserID}))
-		roomIDab := tc.CreateNewEncryptedRoom(t, tc.Alice, EncRoomOptions.Invite([]string{tc.Bob.UserID}))
+		roomIDbc := tc.CreateNewEncryptedRoom(t, tc.Charlie, cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}))
+		roomIDab := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}))
 		t.Logf("%s joining rooms %s and %s", tc.Bob.UserID, roomIDab, roomIDbc)
 		tc.Bob.MustJoinRoom(t, roomIDab, []string{"hs1"})
 		tc.Bob.MustJoinRoom(t, roomIDbc, []string{"hs1"})
