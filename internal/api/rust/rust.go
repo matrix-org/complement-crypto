@@ -467,7 +467,7 @@ func (c *RustClient) TrySendMessage(t ct.TestLike, roomID, text string) (eventID
 			if ev == nil {
 				continue
 			}
-			if ev.Text == text && ev.ID != "" {
+			if ev.Text == text && ev.Sender == c.userID && ev.ID != "" {
 				// if we haven't seen this event yet, assign the return arg and signal that
 				// the function should unblock. It's important to only close the channel once
 				// else this will panic on the 2nd call.
