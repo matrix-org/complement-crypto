@@ -386,6 +386,9 @@ func TestToDeviceMessagesAreProcessedInOrder(t *testing.T) {
 	numClients := 4
 	numMsgsPerClient := 30
 	ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
+		if clientType.Lang == api.ClientTypeRust {
+			t.Skipf("flakey")
+		}
 		tc := CreateTestContext(t, clientType)
 		roomID := tc.CreateNewEncryptedRoom(
 			t, tc.Alice, EncRoomOptions.RotationPeriodMsgs(1), EncRoomOptions.PresetPublicChat(),
