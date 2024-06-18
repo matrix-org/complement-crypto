@@ -36,7 +36,9 @@ func testSigkillBeforeKeysUploadResponseRust(t *testing.T, clientType api.Client
 	var terminateClient func()
 	seenSecondKeysUploadWaiter := helpers.NewWaiter()
 	tc := Instance().CreateTestContext(t, clientType, clientType)
-	callbackURL, close := deploy.NewCallbackServer(t, tc.Deployment.GetConfig().HostnameRunningComplement, func(cd deploy.CallbackData) {
+
+	mitmConfiguration := tc.Deployment.MITM().Configure(t)
+	mitmConfiguration.ForPath("/keys/upload").Listen(func(cd deploy.CallbackData) {
 		if terminated.Load() {
 			// make sure the 2nd upload 200 OKs
 			if cd.ResponseCode != 200 {
@@ -51,14 +53,7 @@ func testSigkillBeforeKeysUploadResponseRust(t *testing.T, clientType api.Client
 		terminateClient()
 		mu.Unlock()
 	})
-	defer close()
-
-	tc.Deployment.MITM().WithMITMOptions(t, map[string]interface{}{
-		"callback": map[string]interface{}{
-			"callback_url": callbackURL,
-			"filter":       "~u .*\\/keys\\/upload.*",
-		},
-	}, func() {
+	mitmConfiguration.Execute(func() {
 		// login in a different process
 		remoteClient := tc.MustCreateClient(t, &cc.ClientCreationRequest{
 			User: tc.Alice,
@@ -102,7 +97,8 @@ func testSigkillBeforeKeysUploadResponseJS(t *testing.T, clientType api.ClientTy
 	var terminateClient func()
 	seenSecondKeysUploadWaiter := helpers.NewWaiter()
 	tc := Instance().CreateTestContext(t, clientType, clientType)
-	callbackURL, close := deploy.NewCallbackServer(t, tc.Deployment.GetConfig().HostnameRunningComplement, func(cd deploy.CallbackData) {
+	mitmConfiguration := tc.Deployment.MITM().Configure(t)
+	mitmConfiguration.ForPath("/keys/upload").Listen(func(cd deploy.CallbackData) {
 		if cd.Method == "OPTIONS" {
 			return // ignore CORS
 		}
@@ -123,14 +119,7 @@ func testSigkillBeforeKeysUploadResponseJS(t *testing.T, clientType api.ClientTy
 		}
 		mu.Unlock()
 	})
-	defer close()
-
-	tc.Deployment.MITM().WithMITMOptions(t, map[string]interface{}{
-		"callback": map[string]interface{}{
-			"callback_url": callbackURL,
-			"filter":       "~u .*\\/keys\\/upload.*",
-		},
-	}, func() {
+	mitmConfiguration.Execute(func() {
 		clientWhichWillBeKilled := tc.MustCreateClient(t, &cc.ClientCreationRequest{
 			User: tc.Alice,
 			Opts: api.ClientCreationOpts{

@@ -49,16 +49,6 @@ func (m *MITMClient) Configure(t *testing.T) *MITMConfiguration {
 	}
 }
 
-// WithMITMOptions changes the options of mitmproxy and executes inner() whilst those options are in effect.
-// As the options on mitmproxy are a shared resource, this function has transaction-like semantics, ensuring
-// the lock is released when inner() returns. This is similar to the `with` keyword in python.
-func (m *MITMClient) WithMITMOptions(t *testing.T, options map[string]any, inner func()) {
-	t.Helper()
-	lockID := m.lockOptions(t, options)
-	defer m.unlockOptions(t, lockID)
-	inner()
-}
-
 func (m *MITMClient) lockOptions(t *testing.T, options map[string]any) (lockID []byte) {
 	jsonBody, err := json.Marshal(map[string]interface{}{
 		"options": options,

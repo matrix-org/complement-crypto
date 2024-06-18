@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/matrix-org/complement"
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/cc"
 	"github.com/matrix-org/complement-crypto/internal/deploy"
@@ -16,17 +15,15 @@ import (
 	"github.com/matrix-org/complement/must"
 )
 
-func sniffToDeviceEvent(t *testing.T, d complement.Deployment, ch chan deploy.CallbackData) (callbackURL string, close func()) {
-	callbackURL, close = deploy.NewCallbackServer(t, d.GetConfig().HostnameRunningComplement, func(cd deploy.CallbackData) {
-		if cd.Method == "OPTIONS" {
-			return // ignore CORS
-		}
+func sniffToDeviceEvent(t *testing.T, tc *cc.TestContext, ch chan deploy.CallbackData) *deploy.MITMConfiguration {
+	mitmConfiguration := tc.Deployment.MITM().Configure(t)
+	mitmConfiguration.ForPath("/sendToDevice").Method("PUT").Listen(func(cd deploy.CallbackData) {
 		if strings.Contains(cd.URL, "m.room.encrypted") {
 			// we can't decrypt this, but we know that this should most likely be the m.room_key to-device event.
 			ch <- cd
 		}
 	})
-	return callbackURL, close
+	return mitmConfiguration
 }
 
 // This test ensures we change the m.room_key when a device leaves an E2EE room.
@@ -62,19 +59,13 @@ func TestRoomKeyIsCycledOnDeviceLogout(t *testing.T) {
 
 			// we're going to sniff calls to /sendToDevice to ensure we see the new room key being sent.
 			ch := make(chan deploy.CallbackData, 10)
-			callbackURL, close := sniffToDeviceEvent(t, tc.Deployment, ch)
-			defer close()
+			mitmConfiguration := sniffToDeviceEvent(t, tc, ch)
 
 			alice2StopSyncing()
 			// we don't know when the new room key will be sent, it could be sent as soon as the device list update
 			// is sent, or it could be delayed until message send. We want to handle both cases so we start sniffing
 			// traffic now.
-			tc.Deployment.MITM().WithMITMOptions(t, map[string]interface{}{
-				"callback": map[string]interface{}{
-					"callback_url": callbackURL,
-					"filter":       "~u .*\\/sendToDevice.*",
-				},
-			}, func() {
+			mitmConfiguration.Execute(func() {
 				// now alice2 is going to logout, causing her user ID to appear in device_lists.changed which
 				// should cause a /keys/query request, resulting in the client realising the device is gone,
 				// which should trigger a new room key to be sent (on message send)
@@ -135,14 +126,8 @@ func TestRoomKeyIsCycledAfterEnoughMessages(t *testing.T) {
 
 			// Sniff calls to /sendToDevice to ensure we see the new room key being sent.
 			ch := make(chan deploy.CallbackData, 10)
-			callbackURL, close := sniffToDeviceEvent(t, tc.Deployment, ch)
-			defer close()
-			tc.Deployment.MITM().WithMITMOptions(t, map[string]interface{}{
-				"callback": map[string]interface{}{
-					"callback_url": callbackURL,
-					"filter":       "~u .*\\/sendToDevice.*",
-				},
-			}, func() {
+			mitmConfiguration := sniffToDeviceEvent(t, tc, ch)
+			mitmConfiguration.Execute(func() {
 				// When we send two messages (one to hit the threshold and one to pass it)
 				//
 				// Note that we deliberately cover two possible valid behaviours
@@ -221,14 +206,8 @@ func TestRoomKeyIsCycledAfterEnoughTime(t *testing.T) {
 
 			// Sniff calls to /sendToDevice to ensure we see the new room key being sent.
 			ch := make(chan deploy.CallbackData, 10)
-			callbackURL, close := sniffToDeviceEvent(t, tc.Deployment, ch)
-			defer close()
-			tc.Deployment.MITM().WithMITMOptions(t, map[string]interface{}{
-				"callback": map[string]interface{}{
-					"callback_url": callbackURL,
-					"filter":       "~u .*\\/sendToDevice.*",
-				},
-			}, func() {
+			mitmConfiguration := sniffToDeviceEvent(t, tc, ch)
+			mitmConfiguration.Execute(func() {
 				// Send a message to ensure the room is working, and any timer is set up
 				wantMsgBody := "Before the time expires"
 				waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
@@ -282,18 +261,12 @@ func TestRoomKeyIsCycledOnMemberLeaving(t *testing.T) {
 
 			// we're going to sniff calls to /sendToDevice to ensure we see the new room key being sent.
 			ch := make(chan deploy.CallbackData, 10)
-			callbackURL, close := sniffToDeviceEvent(t, tc.Deployment, ch)
-			defer close()
+			mitmConfiguration := sniffToDeviceEvent(t, tc, ch)
 
 			// we don't know when the new room key will be sent, it could be sent as soon as the device list update
 			// is sent, or it could be delayed until message send. We want to handle both cases so we start sniffing
 			// traffic now.
-			tc.Deployment.MITM().WithMITMOptions(t, map[string]interface{}{
-				"callback": map[string]interface{}{
-					"callback_url": callbackURL,
-					"filter":       "~u .*\\/sendToDevice.*",
-				},
-			}, func() {
+			mitmConfiguration.Execute(func() {
 				// now Charlie is going to leave the room, causing her user ID to appear in device_lists.left
 				// which should trigger a new room key to be sent (on message send)
 				tc.Charlie.MustDo(t, "POST", []string{"_matrix", "client", "v3", "rooms", roomID, "leave"}, client.WithJSONBody(t, map[string]any{}))
@@ -340,19 +313,13 @@ func TestRoomKeyIsNotCycled(t *testing.T) {
 
 			// we're going to sniff calls to /sendToDevice to ensure we see the new room key being sent.
 			ch := make(chan deploy.CallbackData, 10)
-			callbackURL, closeCallbackServer := sniffToDeviceEvent(t, tc.Deployment, ch)
-			defer closeCallbackServer()
+			mitmConfiguration := sniffToDeviceEvent(t, tc, ch)
 
 			t.Run("on display name change", func(t *testing.T) {
 				// we don't know when the new room key will be sent, it could be sent as soon as the device list update
 				// is sent, or it could be delayed until message send. We want to handle both cases so we start sniffing
 				// traffic now.
-				tc.Deployment.MITM().WithMITMOptions(t, map[string]interface{}{
-					"callback": map[string]interface{}{
-						"callback_url": callbackURL,
-						"filter":       "~u .*\\/sendToDevice.*",
-					},
-				}, func() {
+				mitmConfiguration.Execute(func() {
 					// now Bob is going to change their display name
 					// which should NOT trigger a new room key to be sent (on message send)
 					tc.Bob.MustDo(t, "PUT", []string{"_matrix", "client", "v3", "profile", tc.Bob.UserID, "displayname"}, client.WithJSONBody(t, map[string]any{
@@ -385,12 +352,7 @@ func TestRoomKeyIsNotCycled(t *testing.T) {
 				// we don't know when the new room key will be sent, it could be sent as soon as the device list update
 				// is sent, or it could be delayed until message send. We want to handle both cases so we start sniffing
 				// traffic now.
-				tc.Deployment.MITM().WithMITMOptions(t, map[string]interface{}{
-					"callback": map[string]interface{}{
-						"callback_url": callbackURL,
-						"filter":       "~u .*\\/sendToDevice.*",
-					},
-				}, func() {
+				mitmConfiguration.Execute(func() {
 					// now Bob is going to login on a new device
 					// which should NOT trigger a new room key to be sent (on message send)
 					csapiBob2 := tc.MustRegisterNewDevice(t, tc.Bob, "OTHER_DEVICE")
@@ -500,15 +462,8 @@ func testRoomKeyIsNotCycledOnClientRestartRust(t *testing.T, clientType api.Clie
 
 		// we're going to sniff calls to /sendToDevice to ensure we do NOT see a new room key being sent.
 		ch := make(chan deploy.CallbackData, 10)
-		callbackURL, close := sniffToDeviceEvent(t, tc.Deployment, ch)
-		defer close()
-
-		tc.Deployment.MITM().WithMITMOptions(t, map[string]interface{}{
-			"callback": map[string]interface{}{
-				"callback_url": callbackURL,
-				"filter":       "~u .*\\/sendToDevice.*",
-			},
-		}, func() {
+		mitmConfiguration := sniffToDeviceEvent(t, tc, ch)
+		mitmConfiguration.Execute(func() {
 			// login as alice
 			alice := tc.MustLoginClient(t, &cc.ClientCreationRequest{
 				User: tc.Alice,
@@ -570,16 +525,8 @@ func testRoomKeyIsNotCycledOnClientRestartJS(t *testing.T, clientType api.Client
 
 		// we're going to sniff calls to /sendToDevice to ensure we do NOT see a new room key being sent.
 		ch := make(chan deploy.CallbackData, 10)
-		callbackURL, close := sniffToDeviceEvent(t, tc.Deployment, ch)
-		defer close()
-
-		// we want to start sniffing for the to-device event just before we restart the client.
-		tc.Deployment.MITM().WithMITMOptions(t, map[string]interface{}{
-			"callback": map[string]interface{}{
-				"callback_url": callbackURL,
-				"filter":       "~u .*\\/sendToDevice.*",
-			},
-		}, func() {
+		mitmConfiguration := sniffToDeviceEvent(t, tc, ch)
+		mitmConfiguration.Execute(func() {
 			// now alice is going to restart her client
 			aliceStopSyncing()
 			alice.Close(t)

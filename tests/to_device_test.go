@@ -30,12 +30,9 @@ func TestClientRetriesSendToDevice(t *testing.T) {
 			var evID string
 			var err error
 			// now gateway timeout the /sendToDevice endpoint
-			tc.Deployment.MITM().WithMITMOptions(t, map[string]interface{}{
-				"statuscode": map[string]interface{}{
-					"return_status": http.StatusGatewayTimeout,
-					"filter":        "~u .*\\/sendToDevice.*",
-				},
-			}, func() {
+			mitmConfiguration := tc.Deployment.MITM().Configure(t)
+			mitmConfiguration.ForPath("/sendToDevice").BlockResponse(0, http.StatusGatewayTimeout)
+			mitmConfiguration.Execute(func() {
 				evID, err = alice.TrySendMessage(t, roomID, wantMsgBody)
 				if err != nil {
 					// we allow clients to fail the send if they cannot call /sendToDevice
@@ -340,26 +337,15 @@ func TestToDeviceMessagesArentLostWhenKeysQueryFails(t *testing.T) {
 			bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(msg)).Waitf(t, 5*time.Second, "bob failed to see message from alice")
 			// Block /keys/query requests
 			waiter := helpers.NewWaiter()
-			callbackURL, closeCallbackServer := deploy.NewCallbackServer(t, tc.Deployment.GetConfig().HostnameRunningComplement, func(cd deploy.CallbackData) {
-				t.Logf("%+v", cd)
-				waiter.Finish()
-			})
-			defer closeCallbackServer()
 			var eventID string
 			bobAccessToken := bob.CurrentAccessToken(t)
 			t.Logf("Bob's token => %s", bobAccessToken)
-			tc.Deployment.MITM().WithMITMOptions(t, map[string]interface{}{
-				"statuscode": map[string]interface{}{
-					"return_status": http.StatusGatewayTimeout,
-					"block_request": true,
-					"count":         3,
-					"filter":        "~u .*/keys/query.* ~hq " + bobAccessToken,
-				},
-				"callback": map[string]interface{}{
-					"callback_url": callbackURL,
-					"filter":       "~u .*/keys/query.*",
-				},
-			}, func() {
+			mitmConfiguration := tc.Deployment.MITM().Configure(t)
+			mitmConfiguration.ForPath("/keys/query").AccessToken(bobAccessToken).BlockRequest(3, http.StatusGatewayTimeout).Listen(func(cd deploy.CallbackData) {
+				t.Logf("%+v", cd)
+				waiter.Finish()
+			})
+			mitmConfiguration.Execute(func() {
 				// Alice logs in on a new device.
 				csapiAlice2 := tc.MustRegisterNewDevice(t, tc.Alice, "OTHER_DEVICE")
 				tc.WithClientSyncing(t, &cc.ClientCreationRequest{
@@ -419,36 +405,27 @@ func TestToDeviceMessagesAreProcessedInOrder(t *testing.T) {
 		roomID := tc.CreateNewEncryptedRoom(
 			t, tc.Alice, cc.EncRoomOptions.RotationPeriodMsgs(1), cc.EncRoomOptions.PresetPublicChat(),
 		)
-		// intercept /sync just so we can observe the number of to-device msgs coming down.
-		// We also synchronise on this to know when the client has received the to-device msgs
-		callbackURL, close := deploy.NewCallbackServer(t, tc.Deployment.GetConfig().HostnameRunningComplement, func(cd deploy.CallbackData) {
-			// try v2 sync then SS
-			toDeviceEvents := gjson.ParseBytes(cd.ResponseBody).Get("to_device.events").Array()
-			if len(toDeviceEvents) == 0 {
-				toDeviceEvents = gjson.ParseBytes(cd.ResponseBody).Get("extensions.to_device.events").Array()
-			}
-			if len(toDeviceEvents) > 0 {
-				t.Logf("sniffed %d to_device events down /sync", len(toDeviceEvents))
-			}
-		})
-		defer close()
 		var timelineEvents = []struct {
 			ID   string
 			Body string
 		}{}
 		tc.WithAliceSyncing(t, func(alice api.Client) {
+			callback := func(cd deploy.CallbackData) {
+				// try v2 sync then SS
+				toDeviceEvents := gjson.ParseBytes(cd.ResponseBody).Get("to_device.events").Array()
+				if len(toDeviceEvents) == 0 {
+					toDeviceEvents = gjson.ParseBytes(cd.ResponseBody).Get("extensions.to_device.events").Array()
+				}
+				if len(toDeviceEvents) > 0 {
+					t.Logf("sniffed %d to_device events down /sync", len(toDeviceEvents))
+				}
+			}
 			// Block Alice's /sync
-			tc.Deployment.MITM().WithMITMOptions(t, map[string]interface{}{
-				"statuscode": map[string]interface{}{
-					"return_status": http.StatusGatewayTimeout,
-					"block_request": true,
-					"filter":        "~u .*/sync.* ~hq " + alice.CurrentAccessToken(t),
-				},
-				"callback": map[string]interface{}{
-					"callback_url": callbackURL,
-					"filter":       "~u .*/sync.* ~hq " + alice.CurrentAccessToken(t),
-				},
-			}, func() {
+			mitmConfiguration := tc.Deployment.MITM().Configure(t)
+			// intercept /sync just so we can observe the number of to-device msgs coming down.
+			// We also synchronise on this to know when the client has received the to-device msgs
+			mitmConfiguration.ForPath("/sync").AccessToken(alice.CurrentAccessToken(t)).BlockRequest(0, http.StatusGatewayTimeout).Listen(callback)
+			mitmConfiguration.Execute(func() {
 				// create 10 users and join the room
 				creationReqs := make([]*cc.ClientCreationRequest, numClients)
 				for i := range creationReqs {
@@ -477,12 +454,9 @@ func TestToDeviceMessagesAreProcessedInOrder(t *testing.T) {
 			})
 			// Alice's /sync is unblocked, wait until we see the last event.
 			// Re-add the callback server TODO: allow composing see https://github.com/matrix-org/complement-crypto/issues/68
-			tc.Deployment.MITM().WithMITMOptions(t, map[string]interface{}{
-				"callback": map[string]interface{}{
-					"callback_url": callbackURL,
-					"filter":       "~u .*/sync.* ~hq " + alice.CurrentAccessToken(t),
-				},
-			}, func() {
+			mitmConfiguration = tc.Deployment.MITM().Configure(t)
+			mitmConfiguration.ForPath("/sync").AccessToken(alice.CurrentAccessToken(t)).Listen(callback)
+			mitmConfiguration.Execute(func() {
 				lastTimelineEvent := timelineEvents[len(timelineEvents)-1]
 				alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasEventID(lastTimelineEvent.ID)).Waitf(
 					// wait a while here as we need to wait for both /sync to retry and a large response
