@@ -11,7 +11,6 @@ import (
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/config"
 	"github.com/matrix-org/complement-crypto/internal/deploy"
-	"github.com/matrix-org/complement/helpers"
 )
 
 // Instance represents a test instance (process
@@ -28,24 +27,33 @@ func NewInstance(cfg *config.ComplementCrypto) *Instance {
 	}
 }
 
+// TestMain is the entry point for running a test suite with this Instance.
+// The function signature matches the standard Go test suite TestMain()
 func (i *Instance) TestMain(m *testing.M) {
-	//complementCryptoConfig = config.NewComplementCryptoConfigFromEnvVars()
+	// Execute PreTestRun lifecycle hook
 	for _, binding := range i.complementCryptoConfig.Bindings() {
 		binding.PreTestRun("")
 	}
 
+	// Defer to complement to run the test suite
 	complement.TestMainWithCleanup(m, "crypto", func() { // always teardown even if panicking
 		i.ssMutex.Lock()
 		if i.ssDeployment != nil {
 			i.ssDeployment.Teardown()
 		}
 		i.ssMutex.Unlock()
+		// Execute PostTestRun lifecycle hook
 		for _, binding := range i.complementCryptoConfig.Bindings() {
 			binding.PostTestRun("")
 		}
 	})
 }
 
+// Deploy all backend servers if they do not already exist. Calling this multiple
+// times will return the same deployment.
+//
+// Tests will rarely use this function directly, preferring to use TestContext.
+// See Instance.CreateTestContext
 func (i *Instance) Deploy(t *testing.T) *deploy.SlidingSyncDeployment {
 	i.ssMutex.Lock()
 	defer i.ssMutex.Unlock()
@@ -109,25 +117,13 @@ func (i *Instance) CreateTestContext(t *testing.T, clientType ...api.ClientType)
 	}
 	// pre-register alice and bob, if told
 	if len(clientType) > 0 {
-		tc.Alice = deployment.Register(t, clientType[0].HS, helpers.RegistrationOpts{
-			LocalpartSuffix: "alice",
-			Password:        "complement-crypto-password",
-		})
-		tc.AliceClientType = clientType[0]
+		tc.Alice = tc.RegisterNewUser(t, clientType[0], "alice")
 	}
 	if len(clientType) > 1 {
-		tc.Bob = deployment.Register(t, clientType[1].HS, helpers.RegistrationOpts{
-			LocalpartSuffix: "bob",
-			Password:        "complement-crypto-password",
-		})
-		tc.BobClientType = clientType[1]
+		tc.Bob = tc.RegisterNewUser(t, clientType[1], "bob")
 	}
 	if len(clientType) > 2 {
-		tc.Charlie = deployment.Register(t, clientType[2].HS, helpers.RegistrationOpts{
-			LocalpartSuffix: "charlie",
-			Password:        "complement-crypto-password",
-		})
-		tc.CharlieClientType = clientType[2]
+		tc.Charlie = tc.RegisterNewUser(t, clientType[2], "charlie")
 	}
 	if len(clientType) > 3 {
 		t.Fatalf("CreateTestContext: too many clients: got %d", len(clientType))

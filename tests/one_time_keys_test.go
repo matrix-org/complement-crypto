@@ -19,7 +19,7 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-func mustClaimFallbackKey(t *testing.T, claimer *client.CSAPI, target *client.CSAPI) (fallbackKeyID string, keyJSON gjson.Result) {
+func mustClaimFallbackKey(t *testing.T, claimer *client.CSAPI, target *cc.User) (fallbackKeyID string, keyJSON gjson.Result) {
 	t.Helper()
 	res := claimer.MustDo(t, "POST", []string{
 		"_matrix", "client", "v3", "keys", "claim",
@@ -47,7 +47,7 @@ func mustClaimFallbackKey(t *testing.T, claimer *client.CSAPI, target *client.CS
 	return fallbackKeyID, fallbackKey
 }
 
-func mustClaimOTKs(t *testing.T, claimer *client.CSAPI, target *client.CSAPI, otkCount int) {
+func mustClaimOTKs(t *testing.T, claimer *client.CSAPI, target *cc.User, otkCount int) {
 	t.Helper()
 	for i := 0; i < otkCount; i++ {
 		res := claimer.MustDo(t, "POST", []string{

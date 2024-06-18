@@ -48,7 +48,9 @@ func TestNewUserCannotGetKeysForOfflineServer(t *testing.T) {
 
 			// C now joins the room
 			tc.Alice.MustInviteRoom(t, roomID, tc.Charlie.UserID)
-			tc.WithClientSyncing(t, tc.CharlieClientType, tc.Charlie, func(charlie api.Client) {
+			tc.WithClientSyncing(t, &cc.ClientCreationRequest{
+				User: tc.Charlie,
+			}, func(charlie api.Client) {
 				tc.Charlie.MustJoinRoom(t, roomID, []string{"hs1"})
 
 				// let charlie sync device keys... and fail to get bob's keys!

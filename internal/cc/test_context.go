@@ -9,72 +9,93 @@ import (
 	"github.com/matrix-org/complement-crypto/internal/api/langs"
 	"github.com/matrix-org/complement-crypto/internal/deploy"
 	"github.com/matrix-org/complement/client"
+	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/complement/helpers"
 	"github.com/matrix-org/complement/must"
 )
 
-// WithPersistentStorage is an option which can be provided to MustCreateClient which will configure clients to use persistent storage,
-// e.g IndexedDB or sqlite3 files.
-func WithPersistentStorage() func(*api.ClientCreationOpts) {
-	return func(o *api.ClientCreationOpts) {
-		o.PersistentStorage = true
-	}
-}
-
-// WithCrossProcessLock is an option which can be provided to MustCreateClient which will configure a cross process lock for Rust clients.
-// No-ops on non-rust clients.
-func WithCrossProcessLock(processName string) func(*api.ClientCreationOpts) {
-	return func(o *api.ClientCreationOpts) {
-		o.EnableCrossProcessRefreshLockProcessName = processName
-	}
-}
-
-// WithAccessToken is an option which can be provided to MustCreateClient which will configure an access token for the client.
-// No-ops on non-rust clients, for now. In theory this option should be generic to configure an already logged in client. TODO
-func WithAccessToken(accessToken string) func(*api.ClientCreationOpts) {
-	return func(o *api.ClientCreationOpts) {
-		o.AccessToken = accessToken
-	}
-}
-
-// BaseClient is a Complement client along with type information for the HS / language the client
-// is associated with.
-type BaseClient struct {
+// User represents a single matrix user ID e.g @alice:example.com, along with
+// the complement device for this user.
+type User struct {
 	*client.CSAPI
+	// remember the client types that were supplied so we can seamlessly create the right
+	// test client when WithAliceSyncing/etc are called.
 	ClientType api.ClientType
-	// TODO : Opts
+}
+
+// TestClientCreationRequest is a request to create a new api.Client.
+//
+// A request is always based on an existing user e.g Alice, Bob, in which case the user ID / password / HS URL
+// will be used. Any options specified in this request are then applied on top e.g PersistentStorage.
+type ClientCreationRequest struct {
+	User *User
+	Opts api.ClientCreationOpts
+	// If true, spawn this client in another process
+	Multiprocess bool
 }
 
 // TestContext provides a consistent set of variables which most tests will need access to.
+// The variables are suitable for a single test.
 type TestContext struct {
 	Deployment    *deploy.SlidingSyncDeployment
 	RPCBinaryPath string
 	RPCInstance   atomic.Int32
+
 	// Alice is defined if at least 1 clientType is provided to CreateTestContext.
-	Alice           *client.CSAPI
-	AliceClientType api.ClientType
+	Alice *User
 	// Bob is defined if at least 2 clientTypes are provided to CreateTestContext.
-	Bob           *client.CSAPI
-	BobClientType api.ClientType
+	Bob *User
 	// Charlie is defined if at least 3 clientTypes are provided to CreateTestContext.
-	Charlie           *client.CSAPI
-	CharlieClientType api.ClientType
+	Charlie *User
 }
 
-func (c *TestContext) WithClientSyncing(t *testing.T, clientType api.ClientType, cli *client.CSAPI, callback func(cli api.Client), options ...func(*api.ClientCreationOpts)) {
-	t.Helper()
-	clientUnderTest := c.MustLoginClient(t, cli, clientType, options...)
-	defer clientUnderTest.Close(t)
-	stopSyncing := clientUnderTest.MustStartSyncing(t)
-	defer stopSyncing()
-	callback(clientUnderTest)
+// RegisterNewUser registers a new user on the homeserver. The user ID will include the localpartSuffix.
+//
+// Returns a User with a single device which represents the Complement client for this registration.
+// This User can then be passed to other functions to login on new test devices.
+func (c *TestContext) RegisterNewUser(t *testing.T, clientType api.ClientType, localpartSuffix string) *User {
+	return &User{
+		CSAPI: c.Deployment.Register(t, clientType.HS, helpers.RegistrationOpts{
+			LocalpartSuffix: localpartSuffix,
+			Password:        "complement-crypto-password",
+		}),
+		ClientType: clientType,
+	}
 }
 
-func (c *TestContext) WithClientsSyncing(t *testing.T, clients []BaseClient, callback func(clients []api.Client), options ...func(*api.ClientCreationOpts)) {
+// WithClientSyncing is a helper function which creates a test client and automatically logs in the user and starts
+// a sync loop for them. Additional options can be specified via ClientCreationRequest, including setting the client
+// up as a multiprocess client, with persistent storage, etc.
+//
+// The callback function is invoked after this, and cleanup functions are called on your behalf when the
+// callback function ends.
+func (c *TestContext) WithClientSyncing(t *testing.T, req *ClientCreationRequest, callback func(cli api.Client)) {
 	t.Helper()
-	cryptoClients := make([]api.Client, len(clients))
-	for i, cli := range clients {
-		cryptoClients[i] = c.MustLoginClient(t, cli.CSAPI, cli.ClientType)
+	c.WithClientsSyncing(t, []*ClientCreationRequest{req}, func(clients []api.Client) {
+		callback(clients[0])
+	})
+}
+
+// WithClientsSyncing is a helper function which creates multiple test clients and automatically logs in all of them
+// and starts a sync loop for all of them. Additional options can be specified via ClientCreationRequest, including
+// setting clients up as a multiprocess client, with persistent storage, etc.
+//
+// All clients are logged in FIRST before syncing any one of them. As Login() is supposed to block until all keys
+// are uploaded, this guarantees that device keys / OTKs / etc exist prior to syncing. This means it is not
+// neccessary to synchronise device list changes between these clients.
+//
+// The callback function is invoked after this, and cleanup functions are called on your behalf when the
+// callback function ends.
+func (c *TestContext) WithClientsSyncing(t *testing.T, reqs []*ClientCreationRequest, callback func(clients []api.Client)) {
+	t.Helper()
+	cryptoClients := make([]api.Client, len(reqs))
+	// Login all clients BEFORE starting any of their sync loops.
+	// We do this because Login will send device list updates and cause clients to upload OTKs/device keys.
+	// We want to make sure ALL these keys are on the server before any test client syncs otherwise it
+	// can create flakey tests because a client may see a user joined without device keys, meaning any
+	// messages that client sends will not encrypt for that device.
+	for i, req := range reqs {
+		cryptoClients[i] = c.MustLoginClient(t, req)
 		defer cryptoClients[i].Close(t)
 	}
 	for _, cli := range cryptoClients {
@@ -84,90 +105,75 @@ func (c *TestContext) WithClientsSyncing(t *testing.T, clients []BaseClient, cal
 	callback(cryptoClients)
 }
 
-// MustCreateMultiprocessClient creates a new RPC process and instructs it to create a client given by the client creation options.
-func (c *TestContext) MustCreateMultiprocessClient(t *testing.T, lang api.ClientTypeLang, opts api.ClientCreationOpts) api.Client {
+// mustCreateMultiprocessClient creates a new RPC process and instructs it to create a client given by the client creation options.
+func (c *TestContext) mustCreateMultiprocessClient(t *testing.T, req *ClientCreationRequest) api.Client {
 	t.Helper()
 	if c.RPCBinaryPath == "" {
 		t.Skipf("RPC binary path not provided, skipping multiprocess test. To run this test, set COMPLEMENT_CRYPTO_RPC_BINARY")
 		return nil
 	}
 	ctxPrefix := fmt.Sprintf("%d", c.RPCInstance.Add(1))
-	remoteBindings, err := deploy.NewRPCLanguageBindings(c.RPCBinaryPath, lang, ctxPrefix)
+	remoteBindings, err := deploy.NewRPCLanguageBindings(c.RPCBinaryPath, req.User.ClientType.Lang, ctxPrefix)
 	if err != nil {
 		t.Fatalf("Failed to create new RPC language bindings: %s", err)
 	}
-	return remoteBindings.MustCreateClient(t, opts)
-}
-
-// WithMultiprocessClientSyncing is the same as WithClientSyncing but it spins up the client in a separate process.
-// Communication is done via net/rpc internally.
-func (c *TestContext) WithMultiprocessClientSyncing(t *testing.T, lang api.ClientTypeLang, opts api.ClientCreationOpts, callback func(cli api.Client)) {
-	t.Helper()
-	remoteClient := c.MustCreateMultiprocessClient(t, lang, opts)
-	must.NotError(t, "failed to login client", remoteClient.Login(t, remoteClient.Opts()))
-	defer remoteClient.Close(t)
-	stopSyncing := remoteClient.MustStartSyncing(t)
-	defer stopSyncing()
-	callback(remoteClient)
+	return remoteBindings.MustCreateClient(t, req.Opts)
 }
 
 // WithAliceSyncing is a helper function which creates a rust/js client and automatically logs in Alice and starts
-// a sync loop for her.
+// a sync loop for her. For more customisation, see WithClientSyncing.
 //
 // The callback function is invoked after this, and cleanup functions are called on your behalf when the
 // callback function ends.
 func (c *TestContext) WithAliceSyncing(t *testing.T, callback func(alice api.Client)) {
 	t.Helper()
 	must.NotEqual(t, c.Alice, nil, "No Alice defined. Call CreateTestContext() with at least 1 api.ClientType.")
-	c.WithClientSyncing(t, c.AliceClientType, c.Alice, callback)
+	c.WithClientSyncing(t, &ClientCreationRequest{
+		User: c.Alice,
+	}, callback)
 }
 
 // WithAliceAndBobSyncing is a helper function which creates rust/js clients and automatically logs in Alice & Bob
-// and starts a sync loop for both.
+// and starts a sync loop for both. For more customisation, see WithClientsSyncing.
 //
 // The callback function is invoked after this, and cleanup functions are called on your behalf when the
 // callback function ends.
 func (c *TestContext) WithAliceAndBobSyncing(t *testing.T, callback func(alice, bob api.Client)) {
 	t.Helper()
 	must.NotEqual(t, c.Bob, nil, "No Bob defined. Call CreateTestContext() with at least 2 api.ClientTypes.")
-	// log both clients in first before syncing so both have device keys and OTKs
-	alice := c.MustLoginClient(t, c.Alice, c.AliceClientType)
-	defer alice.Close(t)
-	bob := c.MustLoginClient(t, c.Bob, c.BobClientType)
-	defer bob.Close(t)
-
-	aliceStopSyncing := alice.MustStartSyncing(t)
-	defer aliceStopSyncing()
-	bobStopSyncing := bob.MustStartSyncing(t)
-	defer bobStopSyncing()
-
-	callback(alice, bob)
+	c.WithClientsSyncing(t, []*ClientCreationRequest{
+		{
+			User: c.Alice,
+		},
+		{
+			User: c.Bob,
+		},
+	}, func(clients []api.Client) {
+		callback(clients[0], clients[1])
+	})
 }
 
 // WithAliceBobAndCharlieSyncing is a helper function which creates rust/js clients and automatically logs in Alice, Bob
-// and Charlie and starts a sync loop for all.
+// and Charlie and starts a sync loop for all. For more customisation, see WithClientsSyncing.
 //
 // The callback function is invoked after this, and cleanup functions are called on your behalf when the
 // callback function ends.
 func (c *TestContext) WithAliceBobAndCharlieSyncing(t *testing.T, callback func(alice, bob, charlie api.Client)) {
 	t.Helper()
 	must.NotEqual(t, c.Charlie, nil, "No Charlie defined. Call CreateTestContext() with at least 3 api.ClientTypes.")
-	// log all clients in first before syncing so all have device keys and OTKs
-	alice := c.MustLoginClient(t, c.Alice, c.AliceClientType)
-	defer alice.Close(t)
-	bob := c.MustLoginClient(t, c.Bob, c.BobClientType)
-	defer bob.Close(t)
-	charlie := c.MustLoginClient(t, c.Charlie, c.CharlieClientType)
-	defer charlie.Close(t)
-
-	aliceStopSyncing := alice.MustStartSyncing(t)
-	defer aliceStopSyncing()
-	bobStopSyncing := bob.MustStartSyncing(t)
-	defer bobStopSyncing()
-	charlieStopSyncing := charlie.MustStartSyncing(t)
-	defer charlieStopSyncing()
-
-	callback(alice, bob, charlie)
+	c.WithClientsSyncing(t, []*ClientCreationRequest{
+		{
+			User: c.Alice,
+		},
+		{
+			User: c.Bob,
+		},
+		{
+			User: c.Charlie,
+		},
+	}, func(clients []api.Client) {
+		callback(clients[0], clients[1], clients[2])
+	})
 }
 
 // An option to customise the behaviour of CreateNewEncryptedRoom
@@ -182,7 +188,7 @@ type EncRoomOption = func(reqBody map[string]interface{})
 // - RotationPeriodMsgs: value of the rotation_period_msgs param (default: omitted)
 func (c *TestContext) CreateNewEncryptedRoom(
 	t *testing.T,
-	creator *client.CSAPI,
+	user *User,
 	options ...EncRoomOption,
 ) (roomID string) {
 	t.Helper()
@@ -206,7 +212,7 @@ func (c *TestContext) CreateNewEncryptedRoom(
 		option(reqBody)
 	}
 
-	return creator.MustCreateRoom(t, reqBody)
+	return user.MustCreateRoom(t, reqBody)
 }
 
 type encRoomOptions int
@@ -269,52 +275,53 @@ func (encRoomOptions) RotationPeriodMs(milliseconds int) EncRoomOption {
 }
 
 // MustRegisterNewDevice logs in a new device for this client, else fails the test.
-func (c *TestContext) MustRegisterNewDevice(t *testing.T, cli *client.CSAPI, hsName, newDeviceID string) *client.CSAPI {
-	return c.Deployment.Login(t, hsName, cli, helpers.LoginOpts{
+func (c *TestContext) MustRegisterNewDevice(t *testing.T, user *User, newDeviceID string) *User {
+	newDevice := c.Deployment.Login(t, user.ClientType.HS, user.CSAPI, helpers.LoginOpts{
 		DeviceID: newDeviceID,
-		Password: cli.Password,
+		Password: user.Password, // TODO: remove? not needed as inherited from client?
 	})
-}
-
-// ClientCreationOpts converts a Complement client into a set of real client options. Real client options are required in order to create
-// real rust/js clients.
-func (c *TestContext) ClientCreationOpts(t *testing.T, cli *client.CSAPI, hsName string, options ...func(*api.ClientCreationOpts)) api.ClientCreationOpts {
-	opts := api.NewClientCreationOpts(cli)
-	for _, opt := range options {
-		opt(&opts)
+	return &User{
+		CSAPI:      newDevice,
+		ClientType: user.ClientType,
 	}
-	opts.SlidingSyncURL = c.Deployment.SlidingSyncURLForHS(t, hsName)
-	return opts
 }
 
-// MustCreateClient creates an api.Client from an existing Complement client and the specified client type. Additional options
-// can be set to configure the client beyond that of the Complement client e.g to add persistent storage.
-func (c *TestContext) MustCreateClient(t *testing.T, cli *client.CSAPI, clientType api.ClientType, options ...func(*api.ClientCreationOpts)) api.Client {
+// MustLoginClient is the same as MustCreateClient but also logs in the client.
+func (c *TestContext) MustLoginClient(t *testing.T, req *ClientCreationRequest) api.Client {
 	t.Helper()
-	opts := c.ClientCreationOpts(t, cli, clientType.HS, options...)
-	client := MustCreateClient(t, clientType, opts)
-	return client
-}
-
-// MustLoginClient is the same as MustCreateClient but also logs in the client. TODO REMOVE
-func (c *TestContext) MustLoginClient(t *testing.T, cli *client.CSAPI, clientType api.ClientType, options ...func(*api.ClientCreationOpts)) api.Client {
-	t.Helper()
-	client := c.MustCreateClient(t, cli, clientType, options...)
+	client := c.MustCreateClient(t, req)
 	must.NotError(t, "failed to login client", client.Login(t, client.Opts()))
 	return client
 }
 
-// MustCreateClient creates an api.Client with the specified language/server, else fails the test.
+// MustCreateClient creates an api.Client from an existing Complement client and the specified client type. Additional options
+// can be set to configure the client beyond that of the Complement client e.g to add persistent storage.
+func (c *TestContext) MustCreateClient(t *testing.T, req *ClientCreationRequest) api.Client {
+	t.Helper()
+	if req.User == nil {
+		ct.Fatalf(t, "MustCreateClient: ClientCreationRequest missing 'user', register one with RegisterNewUser or use an existing one.")
+	}
+	opts := api.NewClientCreationOpts(req.User.CSAPI)
+	// now apply the supplied opts on top
+	opts.Combine(&req.Opts)
+	// always set the SS URL based on the client type HS
+	opts.SlidingSyncURL = c.Deployment.SlidingSyncURLForHS(t, req.User.ClientType.HS)
+	if req.Multiprocess {
+		req.Opts = opts
+		return c.mustCreateMultiprocessClient(t, req)
+	}
+	client := mustCreateClient(t, req.User.ClientType, opts)
+	return client
+}
+
+// mustCreateClient creates an api.Client with the specified language/server, else fails the test.
 //
 // Options can be provided to configure clients, such as enabling persistent storage.
-func MustCreateClient(t *testing.T, clientType api.ClientType, cfg api.ClientCreationOpts, opts ...func(api.Client, *api.ClientCreationOpts)) api.Client {
+func mustCreateClient(t *testing.T, clientType api.ClientType, cfg api.ClientCreationOpts) api.Client {
 	bindings := langs.GetLanguageBindings(clientType.Lang)
 	if bindings == nil {
 		t.Fatalf("unknown language: %s", clientType.Lang)
 	}
 	c := bindings.MustCreateClient(t, cfg)
-	for _, o := range opts {
-		o(c, &cfg)
-	}
 	return c
 }

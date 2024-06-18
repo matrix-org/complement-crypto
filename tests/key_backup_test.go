@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
-	"github.com/matrix-org/complement/helpers"
+	"github.com/matrix-org/complement-crypto/internal/cc"
 	"github.com/matrix-org/complement/must"
 )
 
@@ -48,11 +48,10 @@ func TestCanBackupKeys(t *testing.T) {
 			t.Logf("recovery key -> %s", recoveryKey)
 
 			// Now login on a new device
-			csapiAlice2 := tc.Deployment.Login(t, clientTypeB.HS, tc.Alice, helpers.LoginOpts{
-				DeviceID: "BACKUP_RESTORER",
-				Password: "complement-crypto-password",
+			csapiAlice2 := tc.MustRegisterNewDevice(t, tc.Alice, "BACKUP_RESTORER")
+			backupRestorer := tc.MustLoginClient(t, &cc.ClientCreationRequest{
+				User: csapiAlice2,
 			})
-			backupRestorer := tc.MustLoginClient(t, csapiAlice2, clientTypeB)
 			defer backupRestorer.Close(t)
 
 			// load the key backup using the recovery key
@@ -108,11 +107,10 @@ func TestBackupWrongRecoveryKeyFails(t *testing.T) {
 			t.Logf("recovery key -> %s", recoveryKey)
 
 			// Now login on a new device
-			csapiAlice2 := tc.Deployment.Login(t, clientTypeB.HS, tc.Alice, helpers.LoginOpts{
-				DeviceID: "BACKUP_RESTORER",
-				Password: "complement-crypto-password",
+			csapiAlice2 := tc.MustRegisterNewDevice(t, tc.Alice, "BACKUP_RESTORER")
+			backupRestorer := tc.MustLoginClient(t, &cc.ClientCreationRequest{
+				User: csapiAlice2,
 			})
-			backupRestorer := tc.MustLoginClient(t, csapiAlice2, clientTypeB)
 			defer backupRestorer.Close(t)
 
 			// load the key backup using a valid but wrong recovery key
