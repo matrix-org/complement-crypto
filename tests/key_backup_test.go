@@ -5,20 +5,20 @@ import (
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
-	"github.com/matrix-org/complement/helpers"
+	"github.com/matrix-org/complement-crypto/internal/cc"
 	"github.com/matrix-org/complement/must"
 )
 
 // Test that backups can be created and stored in secret storage.
 // Test that backups can be restored using secret storage and the recovery key.
 func TestCanBackupKeys(t *testing.T) {
-	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
+	Instance().ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
 		if clientTypeA.HS != clientTypeB.HS {
 			t.Skipf("client A and B must be on the same HS as this is testing key backups so A=backup creator B=backup restorer")
 			return
 		}
 		t.Logf("backup creator = %s backup restorer = %s", clientTypeA.Lang, clientTypeB.Lang)
-		tc := CreateTestContext(t, clientTypeA)
+		tc := Instance().CreateTestContext(t, clientTypeA)
 		roomID := tc.Alice.MustCreateRoom(t, map[string]interface{}{
 			"name":   t.Name(),
 			"preset": "public_chat", // shared history visibility
@@ -48,11 +48,10 @@ func TestCanBackupKeys(t *testing.T) {
 			t.Logf("recovery key -> %s", recoveryKey)
 
 			// Now login on a new device
-			csapiAlice2 := tc.Deployment.Login(t, clientTypeB.HS, tc.Alice, helpers.LoginOpts{
-				DeviceID: "BACKUP_RESTORER",
-				Password: "complement-crypto-password",
+			csapiAlice2 := tc.MustRegisterNewDevice(t, tc.Alice, "BACKUP_RESTORER")
+			backupRestorer := tc.MustLoginClient(t, &cc.ClientCreationRequest{
+				User: csapiAlice2,
 			})
-			backupRestorer := tc.MustLoginClient(t, csapiAlice2, clientTypeB)
 			defer backupRestorer.Close(t)
 
 			// load the key backup using the recovery key
@@ -72,13 +71,13 @@ func TestCanBackupKeys(t *testing.T) {
 }
 
 func TestBackupWrongRecoveryKeyFails(t *testing.T) {
-	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
+	Instance().ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
 		if clientTypeA.HS != clientTypeB.HS {
 			t.Skipf("client A and B must be on the same HS as this is testing key backups so A=backup creator B=backup restorer")
 			return
 		}
 		t.Logf("backup creator = %s backup restorer = %s", clientTypeA.Lang, clientTypeB.Lang)
-		tc := CreateTestContext(t, clientTypeA)
+		tc := Instance().CreateTestContext(t, clientTypeA)
 		roomID := tc.Alice.MustCreateRoom(t, map[string]interface{}{
 			"name":   t.Name(),
 			"preset": "public_chat", // shared history visibility
@@ -108,11 +107,10 @@ func TestBackupWrongRecoveryKeyFails(t *testing.T) {
 			t.Logf("recovery key -> %s", recoveryKey)
 
 			// Now login on a new device
-			csapiAlice2 := tc.Deployment.Login(t, clientTypeB.HS, tc.Alice, helpers.LoginOpts{
-				DeviceID: "BACKUP_RESTORER",
-				Password: "complement-crypto-password",
+			csapiAlice2 := tc.MustRegisterNewDevice(t, tc.Alice, "BACKUP_RESTORER")
+			backupRestorer := tc.MustLoginClient(t, &cc.ClientCreationRequest{
+				User: csapiAlice2,
 			})
-			backupRestorer := tc.MustLoginClient(t, csapiAlice2, clientTypeB)
 			defer backupRestorer.Close(t)
 
 			// load the key backup using a valid but wrong recovery key

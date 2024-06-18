@@ -9,6 +9,7 @@ import (
 
 	"github.com/matrix-org/complement"
 	"github.com/matrix-org/complement-crypto/internal/api"
+	"github.com/matrix-org/complement-crypto/internal/cc"
 	"github.com/matrix-org/complement-crypto/internal/deploy"
 	"github.com/matrix-org/complement/client"
 	"github.com/matrix-org/complement/ct"
@@ -32,19 +33,21 @@ func sniffToDeviceEvent(t *testing.T, d complement.Deployment, ch chan deploy.Ca
 // If the key is not changed, the left device could potentially decrypt the encrypted
 // event if they could get access to it.
 func TestRoomKeyIsCycledOnDeviceLogout(t *testing.T) {
-	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
-		tc := CreateTestContext(t, clientTypeA, clientTypeB)
+	Instance().ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
+		tc := Instance().CreateTestContext(t, clientTypeA, clientTypeB)
 		roomID := tc.CreateNewEncryptedRoom(
 			t,
 			tc.Alice,
-			EncRoomOptions.PresetTrustedPrivateChat(),
-			EncRoomOptions.Invite([]string{tc.Bob.UserID}),
+			cc.EncRoomOptions.PresetTrustedPrivateChat(),
+			cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}),
 		)
 		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 
 		// Alice, Alice2 and Bob are in a room.
-		csapiAlice2 := tc.MustRegisterNewDevice(t, tc.Alice, clientTypeA.HS, "OTHER_DEVICE")
-		alice2 := tc.MustLoginClient(t, csapiAlice2, tc.AliceClientType)
+		csapiAlice2 := tc.MustRegisterNewDevice(t, tc.Alice, "OTHER_DEVICE")
+		alice2 := tc.MustLoginClient(t, &cc.ClientCreationRequest{
+			User: csapiAlice2,
+		})
 		defer alice2.Close(t)
 		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
 			alice2StopSyncing := alice2.MustStartSyncing(t)
@@ -109,15 +112,15 @@ func TestRoomKeyIsCycledOnDeviceLogout(t *testing.T) {
 //
 // See https://gitlab.matrix.org/matrix-org/olm/blob/master/docs/megolm.md#lack-of-backward-secrecy
 func TestRoomKeyIsCycledAfterEnoughMessages(t *testing.T) {
-	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
+	Instance().ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
 		// Given a room containing Alice and Bob, where we rotate keys every 5 messages
-		tc := CreateTestContext(t, clientTypeA, clientTypeB)
+		tc := Instance().CreateTestContext(t, clientTypeA, clientTypeB)
 		roomID := tc.CreateNewEncryptedRoom(
 			t,
 			tc.Alice,
-			EncRoomOptions.PresetTrustedPrivateChat(),
-			EncRoomOptions.Invite([]string{tc.Bob.UserID}),
-			EncRoomOptions.RotationPeriodMsgs(5),
+			cc.EncRoomOptions.PresetTrustedPrivateChat(),
+			cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}),
+			cc.EncRoomOptions.RotationPeriodMsgs(5),
 		)
 		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 
@@ -185,7 +188,7 @@ func TestRoomKeyIsCycledAfterEnoughTime(t *testing.T) {
 	// if this is too low, it can cause flakey test failures as various assertions in rust SDK
 	// around expired sessions fail.
 	rotationPeriod := 3 * time.Second
-	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
+	Instance().ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
 		// Disable this test if the sender is on JS.
 		// We require a custom Rust build to enable the hidden feature flag
 		// `_disable-minimum-rotation-period-ms`, so that we can set the
@@ -198,13 +201,13 @@ func TestRoomKeyIsCycledAfterEnoughTime(t *testing.T) {
 		}
 
 		// Given a room containing Alice and Bob, where we rotate keys every second
-		tc := CreateTestContext(t, clientTypeA, clientTypeB)
+		tc := Instance().CreateTestContext(t, clientTypeA, clientTypeB)
 		roomID := tc.CreateNewEncryptedRoom(
 			t,
 			tc.Alice,
-			EncRoomOptions.PresetTrustedPrivateChat(),
-			EncRoomOptions.Invite([]string{tc.Bob.UserID}),
-			EncRoomOptions.RotationPeriodMs(int(rotationPeriod.Milliseconds())),
+			cc.EncRoomOptions.PresetTrustedPrivateChat(),
+			cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}),
+			cc.EncRoomOptions.RotationPeriodMs(int(rotationPeriod.Milliseconds())),
 		)
 		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 
@@ -254,8 +257,8 @@ func TestRoomKeyIsCycledAfterEnoughTime(t *testing.T) {
 }
 
 func TestRoomKeyIsCycledOnMemberLeaving(t *testing.T) {
-	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
-		tc := CreateTestContext(t, clientTypeA, clientTypeB, clientTypeB)
+	Instance().ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
+		tc := Instance().CreateTestContext(t, clientTypeA, clientTypeB, clientTypeB)
 		// Alice, Bob and Charlie are in a room.
 		tc.WithAliceBobAndCharlieSyncing(t, func(alice, bob, charlie api.Client) {
 			// do setup code after all clients are syncing to ensure that if Alice asks for Charlie's keys on receipt of the
@@ -263,8 +266,8 @@ func TestRoomKeyIsCycledOnMemberLeaving(t *testing.T) {
 			roomID := tc.CreateNewEncryptedRoom(
 				t,
 				tc.Alice,
-				EncRoomOptions.PresetTrustedPrivateChat(),
-				EncRoomOptions.Invite([]string{tc.Bob.UserID, tc.Charlie.UserID}),
+				cc.EncRoomOptions.PresetTrustedPrivateChat(),
+				cc.EncRoomOptions.Invite([]string{tc.Bob.UserID, tc.Charlie.UserID}),
 			)
 			tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 			tc.Charlie.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
@@ -317,13 +320,13 @@ func TestRoomKeyIsCycledOnMemberLeaving(t *testing.T) {
 }
 
 func TestRoomKeyIsNotCycled(t *testing.T) {
-	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
-		tc := CreateTestContext(t, clientTypeA, clientTypeB)
+	Instance().ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
+		tc := Instance().CreateTestContext(t, clientTypeA, clientTypeB)
 		roomID := tc.CreateNewEncryptedRoom(
 			t,
 			tc.Alice,
-			EncRoomOptions.PresetTrustedPrivateChat(),
-			EncRoomOptions.Invite([]string{tc.Bob.UserID}),
+			cc.EncRoomOptions.PresetTrustedPrivateChat(),
+			cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}),
 		)
 		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 
@@ -390,8 +393,10 @@ func TestRoomKeyIsNotCycled(t *testing.T) {
 				}, func() {
 					// now Bob is going to login on a new device
 					// which should NOT trigger a new room key to be sent (on message send)
-					csapiBob2 := tc.MustRegisterNewDevice(t, tc.Bob, clientTypeB.HS, "OTHER_DEVICE")
-					bob2 := tc.MustLoginClient(t, csapiBob2, clientTypeB)
+					csapiBob2 := tc.MustRegisterNewDevice(t, tc.Bob, "OTHER_DEVICE")
+					bob2 := tc.MustLoginClient(t, &cc.ClientCreationRequest{
+						User: csapiBob2,
+					})
 					defer bob2.Close(t)
 					bob2StopSyncing := bob2.MustStartSyncing(t)
 					defer bob2StopSyncing()
@@ -449,7 +454,7 @@ func TestRoomKeyIsNotCycled(t *testing.T) {
 // in the room. This is important to ensure that we don't cycle m.room_keys too frequently, which increases
 // the chances of seeing undecryptable events.
 func TestRoomKeyIsNotCycledOnClientRestart(t *testing.T) {
-	ForEachClientType(t, func(t *testing.T, a api.ClientType) {
+	Instance().ForEachClientType(t, func(t *testing.T, a api.ClientType) {
 		switch a.Lang {
 		case api.ClientTypeRust:
 			testRoomKeyIsNotCycledOnClientRestartRust(t, a)
@@ -462,25 +467,31 @@ func TestRoomKeyIsNotCycledOnClientRestart(t *testing.T) {
 }
 
 func testRoomKeyIsNotCycledOnClientRestartRust(t *testing.T, clientType api.ClientType) {
-	tc := CreateTestContext(t, clientType, clientType)
+	tc := Instance().CreateTestContext(t, clientType, clientType)
 	roomID := tc.CreateNewEncryptedRoom(
 		t,
 		tc.Alice,
-		EncRoomOptions.PresetTrustedPrivateChat(),
-		EncRoomOptions.Invite([]string{tc.Bob.UserID}),
+		cc.EncRoomOptions.PresetTrustedPrivateChat(),
+		cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}),
 	)
 	tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
 
-	tc.WithClientSyncing(t, clientType, tc.Bob, func(bob api.Client) {
+	tc.WithClientSyncing(t, &cc.ClientCreationRequest{
+		User: tc.Bob,
+	}, func(bob api.Client) {
 		wantMsgBody := "test from another process"
 		// send a message as Alice in a different process
-		tc.WithMultiprocessClientSyncing(t, clientType.Lang, tc.ClientCreationOpts(t, tc.Alice, clientType.HS, WithPersistentStorage()),
-			func(remoteAlice api.Client) {
-				eventID := remoteAlice.SendMessage(t, roomID, wantMsgBody)
-				waiter := remoteAlice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasEventID(eventID))
-				waiter.Waitf(t, 5*time.Second, "client did not see event %s", eventID)
+		tc.WithClientSyncing(t, &cc.ClientCreationRequest{
+			User: tc.Alice,
+			Opts: api.ClientCreationOpts{
+				PersistentStorage: true,
 			},
-		)
+			Multiprocess: true,
+		}, func(remoteAlice api.Client) {
+			eventID := remoteAlice.SendMessage(t, roomID, wantMsgBody)
+			waiter := remoteAlice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasEventID(eventID))
+			waiter.Waitf(t, 5*time.Second, "client did not see event %s", eventID)
+		})
 
 		waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 		waiter.Waitf(t, 8*time.Second, "bob did not see alice's message")
@@ -499,7 +510,12 @@ func testRoomKeyIsNotCycledOnClientRestartRust(t *testing.T, clientType api.Clie
 			},
 		}, func() {
 			// login as alice
-			alice := tc.MustLoginClient(t, tc.Alice, clientType, WithPersistentStorage())
+			alice := tc.MustLoginClient(t, &cc.ClientCreationRequest{
+				User: tc.Alice,
+				Opts: api.ClientCreationOpts{
+					PersistentStorage: true,
+				},
+			})
 			defer alice.Close(t)
 			aliceStopSyncing := alice.MustStartSyncing(t)
 			defer aliceStopSyncing()
@@ -525,64 +541,67 @@ func testRoomKeyIsNotCycledOnClientRestartRust(t *testing.T, clientType api.Clie
 }
 
 func testRoomKeyIsNotCycledOnClientRestartJS(t *testing.T, clientType api.ClientType) {
-	tc := CreateTestContext(t, clientType, clientType)
+	tc := Instance().CreateTestContext(t, clientType, clientType)
 	roomID := tc.CreateNewEncryptedRoom(
 		t,
 		tc.Alice,
-		EncRoomOptions.PresetTrustedPrivateChat(),
-		EncRoomOptions.Invite([]string{tc.Bob.UserID}),
+		cc.EncRoomOptions.PresetTrustedPrivateChat(),
+		cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}),
 	)
 	tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
 
 	// Alice and Bob are in a room.
-	alice := tc.MustLoginClient(t, tc.Alice, clientType, WithPersistentStorage())
-	aliceStopSyncing := alice.MustStartSyncing(t)
-	// no close here as we'll close it in the test mid-way
-	bob := tc.MustLoginClient(t, tc.Bob, clientType)
-	defer bob.Close(t)
-	bobStopSyncing := bob.MustStartSyncing(t)
-	defer bobStopSyncing()
-
-	// check the room works
-	wantMsgBody := "Test Message"
-	waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
-	alice.SendMessage(t, roomID, wantMsgBody)
-	waiter.Waitf(t, 5*time.Second, "bob did not see alice's message")
-
-	// we're going to sniff calls to /sendToDevice to ensure we do NOT see a new room key being sent.
-	ch := make(chan deploy.CallbackData, 10)
-	callbackURL, close := sniffToDeviceEvent(t, tc.Deployment, ch)
-	defer close()
-
-	// we want to start sniffing for the to-device event just before we restart the client.
-	tc.Deployment.WithMITMOptions(t, map[string]interface{}{
-		"callback": map[string]interface{}{
-			"callback_url": callbackURL,
-			"filter":       "~u .*\\/sendToDevice.*",
+	alice := tc.MustLoginClient(t, &cc.ClientCreationRequest{
+		User: tc.Alice,
+		Opts: api.ClientCreationOpts{
+			PersistentStorage: true,
 		},
-	}, func() {
-		// now alice is going to restart her client
-		aliceStopSyncing()
-		alice.Close(t)
-
-		alice = tc.MustCreateClient(t, tc.Alice, clientType, WithPersistentStorage())
-		defer alice.Close(t)
-		alice.Login(t, alice.Opts()) // login should work
-		alice2StopSyncing, _ := alice.StartSyncing(t)
-		defer alice2StopSyncing()
-
-		// now send another message from Alice, who should NOT send another new room key
-		wantMsgBody = "Another Test Message"
-		waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+	})
+	aliceStopSyncing := alice.MustStartSyncing(t)
+	// no alice.close here as we'll close it in the test mid-way
+	tc.WithClientSyncing(t, &cc.ClientCreationRequest{
+		User: tc.Bob,
+	}, func(bob api.Client) {
+		// check the room works
+		wantMsgBody := "Test Message"
+		waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 		alice.SendMessage(t, roomID, wantMsgBody)
 		waiter.Waitf(t, 5*time.Second, "bob did not see alice's message")
-	})
 
-	// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
-	// the room key.
-	select {
-	case <-ch:
-		ct.Fatalf(t, "saw /sendToDevice when restarting the client and sending a new message")
-	default:
-	}
+		// we're going to sniff calls to /sendToDevice to ensure we do NOT see a new room key being sent.
+		ch := make(chan deploy.CallbackData, 10)
+		callbackURL, close := sniffToDeviceEvent(t, tc.Deployment, ch)
+		defer close()
+
+		// we want to start sniffing for the to-device event just before we restart the client.
+		tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+			"callback": map[string]interface{}{
+				"callback_url": callbackURL,
+				"filter":       "~u .*\\/sendToDevice.*",
+			},
+		}, func() {
+			// now alice is going to restart her client
+			aliceStopSyncing()
+			alice.Close(t)
+
+			tc.WithClientSyncing(t, &cc.ClientCreationRequest{
+				User: tc.Alice,
+				Opts: alice.Opts(),
+			}, func(alice api.Client) {
+				// now send another message from Alice, who should NOT send another new room key
+				wantMsgBody = "Another Test Message"
+				waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+				alice.SendMessage(t, roomID, wantMsgBody)
+				waiter.Waitf(t, 5*time.Second, "bob did not see alice's message")
+			})
+		})
+
+		// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
+		// the room key.
+		select {
+		case <-ch:
+			ct.Fatalf(t, "saw /sendToDevice when restarting the client and sending a new message")
+		default:
+		}
+	})
 }

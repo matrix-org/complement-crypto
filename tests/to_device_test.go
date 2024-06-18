@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
+	"github.com/matrix-org/complement-crypto/internal/cc"
 	"github.com/matrix-org/complement-crypto/internal/deploy"
 	"github.com/matrix-org/complement/helpers"
 	"github.com/matrix-org/complement/must"
@@ -15,9 +16,9 @@ import (
 
 // Test that if a client is unable to call /sendToDevice, it retries.
 func TestClientRetriesSendToDevice(t *testing.T) {
-	ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
-		tc := CreateTestContext(t, clientTypeA, clientTypeB)
-		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, EncRoomOptions.PresetPublicChat())
+	Instance().ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
+		tc := Instance().CreateTestContext(t, clientTypeA, clientTypeB)
+		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.PresetPublicChat())
 		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
 			// lets device keys be exchanged
@@ -68,16 +69,21 @@ func TestClientRetriesSendToDevice(t *testing.T) {
 // - Restart Bob's client.
 // - Ensure Bob can decrypt new messages sent from Alice.
 func TestUnprocessedToDeviceMessagesArentLostOnRestart(t *testing.T) {
-	ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
+	Instance().ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
 		// prepare for the test: register all 3 clients and create the room
-		tc := CreateTestContext(t, clientType, clientType)
+		tc := Instance().CreateTestContext(t, clientType, clientType)
 		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice,
-			EncRoomOptions.Invite([]string{tc.Bob.UserID}), EncRoomOptions.RotationPeriodMsgs(1),
+			cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}), cc.EncRoomOptions.RotationPeriodMsgs(1),
 		)
 		tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
 		// the initial setup for rust/js is the same.
 		// login bob first so we have OTKs
-		bob := tc.MustLoginClient(t, tc.Bob, tc.BobClientType, WithPersistentStorage())
+		bob := tc.MustLoginClient(t, &cc.ClientCreationRequest{
+			User: tc.Bob,
+			Opts: api.ClientCreationOpts{
+				PersistentStorage: true,
+			},
+		})
 		tc.WithAliceSyncing(t, func(alice api.Client) {
 			// we will close this in the test, no defer
 			bobStopSyncing := bob.MustStartSyncing(t)
@@ -121,7 +127,7 @@ func TestUnprocessedToDeviceMessagesArentLostOnRestart(t *testing.T) {
 	})
 }
 
-func testUnprocessedToDeviceMessagesArentLostOnRestartRust(t *testing.T, tc *TestContext, bobOpts api.ClientCreationOpts, roomID, eventID string) {
+func testUnprocessedToDeviceMessagesArentLostOnRestartRust(t *testing.T, tc *cc.TestContext, bobOpts api.ClientCreationOpts, roomID, eventID string) {
 	// sniff /sync traffic
 	waitForRoomKey := helpers.NewWaiter()
 	tc.Deployment.WithSniffedEndpoint(t, "/sync", func(cd deploy.CallbackData) {
@@ -142,7 +148,11 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartRust(t *testing.T, tc *Tes
 		// No need to login as we will reuse the session from before.
 		// This is critical to ensure we get the room key update as it would have been sent
 		// to bob's logged in device, not any new logins.
-		remoteClient := tc.MustCreateMultiprocessClient(t, api.ClientTypeRust, bobOpts)
+		remoteClient := tc.MustCreateClient(t, &cc.ClientCreationRequest{
+			User:         tc.Bob,
+			Opts:         bobOpts,
+			Multiprocess: true,
+		})
 
 		// start syncing but don't wait, we wait for the to device event
 		go func() {
@@ -156,21 +166,24 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartRust(t *testing.T, tc *Tes
 		remoteClient.ForceClose(t)
 
 		// Ensure Bob can decrypt new messages sent from Alice.
-		bob := tc.MustLoginClient(t, tc.Bob, tc.BobClientType, WithPersistentStorage())
-		defer bob.Close(t)
-		bobStopSyncing := bob.MustStartSyncing(t)
-		defer bobStopSyncing()
-		// we can't rely on MustStartSyncing returning to know that the room key has been received, as
-		// in rust we just wait for RoomListLoadingStateLoaded which is a separate connection to the
-		// encryption loop.
-		time.Sleep(time.Second)
-		ev := bob.MustGetEvent(t, roomID, eventID)
-		must.Equal(t, ev.FailedToDecrypt, false, "unable to decrypt message")
-		must.Equal(t, ev.Text, "Kick to make a new room key!", "event text mismatch")
+		tc.WithClientSyncing(t, &cc.ClientCreationRequest{
+			User: tc.Bob,
+			Opts: api.ClientCreationOpts{
+				PersistentStorage: true,
+			},
+		}, func(bob api.Client) {
+			// we can't rely on MustStartSyncing returning to know that the room key has been received, as
+			// in rust we just wait for RoomListLoadingStateLoaded which is a separate connection to the
+			// encryption loop.
+			time.Sleep(time.Second)
+			ev := bob.MustGetEvent(t, roomID, eventID)
+			must.Equal(t, ev.FailedToDecrypt, false, "unable to decrypt message")
+			must.Equal(t, ev.Text, "Kick to make a new room key!", "event text mismatch")
+		})
 	})
 }
 
-func testUnprocessedToDeviceMessagesArentLostOnRestartJS(t *testing.T, tc *TestContext, bobOpts api.ClientCreationOpts, roomID, eventID string) {
+func testUnprocessedToDeviceMessagesArentLostOnRestartJS(t *testing.T, tc *cc.TestContext, bobOpts api.ClientCreationOpts, roomID, eventID string) {
 	// sniff /sync traffic
 	waitForRoomKey := helpers.NewWaiter()
 	tc.Deployment.WithSniffedEndpoint(t, "/sync", func(cd deploy.CallbackData) {
@@ -186,7 +199,12 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartJS(t *testing.T, tc *TestC
 			}
 		}
 	}, func() {
-		bob := tc.MustLoginClient(t, tc.Bob, tc.BobClientType, WithPersistentStorage()) // no need to login as we have an account in storage already
+		bob := tc.MustLoginClient(t, &cc.ClientCreationRequest{
+			User: tc.Bob,
+			Opts: api.ClientCreationOpts{
+				PersistentStorage: true,
+			},
+		}) // no need to login as we have an account in storage already
 		// this is time-sensitive: start waiting for waitForRoomKey BEFORE we call MustStartSyncing
 		// which itself needs to be in a separate goroutine.
 		browserIsClosed := helpers.NewWaiter()
@@ -205,15 +223,18 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartJS(t *testing.T, tc *TestC
 		browserIsClosed.Wait(t, 10*time.Second)
 
 		// Ensure Bob can decrypt new messages sent from Alice.
-		bob = tc.MustLoginClient(t, tc.Bob, tc.BobClientType, WithPersistentStorage())
-		defer bob.Close(t)
-		bobStopSyncing := bob.MustStartSyncing(t)
-		defer bobStopSyncing()
-		// include a grace period like rust, no specific reason beyond consistency.
-		time.Sleep(time.Second)
-		ev := bob.MustGetEvent(t, roomID, eventID)
-		must.Equal(t, ev.FailedToDecrypt, false, "unable to decrypt message")
-		must.Equal(t, ev.Text, "Kick to make a new room key!", "event text mismatch")
+		tc.WithClientSyncing(t, &cc.ClientCreationRequest{
+			User: tc.Bob,
+			Opts: api.ClientCreationOpts{
+				PersistentStorage: true,
+			},
+		}, func(bob api.Client) {
+			// include a grace period like rust, no specific reason beyond consistency.
+			time.Sleep(time.Second)
+			ev := bob.MustGetEvent(t, roomID, eventID)
+			must.Equal(t, ev.FailedToDecrypt, false, "unable to decrypt message")
+			must.Equal(t, ev.Text, "Kick to make a new room key!", "event text mismatch")
+		})
 	})
 }
 
@@ -233,18 +254,17 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartJS(t *testing.T, tc *TestC
 // In the future, it may be difficult to run this test for 1 user with 100 devices due to
 // HS limits on the number of devices and forced cross-signing.
 func TestToDeviceMessagesAreBatched(t *testing.T) {
-	ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
-		tc := CreateTestContext(t, clientType)
-		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, EncRoomOptions.RotationPeriodMsgs(1), EncRoomOptions.PresetPublicChat())
+	Instance().ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
+		tc := Instance().CreateTestContext(t, clientType)
+		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.RotationPeriodMsgs(1), cc.EncRoomOptions.PresetPublicChat())
 		// create 100 users
 		for i := 0; i < 100; i++ {
-			cli := tc.Deployment.Register(t, clientType.HS, helpers.RegistrationOpts{
-				LocalpartSuffix: fmt.Sprintf("bob-%d", i),
-				Password:        "complement-crypto-password",
-			})
-			cli.MustJoinRoom(t, roomID, []string{clientType.HS})
+			user := tc.RegisterNewUser(t, clientType, "bob")
+			user.MustJoinRoom(t, roomID, []string{clientType.HS})
 			// this blocks until it has uploaded OTKs/device keys
-			clientUnderTest := tc.MustLoginClient(t, cli, tc.AliceClientType)
+			clientUnderTest := tc.MustLoginClient(t, &cc.ClientCreationRequest{
+				User: user,
+			})
 			clientUnderTest.Close(t)
 		}
 		waiter := helpers.NewWaiter()
@@ -302,10 +322,10 @@ func TestToDeviceMessagesAreBatched(t *testing.T) {
 //   - Unblock /keys/query requests.
 //   - Bob should eventually retry and be able to decrypt the event.
 func TestToDeviceMessagesArentLostWhenKeysQueryFails(t *testing.T) {
-	ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
-		tc := CreateTestContext(t, clientType, clientType)
+	Instance().ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
+		tc := Instance().CreateTestContext(t, clientType, clientType)
 		// get a normal E2EE room set up
-		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, EncRoomOptions.Invite([]string{tc.Bob.UserID}))
+		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}))
 		tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
 		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
 			msg := "hello world"
@@ -335,19 +355,19 @@ func TestToDeviceMessagesArentLostWhenKeysQueryFails(t *testing.T) {
 				},
 			}, func() {
 				// Alice logs in on a new device.
-				csapiAlice2 := tc.MustRegisterNewDevice(t, tc.Alice, clientType.HS, "OTHER_DEVICE")
-				alice2 := tc.MustLoginClient(t, csapiAlice2, clientType)
-				defer alice2.Close(t)
-				alice2StopSyncing := alice2.MustStartSyncing(t)
-				defer alice2StopSyncing()
-				// we don't know how long it will take for the device list update to be processed, so wait 1s
-				time.Sleep(time.Second)
+				csapiAlice2 := tc.MustRegisterNewDevice(t, tc.Alice, "OTHER_DEVICE")
+				tc.WithClientSyncing(t, &cc.ClientCreationRequest{
+					User: csapiAlice2,
+				}, func(alice2 api.Client) {
+					// we don't know how long it will take for the device list update to be processed, so wait 1s
+					time.Sleep(time.Second)
 
-				// Alice sends a message on the new device.
-				eventID = alice2.SendMessage(t, roomID, msg2)
+					// Alice sends a message on the new device.
+					eventID = alice2.SendMessage(t, roomID, msg2)
 
-				waiter.Waitf(t, 3*time.Second, "did not see /keys/query")
-				time.Sleep(3 * time.Second) // let Bob retry /keys/query
+					waiter.Waitf(t, 3*time.Second, "did not see /keys/query")
+					time.Sleep(3 * time.Second) // let Bob retry /keys/query
+				})
 			})
 			// now we aren't blocking /keys/query anymore.
 			// Bob should be able to decrypt this message.
@@ -385,13 +405,13 @@ func TestToDeviceMessagesArentLostWhenKeysQueryFails(t *testing.T) {
 func TestToDeviceMessagesAreProcessedInOrder(t *testing.T) {
 	numClients := 4
 	numMsgsPerClient := 30
-	ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
-		if clientType.Lang == api.ClientTypeRust {
+	Instance().ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
+    if clientType.Lang == api.ClientTypeRust {
 			t.Skipf("flakey")
 		}
-		tc := CreateTestContext(t, clientType)
+		tc := Instance().CreateTestContext(t, clientType)
 		roomID := tc.CreateNewEncryptedRoom(
-			t, tc.Alice, EncRoomOptions.RotationPeriodMsgs(1), EncRoomOptions.PresetPublicChat(),
+			t, tc.Alice, cc.EncRoomOptions.RotationPeriodMsgs(1), cc.EncRoomOptions.PresetPublicChat(),
 		)
 		// intercept /sync just so we can observe the number of to-device msgs coming down.
 		// We also synchronise on this to know when the client has received the to-device msgs
@@ -424,19 +444,15 @@ func TestToDeviceMessagesAreProcessedInOrder(t *testing.T) {
 				},
 			}, func() {
 				// create 10 users and join the room
-				baseClients := make([]BaseClient, numClients)
-				for i := range baseClients {
-					baseClients[i] = BaseClient{
-						CSAPI: tc.Deployment.Register(t, clientType.HS, helpers.RegistrationOpts{
-							LocalpartSuffix: "ilikebots",
-							Password:        "complement-crypto-password",
-						}),
-						ClientType: clientType,
+				creationReqs := make([]*cc.ClientCreationRequest, numClients)
+				for i := range creationReqs {
+					creationReqs[i] = &cc.ClientCreationRequest{
+						User: tc.RegisterNewUser(t, clientType, "ilikebots"),
 					}
-					baseClients[i].MustJoinRoom(t, roomID, []string{clientType.HS})
+					creationReqs[i].User.MustJoinRoom(t, roomID, []string{clientType.HS})
 				}
 				// send 30 messages as each user (interleaved)
-				tc.WithClientsSyncing(t, baseClients, func(clients []api.Client) {
+				tc.WithClientsSyncing(t, creationReqs, func(clients []api.Client) {
 					for i := 0; i < numMsgsPerClient; i++ {
 						for _, c := range clients {
 							body := fmt.Sprintf("Message %d", i+1)

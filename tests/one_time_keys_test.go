@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
+	"github.com/matrix-org/complement-crypto/internal/cc"
 	"github.com/matrix-org/complement-crypto/internal/deploy"
 	"github.com/matrix-org/complement/b"
 	"github.com/matrix-org/complement/client"
@@ -18,7 +19,7 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-func mustClaimFallbackKey(t *testing.T, claimer *client.CSAPI, target *client.CSAPI) (fallbackKeyID string, keyJSON gjson.Result) {
+func mustClaimFallbackKey(t *testing.T, claimer *client.CSAPI, target *cc.User) (fallbackKeyID string, keyJSON gjson.Result) {
 	t.Helper()
 	res := claimer.MustDo(t, "POST", []string{
 		"_matrix", "client", "v3", "keys", "claim",
@@ -46,7 +47,7 @@ func mustClaimFallbackKey(t *testing.T, claimer *client.CSAPI, target *client.CS
 	return fallbackKeyID, fallbackKey
 }
 
-func mustClaimOTKs(t *testing.T, claimer *client.CSAPI, target *client.CSAPI, otkCount int) {
+func mustClaimOTKs(t *testing.T, claimer *client.CSAPI, target *cc.User, otkCount int) {
 	t.Helper()
 	for i := 0; i < otkCount; i++ {
 		res := claimer.MustDo(t, "POST", []string{
@@ -82,8 +83,8 @@ func mustClaimOTKs(t *testing.T, claimer *client.CSAPI, target *client.CSAPI, ot
 // - Bob logs in, tries to talk to Alice, will have to claim fallback key. Ensure session works.
 // - Charlie logs in, tries to talk to Alice, will have to claim _the same fallback key_. Ensure session works.
 func TestFallbackKeyIsUsedIfOneTimeKeysRunOut(t *testing.T) {
-	ClientTypeMatrix(t, func(t *testing.T, keyProviderClientType, keyConsumerClientType api.ClientType) {
-		tc := CreateTestContext(t, keyProviderClientType, keyConsumerClientType, keyConsumerClientType)
+	Instance().ClientTypeMatrix(t, func(t *testing.T, keyProviderClientType, keyConsumerClientType api.ClientType) {
+		tc := Instance().CreateTestContext(t, keyProviderClientType, keyConsumerClientType, keyConsumerClientType)
 		otkGobbler := tc.Deployment.Register(t, keyConsumerClientType.HS, helpers.RegistrationOpts{
 			LocalpartSuffix: "eater_of_keys",
 			Password:        "complement-crypto-password",
@@ -125,8 +126,8 @@ func TestFallbackKeyIsUsedIfOneTimeKeysRunOut(t *testing.T) {
 				roomID = tc.CreateNewEncryptedRoom(
 					t,
 					tc.Bob,
-					EncRoomOptions.PresetPublicChat(),
-					EncRoomOptions.Invite([]string{tc.Alice.UserID, tc.Charlie.UserID}),
+					cc.EncRoomOptions.PresetPublicChat(),
+					cc.EncRoomOptions.Invite([]string{tc.Alice.UserID, tc.Charlie.UserID}),
 				)
 				tc.Charlie.MustJoinRoom(t, roomID, []string{keyConsumerClientType.HS})
 				tc.Alice.MustJoinRoom(t, roomID, []string{keyConsumerClientType.HS})
@@ -154,8 +155,8 @@ func TestFallbackKeyIsUsedIfOneTimeKeysRunOut(t *testing.T) {
 }
 
 func TestFailedOneTimeKeyUploadRetries(t *testing.T) {
-	ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
-		tc := CreateTestContext(t, clientType, clientType)
+	Instance().ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
+		tc := Instance().CreateTestContext(t, clientType, clientType)
 		// make a room so we can kick clients
 		roomID := tc.Alice.MustCreateRoom(t, map[string]interface{}{"preset": "public_chat"})
 		// block /keys/upload and make a client
@@ -203,8 +204,8 @@ func TestFailedOneTimeKeyUploadRetries(t *testing.T) {
 }
 
 func TestFailedKeysClaimRetries(t *testing.T) {
-	ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
-		tc := CreateTestContext(t, clientType, clientType)
+	Instance().ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
+		tc := Instance().CreateTestContext(t, clientType, clientType)
 		// both clients start syncing to upload OTKs
 		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
 			var stopPoking atomic.Bool
@@ -219,7 +220,7 @@ func TestFailedKeysClaimRetries(t *testing.T) {
 			defer close()
 
 			// make a room which will link the 2 users together when
-			roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, EncRoomOptions.PresetPublicChat())
+			roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.PresetPublicChat())
 			// block /keys/claim and join the room, causing the Olm session to be created
 			tc.Deployment.WithMITMOptions(t, map[string]interface{}{
 				"statuscode": map[string]interface{}{

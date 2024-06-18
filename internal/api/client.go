@@ -230,6 +230,34 @@ func NewClientCreationOpts(c *client.CSAPI) ClientCreationOpts {
 	}
 }
 
+// Combine the other opts into this set of opts.
+func (o *ClientCreationOpts) Combine(other *ClientCreationOpts) {
+	if other.AccessToken != "" {
+		o.AccessToken = other.AccessToken
+	}
+	if other.BaseURL != "" {
+		o.BaseURL = other.BaseURL
+	}
+	if other.DeviceID != "" {
+		o.DeviceID = other.DeviceID
+	}
+	if other.EnableCrossProcessRefreshLockProcessName != "" {
+		o.EnableCrossProcessRefreshLockProcessName = other.EnableCrossProcessRefreshLockProcessName
+	}
+	if other.Password != "" {
+		o.Password = other.Password
+	}
+	if other.PersistentStorage {
+		o.PersistentStorage = true
+	}
+	if other.SlidingSyncURL != "" {
+		o.SlidingSyncURL = other.SlidingSyncURL
+	}
+	if other.UserID != "" {
+		o.UserID = other.UserID
+	}
+}
+
 type Event struct {
 	ID     string
 	Text   string // FFI bindings don't expose the content object

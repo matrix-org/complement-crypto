@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
+	"github.com/matrix-org/complement-crypto/internal/cc"
 	"github.com/matrix-org/complement-crypto/internal/deploy"
 	"github.com/matrix-org/complement/must"
 )
@@ -16,8 +17,8 @@ import (
 // Create two users and ensure they can send encrypted messages to each other.
 // This proves that device keys download requests get retried.
 func TestFailedDeviceKeyDownloadRetries(t *testing.T) {
-	ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
-		tc := CreateTestContext(t, clientType, clientType)
+	Instance().ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
+		tc := Instance().CreateTestContext(t, clientType, clientType)
 
 		// Track whether we received any requests on /keys/query
 		queryReceived := false
@@ -42,7 +43,7 @@ func TestFailedDeviceKeyDownloadRetries(t *testing.T) {
 			},
 		}, func() {
 			// And Alice and Bob are in an encrypted room together
-			roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, EncRoomOptions.Invite([]string{tc.Bob.UserID}))
+			roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}))
 			tc.Bob.MustJoinRoom(t, roomID, []string{"hs1"})
 
 			tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
