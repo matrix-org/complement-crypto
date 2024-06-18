@@ -30,7 +30,7 @@ func TestClientRetriesSendToDevice(t *testing.T) {
 			var evID string
 			var err error
 			// now gateway timeout the /sendToDevice endpoint
-			tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+			tc.Deployment.MITM().WithMITMOptions(t, map[string]interface{}{
 				"statuscode": map[string]interface{}{
 					"return_status": http.StatusGatewayTimeout,
 					"filter":        "~u .*\\/sendToDevice.*",
@@ -130,7 +130,7 @@ func TestUnprocessedToDeviceMessagesArentLostOnRestart(t *testing.T) {
 func testUnprocessedToDeviceMessagesArentLostOnRestartRust(t *testing.T, tc *cc.TestContext, bobOpts api.ClientCreationOpts, roomID, eventID string) {
 	// sniff /sync traffic
 	waitForRoomKey := helpers.NewWaiter()
-	tc.Deployment.WithSniffedEndpoint(t, "/sync", func(cd deploy.CallbackData) {
+	tc.Deployment.MITM().WithSniffedEndpoint(t, "/sync", func(cd deploy.CallbackData) {
 		// When /sync shows a to-device message from Alice (indicating the room key), then SIGKILL Bob.
 		t.Logf("/sync => %v", string(cd.ResponseBody))
 		body := gjson.ParseBytes(cd.ResponseBody)
@@ -186,7 +186,7 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartRust(t *testing.T, tc *cc.
 func testUnprocessedToDeviceMessagesArentLostOnRestartJS(t *testing.T, tc *cc.TestContext, bobOpts api.ClientCreationOpts, roomID, eventID string) {
 	// sniff /sync traffic
 	waitForRoomKey := helpers.NewWaiter()
-	tc.Deployment.WithSniffedEndpoint(t, "/sync", func(cd deploy.CallbackData) {
+	tc.Deployment.MITM().WithSniffedEndpoint(t, "/sync", func(cd deploy.CallbackData) {
 		// When /sync shows a to-device message from Alice (indicating the room key) then SIGKILL Bob.
 		body := gjson.ParseBytes(cd.ResponseBody)
 		toDeviceEvents := body.Get("to_device.events").Array() // Sync v2 form
@@ -270,7 +270,7 @@ func TestToDeviceMessagesAreBatched(t *testing.T) {
 		waiter := helpers.NewWaiter()
 		tc.WithAliceSyncing(t, func(alice api.Client) {
 			// intercept /sendToDevice and check we are sending 100 messages per request
-			tc.Deployment.WithSniffedEndpoint(t, "/sendToDevice", func(cd deploy.CallbackData) {
+			tc.Deployment.MITM().WithSniffedEndpoint(t, "/sendToDevice", func(cd deploy.CallbackData) {
 				if cd.Method != "PUT" {
 					return
 				}
@@ -334,7 +334,7 @@ func TestToDeviceMessagesArentLostWhenKeysQueryFails(t *testing.T) {
 			bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(msg)).Waitf(t, 5*time.Second, "bob failed to see message from alice")
 			// Block /keys/query requests
 			waiter := helpers.NewWaiter()
-			callbackURL, closeCallbackServer := deploy.NewCallbackServer(t, tc.Deployment, func(cd deploy.CallbackData) {
+			callbackURL, closeCallbackServer := deploy.NewCallbackServer(t, tc.Deployment.GetConfig().HostnameRunningComplement, func(cd deploy.CallbackData) {
 				t.Logf("%+v", cd)
 				waiter.Finish()
 			})
@@ -342,7 +342,7 @@ func TestToDeviceMessagesArentLostWhenKeysQueryFails(t *testing.T) {
 			var eventID string
 			bobAccessToken := bob.CurrentAccessToken(t)
 			t.Logf("Bob's token => %s", bobAccessToken)
-			tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+			tc.Deployment.MITM().WithMITMOptions(t, map[string]interface{}{
 				"statuscode": map[string]interface{}{
 					"return_status": http.StatusGatewayTimeout,
 					"block_request": true,
@@ -406,7 +406,7 @@ func TestToDeviceMessagesAreProcessedInOrder(t *testing.T) {
 	numClients := 4
 	numMsgsPerClient := 30
 	Instance().ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
-    if clientType.Lang == api.ClientTypeRust {
+		if clientType.Lang == api.ClientTypeRust {
 			t.Skipf("flakey")
 		}
 		tc := Instance().CreateTestContext(t, clientType)
@@ -415,7 +415,7 @@ func TestToDeviceMessagesAreProcessedInOrder(t *testing.T) {
 		)
 		// intercept /sync just so we can observe the number of to-device msgs coming down.
 		// We also synchronise on this to know when the client has received the to-device msgs
-		callbackURL, close := deploy.NewCallbackServer(t, tc.Deployment, func(cd deploy.CallbackData) {
+		callbackURL, close := deploy.NewCallbackServer(t, tc.Deployment.GetConfig().HostnameRunningComplement, func(cd deploy.CallbackData) {
 			// try v2 sync then SS
 			toDeviceEvents := gjson.ParseBytes(cd.ResponseBody).Get("to_device.events").Array()
 			if len(toDeviceEvents) == 0 {
@@ -432,7 +432,7 @@ func TestToDeviceMessagesAreProcessedInOrder(t *testing.T) {
 		}{}
 		tc.WithAliceSyncing(t, func(alice api.Client) {
 			// Block Alice's /sync
-			tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+			tc.Deployment.MITM().WithMITMOptions(t, map[string]interface{}{
 				"statuscode": map[string]interface{}{
 					"return_status": http.StatusGatewayTimeout,
 					"block_request": true,
@@ -471,7 +471,7 @@ func TestToDeviceMessagesAreProcessedInOrder(t *testing.T) {
 			})
 			// Alice's /sync is unblocked, wait until we see the last event.
 			// Re-add the callback server TODO: allow composing see https://github.com/matrix-org/complement-crypto/issues/68
-			tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+			tc.Deployment.MITM().WithMITMOptions(t, map[string]interface{}{
 				"callback": map[string]interface{}{
 					"callback_url": callbackURL,
 					"filter":       "~u .*/sync.* ~hq " + alice.CurrentAccessToken(t),

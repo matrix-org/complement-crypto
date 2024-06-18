@@ -1,14 +1,11 @@
 package deploy
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
 	"log"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -31,80 +28,22 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-// must match the value in tests/addons/__init__.py
-const magicMITMURL = "http://mitm.code"
-
 const mitmDumpFilePathOnContainer = "/tmp/mitm.dump"
 
 type SlidingSyncDeployment struct {
 	complement.Deployment
 	extraContainers      map[string]testcontainers.Container
-	mitmClient           *http.Client
+	mitmClient           *MITMClient
 	ControllerURL        string
 	dnsToReverseProxyURL map[string]string
 	mu                   sync.RWMutex
 	mitmDumpFile         string
 }
 
-func (d *SlidingSyncDeployment) WithSniffedEndpoint(t *testing.T, partialPath string, onSniff func(CallbackData), inner func()) {
-	t.Helper()
-	callbackURL, closeCallbackServer := NewCallbackServer(t, d, onSniff)
-	defer closeCallbackServer()
-	d.WithMITMOptions(t, map[string]interface{}{
-		"callback": map[string]interface{}{
-			"callback_url": callbackURL,
-			// the filter is a python regexp
-			// "Regexes are Python-style" - https://docs.mitmproxy.org/stable/concepts-filters/
-			// re.escape() escapes very little:
-			// "Changed in version 3.7: Only characters that can have special meaning in a regular expression are escaped.
-			// As a result, '!', '"', '%', "'", ',', '/', ':', ';', '<', '=', '>', '@', and "`" are no longer escaped."
-			// https://docs.python.org/3/library/re.html#re.escape
-			//
-			// The majority of HTTP paths are just /foo/bar with % for path-encoding e.g @foo:bar=>%40foo%3Abar,
-			// so on balance we can probably just use the path directly.
-			"filter": "~u .*" + partialPath + ".*",
-		},
-	}, func() {
-		inner()
-	})
-}
-
-// WithMITMOptions changes the options of mitmproxy and executes inner() whilst those options are in effect.
-// As the options on mitmproxy are a shared resource, this function has transaction-like semantics, ensuring
-// the lock is released when inner() returns. This is similar to the `with` keyword in python.
-func (d *SlidingSyncDeployment) WithMITMOptions(t *testing.T, options map[string]interface{}, inner func()) {
-	t.Helper()
-	lockID := d.lockOptions(t, options)
-	defer d.unlockOptions(t, lockID)
-	inner()
-}
-
-func (d *SlidingSyncDeployment) lockOptions(t *testing.T, options map[string]interface{}) (lockID []byte) {
-	jsonBody, err := json.Marshal(map[string]interface{}{
-		"options": options,
-	})
-	t.Logf("lockOptions: %v", string(jsonBody))
-	must.NotError(t, "failed to marshal options", err)
-	u := magicMITMURL + "/options/lock"
-	req, err := http.NewRequest("POST", u, bytes.NewBuffer(jsonBody))
-	must.NotError(t, "failed to prepare request", err)
-	req.Header.Set("Content-Type", "application/json")
-	res, err := d.mitmClient.Do(req)
-	must.NotError(t, "failed to POST "+u, err)
-	must.Equal(t, res.StatusCode, 200, "controller returned wrong HTTP status")
-	lockID, err = io.ReadAll(res.Body)
-	must.NotError(t, "failed to read response", err)
-	return lockID
-}
-
-func (d *SlidingSyncDeployment) unlockOptions(t *testing.T, lockID []byte) {
-	t.Logf("unlockOptions")
-	req, err := http.NewRequest("POST", magicMITMURL+"/options/unlock", bytes.NewBuffer(lockID))
-	must.NotError(t, "failed to prepare request", err)
-	req.Header.Set("Content-Type", "application/json")
-	res, err := d.mitmClient.Do(req)
-	must.NotError(t, "failed to do request", err)
-	must.Equal(t, res.StatusCode, 200, "controller returned wrong HTTP status")
+// MITM returns a client capable of configuring man-in-the-middle operations such as
+// snooping on CSAPI traffic and modifying responses.
+func (d *SlidingSyncDeployment) MITM() *MITMClient {
+	return d.mitmClient
 }
 
 func (d *SlidingSyncDeployment) UnauthenticatedClient(t ct.TestLike, serverName string) *client.CSAPI {
@@ -387,12 +326,7 @@ func RunNewDeployment(t *testing.T, mitmProxyAddonsDir string, mitmDumpFile stri
 			"mitmproxy": mitmproxyContainer,
 		},
 		ControllerURL: controllerURL,
-		mitmClient: &http.Client{
-			Timeout: 5 * time.Second,
-			Transport: &http.Transport{
-				Proxy: http.ProxyURL(proxyURL),
-			},
-		},
+		mitmClient:    NewMITMClient(proxyURL, deployment.GetConfig().HostnameRunningComplement),
 		dnsToReverseProxyURL: map[string]string{
 			"hs1":      rpHS1URL,
 			"hs2":      rpHS2URL,

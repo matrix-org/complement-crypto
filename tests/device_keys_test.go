@@ -24,13 +24,13 @@ func TestFailedDeviceKeyDownloadRetries(t *testing.T) {
 		queryReceived := false
 		callbackUrl, closeCallbackServer := deploy.NewCallbackServer(
 			t,
-			tc.Deployment,
+			tc.Deployment.GetConfig().HostnameRunningComplement,
 			func(data deploy.CallbackData) { queryReceived = true },
 		)
 		defer closeCallbackServer()
 
 		// Given that the first 4 attempts to download device keys will fail
-		tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+		tc.Deployment.MITM().WithMITMOptions(t, map[string]interface{}{
 			"statuscode": map[string]interface{}{
 				"return_status": http.StatusGatewayTimeout,
 				"block_request": true,

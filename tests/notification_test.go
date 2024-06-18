@@ -567,7 +567,7 @@ func TestMultiprocessDupeOTKUpload(t *testing.T) {
 	// artificially slow down the HTTP responses, such that we will potentially have 2 in-flight /keys/upload requests
 	// at once. If the NSE and main apps are talking to each other, they should be using the same key ID + key.
 	// If not... well, that's a bug because then the client will forget one of these keys.
-	tc.Deployment.WithSniffedEndpoint(t, "/keys/upload", func(cd deploy.CallbackData) {
+	tc.Deployment.MITM().WithSniffedEndpoint(t, "/keys/upload", func(cd deploy.CallbackData) {
 		if cd.AccessToken != aliceAccessToken {
 			return // let bob upload OTKs
 		}

@@ -17,7 +17,7 @@ import (
 )
 
 func sniffToDeviceEvent(t *testing.T, d complement.Deployment, ch chan deploy.CallbackData) (callbackURL string, close func()) {
-	callbackURL, close = deploy.NewCallbackServer(t, d, func(cd deploy.CallbackData) {
+	callbackURL, close = deploy.NewCallbackServer(t, d.GetConfig().HostnameRunningComplement, func(cd deploy.CallbackData) {
 		if cd.Method == "OPTIONS" {
 			return // ignore CORS
 		}
@@ -69,7 +69,7 @@ func TestRoomKeyIsCycledOnDeviceLogout(t *testing.T) {
 			// we don't know when the new room key will be sent, it could be sent as soon as the device list update
 			// is sent, or it could be delayed until message send. We want to handle both cases so we start sniffing
 			// traffic now.
-			tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+			tc.Deployment.MITM().WithMITMOptions(t, map[string]interface{}{
 				"callback": map[string]interface{}{
 					"callback_url": callbackURL,
 					"filter":       "~u .*\\/sendToDevice.*",
@@ -137,7 +137,7 @@ func TestRoomKeyIsCycledAfterEnoughMessages(t *testing.T) {
 			ch := make(chan deploy.CallbackData, 10)
 			callbackURL, close := sniffToDeviceEvent(t, tc.Deployment, ch)
 			defer close()
-			tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+			tc.Deployment.MITM().WithMITMOptions(t, map[string]interface{}{
 				"callback": map[string]interface{}{
 					"callback_url": callbackURL,
 					"filter":       "~u .*\\/sendToDevice.*",
@@ -223,7 +223,7 @@ func TestRoomKeyIsCycledAfterEnoughTime(t *testing.T) {
 			ch := make(chan deploy.CallbackData, 10)
 			callbackURL, close := sniffToDeviceEvent(t, tc.Deployment, ch)
 			defer close()
-			tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+			tc.Deployment.MITM().WithMITMOptions(t, map[string]interface{}{
 				"callback": map[string]interface{}{
 					"callback_url": callbackURL,
 					"filter":       "~u .*\\/sendToDevice.*",
@@ -288,7 +288,7 @@ func TestRoomKeyIsCycledOnMemberLeaving(t *testing.T) {
 			// we don't know when the new room key will be sent, it could be sent as soon as the device list update
 			// is sent, or it could be delayed until message send. We want to handle both cases so we start sniffing
 			// traffic now.
-			tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+			tc.Deployment.MITM().WithMITMOptions(t, map[string]interface{}{
 				"callback": map[string]interface{}{
 					"callback_url": callbackURL,
 					"filter":       "~u .*\\/sendToDevice.*",
@@ -347,7 +347,7 @@ func TestRoomKeyIsNotCycled(t *testing.T) {
 				// we don't know when the new room key will be sent, it could be sent as soon as the device list update
 				// is sent, or it could be delayed until message send. We want to handle both cases so we start sniffing
 				// traffic now.
-				tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+				tc.Deployment.MITM().WithMITMOptions(t, map[string]interface{}{
 					"callback": map[string]interface{}{
 						"callback_url": callbackURL,
 						"filter":       "~u .*\\/sendToDevice.*",
@@ -385,7 +385,7 @@ func TestRoomKeyIsNotCycled(t *testing.T) {
 				// we don't know when the new room key will be sent, it could be sent as soon as the device list update
 				// is sent, or it could be delayed until message send. We want to handle both cases so we start sniffing
 				// traffic now.
-				tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+				tc.Deployment.MITM().WithMITMOptions(t, map[string]interface{}{
 					"callback": map[string]interface{}{
 						"callback_url": callbackURL,
 						"filter":       "~u .*\\/sendToDevice.*",
@@ -503,7 +503,7 @@ func testRoomKeyIsNotCycledOnClientRestartRust(t *testing.T, clientType api.Clie
 		callbackURL, close := sniffToDeviceEvent(t, tc.Deployment, ch)
 		defer close()
 
-		tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+		tc.Deployment.MITM().WithMITMOptions(t, map[string]interface{}{
 			"callback": map[string]interface{}{
 				"callback_url": callbackURL,
 				"filter":       "~u .*\\/sendToDevice.*",
@@ -574,7 +574,7 @@ func testRoomKeyIsNotCycledOnClientRestartJS(t *testing.T, clientType api.Client
 		defer close()
 
 		// we want to start sniffing for the to-device event just before we restart the client.
-		tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+		tc.Deployment.MITM().WithMITMOptions(t, map[string]interface{}{
 			"callback": map[string]interface{}{
 				"callback_url": callbackURL,
 				"filter":       "~u .*\\/sendToDevice.*",

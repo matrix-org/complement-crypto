@@ -108,7 +108,7 @@ func TestFallbackKeyIsUsedIfOneTimeKeysRunOut(t *testing.T) {
 			var roomID string
 			var waiter api.Waiter
 			// Block all /keys/upload requests for Alice
-			tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+			tc.Deployment.MITM().WithMITMOptions(t, map[string]interface{}{
 				"statuscode": map[string]interface{}{
 					"return_status": http.StatusGatewayTimeout,
 					"block_request": true,
@@ -160,7 +160,7 @@ func TestFailedOneTimeKeyUploadRetries(t *testing.T) {
 		// make a room so we can kick clients
 		roomID := tc.Alice.MustCreateRoom(t, map[string]interface{}{"preset": "public_chat"})
 		// block /keys/upload and make a client
-		tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+		tc.Deployment.MITM().WithMITMOptions(t, map[string]interface{}{
 			"statuscode": map[string]interface{}{
 				"return_status": http.StatusGatewayTimeout,
 				"block_request": true,
@@ -210,7 +210,7 @@ func TestFailedKeysClaimRetries(t *testing.T) {
 		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
 			var stopPoking atomic.Bool
 			waiter := helpers.NewWaiter()
-			callbackURL, close := deploy.NewCallbackServer(t, tc.Deployment, func(cd deploy.CallbackData) {
+			callbackURL, close := deploy.NewCallbackServer(t, tc.Deployment.GetConfig().HostnameRunningComplement, func(cd deploy.CallbackData) {
 				t.Logf("%+v", cd)
 				if cd.ResponseCode == 200 {
 					waiter.Finish()
@@ -222,7 +222,7 @@ func TestFailedKeysClaimRetries(t *testing.T) {
 			// make a room which will link the 2 users together when
 			roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.PresetPublicChat())
 			// block /keys/claim and join the room, causing the Olm session to be created
-			tc.Deployment.WithMITMOptions(t, map[string]interface{}{
+			tc.Deployment.MITM().WithMITMOptions(t, map[string]interface{}{
 				"statuscode": map[string]interface{}{
 					"return_status": http.StatusGatewayTimeout,
 					"block_request": true,
