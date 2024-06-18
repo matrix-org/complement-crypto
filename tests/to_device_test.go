@@ -130,7 +130,8 @@ func TestUnprocessedToDeviceMessagesArentLostOnRestart(t *testing.T) {
 func testUnprocessedToDeviceMessagesArentLostOnRestartRust(t *testing.T, tc *cc.TestContext, bobOpts api.ClientCreationOpts, roomID, eventID string) {
 	// sniff /sync traffic
 	waitForRoomKey := helpers.NewWaiter()
-	tc.Deployment.MITM().WithSniffedEndpoint(t, "/sync", func(cd deploy.CallbackData) {
+	mitmConfiguration := tc.Deployment.MITM().Configure(t)
+	mitmConfiguration.ForPath("/sync").Listen(func(cd deploy.CallbackData) {
 		// When /sync shows a to-device message from Alice (indicating the room key), then SIGKILL Bob.
 		t.Logf("/sync => %v", string(cd.ResponseBody))
 		body := gjson.ParseBytes(cd.ResponseBody)
@@ -143,7 +144,8 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartRust(t *testing.T, tc *cc.
 				}
 			}
 		}
-	}, func() {
+	})
+	mitmConfiguration.Execute(func() {
 		// bob comes back online, and will be killed a short while later.
 		// No need to login as we will reuse the session from before.
 		// This is critical to ensure we get the room key update as it would have been sent
@@ -186,7 +188,8 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartRust(t *testing.T, tc *cc.
 func testUnprocessedToDeviceMessagesArentLostOnRestartJS(t *testing.T, tc *cc.TestContext, bobOpts api.ClientCreationOpts, roomID, eventID string) {
 	// sniff /sync traffic
 	waitForRoomKey := helpers.NewWaiter()
-	tc.Deployment.MITM().WithSniffedEndpoint(t, "/sync", func(cd deploy.CallbackData) {
+	mitmConfiguration := tc.Deployment.MITM().Configure(t)
+	mitmConfiguration.ForPath("/sync").Listen(func(cd deploy.CallbackData) {
 		// When /sync shows a to-device message from Alice (indicating the room key) then SIGKILL Bob.
 		body := gjson.ParseBytes(cd.ResponseBody)
 		toDeviceEvents := body.Get("to_device.events").Array() // Sync v2 form
@@ -198,7 +201,8 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartJS(t *testing.T, tc *cc.Te
 				}
 			}
 		}
-	}, func() {
+	})
+	mitmConfiguration.Execute(func() {
 		bob := tc.MustLoginClient(t, &cc.ClientCreationRequest{
 			User: tc.Bob,
 			Opts: api.ClientCreationOpts{
@@ -270,7 +274,8 @@ func TestToDeviceMessagesAreBatched(t *testing.T) {
 		waiter := helpers.NewWaiter()
 		tc.WithAliceSyncing(t, func(alice api.Client) {
 			// intercept /sendToDevice and check we are sending 100 messages per request
-			tc.Deployment.MITM().WithSniffedEndpoint(t, "/sendToDevice", func(cd deploy.CallbackData) {
+			mitmConfiguration := tc.Deployment.MITM().Configure(t)
+			mitmConfiguration.ForPath("/sendToDevice").Listen(func(cd deploy.CallbackData) {
 				if cd.Method != "PUT" {
 					return
 				}
@@ -296,7 +301,8 @@ func TestToDeviceMessagesAreBatched(t *testing.T) {
 					t.Logf(usersMap.Raw)
 				}
 				waiter.Finish()
-			}, func() {
+			})
+			mitmConfiguration.Execute(func() {
 				alice.SendMessage(t, roomID, "this should cause to-device msgs to be sent")
 				time.Sleep(time.Second)
 				waiter.Waitf(t, 5*time.Second, "did not see /sendToDevice")
