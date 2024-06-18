@@ -13,7 +13,10 @@ import (
 	"github.com/matrix-org/complement-crypto/internal/deploy"
 )
 
-// Instance represents a test instance (process
+// Instance represents a test instance.
+//
+// The instance is the global variable holding onto all data that must be shared
+// between tests, such as the configuration options and the deployed containers.
 type Instance struct {
 	ssDeployment           *deploy.SlidingSyncDeployment
 	ssMutex                *sync.Mutex
