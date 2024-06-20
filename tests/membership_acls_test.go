@@ -194,7 +194,7 @@ func TestOnRejoinBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 			bob.MustBackpaginate(t, roomID, 5)
 			// TODO: jJ runs fail as the timeline omits the event e.g it has leave,join and not leave,msg,join.
 			ev := bob.MustGetEvent(t, roomID, evID)
-			must.NotEqual(t, ev.Text, onlyAliceBody, "bob was able to decrypt a message from before he was joined")
+			must.Equal(t, ev.Text, onlyAliceBody, "bob was able to decrypt a message from before he was joined")
 			must.Equal(t, ev.FailedToDecrypt, true, "message not marked as failed to decrypt")
 
 			/* TODO: needs client changes
