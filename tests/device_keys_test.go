@@ -2,6 +2,7 @@ package tests
 
 import (
 	"net/http"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -21,27 +22,14 @@ func TestFailedDeviceKeyDownloadRetries(t *testing.T) {
 		tc := Instance().CreateTestContext(t, clientType, clientType)
 
 		// Track whether we received any requests on /keys/query
-		queryReceived := false
-		callbackUrl, closeCallbackServer := deploy.NewCallbackServer(
-			t,
-			tc.Deployment,
-			func(data deploy.CallbackData) { queryReceived = true },
-		)
-		defer closeCallbackServer()
+		var queryReceived atomic.Bool
 
 		// Given that the first 4 attempts to download device keys will fail
-		tc.Deployment.WithMITMOptions(t, map[string]interface{}{
-			"statuscode": map[string]interface{}{
-				"return_status": http.StatusGatewayTimeout,
-				"block_request": true,
-				"count":         4,
-				"filter":        "~u .*\\/keys\\/query.* ~m POST",
-			},
-			"callback": map[string]interface{}{
-				"callback_url": callbackUrl,
-				"filter":       "~u .*\\/keys\\/query.* ~m POST",
-			},
-		}, func() {
+		mitmConfiguration := tc.Deployment.MITM().Configure(t)
+		mitmConfiguration.ForPath("/keys/query").Method("POST").BlockRequest(4, http.StatusGatewayTimeout).Listen(func(data deploy.CallbackData) {
+			queryReceived.Store(true)
+		})
+		mitmConfiguration.Execute(func() {
 			// And Alice and Bob are in an encrypted room together
 			roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}))
 			tc.Bob.MustJoinRoom(t, roomID, []string{"hs1"})
@@ -61,6 +49,6 @@ func TestFailedDeviceKeyDownloadRetries(t *testing.T) {
 		})
 
 		// Sanity: we did receive some requests (which we initially blocked)
-		must.Equal(t, queryReceived, true, "No request to /keys/query was received!")
+		must.Equal(t, queryReceived.Load(), true, "No request to /keys/query was received!")
 	})
 }
