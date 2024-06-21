@@ -62,10 +62,6 @@ jobs:
               exit 0
             fi
 
-            # we have 1 '.' var, so pull out the current branch name in this GHA, falling back to the targets default branch
-            CURRENT_BRANCH=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}
-            echo "Current branch: $CURRENT_BRANCH"
-
             declare -A input_to_repo_url
             input_to_repo_url["JS_SDK"]="matrix-org/matrix-js-sdk"
             input_to_repo_url["RUST_SDK"]="matrix-org/matrix-rust-sdk"
@@ -73,16 +69,8 @@ jobs:
 
             for var_name in JS_SDK RUST_SDK COMPLEMENT_CRYPTO; do
               if [ "${!var_name}" = "MATCHING_BRANCH" ]; then
-                # check if current branch exists on this repo
-                response=$(curl -s -o /dev/null -w "%{http_code}" "https://api.github.com/repos/${input_to_repo_url["$var_name"]}/branches/$CURRENT_BRANCH")
-                if [ "$response" = "200" ]; then
-                    echo "Branch $CURRENT_BRANCH exists in ${input_to_repo_url["$var_name"]}, using $CURRENT_BRANCH for $var_name."
-                    echo "$var_name=$CURRENT_BRANCH" >> $GITHUB_ENV
-                else
-                    DEFAULT_BRANCH=$(git ls-remote --symref https://github.com/${input_to_repo_url["$var_name"]}.git HEAD | grep 'ref: ' | sed 's@.*/@@' | cut -f 1)
-                    echo "Branch $CURRENT_BRANCH does not exist in ${input_to_repo_url["$var_name"]}, falling back and using default branch $DEFAULT_BRANCH."
-                    echo "$var_name=$DEFAULT_BRANCH" >> $GITHUB_ENV
-                fi
+                BRANCH=$(./.github/workflows/resolve_branch.sh ${input_to_repo_url["$var_name"]})
+                echo "$var_name=$BRANCH" >> $GITHUB_ENV
               else
                 echo "Using ${!var_name} for ${input_to_repo_url["$var_name"]}"
                 echo "$var_name=${!var_name}" >> $GITHUB_ENV

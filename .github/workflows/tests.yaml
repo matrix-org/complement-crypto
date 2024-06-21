@@ -48,8 +48,9 @@ jobs:
           toolchain: stable
       - name: Checkout matrix-rust-sdk
         run: |
+          BRANCH=$(./.github/workflows/resolve_branch.sh matrix-org/matrix-rust-sdk)
           mkdir rust-sdk
-          wget -O archive.tar.gz "https://github.com/matrix-org/matrix-rust-sdk/archive/main.tar.gz"
+          wget -O archive.tar.gz "https://github.com/matrix-org/matrix-rust-sdk/archive/$BRANCH.tar.gz"
           zcat < archive.tar.gz | git get-tar-commit-id # useful for debugging
           tar -xz --strip-components=1 -C rust-sdk < archive.tar.gz
       - uses: Swatinem/rust-cache@v2
@@ -63,9 +64,8 @@ jobs:
       # Install whatever version of the JS SDK is in package.json
       - name: Build JS SDK
         run: |
-          cat ./internal/api/js/js-sdk/package.json
-          (cd ./internal/api/js/js-sdk && yarn install --frozen-lockfile && yarn build)
-          cp -r ./internal/api/js/js-sdk/dist/. ./internal/api/js/chrome/dist
+          BRANCH=$(./.github/workflows/resolve_branch.sh matrix-org/matrix-js-sdk)
+          ./rebuild_js_sdk.sh "matrix-js-sdk@https://github.com/matrix-org/matrix-js-sdk#$BRANCH"
 
       - name: Build Rust FFI bindings
         run: |
@@ -151,15 +151,16 @@ jobs:
         env:
           COMPLEMENT_BASE_IMAGE: homeserver
           COMPLEMENT_ENABLE_DIRTY_RUNS: 1
-          COMPLEMENT_CRYPTO_WRITE_CONTAINER_LOGS: 1
+          COMPLEMENT_CRYPTO_MITMDUMP: mitm.dump
           COMPLEMENT_SHARE_ENV_PREFIX: PASS_
           PASS_SYNAPSE_COMPLEMENT_DATABASE: sqlite
           DOCKER_BUILDKIT: 1
 
       - name: Upload logs
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         if: ${{ always() }} # do this even if the tests fail
         with:
           name: Logs - ${{ job.status }}
           path: |
             ./tests/logs/*
+            ./complement-crypto/tests/mitm.dump
