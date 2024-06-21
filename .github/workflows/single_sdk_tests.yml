@@ -183,7 +183,7 @@ jobs:
           env:
             COMPLEMENT_BASE_IMAGE: homeserver
             COMPLEMENT_ENABLE_DIRTY_RUNS: 1
-            COMPLEMENT_CRYPTO_WRITE_CONTAINER_LOGS: 1
+            COMPLEMENT_CRYPTO_MITMDUMP: mitm.dump
             COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX: ${{ inputs.use_js_sdk != '' && 'jj' || 'rr' }} # TODO: brittle, we don't check rust-sdk input
             COMPLEMENT_SHARE_ENV_PREFIX: PASS_
             PASS_SYNAPSE_COMPLEMENT_DATABASE: sqlite
@@ -192,10 +192,11 @@ jobs:
             RUST_SDK_LIB_RELATIVE: ${{ inputs.use_rust_sdk == '.' &&  '/target/debug' || '/complement-crypto/rust-sdk/target/debug'}}
 
         - name: Upload logs
-          uses: actions/upload-artifact@v2
+          uses: actions/upload-artifact@v4
           if: ${{ failure() }}
           with:
-            name: Logs - ${{ job.status }}
+            name: Logs - ${{ inputs.use_js_sdk != '' && 'jssdk' || 'rust'}}
             path: |
               ./complement-crypto/tests/logs/*
+              ./complement-crypto/tests/mitm.dump
 
