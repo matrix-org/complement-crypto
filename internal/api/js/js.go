@@ -18,7 +18,10 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-const CONSOLE_LOG_CONTROL_STRING = "CC:" // for "complement-crypto"
+// The unique console log line prefix which denotes a control message to the test rig.
+// The text after this string is a JSON object which contains information on the type
+// of update (e.g a new event, a verification request)
+const CONSOLE_LOG_CONTROL_STRING = "CC:"
 
 const (
 	indexedDBName       = "complement-crypto"
