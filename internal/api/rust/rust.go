@@ -197,6 +197,25 @@ func (c *RustClient) CurrentAccessToken(t ct.TestLike) string {
 	return s.AccessToken
 }
 
+func (c *RustClient) RequestVerification(t ct.TestLike, listener api.VerificationListener) {
+	svc, err := c.FFIClient.GetSessionVerificationController()
+	if err != nil {
+		ct.Fatalf(t, "GetSessionVerificationController: %s", err)
+	}
+	delegateImpl := &SessionVerificationControllerDelegate{
+		t:          t,
+		controller: svc,
+		listener:   listener,
+	}
+	c.FFIClient.Encryption().VerificationStateListener(delegateImpl)
+
+	var delegate matrix_sdk_ffi.SessionVerificationControllerDelegate = delegateImpl
+	svc.SetDelegate(&delegate)
+	if err = svc.RequestVerification(); err != nil {
+		ct.Fatalf(t, "RequestVerification: %s", err)
+	}
+}
+
 func (c *RustClient) DeletePersistentStorage(t ct.TestLike) {
 	t.Helper()
 	if c.persistentStoragePath != "" {
@@ -887,4 +906,70 @@ func eventTimelineItemToEvent(item *matrix_sdk_ffi.EventTimelineItem) *api.Event
 		}
 	}
 	return &complementEvent
+}
+
+// you call requestVerification(), then you wait for acceptedVerificationRequest and then you
+// call startSasVerification
+// you should then receivedVerificationData and approveVerification or declineVerification
+type SessionVerificationControllerDelegate struct {
+	t          ct.TestLike
+	controller *matrix_sdk_ffi.SessionVerificationController
+	listener   api.VerificationListener
+}
+
+func (s *SessionVerificationControllerDelegate) DidAcceptVerificationRequest() {
+	s.t.Logf("SessionVerificationControllerDelegate.DidAcceptVerificationRequest")
+	s.t.Logf("SessionVerificationControllerDelegate calling StartSasVerification")
+	s.listener.DidAcceptVerificationRequest()
+	if err := s.controller.StartSasVerification(); err != nil {
+		ct.Fatalf(s.t, "StartSasVerification: %s", err)
+	}
+}
+
+func (s *SessionVerificationControllerDelegate) DidStartSasVerification() {
+	s.t.Logf("SessionVerificationControllerDelegate.DidStartSasVerification")
+}
+
+func (s *SessionVerificationControllerDelegate) DidReceiveVerificationData(data matrix_sdk_ffi.SessionVerificationData) {
+	s.t.Logf("SessionVerificationControllerDelegate.DidReceiveVerificationData")
+	vData := api.VerificationData{}
+	switch d := data.(type) {
+	case *matrix_sdk_ffi.SessionVerificationDataEmojis:
+		var symbols []string
+		for _, emoji := range d.Emojis {
+			symbols = append(symbols, emoji.Symbol())
+		}
+		vData.Emojis = symbols
+	case *matrix_sdk_ffi.SessionVerificationDataDecimals:
+		ct.Fatalf(s.t, "DidReceiveVerificationData: decimals unsupported")
+		vData.Decimals = d.Values
+	}
+	s.listener.DidReceiveVerificationData(vData)
+}
+
+func (s *SessionVerificationControllerDelegate) DidFail() {
+	s.t.Logf("SessionVerificationControllerDelegate.DidFail")
+	s.listener.DidFail()
+}
+
+func (s *SessionVerificationControllerDelegate) DidCancel() {
+	s.t.Logf("SessionVerificationControllerDelegate.DidCancel")
+	s.listener.DidCancel()
+}
+
+func (s *SessionVerificationControllerDelegate) DidFinish() {
+	s.t.Logf("SessionVerificationControllerDelegate.DidFinish")
+	s.listener.DidFinish()
+}
+
+func (s *SessionVerificationControllerDelegate) OnUpdate(status matrix_sdk_ffi.VerificationState) {
+	s.t.Logf("SessionVerificationControllerDelegate.OnUpdate %v", status)
+	var vState = api.VerificationStateUnknown
+	switch status {
+	case matrix_sdk_ffi.VerificationStateUnverified:
+		vState = api.VerificationStateUnverified
+	case matrix_sdk_ffi.VerificationStateVerified:
+		vState = api.VerificationStateVerified
+	}
+	s.listener.OnVerificationStateChange(vState)
 }

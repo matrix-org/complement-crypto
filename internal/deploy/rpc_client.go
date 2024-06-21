@@ -190,6 +190,10 @@ func (c *RPCClient) CurrentAccessToken(t ct.TestLike) string {
 	return token
 }
 
+func (c *RPCClient) RequestVerification(t ct.TestLike, listener api.VerificationListener) {
+
+}
+
 // Remove any persistent storage, if it was enabled.
 func (c *RPCClient) DeletePersistentStorage(t ct.TestLike) {
 	var void int

@@ -61,6 +61,8 @@ type Client interface {
 	LoadBackup(t ct.TestLike, recoveryKey string) error
 	// GetNotification gets push notification-like information for the given event. If there is a problem, an error is returned.
 	GetNotification(t ct.TestLike, roomID, eventID string) (*Notification, error)
+	// RequestVerification learns about the available/supported protocols from other logged in sessions.
+	RequestVerification(t ct.TestLike, listener VerificationListener)
 	// Log something to stdout and the underlying client log file
 	Logf(t ct.TestLike, format string, args ...interface{})
 	// The user for this client
@@ -69,6 +71,29 @@ type Client interface {
 	CurrentAccessToken(t ct.TestLike) string
 	Type() ClientTypeLang
 	Opts() ClientCreationOpts
+}
+
+type VerificationState string
+
+const (
+	VerificationStateUnknown    VerificationState = "unknown"
+	VerificationStateUnverified VerificationState = "unverified"
+	VerificationStateVerified   VerificationState = "verified"
+)
+
+type VerificationData struct {
+	Emojis   []string
+	Decimals []uint16
+}
+
+type VerificationListener interface {
+	Close()
+	OnVerificationStateChange(vState VerificationState)
+	DidAcceptVerificationRequest()
+	DidReceiveVerificationData(vData VerificationData)
+	DidFail()
+	DidCancel()
+	DidFinish()
 }
 
 type Notification struct {

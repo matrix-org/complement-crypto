@@ -261,6 +261,14 @@ func (c *JSClient) GetNotification(t ct.TestLike, roomID, eventID string) (*api.
 	return nil, fmt.Errorf("not implemented yet") // TODO
 }
 
+func (c *JSClient) RequestVerification(t ct.TestLike, listener api.VerificationListener) {
+	chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `
+	const req = await window.__client.getCrypto().requestOwnUserVerification();
+	req.on("change", () => {
+
+	})`)
+}
+
 func (c *JSClient) ForceClose(t ct.TestLike) {
 	t.Helper()
 	t.Logf("force closing a JS client is the same as a normal close (closing browser)")
