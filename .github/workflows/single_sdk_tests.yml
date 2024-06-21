@@ -62,6 +62,12 @@ jobs:
               exit 0
             fi
 
+            # we need to run the resolve_branch.sh script but that's inside complement-crypto, and we don't
+            # know which branch to use of complement-crypto yet => chicken and egg problem. To break it, let's
+            # just always use the resolve_branch.sh script from 'main'
+            curl -o $PWD/resolve_branch.sh "https://raw.githubusercontent.com/matrix-org/complement-crypto/main/.github/workflows/resolve_branch.sh"
+            chmod +x $PWD/resolve_branch.sh
+
             declare -A input_to_repo_url
             input_to_repo_url["JS_SDK"]="matrix-org/matrix-js-sdk"
             input_to_repo_url["RUST_SDK"]="matrix-org/matrix-rust-sdk"
@@ -69,7 +75,7 @@ jobs:
 
             for var_name in JS_SDK RUST_SDK COMPLEMENT_CRYPTO; do
               if [ "${!var_name}" = "MATCHING_BRANCH" ]; then
-                BRANCH=$(./.github/workflows/resolve_branch.sh ${input_to_repo_url["$var_name"]})
+                BRANCH=$(./resolve_branch.sh ${input_to_repo_url["$var_name"]})
                 echo "$var_name=$BRANCH" >> $GITHUB_ENV
               else
                 echo "Using ${!var_name} for ${input_to_repo_url["$var_name"]}"
