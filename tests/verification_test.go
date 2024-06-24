@@ -2,6 +2,7 @@ package tests
 
 import (
 	"testing"
+	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/cc"
@@ -22,11 +23,14 @@ func TestVerificationSAS(t *testing.T) {
 		tc.WithAliceSyncing(t, func(verifier api.Client) {
 			tc.WithClientSyncing(t, &cc.ClientCreationRequest{
 				User: verifieeUser,
+				Opts: api.ClientCreationOpts{
+					DeviceID: "OTHER_DEVICE",
+				},
 			}, func(verifiee api.Client) {
-
-				verifier.RequestVerification(t, &VerificationListener{})
+				verifier.RequestOwnUserVerification(t, &VerificationListener{})
 			})
 		})
+		time.Sleep(time.Second)
 	})
 }
 

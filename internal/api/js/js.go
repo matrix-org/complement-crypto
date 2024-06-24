@@ -181,7 +181,20 @@ func (c *JSClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {
 	});
 	// kick off outgoing requests which will upload OTKs and device keys
 	await window.__client.getCrypto().outgoingRequestsManager.doProcessOutgoingRequests();
-	`, opts.UserID, opts.Password, deviceID))
+	// when MSC3967 is everywhere, we can drop the auth dict
+	await window.__client.getCrypto().bootstrapCrossSigning({
+	  authUploadDeviceSigningKeys: async function (makeRequest) {
+	  	return await makeRequest({
+				"type": "m.login.password",
+				"identifier": {
+					"type": "m.id.user",
+					"user": "%s",
+				},
+				"password": "%s",
+		});
+	  },
+	});
+	`, opts.UserID, opts.Password, deviceID, opts.UserID, opts.Password))
 	if err != nil {
 		return err
 	}
@@ -252,11 +265,25 @@ func (c *JSClient) GetNotification(t ct.TestLike, roomID, eventID string) (*api.
 	return nil, fmt.Errorf("not implemented yet") // TODO
 }
 
-func (c *JSClient) RequestVerification(t ct.TestLike, listener api.VerificationListener) {
+func (c *JSClient) RequestOwnUserVerification(t ct.TestLike, listener api.VerificationListener) {
 	chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `
 	const req = await window.__client.getCrypto().requestOwnUserVerification();
 	req.on("change", () => {
-
+		console.log("RequestOwnUserVerification got phase " + req.phase());
+		switch(req.phase()) {
+			case VerificationPhase.Unsent:
+				break;
+			case VerificationPhase.Requested: // An m.key.verification.request event has been sent or received
+				break;
+			case VerificationPhase.Ready: // An m.key.verification.ready event has been sent or received, indicating the verification request is accepted.
+				break;
+			case VerificationPhase.Started: // In-flight verification. This means that an m.key.verification.start event has been sent or received, choosing a verification method; however the verification has not yet completed or been cancelled.
+				break;
+			case VerificationPhase.Cancelled: // An m.key.verification.cancel event has been sent or received at any time before the 'done' event, cancelling the verification request
+				break;
+			case VerificationPhase.Done: // Normally this means that m.key.verification.done events have been sent and received.
+				break;
+		}
 	})`)
 }
 

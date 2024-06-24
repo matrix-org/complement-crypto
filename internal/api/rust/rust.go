@@ -197,7 +197,7 @@ func (c *RustClient) CurrentAccessToken(t ct.TestLike) string {
 	return s.AccessToken
 }
 
-func (c *RustClient) RequestVerification(t ct.TestLike, listener api.VerificationListener) {
+func (c *RustClient) RequestOwnUserVerification(t ct.TestLike, listener api.VerificationListener) {
 	svc, err := c.FFIClient.GetSessionVerificationController()
 	if err != nil {
 		ct.Fatalf(t, "GetSessionVerificationController: %s", err)
