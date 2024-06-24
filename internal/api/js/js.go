@@ -1,7 +1,6 @@
 package js
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -17,8 +16,6 @@ import (
 	"github.com/matrix-org/complement/must"
 	"github.com/tidwall/gjson"
 )
-
-const CONSOLE_LOG_CONTROL_STRING = "CC:" // for "complement-crypto"
 
 const (
 	indexedDBName       = "complement-crypto"
@@ -54,7 +51,7 @@ func writeToLog(s string, args ...interface{}) {
 
 type JSClient struct {
 	browser     *chrome.Browser
-	listeners   map[int32]func(roomID string, ev api.Event)
+	listeners   map[int32]func(ctrlMsg *ControlMessage)
 	listenerID  atomic.Int32
 	listenersMu *sync.RWMutex
 	userID      string
@@ -63,7 +60,7 @@ type JSClient struct {
 
 func NewJSClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, error) {
 	jsc := &JSClient{
-		listeners:   make(map[int32]func(roomID string, ev api.Event)),
+		listeners:   make(map[int32]func(ctrlMsg *ControlMessage)),
 		userID:      opts.UserID,
 		listenersMu: &sync.RWMutex{},
 		opts:        opts,
@@ -73,24 +70,18 @@ func NewJSClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, error)
 		// TODO: debug mode only?
 		writeToLog("[%s,%s] console.log %s\n", jsc.browser.BaseURL, opts.UserID, s)
 
-		if strings.HasPrefix(s, CONSOLE_LOG_CONTROL_STRING) {
-			val := strings.TrimPrefix(s, CONSOLE_LOG_CONTROL_STRING)
-			// for now the format is always 'room_id||{event}'
-			segs := strings.Split(val, "||")
-			var ev JSEvent
-			if err := json.Unmarshal([]byte(segs[1]), &ev); err != nil {
-				writeToLog("[%s] failed to unmarshal event '%s' into Go %s\n", opts.UserID, segs[1], err)
-				return
-			}
-			jsc.listenersMu.RLock()
-			var listeners []func(roomID string, ev api.Event)
-			for _, l := range jsc.listeners {
-				listeners = append(listeners, l)
-			}
-			jsc.listenersMu.RUnlock()
-			for _, l := range listeners {
-				l(segs[0], jsToEvent(ev))
-			}
+		msg := unpackControlMessage(s)
+		if msg == nil {
+			return
+		}
+		jsc.listenersMu.RLock()
+		var listeners []func(ctrlMsg *ControlMessage)
+		for _, l := range jsc.listeners {
+			listeners = append(listeners, l)
+		}
+		jsc.listenersMu.RUnlock()
+		for _, l := range listeners {
+			l(msg)
 		}
 	}, opts.PersistentStorage, userDeviceToPort[portKey])
 	if err != nil {
@@ -198,11 +189,11 @@ func (c *JSClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {
 	// any events need to log the control string so we get notified
 	_, err = chrome.RunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`
 	window.__client.on("Event.decrypted", function(event) {
-		console.log("%s"+event.getRoomId()+"||"+JSON.stringify(event.getEffectiveEvent()));
+		`+EmitControlMessageEventJS("event.getRoomId()", "event.getEffectiveEvent()")+`
 	});
 	window.__client.on("event", function(event) {
-		console.log("%s"+event.getRoomId()+"||"+JSON.stringify(event.getEffectiveEvent()));
-	});`, CONSOLE_LOG_CONTROL_STRING, CONSOLE_LOG_CONTROL_STRING))
+		`+EmitControlMessageEventJS("event.getRoomId()", "event.getEffectiveEvent()")+`
+	});`))
 	if err != nil {
 		return err
 	}
@@ -283,7 +274,7 @@ func (c *JSClient) Close(t ct.TestLike) {
 	t.Helper()
 	c.browser.Cancel()
 	c.listenersMu.Lock()
-	c.listeners = make(map[int32]func(roomID string, ev api.Event))
+	c.listeners = make(map[int32]func(ctrlMsg *ControlMessage))
 	c.listenersMu.Unlock()
 }
 
@@ -352,19 +343,19 @@ func (c *JSClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error) {
 			if (state !== "SYNCING") {
 				return;
 			}
-			console.log("%s"+"sync||{\"type\":\"sync\",\"content\":{}}");
+			`+EmitControlMessageSyncJS()+`
+
 			window.__client.off("sync", fn);
 		};
-		window.__client.on("sync", fn);`, CONSOLE_LOG_CONTROL_STRING))
+		window.__client.on("sync", fn);`))
 	if err != nil {
 		return nil, fmt.Errorf("[%s]failed to listen for sync callback: %s", c.userID, err)
 	}
 	ch := make(chan struct{})
-	cancel := c.listenForUpdates(func(roomID string, ev api.Event) {
-		if roomID != "sync" {
-			return
+	cancel := c.listenForUpdates(func(ctrlMsg *ControlMessage) {
+		if msg := ctrlMsg.AsControlMessageSync(); msg != nil {
+			close(ch)
 		}
-		close(ch)
 	})
 	chrome.RunAsyncFn[chrome.Void](t, c.browser.Ctx, `await window.__client.startClient({});`)
 	select {
@@ -489,7 +480,7 @@ func (c *JSClient) Type() api.ClientTypeLang {
 	return api.ClientTypeJS
 }
 
-func (c *JSClient) listenForUpdates(callback func(roomID string, ev api.Event)) (cancel func()) {
+func (c *JSClient) listenForUpdates(callback func(ctrlMsg *ControlMessage)) (cancel func()) {
 	id := c.listenerID.Add(1)
 	c.listenersMu.Lock()
 	c.listeners[id] = callback
@@ -518,11 +509,15 @@ func (w *jsTimelineWaiter) Waitf(t ct.TestLike, s time.Duration, format string, 
 func (w *jsTimelineWaiter) TryWaitf(t ct.TestLike, s time.Duration, format string, args ...any) error {
 	t.Helper()
 	updates := make(chan bool, 3)
-	cancel := w.client.listenForUpdates(func(roomID string, ev api.Event) {
-		if w.roomID != roomID {
+	cancel := w.client.listenForUpdates(func(ctrlMsg *ControlMessage) {
+		msg := ctrlMsg.AsControlMessageEvent()
+		if msg == nil {
 			return
 		}
-		if !w.checker(ev) {
+		if w.roomID != msg.RoomID {
+			return
+		}
+		if !w.checker(jsToEvent(msg.Event)) {
 			return
 		}
 		updates <- true
@@ -532,8 +527,8 @@ func (w *jsTimelineWaiter) TryWaitf(t ct.TestLike, s time.Duration, format strin
 	// check if it already exists by echoing the current timeline. This will call the callback above.
 	chrome.MustRunAsyncFn[chrome.Void](t, w.client.browser.Ctx, fmt.Sprintf(
 		`window.__client.getRoom("%s")?.getLiveTimeline()?.getEvents().forEach((e)=>{
-			console.log("%s"+e.getRoomId()+"||"+JSON.stringify(e.getEffectiveEvent()));
-		});`, w.roomID, CONSOLE_LOG_CONTROL_STRING,
+			`+EmitControlMessageEventJS("e.getRoomId()", "e.getEffectiveEvent()")+`
+		});`, w.roomID,
 	))
 
 	msg := fmt.Sprintf(format, args...)
