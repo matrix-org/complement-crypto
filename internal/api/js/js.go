@@ -261,7 +261,7 @@ func (c *JSClient) GetNotification(t ct.TestLike, roomID, eventID string) (*api.
 
 func (c *JSClient) bootstrapCrossSigning(t ct.TestLike) {
 	// when MSC3967 is everywhere, we can drop the auth dict
-	chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `
+	chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`
 	await window.__client.getCrypto().bootstrapCrossSigning({
 		authUploadDeviceSigningKeys: async function (makeRequest) {
 			return await makeRequest({
@@ -274,7 +274,7 @@ func (c *JSClient) bootstrapCrossSigning(t ct.TestLike) {
 		  });
 		},
 	  });
-	  `)
+	  `, c.opts.UserID, c.opts.Password))
 }
 
 func (c *JSClient) ensureListeningForVerificationRequests(t ct.TestLike) chan api.VerificationStage {
@@ -398,6 +398,18 @@ func (c *JSClient) ListenForVerificationRequests(t ct.TestLike) chan api.Verific
 				chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `
 						await window.__pendingVerificationByTxnID["`+msg.TxnID+`"].cancel();
 					`)
+			},
+			SendApprove: func() {
+				chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `
+						const verifier = window.__pendingVerificationByTxnID["`+msg.TxnID+`"].verifier;
+						await verifier.getShowSasCallbacks().confirm()
+					`)
+			},
+			SendDecline: func() {
+				chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `
+					const verifier = window.__pendingVerificationByTxnID["`+msg.TxnID+`"].verifier;
+					await verifier.getShowSasCallbacks().mismatch()
+				`)
 			},
 		}
 		switch msg.Stage {

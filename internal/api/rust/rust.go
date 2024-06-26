@@ -229,6 +229,16 @@ func (c *RustClient) RequestOwnUserVerification(t ct.TestLike) chan api.Verifica
 				t.Errorf("failed to StartSasVerification: %s", err)
 			}
 		},
+		SendApprove: func() {
+			if err := svc.ApproveVerification(); err != nil {
+				t.Errorf("failed to ApproveVerification: %s", err)
+			}
+		},
+		SendDecline: func() {
+			if err := svc.DeclineVerification(); err != nil {
+				t.Errorf("failed to ApproveVerification: %s", err)
+			}
+		},
 	}
 	// need to allow multiple Transition calls to be fired at once
 	ch := make(chan api.VerificationStage, 4)
@@ -952,17 +962,14 @@ type SessionVerificationControllerDelegate struct {
 }
 
 func (s *SessionVerificationControllerDelegate) DidAcceptVerificationRequest() {
-	s.t.Logf("SessionVerificationControllerDelegate.DidAcceptVerificationRequest")
 	s.ch <- api.NewVerificationStageReady(s.container)
 }
 
 func (s *SessionVerificationControllerDelegate) DidStartSasVerification() {
-	s.t.Logf("SessionVerificationControllerDelegate.DidStartSasVerification")
 	s.ch <- api.NewVerificationStageStart(s.container)
 }
 
 func (s *SessionVerificationControllerDelegate) DidReceiveVerificationData(data matrix_sdk_ffi.SessionVerificationData) {
-	s.t.Logf("SessionVerificationControllerDelegate.DidReceiveVerificationData")
 	vData := api.VerificationData{}
 	switch d := data.(type) {
 	case matrix_sdk_ffi.SessionVerificationDataEmojis:
@@ -985,14 +992,24 @@ func (s *SessionVerificationControllerDelegate) DidFail() {
 }
 
 func (s *SessionVerificationControllerDelegate) DidCancel() {
-	s.t.Logf("SessionVerificationControllerDelegate.DidCancel")
 	s.ch <- api.NewVerificationStageCancelled(s.container)
 }
 
 func (s *SessionVerificationControllerDelegate) DidFinish() {
-	s.t.Logf("SessionVerificationControllerDelegate.DidFinish")
+	s.ch <- api.NewVerificationStageDone(s.container)
 }
 
 func (s *SessionVerificationControllerDelegate) OnUpdate(status matrix_sdk_ffi.VerificationState) {
-	s.t.Logf("SessionVerificationControllerDelegate.OnUpdate %v", status)
+	s.container.Modify(func(cc *api.VerificationContainer) {
+		var state api.VerificationState
+		switch status {
+		case matrix_sdk_ffi.VerificationStateUnverified:
+			state = api.VerificationStateUnverified
+		case matrix_sdk_ffi.VerificationStateVerified:
+			state = api.VerificationStateVerified
+		case matrix_sdk_ffi.VerificationStateUnknown:
+			state = api.VerificationStateUnknown
+		}
+		cc.VState = state
+	})
 }

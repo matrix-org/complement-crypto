@@ -105,7 +105,7 @@ func NewVerificationStageRequested(c *VerificationContainer) VerificationStageRe
 	return &verificationStageRequested{c}
 }
 
-type VerificationStageRequestedRequetee interface {
+type VerificationStageRequestedReceiver interface {
 	Request() VerificationRequest
 	Cancel()
 	Ready()
@@ -123,7 +123,7 @@ func (v *verificationStageRequestedRequetee) Cancel() {
 func (v *verificationStageRequestedRequetee) Ready() {
 	v.c.SendReady()
 }
-func NewVerificationStageRequestedRequetee(c *VerificationContainer) VerificationStageRequestedRequetee {
+func NewVerificationStageRequestedRequetee(c *VerificationContainer) VerificationStageRequestedReceiver {
 	return &verificationStageRequestedRequetee{c}
 }
 
@@ -166,6 +166,8 @@ func NewVerificationStageStart(c *VerificationContainer) VerificationStageStart 
 type VerificationStageTransitioned interface {
 	Done()
 	VerificationData() VerificationData
+	Approve()
+	Decline()
 	Cancel()
 	Transition()
 }
@@ -184,6 +186,12 @@ func (v *verificationStageTransitioned) Cancel() {
 }
 func (v *verificationStageTransitioned) Transition() {
 	v.c.SendTransition()
+}
+func (v *verificationStageTransitioned) Approve() {
+	v.c.SendApprove()
+}
+func (v *verificationStageTransitioned) Decline() {
+	v.c.SendDecline()
 }
 func NewVerificationStageTransitioned(c *VerificationContainer) VerificationStageTransitioned {
 	return &verificationStageTransitioned{c}
@@ -231,6 +239,8 @@ type VerificationContainer struct {
 	SendCancel     func()
 	SendDone       func()
 	SendTransition func()
+	SendApprove    func()
+	SendDecline    func()
 	Mutex          *sync.Mutex
 }
 
