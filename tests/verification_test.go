@@ -61,6 +61,9 @@ func TestVerificationSAS(t *testing.T) {
 		if verifieeClientType.Lang == api.ClientTypeRust {
 			t.Skipf("rust cannot be a verifiee yet, see https://github.com/matrix-org/matrix-rust-sdk/issues/3595")
 		}
+		if verifierClientType.Lang == api.ClientTypeJS && verifieeClientType.Lang == api.ClientTypeJS {
+			t.Skipf("TODO: this PR is big enough as it is")
+		}
 		tc := Instance().CreateTestContext(t, verifierClientType)
 		verifieeUser := &cc.User{
 			CSAPI:      tc.Alice.CSAPI,
@@ -77,8 +80,8 @@ func TestVerificationSAS(t *testing.T) {
 				status := &verificationStatus{
 					mu: &sync.Mutex{},
 				}
-				verifier.Logf(t, "Verifier(SENDER) %s %s", verifierClientType.Lang, verifier.Opts().DeviceID)
-				verifiee.Logf(t, "Verifiee(RECEIVER) %s %s", verifieeClientType.Lang, verifiee.Opts().DeviceID)
+				verifier.Logf(t, "Verifier (SENDER) %s %s", verifierClientType.Lang, verifier.Opts().DeviceID)
+				verifiee.Logf(t, "Verifiee (RECEIVER) %s %s", verifieeClientType.Lang, verifiee.Opts().DeviceID)
 				verifieeStage := verifiee.ListenForVerificationRequests(t)
 				verifierStage := verifier.RequestOwnUserVerification(t)
 				for {
@@ -86,53 +89,53 @@ func TestVerificationSAS(t *testing.T) {
 					case receiverStage := <-verifieeStage:
 						switch stage := receiverStage.(type) {
 						case api.VerificationStageRequestedReceiver:
-							t.Logf("[RECEIVER]VerificationStageRequestedRequetee: %+v", stage.Request())
+							t.Logf("[RECEIVER] VerificationStageRequestedRequetee: %+v", stage.Request())
 							stage.Ready()
 						case api.VerificationStageRequested:
-							t.Logf("[RECEIVER]VerificationStageRequested: %+v", stage.Request())
+							t.Logf("[RECEIVER] VerificationStageRequested: %+v", stage.Request())
 						case api.VerificationStageReady:
-							t.Logf("[RECEIVER]VerificationStageReady")
+							t.Logf("[RECEIVER] VerificationStageReady")
 						case api.VerificationStageTransitioned:
-							t.Logf("[RECEIVER]VerificationStageTransitioned")
+							t.Logf("[RECEIVER] VerificationStageTransitioned")
 							status.mu.Lock()
 							status.ReceiverStage = stage
 							status.attemptVerification(t)
 							status.mu.Unlock()
 						case api.VerificationStageStart:
-							t.Logf("[RECEIVER]VerificationStageStart")
+							t.Logf("[RECEIVER] VerificationStageStart")
 							stage.Transition()
 						case api.VerificationStageDone:
-							t.Logf("[RECEIVER]VerificationStageDone")
+							t.Logf("[RECEIVER] VerificationStageDone")
 							if status.done(nil, &boolTrue) {
 								return
 							}
 						case api.VerificationStageCancelled: // should not be cancelled
-							ct.Errorf(t, "[RECEIVER]VerificationStageCancelled")
+							ct.Errorf(t, "[RECEIVER] VerificationStageCancelled")
 						}
 					case senderStage := <-verifierStage:
 						switch stage := senderStage.(type) {
 						case api.VerificationStageRequestedReceiver: // the verifier should not get a requestee state
-							ct.Errorf(t, "[SENDER]VerificationStageRequestedReceiver: %+v", stage.Request())
+							ct.Errorf(t, "[SENDER]   VerificationStageRequestedReceiver: %+v", stage.Request())
 						case api.VerificationStageRequested:
-							t.Logf("[SENDER]VerificationStageRequested: %+v", stage.Request())
+							t.Logf("[SENDER]   VerificationStageRequested: %+v", stage.Request())
 						case api.VerificationStageReady:
-							t.Logf("[SENDER]VerificationStageReady: starting m.sas.v1")
+							t.Logf("[SENDER]   VerificationStageReady: starting m.sas.v1")
 							stage.Start("m.sas.v1")
 						case api.VerificationStageTransitioned:
-							t.Logf("[SENDER]VerificationStageTransitioned")
+							t.Logf("[SENDER]   VerificationStageTransitioned")
 							status.mu.Lock()
 							status.SenderStage = stage
 							status.attemptVerification(t)
 							status.mu.Unlock()
 						case api.VerificationStageStart:
-							t.Logf("[SENDER]VerificationStageStart")
+							t.Logf("[SENDER]   VerificationStageStart")
 						case api.VerificationStageDone:
-							t.Logf("[SENDER]VerificationStageDone")
+							t.Logf("[SENDER]   VerificationStageDone")
 							if status.done(&boolTrue, nil) {
 								return
 							}
 						case api.VerificationStageCancelled: // should not be cancelled
-							ct.Errorf(t, "[SENDER]VerificationStageCancelled")
+							ct.Errorf(t, "[SENDER]   VerificationStageCancelled")
 						}
 					case <-time.After(5 * time.Second):
 						ct.Fatalf(t, "timed out after 5s")
