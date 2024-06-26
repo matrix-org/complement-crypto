@@ -188,20 +188,7 @@ func (c *JSClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {
 	});
 	// kick off outgoing requests which will upload OTKs and device keys
 	await window.__client.getCrypto().outgoingRequestsManager.doProcessOutgoingRequests();
-	// when MSC3967 is everywhere, we can drop the auth dict
-	await window.__client.getCrypto().bootstrapCrossSigning({
-	  authUploadDeviceSigningKeys: async function (makeRequest) {
-	  	return await makeRequest({
-				"type": "m.login.password",
-				"identifier": {
-					"type": "m.id.user",
-					"user": "%s",
-				},
-				"password": "%s",
-		});
-	  },
-	});
-	`, opts.UserID, opts.Password, deviceID, opts.UserID, opts.Password))
+	`, opts.UserID, opts.Password, deviceID))
 	if err != nil {
 		return err
 	}
@@ -272,10 +259,30 @@ func (c *JSClient) GetNotification(t ct.TestLike, roomID, eventID string) (*api.
 	return nil, fmt.Errorf("not implemented yet") // TODO
 }
 
+func (c *JSClient) bootstrapCrossSigning(t ct.TestLike) {
+	// when MSC3967 is everywhere, we can drop the auth dict
+	chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `
+	await window.__client.getCrypto().bootstrapCrossSigning({
+		authUploadDeviceSigningKeys: async function (makeRequest) {
+			return await makeRequest({
+				  "type": "m.login.password",
+				  "identifier": {
+					  "type": "m.id.user",
+					  "user": "%s",
+				  },
+				  "password": "%s",
+		  });
+		},
+	  });
+	  `)
+}
+
 func (c *JSClient) ensureListeningForVerificationRequests(t ct.TestLike) chan api.VerificationStage {
 	c.verificationChannelMu.Lock()
 	defer c.verificationChannelMu.Unlock()
 	if c.verificationChannel == nil {
+		// we need x-signing keys in order to do verification requests
+		c.bootstrapCrossSigning(t)
 		// we need to support multiple transition stages firing at once
 		c.verificationChannel = make(chan api.VerificationStage, 4)
 		chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `

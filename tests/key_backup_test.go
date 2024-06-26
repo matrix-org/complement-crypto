@@ -50,7 +50,10 @@ func TestCanBackupKeys(t *testing.T) {
 			// Now login on a new device
 			csapiAlice2 := tc.MustRegisterNewDevice(t, tc.Alice, "BACKUP_RESTORER")
 			backupRestorer := tc.MustLoginClient(t, &cc.ClientCreationRequest{
-				User: csapiAlice2,
+				User: &cc.User{
+					CSAPI:      csapiAlice2.CSAPI,
+					ClientType: clientTypeB,
+				},
 			})
 			defer backupRestorer.Close(t)
 
@@ -109,7 +112,10 @@ func TestBackupWrongRecoveryKeyFails(t *testing.T) {
 			// Now login on a new device
 			csapiAlice2 := tc.MustRegisterNewDevice(t, tc.Alice, "BACKUP_RESTORER")
 			backupRestorer := tc.MustLoginClient(t, &cc.ClientCreationRequest{
-				User: csapiAlice2,
+				User: &cc.User{
+					CSAPI:      csapiAlice2.CSAPI,
+					ClientType: clientTypeB,
+				},
 			})
 			defer backupRestorer.Close(t)
 
