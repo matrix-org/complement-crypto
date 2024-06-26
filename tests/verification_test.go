@@ -6,6 +6,7 @@ import (
 
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/cc"
+	"github.com/matrix-org/complement/ct"
 )
 
 // happy case test of Alice verifying one of her devices.
@@ -27,50 +28,61 @@ func TestVerificationSAS(t *testing.T) {
 					DeviceID: "OTHER_DEVICE",
 				},
 			}, func(verifiee api.Client) {
-				verifier.RequestOwnUserVerification(t, &VerificationListener{})
+				verifier.Logf(t, "Verifier(SENDER) %s %s", verifierClientType.Lang, verifier.Opts().DeviceID)
+				verifiee.Logf(t, "Verifiee(RECEIVER) %s %s", verifieeClientType.Lang, verifiee.Opts().DeviceID)
+				verifieeStage := verifiee.ListenForVerificationRequests(t)
+				verifierStage := verifier.RequestOwnUserVerification(t)
+				for {
+					select {
+					case receiverStage := <-verifieeStage:
+						switch stage := receiverStage.(type) {
+						case api.VerificationStageRequestedRequetee:
+							t.Logf("[RECEIVER]VerificationStageRequestedRequetee: %+v", stage.Request())
+							stage.Ready()
+						case api.VerificationStageRequested:
+							t.Logf("[RECEIVER]VerificationStageRequested: %+v", stage.Request())
+						case api.VerificationStageReady:
+							t.Logf("[RECEIVER]VerificationStageReady")
+						case api.VerificationStageTransitioned:
+							t.Logf("[RECEIVER]VerificationStageTransitioned")
+							t.Logf("[RECEIVER] Emoji: %v Decimals: %v", stage.VerificationData().Emojis, stage.VerificationData().Decimals)
+						case api.VerificationStageStart:
+							t.Logf("[RECEIVER]VerificationStageStart")
+							stage.Transition()
+						case api.VerificationStageDone:
+							t.Logf("[RECEIVER]VerificationStageDone")
+							return
+						case api.VerificationStageCancelled: // should not be cancelled
+							ct.Errorf(t, "[RECEIVER]VerificationStageCancelled")
+						}
+					case senderStage := <-verifierStage:
+						switch stage := senderStage.(type) {
+						case api.VerificationStageRequestedRequetee: // the verifier should not get a requestee state
+							ct.Errorf(t, "[SENDER]VerificationStageRequestedRequetee: %+v", stage.Request())
+						case api.VerificationStageRequested:
+							t.Logf("[SENDER]VerificationStageRequested: %+v", stage.Request())
+						case api.VerificationStageReady:
+							t.Logf("[SENDER]VerificationStageReady")
+							t.Logf("[SENDER]VerificationStageReady: starting m.sas.v1")
+							stage.Start("m.sas.v1")
+						case api.VerificationStageTransitioned:
+							t.Logf("[SENDER]VerificationStageTransitioned")
+							t.Logf("[SENDER] Emoji: %v Decimals: %v", stage.VerificationData().Emojis, stage.VerificationData().Decimals)
+						case api.VerificationStageStart:
+							t.Logf("[SENDER]VerificationStageStart")
+						case api.VerificationStageDone:
+							t.Logf("[SENDER]VerificationStageDone")
+							return
+						case api.VerificationStageCancelled: // should not be cancelled
+							ct.Errorf(t, "[SENDER]VerificationStageCancelled")
+						}
+					case <-time.After(5 * time.Second):
+						ct.Fatalf(t, "timed out after 5s")
+						return
+					}
+				}
 			})
 		})
-		time.Sleep(time.Second)
+
 	})
-}
-
-type VerificationListener struct {
-	onVerificationStateChange    func(vState api.VerificationState)
-	didAcceptVerificationRequest func()
-	didReceiveVerificationData   func(vData api.VerificationData)
-	didFail                      func()
-	didCancel                    func()
-	didFinish                    func()
-}
-
-func (v *VerificationListener) Close() {}
-func (v *VerificationListener) OnVerificationStateChange(vState api.VerificationState) {
-	if v.onVerificationStateChange != nil {
-		v.onVerificationStateChange(vState)
-	}
-}
-func (v *VerificationListener) DidAcceptVerificationRequest() {
-	if v.didAcceptVerificationRequest != nil {
-		v.didAcceptVerificationRequest()
-	}
-}
-func (v *VerificationListener) DidReceiveVerificationData(vData api.VerificationData) {
-	if v.didReceiveVerificationData != nil {
-		v.didReceiveVerificationData(vData)
-	}
-}
-func (v *VerificationListener) DidFail() {
-	if v.didFail != nil {
-		v.didFail()
-	}
-}
-func (v *VerificationListener) DidCancel() {
-	if v.didCancel != nil {
-		v.didCancel()
-	}
-}
-func (v *VerificationListener) DidFinish() {
-	if v.didFinish != nil {
-		v.didFinish()
-	}
 }

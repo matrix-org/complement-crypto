@@ -197,15 +197,46 @@ func (c *RustClient) CurrentAccessToken(t ct.TestLike) string {
 	return s.AccessToken
 }
 
-func (c *RustClient) RequestOwnUserVerification(t ct.TestLike, listener api.VerificationListener) {
+func (c *RustClient) ListenForVerificationRequests(t ct.TestLike) chan api.VerificationStage {
+	return nil // TODO rust cannot be a verifiee yet, see https://github.com/matrix-org/matrix-rust-sdk/issues/3595
+}
+
+func (c *RustClient) RequestOwnUserVerification(t ct.TestLike) chan api.VerificationStage {
 	svc, err := c.FFIClient.GetSessionVerificationController()
 	if err != nil {
 		ct.Fatalf(t, "GetSessionVerificationController: %s", err)
 	}
+
+	container := &api.VerificationContainer{
+		Mutex: &sync.Mutex{},
+		VReq: api.VerificationRequest{
+			SenderUserID:   c.userID,
+			SenderDeviceID: c.opts.DeviceID,
+			ReceiverUserID: c.userID,
+			TxnID:          "unknown",
+		},
+		SendCancel: func() {
+			if err := svc.CancelVerification(); err != nil {
+				t.Errorf("failed to CancelVerification: %s", err)
+			}
+		},
+		SendStart: func(method string) {
+			if method != "m.sas.v1" {
+				ct.Errorf(t, "RequestOwnUserVerification.Start: method chosen must be m.sas.v1")
+				return
+			}
+			if err := svc.StartSasVerification(); err != nil {
+				t.Errorf("failed to StartSasVerification: %s", err)
+			}
+		},
+	}
+	// need to allow multiple Transition calls to be fired at once
+	ch := make(chan api.VerificationStage, 4)
 	delegateImpl := &SessionVerificationControllerDelegate{
 		t:          t,
 		controller: svc,
-		listener:   listener,
+		container:  container,
+		ch:         ch,
 	}
 	c.FFIClient.Encryption().VerificationStateListener(delegateImpl)
 
@@ -214,6 +245,8 @@ func (c *RustClient) RequestOwnUserVerification(t ct.TestLike, listener api.Veri
 	if err = svc.RequestVerification(); err != nil {
 		ct.Fatalf(t, "RequestVerification: %s", err)
 	}
+	ch <- api.NewVerificationStageRequested(container)
+	return ch
 }
 
 func (c *RustClient) DeletePersistentStorage(t ct.TestLike) {
@@ -914,62 +947,52 @@ func eventTimelineItemToEvent(item *matrix_sdk_ffi.EventTimelineItem) *api.Event
 type SessionVerificationControllerDelegate struct {
 	t          ct.TestLike
 	controller *matrix_sdk_ffi.SessionVerificationController
-	listener   api.VerificationListener
+	container  *api.VerificationContainer
+	ch         chan api.VerificationStage
 }
 
 func (s *SessionVerificationControllerDelegate) DidAcceptVerificationRequest() {
 	s.t.Logf("SessionVerificationControllerDelegate.DidAcceptVerificationRequest")
-	s.t.Logf("SessionVerificationControllerDelegate calling StartSasVerification")
-	s.listener.DidAcceptVerificationRequest()
-	if err := s.controller.StartSasVerification(); err != nil {
-		ct.Fatalf(s.t, "StartSasVerification: %s", err)
-	}
+	s.ch <- api.NewVerificationStageReady(s.container)
 }
 
 func (s *SessionVerificationControllerDelegate) DidStartSasVerification() {
 	s.t.Logf("SessionVerificationControllerDelegate.DidStartSasVerification")
+	s.ch <- api.NewVerificationStageStart(s.container)
 }
 
 func (s *SessionVerificationControllerDelegate) DidReceiveVerificationData(data matrix_sdk_ffi.SessionVerificationData) {
 	s.t.Logf("SessionVerificationControllerDelegate.DidReceiveVerificationData")
 	vData := api.VerificationData{}
 	switch d := data.(type) {
-	case *matrix_sdk_ffi.SessionVerificationDataEmojis:
+	case matrix_sdk_ffi.SessionVerificationDataEmojis:
 		var symbols []string
 		for _, emoji := range d.Emojis {
 			symbols = append(symbols, emoji.Symbol())
 		}
 		vData.Emojis = symbols
-	case *matrix_sdk_ffi.SessionVerificationDataDecimals:
-		ct.Fatalf(s.t, "DidReceiveVerificationData: decimals unsupported")
+	case matrix_sdk_ffi.SessionVerificationDataDecimals:
 		vData.Decimals = d.Values
 	}
-	s.listener.DidReceiveVerificationData(vData)
+	s.container.Modify(func(cc *api.VerificationContainer) {
+		cc.VData = vData
+	})
+	s.ch <- api.NewVerificationStageTransitioned(s.container)
 }
 
 func (s *SessionVerificationControllerDelegate) DidFail() {
 	s.t.Logf("SessionVerificationControllerDelegate.DidFail")
-	s.listener.DidFail()
 }
 
 func (s *SessionVerificationControllerDelegate) DidCancel() {
 	s.t.Logf("SessionVerificationControllerDelegate.DidCancel")
-	s.listener.DidCancel()
+	s.ch <- api.NewVerificationStageCancelled(s.container)
 }
 
 func (s *SessionVerificationControllerDelegate) DidFinish() {
 	s.t.Logf("SessionVerificationControllerDelegate.DidFinish")
-	s.listener.DidFinish()
 }
 
 func (s *SessionVerificationControllerDelegate) OnUpdate(status matrix_sdk_ffi.VerificationState) {
 	s.t.Logf("SessionVerificationControllerDelegate.OnUpdate %v", status)
-	var vState = api.VerificationStateUnknown
-	switch status {
-	case matrix_sdk_ffi.VerificationStateUnverified:
-		vState = api.VerificationStateUnverified
-	case matrix_sdk_ffi.VerificationStateVerified:
-		vState = api.VerificationStateVerified
-	}
-	s.listener.OnVerificationStateChange(vState)
 }

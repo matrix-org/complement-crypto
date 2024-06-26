@@ -190,7 +190,11 @@ func (c *RPCClient) CurrentAccessToken(t ct.TestLike) string {
 	return token
 }
 
-func (c *RPCClient) RequestOwnUserVerification(t ct.TestLike, listener api.VerificationListener) {
+func (c *RPCClient) RequestOwnUserVerification(t ct.TestLike) chan api.VerificationStage {
+	panic("unimplemented")
+}
+
+func (c *RPCClient) ListenForVerificationRequests(t ct.TestLike) chan api.VerificationStage {
 	panic("unimplemented")
 }
 

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/matrix-org/complement/ct"
 )
 
 // The unique console log line prefix which denotes a control message to the test rig.
@@ -18,9 +20,9 @@ const CONSOLE_LOG_CONTROL_STRING = "CC:"
 type MessageType int
 
 const (
-	MessageTypeEvent MessageType = 1
-	MessageTypeSync  MessageType = 2
-	// TODO: MessageTypeVerification
+	MessageTypeEvent        MessageType = 1
+	MessageTypeSync         MessageType = 2
+	MessageTypeVerification MessageType = 3
 )
 
 type ControlMessage struct {
@@ -37,6 +39,22 @@ func (c *ControlMessage) AsControlMessageEvent() *ControlMessageEvent {
 	}
 	var cme ControlMessageEvent
 	if err := json.Unmarshal(c.Data, &cme); err != nil {
+		fmt.Println("WARN: unable to unmarshal MessageTypeEvent control message:", err)
+		return nil
+	}
+	return &cme
+}
+
+func (c *ControlMessage) AsControlMessageVerification() *ControlMessageVerification {
+	if c == nil {
+		return nil
+	}
+	if c.Type != MessageTypeVerification {
+		return nil
+	}
+	var cme ControlMessageVerification
+	if err := json.Unmarshal(c.Data, &cme); err != nil {
+		fmt.Println("WARN: unable to unmarshal MessageTypeVerification control message:", err)
 		return nil
 	}
 	return &cme
@@ -80,13 +98,46 @@ func EmitControlMessageEventJS(roomIDJsCode, eventJSONJsCode string) string {
 	)
 }
 
-func unpackControlMessage(s string) *ControlMessage {
+type ControlMessageVerification struct {
+	Stage    string
+	TxnID    string
+	UserID   string
+	DeviceID string
+	Data     json.RawMessage // data specific to the Stage
+}
+
+func EmitControlMessageVerificationJS(stageJSCode, txnIDJSCode, userIDJSCode, deviceIDJSCode, dataJSCode string) string {
+	return fmt.Sprint(
+		`console.log("`, CONSOLE_LOG_CONTROL_STRING, `"+JSON.stringify({
+			"t":`, MessageTypeVerification, `,
+			"d":{
+			  Stage: `, stageJSCode, `,
+			  TxnID: `, txnIDJSCode, `,
+			  UserID: `, userIDJSCode, `,
+			  DeviceID: `, deviceIDJSCode, `,
+			  Data: `, dataJSCode, `,
+			}
+		}));`,
+	)
+}
+
+func unpackControlMessage(t ct.TestLike, s string) *ControlMessage {
 	if !strings.HasPrefix(s, CONSOLE_LOG_CONTROL_STRING) {
-		return nil
+		// depending on the content of the control message, the log line may be double escaped.
+		// This has been seen when receiving ControlMessageVerification TransitionSAS messages,
+		// likely due to the presence of emoji characters. They end up getting logged like:
+		//    "CC:{\"t\":3,\"d\":{\"Stage\":\"TransitionSAS\",...
+		if strings.HasPrefix(s, `"`+CONSOLE_LOG_CONTROL_STRING) {
+			s = strings.ReplaceAll(s, `\"`, `"`) // map back to unescaped quotes
+			s = s[1 : len(s)-1]                  // strip the outer quotes
+		} else {
+			return nil
+		}
 	}
 	val := strings.TrimPrefix(s, CONSOLE_LOG_CONTROL_STRING)
 	var ctrlMsg ControlMessage
 	if err := json.Unmarshal([]byte(val), &ctrlMsg); err != nil {
+		ct.Errorf(t, "unpackControlMessage: malformed control message: %s for message: %s", err, s)
 		return nil
 	}
 	return &ctrlMsg

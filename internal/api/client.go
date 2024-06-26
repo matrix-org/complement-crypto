@@ -61,8 +61,23 @@ type Client interface {
 	LoadBackup(t ct.TestLike, recoveryKey string) error
 	// GetNotification gets push notification-like information for the given event. If there is a problem, an error is returned.
 	GetNotification(t ct.TestLike, roomID, eventID string) (*Notification, error)
-	// RequestOwnUserVerification learns about the available/supported protocols from other logged in sessions.
-	RequestOwnUserVerification(t ct.TestLike, listener VerificationListener)
+	// ListenForVerificationRequests will listen for incoming verification requests.
+	// See RequestOwnUserVerification for information on the stages.
+	ListenForVerificationRequests(t ct.TestLike) chan VerificationStage
+	// RequestOwnUserVerification tries to verify this device with another logged in device.
+	//
+	// Returns a stream of verification stages. Callers should listen on this stream
+	// (with appropriate timeouts if no change has been seen) and then type switch to
+	// determine what the current stage is. The type switched interface will contain only
+	// the valid state transitions for that stage. E.g:
+	//    for stage := range client.RequestOwnUserVerification(t) {
+	//        switch stg := stage.(type) {
+	//            case api.VerificationStageReady:
+	//               // ...
+	//        }
+	//    }
+	// The channel is closed when the verification process reaches a terminal state.
+	RequestOwnUserVerification(t ct.TestLike) chan VerificationStage
 	// Log something to stdout and the underlying client log file
 	Logf(t ct.TestLike, format string, args ...interface{})
 	// The user for this client
@@ -71,29 +86,6 @@ type Client interface {
 	CurrentAccessToken(t ct.TestLike) string
 	Type() ClientTypeLang
 	Opts() ClientCreationOpts
-}
-
-type VerificationState string
-
-const (
-	VerificationStateUnknown    VerificationState = "unknown"
-	VerificationStateUnverified VerificationState = "unverified"
-	VerificationStateVerified   VerificationState = "verified"
-)
-
-type VerificationData struct {
-	Emojis   []string
-	Decimals []uint16
-}
-
-type VerificationListener interface {
-	Close()
-	OnVerificationStateChange(vState VerificationState)
-	DidAcceptVerificationRequest()
-	DidReceiveVerificationData(vData VerificationData)
-	DidFail()
-	DidCancel()
-	DidFinish()
 }
 
 type Notification struct {
