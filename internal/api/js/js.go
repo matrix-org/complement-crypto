@@ -1,6 +1,7 @@
 package js
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -50,27 +51,33 @@ func writeToLog(s string, args ...interface{}) {
 }
 
 type JSClient struct {
-	browser     *chrome.Browser
-	listeners   map[int32]func(ctrlMsg *ControlMessage)
-	listenerID  atomic.Int32
-	listenersMu *sync.RWMutex
-	userID      string
-	opts        api.ClientCreationOpts
+	browser               *chrome.Browser
+	listeners             map[int32]func(ctrlMsg *ControlMessage)
+	listenerID            atomic.Int32
+	listenersMu           *sync.RWMutex
+	userID                string
+	opts                  api.ClientCreationOpts
+	verificationChannel   chan api.VerificationStage
+	verificationChannelMu *sync.Mutex
 }
 
 func NewJSClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, error) {
 	jsc := &JSClient{
-		listeners:   make(map[int32]func(ctrlMsg *ControlMessage)),
-		userID:      opts.UserID,
-		listenersMu: &sync.RWMutex{},
-		opts:        opts,
+		listeners:             make(map[int32]func(ctrlMsg *ControlMessage)),
+		userID:                opts.UserID,
+		listenersMu:           &sync.RWMutex{},
+		opts:                  opts,
+		verificationChannelMu: &sync.Mutex{},
 	}
 	portKey := opts.UserID + opts.DeviceID
 	browser, err := chrome.RunHeadless(func(s string) {
-		// TODO: debug mode only?
-		writeToLog("[%s,%s] console.log %s\n", jsc.browser.BaseURL, opts.UserID, s)
+		var baseURL string
+		if jsc.browser != nil { // can be nil if we log immediately before RunHeadless returns
+			baseURL = jsc.browser.BaseURL
+		}
+		writeToLog("[%s,%s] console.log %s\n", baseURL, opts.UserID, s)
 
-		msg := unpackControlMessage(s)
+		msg := unpackControlMessage(t, s)
 		if msg == nil {
 			return
 		}
@@ -250,6 +257,212 @@ func (c *JSClient) CurrentAccessToken(t ct.TestLike) string {
 
 func (c *JSClient) GetNotification(t ct.TestLike, roomID, eventID string) (*api.Notification, error) {
 	return nil, fmt.Errorf("not implemented yet") // TODO
+}
+
+func (c *JSClient) bootstrapCrossSigning(t ct.TestLike) {
+	// when MSC3967 is everywhere, we can drop the auth dict
+	chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`
+	await window.__client.getCrypto().bootstrapCrossSigning({
+		authUploadDeviceSigningKeys: async function (makeRequest) {
+			return await makeRequest({
+				  "type": "m.login.password",
+				  "identifier": {
+					  "type": "m.id.user",
+					  "user": "%s",
+				  },
+				  "password": "%s",
+		  });
+		},
+	  });
+	  `, c.opts.UserID, c.opts.Password))
+}
+
+func (c *JSClient) ensureListeningForVerificationRequests(t ct.TestLike) chan api.VerificationStage {
+	c.verificationChannelMu.Lock()
+	defer c.verificationChannelMu.Unlock()
+	if c.verificationChannel == nil {
+		// we need x-signing keys in order to do verification requests
+		c.bootstrapCrossSigning(t)
+		// we need to support multiple transition stages firing at once
+		c.verificationChannel = make(chan api.VerificationStage, 4)
+		chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `
+	window.__client.on(CryptoEvent.VerificationRequestReceived, function(request) {
+		request.on("change", () => {
+			console.log("RequestOwnUserVerification got phase " + request.phase);
+			switch(request.phase) {
+				case VerificationPhase.Unsent:
+					console.log("Unsent");
+					break;
+				case VerificationPhase.Requested: // An m.key.verification.request event has been sent or received
+					console.log("Requested");
+					break;
+				case VerificationPhase.Ready: // An m.key.verification.ready event has been sent or received, indicating the verification request is accepted.
+					`+EmitControlMessageVerificationJS(
+			`"Ready"`,
+			"request.transactionId",
+			"request.otherUserId",
+			"request.otherDeviceId",
+			"{}",
+		)+`
+					break;
+				case VerificationPhase.Started: // In-flight verification. This means that an m.key.verification.start event has been sent or received, choosing a verification method; however the verification has not yet completed or been cancelled.
+					`+EmitControlMessageVerificationJS(
+			`"Started"`,
+			"request.transactionId",
+			"request.otherUserId",
+			"request.otherDeviceId",
+			"{}",
+		)+`
+					break;
+				case VerificationPhase.Cancelled: // An m.key.verification.cancel event has been sent or received at any time before the 'done' event, cancelling the verification request
+					`+EmitControlMessageVerificationJS(
+			`"Cancelled"`,
+			"request.transactionId",
+			"request.otherUserId",
+			"request.otherDeviceId",
+			"{}",
+		)+`
+					break;
+				case VerificationPhase.Done: // Normally this means that m.key.verification.done events have been sent and received.
+					`+EmitControlMessageVerificationJS(
+			`"Done"`,
+			"request.transactionId",
+			"request.otherUserId",
+			"request.otherDeviceId",
+			"{}",
+		)+`
+					break;
+			}
+		});
+		if (!window.__pendingVerificationByTxnID) {
+			window.__pendingVerificationByTxnID = {};
+		}
+		window.__pendingVerificationByTxnID[request.transactionId] = request;
+		`+EmitControlMessageVerificationJS(
+			`"VerificationRequestReceived"`,
+			"request.transactionId",
+			"request.otherUserId",
+			"request.otherDeviceId",
+			"{}",
+		)+`
+	});`)
+	}
+	return c.verificationChannel
+}
+
+func (c *JSClient) ListenForVerificationRequests(t ct.TestLike) chan api.VerificationStage {
+	ch := c.ensureListeningForVerificationRequests(t)
+	txnIDsStarted := make(map[string]bool)
+	c.listenForUpdates(func(ctrlMsg *ControlMessage) {
+		msg := ctrlMsg.AsControlMessageVerification()
+		if msg == nil {
+			return
+		}
+		container := &api.VerificationContainer{
+			Mutex: &sync.Mutex{},
+			VReq: api.VerificationRequest{
+				SenderUserID:     msg.UserID,
+				SenderDeviceID:   msg.DeviceID,
+				TxnID:            msg.TxnID,
+				ReceiverUserID:   c.userID,
+				ReceiverDeviceID: c.opts.DeviceID,
+			},
+			SendReady: func() {
+				chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `
+						await window.__pendingVerificationByTxnID["`+msg.TxnID+`"].accept();
+					`)
+			},
+			SendStart: func(method string) {
+				chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `
+						const verifier = await window.__pendingVerificationByTxnID["`+msg.TxnID+`"].startVerification("`+method+`");
+					`)
+			},
+			SendTransition: func() {
+				chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `
+					const request = window.__pendingVerificationByTxnID["`+msg.TxnID+`"];
+					const verifier = request.verifier;
+					verifier.on(VerifierEvent.ShowSas, (sas) => {
+						`+EmitControlMessageVerificationJS(
+					`"TransitionSAS"`,
+					"request.transactionId",
+					"request.otherUserId",
+					"request.otherDeviceId",
+					"sas.sas",
+				)+`
+					});
+					// don't await on this as it blocks until the verification has completed/cancelled.
+					verifier.verify();
+				`)
+			},
+			SendCancel: func() {
+				chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `
+						await window.__pendingVerificationByTxnID["`+msg.TxnID+`"].cancel();
+					`)
+			},
+			SendApprove: func() {
+				chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `
+						const verifier = window.__pendingVerificationByTxnID["`+msg.TxnID+`"].verifier;
+						await verifier.getShowSasCallbacks().confirm()
+					`)
+			},
+			SendDecline: func() {
+				chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `
+					const verifier = window.__pendingVerificationByTxnID["`+msg.TxnID+`"].verifier;
+					await verifier.getShowSasCallbacks().mismatch()
+				`)
+			},
+		}
+		switch msg.Stage {
+		case "VerificationRequestReceived":
+			ch <- api.NewVerificationStageRequestedReceiver(container)
+		case "Ready":
+			ch <- api.NewVerificationStageReady(container)
+		case "Started":
+			// we will get many "VerificationPhase.Started" calls as we do SAS events. We don't want
+			// to call SendTransition many times, so only emit this once.
+			if txnIDsStarted[msg.TxnID] {
+				return
+			}
+			txnIDsStarted[msg.TxnID] = true
+			ch <- api.NewVerificationStageStart(container)
+		case "TransitionSAS":
+			verificationData := struct {
+				Decimal []uint16    `json:"decimal"`
+				Emoji   [][2]string `json:"emoji"` // tuple `[emoji, name]`
+			}{}
+			if err := json.Unmarshal([]byte(msg.Data), &verificationData); err != nil {
+				ct.Errorf(t, "failed to unmarshal verification data: %s", err)
+			}
+			if len(verificationData.Decimal) > 0 || len(verificationData.Emoji) > 0 {
+				var emoji []string
+				for _, e := range verificationData.Emoji {
+					emoji = append(emoji, e[0])
+				}
+				container.VData = api.VerificationData{
+					Decimals: verificationData.Decimal,
+					Emojis:   emoji,
+				}
+				ch <- api.NewVerificationStageTransitioned(container)
+			} else {
+				t.Logf("WARN: Got TransitionSAS but no emoji/decimal")
+			}
+		case "Cancelled":
+			ch <- api.NewVerificationStageCancelled(container)
+		case "Done":
+			ch <- api.NewVerificationStageDone(container)
+		}
+	})
+	return ch
+}
+
+func (c *JSClient) RequestOwnUserVerification(t ct.TestLike) chan api.VerificationStage {
+	ch := c.ensureListeningForVerificationRequests(t)
+	chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `
+	const req = await window.__client.getCrypto().requestOwnUserVerification();
+	// emit a receive request to reuse code paths for incoming verification requests.
+	window.__client.emit(CryptoEvent.VerificationRequestReceived, req);
+`)
+	return ch
 }
 
 func (c *JSClient) ForceClose(t ct.TestLike) {

@@ -7,6 +7,11 @@
     window.Buffer = Buffer;
     import { decodeRecoveryKey } from "matrix-js-sdk/src/crypto/recoverykey";
     window.decodeRecoveryKey = decodeRecoveryKey;
+    import { VerificationPhase, VerifierEvent } from "matrix-js-sdk/src/crypto-api/verification";
+    window.VerificationPhase = VerificationPhase;
+    window.VerifierEvent = VerifierEvent;
+    import { CryptoEvent } from "matrix-js-sdk/src/crypto";
+    window.CryptoEvent = CryptoEvent;
     import * as sdk from "matrix-js-sdk";
     window.matrix = sdk;
     import { IndexedDBStore, IndexedDBCryptoStore } from "matrix-js-sdk/src/matrix";
