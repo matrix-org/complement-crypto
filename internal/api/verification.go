@@ -79,7 +79,7 @@ type VerificationStageEnum int
 
 const (
 	VerificationStageEnumRequested VerificationStageEnum = iota
-	VerificationStageEnumRequestedRequetee
+	VerificationStageEnumRequestedReceiver
 	VerificationStageEnumReady
 	VerificationStageEnumStart
 	VerificationStageEnumTransitioned
@@ -110,21 +110,21 @@ type VerificationStageRequestedReceiver interface {
 	Cancel()
 	Ready()
 }
-type verificationStageRequestedRequetee struct {
+type verificationStageRequestedReceiver struct {
 	c *VerificationContainer
 }
 
-func (v *verificationStageRequestedRequetee) Request() VerificationRequest {
+func (v *verificationStageRequestedReceiver) Request() VerificationRequest {
 	return v.c.VReq
 }
-func (v *verificationStageRequestedRequetee) Cancel() {
+func (v *verificationStageRequestedReceiver) Cancel() {
 	v.c.SendCancel()
 }
-func (v *verificationStageRequestedRequetee) Ready() {
+func (v *verificationStageRequestedReceiver) Ready() {
 	v.c.SendReady()
 }
-func NewVerificationStageRequestedRequetee(c *VerificationContainer) VerificationStageRequestedReceiver {
-	return &verificationStageRequestedRequetee{c}
+func NewVerificationStageRequestedReceiver(c *VerificationContainer) VerificationStageRequestedReceiver {
+	return &verificationStageRequestedReceiver{c}
 }
 
 type VerificationStageReady interface {
@@ -254,8 +254,8 @@ func (c *VerificationContainer) Stage(stageEnum VerificationStageEnum) Verificat
 	switch stageEnum {
 	case VerificationStageEnumRequested:
 		return NewVerificationStageRequested(c)
-	case VerificationStageEnumRequestedRequetee:
-		return NewVerificationStageRequestedRequetee(c)
+	case VerificationStageEnumRequestedReceiver:
+		return NewVerificationStageRequestedReceiver(c)
 	case VerificationStageEnumReady:
 		return NewVerificationStageReady(c)
 	case VerificationStageEnumStart:

@@ -414,7 +414,7 @@ func (c *JSClient) ListenForVerificationRequests(t ct.TestLike) chan api.Verific
 		}
 		switch msg.Stage {
 		case "VerificationRequestReceived":
-			ch <- api.NewVerificationStageRequestedRequetee(container)
+			ch <- api.NewVerificationStageRequestedReceiver(container)
 		case "Ready":
 			ch <- api.NewVerificationStageReady(container)
 		case "Started":
