@@ -239,6 +239,9 @@ func (c *RustClient) RequestOwnUserVerification(t ct.TestLike) chan api.Verifica
 				t.Errorf("failed to ApproveVerification: %s", err)
 			}
 		},
+		SendTransition: func() {
+			// no-op, other clients need this step.
+		},
 	}
 	// need to allow multiple Transition calls to be fired at once
 	ch := make(chan api.VerificationStage, 4)
