@@ -71,11 +71,7 @@ func NewJSClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, error)
 	}
 	portKey := opts.UserID + opts.DeviceID
 	browser, err := chrome.RunHeadless(func(s string) {
-		var baseURL string
-		if jsc.browser != nil { // can be nil if we log immediately before RunHeadless returns
-			baseURL = jsc.browser.BaseURL
-		}
-		writeToLog("[%s,%s] console.log %s\n", baseURL, opts.UserID, s)
+		writeToLog("[%s,%s] console.log %s\n", opts.UserID, opts.DeviceID, s)
 
 		msg := unpackControlMessage(t, s)
 		if msg == nil {
@@ -287,6 +283,7 @@ func (c *JSClient) ensureListeningForVerificationRequests(t ct.TestLike) chan ap
 		c.verificationChannel = make(chan api.VerificationStage, 4)
 		chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `
 	window.__client.on(CryptoEvent.VerificationRequestReceived, function(request) {
+		console.log("CryptoEvent.VerificationRequestReceived fired: request.initiatedByMe " + request.initiatedByMe);
 		request.on("change", () => {
 			console.log("RequestOwnUserVerification got phase " + request.phase);
 			switch(request.phase) {
@@ -294,7 +291,13 @@ func (c *JSClient) ensureListeningForVerificationRequests(t ct.TestLike) chan ap
 					console.log("Unsent");
 					break;
 				case VerificationPhase.Requested: // An m.key.verification.request event has been sent or received
-					console.log("Requested");
+					`+EmitControlMessageVerificationJS(
+			`"Requested"`,
+			"request.transactionId",
+			"request.otherUserId",
+			"request.otherDeviceId",
+			"{}",
+		)+`
 					break;
 				case VerificationPhase.Ready: // An m.key.verification.ready event has been sent or received, indicating the verification request is accepted.
 					`+EmitControlMessageVerificationJS(
@@ -338,8 +341,10 @@ func (c *JSClient) ensureListeningForVerificationRequests(t ct.TestLike) chan ap
 			window.__pendingVerificationByTxnID = {};
 		}
 		window.__pendingVerificationByTxnID[request.transactionId] = request;
+		// we may have requested this! Let's check.
+		const stage = request.initiatedByMe ? "Requested" : "VerificationRequestReceived";
 		`+EmitControlMessageVerificationJS(
-			`"VerificationRequestReceived"`,
+			`stage`,
 			"request.transactionId",
 			"request.otherUserId",
 			"request.otherDeviceId",
@@ -415,6 +420,8 @@ func (c *JSClient) ListenForVerificationRequests(t ct.TestLike) chan api.Verific
 		switch msg.Stage {
 		case "VerificationRequestReceived":
 			ch <- api.NewVerificationStageRequestedReceiver(container)
+		case "Requested":
+			ch <- api.NewVerificationStageRequested(container)
 		case "Ready":
 			ch <- api.NewVerificationStageReady(container)
 		case "Started":
@@ -456,12 +463,16 @@ func (c *JSClient) ListenForVerificationRequests(t ct.TestLike) chan api.Verific
 }
 
 func (c *JSClient) RequestOwnUserVerification(t ct.TestLike) chan api.VerificationStage {
-	ch := c.ensureListeningForVerificationRequests(t)
+	// When we request key verification, we will /sendToDevice with * devices, which
+	// rather bizarrely will send the to-device event back to ourselves. This will then
+	// be picked up as a VerificationRequestReceived. The code that listens for
+	// VerificationRequestReceived will figure out it's a request from itself and adjust
+	// the state accordingly. Because of this, we only need to call requestOwnUserVerification
+	// and do nothing else.
+	ch := c.ListenForVerificationRequests(t)
 	chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `
-	const req = await window.__client.getCrypto().requestOwnUserVerification();
-	// emit a receive request to reuse code paths for incoming verification requests.
-	window.__client.emit(CryptoEvent.VerificationRequestReceived, req);
-`)
+	const request = await window.__client.getCrypto().requestOwnUserVerification();
+	`)
 	return ch
 }
 

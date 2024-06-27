@@ -61,9 +61,6 @@ func TestVerificationSAS(t *testing.T) {
 		if verifieeClientType.Lang == api.ClientTypeRust {
 			t.Skipf("rust cannot be a verifiee yet, see https://github.com/matrix-org/matrix-rust-sdk/issues/3595")
 		}
-		if verifierClientType.Lang == api.ClientTypeJS && verifieeClientType.Lang == api.ClientTypeJS {
-			t.Skipf("TODO: this PR is big enough as it is")
-		}
 		tc := Instance().CreateTestContext(t, verifierClientType)
 		verifieeUser := &cc.User{
 			CSAPI:      tc.Alice.CSAPI,
@@ -89,7 +86,7 @@ func TestVerificationSAS(t *testing.T) {
 					case receiverStage := <-verifieeStage:
 						switch stage := receiverStage.(type) {
 						case api.VerificationStageRequestedReceiver:
-							t.Logf("[RECEIVER] VerificationStageRequestedRequetee: %+v", stage.Request())
+							t.Logf("[RECEIVER] VerificationStageRequestedReceiver: %+v", stage.Request())
 							stage.Ready()
 						case api.VerificationStageRequested:
 							t.Logf("[RECEIVER] VerificationStageRequested: %+v", stage.Request())
@@ -129,6 +126,7 @@ func TestVerificationSAS(t *testing.T) {
 							status.mu.Unlock()
 						case api.VerificationStageStart:
 							t.Logf("[SENDER]   VerificationStageStart")
+							stage.Transition()
 						case api.VerificationStageDone:
 							t.Logf("[SENDER]   VerificationStageDone")
 							if status.done(&boolTrue, nil) {
