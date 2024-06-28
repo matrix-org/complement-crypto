@@ -71,9 +71,15 @@ func TestDelayedInviteResponse(t *testing.T) {
 
 				ev := bob.MustGetEvent(t, roomID, eventID)
 
+				// TODO: FIXME fix this issue in the SDK
+				// -
+				//
 				if ev.FailedToDecrypt || ev.Text != "hello world!" {
-					if clientType.Lang == api.ClientTypeRust || clientType.Lang == api.ClientTypeJS {
-						t.Skipf("known broken on this client")
+					if clientType.Lang == api.ClientTypeRust {
+						t.Skipf("known broken: see https://github.com/matrix-org/matrix-rust-sdk/issues/3622")
+					}
+					if clientType.Lang == api.ClientTypeJS {
+						t.Skipf("known broken: see https://github.com/matrix-org/matrix-js-sdk/issues/4291")
 					}
 				}
 				must.Equal(t, ev.FailedToDecrypt, false, "failed to decrypt event")
