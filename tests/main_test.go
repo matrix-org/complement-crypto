@@ -16,6 +16,7 @@ var (
 func TestMain(m *testing.M) {
 	instance = cc.NewInstance(config.NewComplementCryptoConfigFromEnvVars())
 	instance.TestMain(m)
+
 }
 
 // Instance returns the test instance. Guaranteed to be non-nil if called in a test,
