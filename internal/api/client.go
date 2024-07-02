@@ -41,6 +41,8 @@ type Client interface {
 	// IsRoomEncrypted returns true if the room is encrypted. May return an error e.g if you
 	// provide a bogus room ID.
 	IsRoomEncrypted(t ct.TestLike, roomID string) (bool, error)
+	// InviteUser attempts to invite the given user into the given room.
+	InviteUser(t ct.TestLike, roomID, userID string) error
 	// SendMessage sends the given text as an m.room.message with msgtype:m.text into the given
 	// room. Returns the event ID of the sent event, so MUST BLOCK until the event has been sent.
 	SendMessage(t ct.TestLike, roomID, text string) (eventID string)

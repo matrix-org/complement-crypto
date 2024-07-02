@@ -198,6 +198,10 @@ func (c *RPCClient) ListenForVerificationRequests(t ct.TestLike) chan api.Verifi
 	panic("unimplemented")
 }
 
+func (c *RPCClient) InviteUser(t ct.TestLike, roomID, userID string) error {
+	panic("unimplemented")
+}
+
 // Remove any persistent storage, if it was enabled.
 func (c *RPCClient) DeletePersistentStorage(t ct.TestLike) {
 	var void int

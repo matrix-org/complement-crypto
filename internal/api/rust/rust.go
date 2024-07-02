@@ -566,6 +566,12 @@ func (c *RustClient) TrySendMessage(t ct.TestLike, roomID, text string) (eventID
 	}
 }
 
+func (c *RustClient) InviteUser(t ct.TestLike, roomID, userID string) error {
+	t.Helper()
+	r := c.findRoom(t, roomID)
+	return r.InviteUserById(userID)
+}
+
 func (c *RustClient) MustBackpaginate(t ct.TestLike, roomID string, count int) {
 	t.Helper()
 	r := c.findRoom(t, roomID)

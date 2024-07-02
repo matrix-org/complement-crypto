@@ -502,6 +502,13 @@ func (c *JSClient) Opts() api.ClientCreationOpts {
 	return c.opts
 }
 
+func (c *JSClient) InviteUser(t ct.TestLike, roomID, userID string) error {
+	_, err := chrome.RunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprint(`
+		await window.__client.invite("`, roomID, `","`, userID, `");
+	`))
+	return err
+}
+
 func (c *JSClient) MustGetEvent(t ct.TestLike, roomID, eventID string) api.Event {
 	t.Helper()
 	// serialised output (if encrypted):
