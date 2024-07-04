@@ -17,11 +17,12 @@ import (
 
 func sniffToDeviceEvent(t *testing.T, tc *cc.TestContext, ch chan deploy.CallbackData) *deploy.MITMConfiguration {
 	mitmConfiguration := tc.Deployment.MITM().Configure(t)
-	mitmConfiguration.ForPath("/sendToDevice").Method("PUT").Listen(func(cd deploy.CallbackData) {
+	mitmConfiguration.ForPath("/sendToDevice").Method("PUT").Listen(func(cd deploy.CallbackData) *deploy.CallbackResponse {
 		if strings.Contains(cd.URL, "m.room.encrypted") {
 			// we can't decrypt this, but we know that this should most likely be the m.room_key to-device event.
 			ch <- cd
 		}
+		return nil
 	})
 	return mitmConfiguration
 }

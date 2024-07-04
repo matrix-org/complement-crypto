@@ -128,7 +128,7 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartRust(t *testing.T, tc *cc.
 	// sniff /sync traffic
 	waitForRoomKey := helpers.NewWaiter()
 	mitmConfiguration := tc.Deployment.MITM().Configure(t)
-	mitmConfiguration.ForPath("/sync").Listen(func(cd deploy.CallbackData) {
+	mitmConfiguration.ForPath("/sync").Listen(func(cd deploy.CallbackData) *deploy.CallbackResponse {
 		// When /sync shows a to-device message from Alice (indicating the room key), then SIGKILL Bob.
 		t.Logf("/sync => %v", string(cd.ResponseBody))
 		body := gjson.ParseBytes(cd.ResponseBody)
@@ -141,6 +141,7 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartRust(t *testing.T, tc *cc.
 				}
 			}
 		}
+		return nil
 	})
 	mitmConfiguration.Execute(func() {
 		// bob comes back online, and will be killed a short while later.
@@ -186,7 +187,7 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartJS(t *testing.T, tc *cc.Te
 	// sniff /sync traffic
 	waitForRoomKey := helpers.NewWaiter()
 	mitmConfiguration := tc.Deployment.MITM().Configure(t)
-	mitmConfiguration.ForPath("/sync").Listen(func(cd deploy.CallbackData) {
+	mitmConfiguration.ForPath("/sync").Listen(func(cd deploy.CallbackData) *deploy.CallbackResponse {
 		// When /sync shows a to-device message from Alice (indicating the room key) then SIGKILL Bob.
 		body := gjson.ParseBytes(cd.ResponseBody)
 		toDeviceEvents := body.Get("to_device.events").Array() // Sync v2 form
@@ -198,6 +199,7 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartJS(t *testing.T, tc *cc.Te
 				}
 			}
 		}
+		return nil
 	})
 	mitmConfiguration.Execute(func() {
 		bob := tc.MustLoginClient(t, &cc.ClientCreationRequest{
@@ -272,9 +274,9 @@ func TestToDeviceMessagesAreBatched(t *testing.T) {
 		tc.WithAliceSyncing(t, func(alice api.Client) {
 			// intercept /sendToDevice and check we are sending 100 messages per request
 			mitmConfiguration := tc.Deployment.MITM().Configure(t)
-			mitmConfiguration.ForPath("/sendToDevice").Listen(func(cd deploy.CallbackData) {
+			mitmConfiguration.ForPath("/sendToDevice").Listen(func(cd deploy.CallbackData) *deploy.CallbackResponse {
 				if cd.Method != "PUT" {
-					return
+					return nil
 				}
 				// format is:
 				/*
@@ -291,13 +293,14 @@ func TestToDeviceMessagesAreBatched(t *testing.T) {
 				usersMap := gjson.GetBytes(cd.RequestBody, "messages")
 				if !usersMap.Exists() {
 					t.Logf("intercepted PUT /sendToDevice but no messages existed")
-					return
+					return nil
 				}
 				if len(usersMap.Map()) != 100 {
 					t.Errorf("PUT /sendToDevice did not batch messages, got %d want 100", len(usersMap.Map()))
 					t.Logf(usersMap.Raw)
 				}
 				waiter.Finish()
+				return nil
 			})
 			mitmConfiguration.Execute(func() {
 				alice.SendMessage(t, roomID, "this should cause to-device msgs to be sent")
@@ -341,9 +344,10 @@ func TestToDeviceMessagesArentLostWhenKeysQueryFails(t *testing.T) {
 			bobAccessToken := bob.CurrentAccessToken(t)
 			t.Logf("Bob's token => %s", bobAccessToken)
 			mitmConfiguration := tc.Deployment.MITM().Configure(t)
-			mitmConfiguration.ForPath("/keys/query").AccessToken(bobAccessToken).BlockRequest(3, http.StatusGatewayTimeout).Listen(func(cd deploy.CallbackData) {
+			mitmConfiguration.ForPath("/keys/query").AccessToken(bobAccessToken).BlockRequest(3, http.StatusGatewayTimeout).Listen(func(cd deploy.CallbackData) *deploy.CallbackResponse {
 				t.Logf("%+v", cd)
 				waiter.Finish()
+				return nil
 			})
 			mitmConfiguration.Execute(func() {
 				// Alice logs in on a new device.
@@ -410,7 +414,7 @@ func TestToDeviceMessagesAreProcessedInOrder(t *testing.T) {
 			Body string
 		}{}
 		tc.WithAliceSyncing(t, func(alice api.Client) {
-			callback := func(cd deploy.CallbackData) {
+			callback := func(cd deploy.CallbackData) *deploy.CallbackResponse {
 				// try v2 sync then SS
 				toDeviceEvents := gjson.ParseBytes(cd.ResponseBody).Get("to_device.events").Array()
 				if len(toDeviceEvents) == 0 {
@@ -419,6 +423,7 @@ func TestToDeviceMessagesAreProcessedInOrder(t *testing.T) {
 				if len(toDeviceEvents) > 0 {
 					t.Logf("sniffed %d to_device events down /sync", len(toDeviceEvents))
 				}
+				return nil
 			}
 			// Block Alice's /sync
 			mitmConfiguration := tc.Deployment.MITM().Configure(t)

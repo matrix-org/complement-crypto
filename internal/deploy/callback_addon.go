@@ -25,6 +25,13 @@ type CallbackData struct {
 	RequestBody  json.RawMessage `json:"request_body"`
 }
 
+type CallbackResponse struct {
+	// if set, changes the HTTP response status code for this request.
+	RespondStatusCode int `json:"respond_status_code,omitempty"`
+	// if set, changes the HTTP response body for this request.
+	RespondBody json.RawMessage `json:"respond_body,omitempty"`
+}
+
 func (cd CallbackData) String() string {
 	return fmt.Sprintf("%s %s (token=%s) req_len=%d => HTTP %v", cd.Method, cd.URL, cd.AccessToken, len(cd.RequestBody), cd.ResponseCode)
 }
@@ -32,7 +39,7 @@ func (cd CallbackData) String() string {
 // NewCallbackServer runs a local HTTP server that can read callbacks from mitmproxy.
 // Returns the URL of the callback server for use with WithMITMOptions, along with a close function
 // which should be called when the test finishes to shut down the HTTP server.
-func NewCallbackServer(t *testing.T, hostnameRunningComplement string, cb func(CallbackData)) (callbackURL string, close func()) {
+func NewCallbackServer(t *testing.T, hostnameRunningComplement string, cb func(CallbackData) *CallbackResponse) (callbackURL string, close func()) {
 	if lastTestName != "" {
 		t.Logf("WARNING[%s]: NewCallbackServer called without closing the last one. Check test '%s'", t.Name(), lastTestName)
 	}
@@ -53,8 +60,20 @@ func NewCallbackServer(t *testing.T, hostnameRunningComplement string, cb func(C
 			}
 		}
 		t.Logf("CallbackServer[%s]%s: %v %s", t.Name(), localpart, time.Now(), data)
-		cb(data)
+		cbRes := cb(data)
+		w.Header().Add("Content-Type", "application/json")
 		w.WriteHeader(200)
+		if cbRes == nil {
+			w.Write([]byte(`{}`))
+			return
+		}
+		cbResBytes, err := json.Marshal(cbRes)
+		if err != nil {
+			ct.Errorf(t, "failed to marshal callback response: %s", err)
+			return
+		}
+		fmt.Println(string(cbResBytes))
+		w.Write(cbResBytes)
 	})
 	// listen on a random high numbered port
 	ln, err := net.Listen("tcp", ":0") //nolint

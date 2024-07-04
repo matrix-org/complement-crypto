@@ -152,7 +152,7 @@ type MITMPathConfiguration struct {
 	path        string
 	accessToken string
 	method      string
-	listener    func(cd CallbackData)
+	listener    func(cd CallbackData) *CallbackResponse
 
 	blockCount      int
 	blockStatusCode int
@@ -180,7 +180,7 @@ func (p *MITMPathConfiguration) filter() string {
 	return s.String()
 }
 
-func (p *MITMPathConfiguration) Listen(cb func(cd CallbackData)) *MITMPathConfiguration {
+func (p *MITMPathConfiguration) Listen(cb func(cd CallbackData) *CallbackResponse) *MITMPathConfiguration {
 	p.listener = cb
 	return p
 }
