@@ -113,11 +113,11 @@ jobs:
 
         # JS SDK only steps
         # The aim is to provide the right location of the JS SDK to rebuild_js_sdk.sh
-        - name: Setup | Node.js 18.x
+        - name: Setup | Node.js LTS
           if: ${{ inputs.use_js_sdk != '' }}
           uses: actions/setup-node@v3
           with:
-            node-version: 18
+            node-version: "lts/*"
         - name: "Install JS SDK"
           if: ${{ inputs.use_js_sdk != '' }}
           shell: bash

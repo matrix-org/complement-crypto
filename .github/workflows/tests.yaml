@@ -32,10 +32,10 @@ jobs:
       - uses: actions/checkout@v3 # Checkout crypto tests
 
       # Install Node, Go and Rust, along with libolm and gotestfmt
-      - name: Setup | Node.js 18.x
+      - name: Setup | Node.js LTS
         uses: actions/setup-node@v3
         with:
-          node-version: 18
+          node-version: "lts/*"
           cache: 'yarn'
           cache-dependency-path: "internal/api/js/js-sdk/yarn.lock"
       - name: Setup | Go
