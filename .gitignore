@@ -1,4 +1,5 @@
 .DS_Store
+logs
 js-sdk/node_modules
 js-sdk/dist
 /internal/api/js/chrome/dist

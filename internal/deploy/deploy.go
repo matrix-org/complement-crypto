@@ -361,6 +361,7 @@ func externalURL(t *testing.T, c testcontainers.Container, exposedPort string) s
 }
 
 func writeContainerLogs(readCloser io.ReadCloser, filename string) error {
+	os.Mkdir("./logs", os.ModePerm) // ignore error, we don't care if it already exists
 	w, err := os.Create("./logs/" + filename)
 	if err != nil {
 		return fmt.Errorf("os.Create: %s", err)

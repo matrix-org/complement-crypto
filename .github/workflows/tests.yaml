@@ -113,6 +113,8 @@ jobs:
         #env:  
           #DOCKER_BUILDKIT: 1  
       - name: "Run Complement-Crypto unit tests"
+        env:
+          COMPLEMENT_BASE_IMAGE: homeserver
         run: |
           export LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
           export LD_LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"

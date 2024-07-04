@@ -1,4 +1,14 @@
 from mitmproxy.addons import asgiapp
+import subprocess
+import sys
+
+# some addons need non-std packages.
+# Rather than try to bundle in `pip install` commands in the CMD section of the Dockerfile,
+# just install them when the addon loads.
+def install(package):
+    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+install("aiohttp")
 
 from callback import Callback
 from status_code import StatusCode
