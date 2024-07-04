@@ -1,4 +1,6 @@
 from typing import Optional
+import asyncio
+import aiohttp
 import json
 
 from mitmproxy import ctx, flowfilter
@@ -6,6 +8,7 @@ from mitmproxy.http import Response
 from controller import MITM_DOMAIN_NAME
 from urllib.request import urlopen, Request
 from urllib.error import HTTPError, URLError
+from datetime import datetime
 
 # Callback will intercept a response and send a POST request to the provided callback_url, with
 # the following JSON object. Supports filters: https://docs.mitmproxy.org/stable/concepts-filters/
@@ -56,7 +59,7 @@ class Callback:
         else:
             self.filter = self.matchall
 
-    def response(self, flow):
+    async def response(self, flow):
         # always ignore the controller
         if flow.request.pretty_host == MITM_DOMAIN_NAME:
             return
@@ -71,26 +74,21 @@ class Callback:
                 res_body = flow.response.json()
             except:
                 res_body = None
-            data = json.dumps({
-                "method": flow.request.method,
-                "access_token": flow.request.headers.get("Authorization", "").removeprefix("Bearer "),
-                "url": flow.request.url,
-                "response_code": flow.response.status_code,
-                "request_body": req_body,
-                "response_body": res_body,
-            })
-            request = Request(
-                self.config["callback_url"],
-                headers={"Content-Type": "application/json"},
-                data=data.encode("utf-8"),
-            )
+            print(f'{datetime.now().strftime("%H:%M:%S.%f")} hitting callback for {flow.request.url}')
             try:
-                with urlopen(request, timeout=10) as response:
-                    print(f"callback returned HTTP {response.status}")
-                    return response.read(), response
-            except HTTPError as error:
-                print(f"ERR: callback returned {error.status} {error.reason}")
-            except URLError as error:
-                print(f"ERR: callback returned {error.reason}")
-            except TimeoutError:
-                print(f"ERR: callback request timed out")
+                # use asyncio so we don't block other unrelated requests from being processed
+                async with aiohttp.request(
+                    method="POST",url=self.config["callback_url"], timeout=aiohttp.ClientTimeout(total=10),
+                    headers={"Content-Type": "application/json"},
+                    json={
+                        "method": flow.request.method,
+                        "access_token": flow.request.headers.get("Authorization", "").removeprefix("Bearer "),
+                        "url": flow.request.url,
+                        "response_code": flow.response.status_code,
+                        "request_body": req_body,
+                        "response_body": res_body,
+                    }) as response:
+                    print(f'{datetime.now().strftime("%H:%M:%S.%f")} callback for {flow.request.url} returned HTTP {response.status}')
+                    return
+            except Exception as error:
+                print(f"ERR: callback returned {error}")
