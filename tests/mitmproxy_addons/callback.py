@@ -89,6 +89,5 @@ class Callback:
                         "response_body": res_body,
                     }) as response:
                     print(f'{datetime.now().strftime("%H:%M:%S.%f")} callback for {flow.request.url} returned HTTP {response.status}')
-                    return
             except Exception as error:
                 print(f"ERR: callback returned {error}")
