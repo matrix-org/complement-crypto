@@ -353,50 +353,47 @@ func (c *RustClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error)
 	// track new rooms when they are made
 	allRoomsListener := newGenericStateListener[[]matrix_sdk_ffi.RoomListEntriesUpdate]()
 	go func() {
-		var allRoomIds DynamicSlice[matrix_sdk_ffi.RoomListEntry]
+		var allRooms DynamicSlice[*matrix_sdk_ffi.RoomListItem]
 		for !allRoomsListener.isClosed.Load() {
 			updates := <-allRoomsListener.ch
-			var newEntries []matrix_sdk_ffi.RoomListEntry
+			var newEntries []*matrix_sdk_ffi.RoomListItem
 			for _, update := range updates {
 				switch x := update.(type) {
 				case matrix_sdk_ffi.RoomListEntriesUpdateAppend:
-					allRoomIds.Append(x.Values...)
+					allRooms.Append(x.Values...)
 					newEntries = append(newEntries, x.Values...)
 				case matrix_sdk_ffi.RoomListEntriesUpdateInsert:
-					allRoomIds.Insert(int(x.Index), x.Value)
+					allRooms.Insert(int(x.Index), x.Value)
 					newEntries = append(newEntries, x.Value)
 				case matrix_sdk_ffi.RoomListEntriesUpdatePushBack:
-					allRoomIds.PushBack(x.Value)
+					allRooms.PushBack(x.Value)
 					newEntries = append(newEntries, x.Value)
 				case matrix_sdk_ffi.RoomListEntriesUpdatePushFront:
-					allRoomIds.PushFront(x.Value)
+					allRooms.PushFront(x.Value)
 					newEntries = append(newEntries, x.Value)
 				case matrix_sdk_ffi.RoomListEntriesUpdateSet:
-					allRoomIds.Set(int(x.Index), x.Value)
+					allRooms.Set(int(x.Index), x.Value)
 					newEntries = append(newEntries, x.Value)
 				case matrix_sdk_ffi.RoomListEntriesUpdateClear:
-					allRoomIds.Clear()
+					allRooms.Clear()
 				case matrix_sdk_ffi.RoomListEntriesUpdatePopBack:
-					allRoomIds.PopBack()
+					allRooms.PopBack()
 				case matrix_sdk_ffi.RoomListEntriesUpdatePopFront:
-					allRoomIds.PopFront()
+					allRooms.PopFront()
 				case matrix_sdk_ffi.RoomListEntriesUpdateRemove:
-					allRoomIds.Remove(int(x.Index))
+					allRooms.Remove(int(x.Index))
 				case matrix_sdk_ffi.RoomListEntriesUpdateReset:
-					allRoomIds.Reset(x.Values)
+					allRooms.Reset(x.Values)
 					newEntries = append(newEntries, x.Values...)
 				case matrix_sdk_ffi.RoomListEntriesUpdateTruncate:
-					allRoomIds.Truncate(int(x.Length))
+					allRooms.Truncate(int(x.Length))
 				default:
 					c.Logf(t, "unhandled all rooms update: %+v", update)
 				}
 			}
 			// inform anything waiting on this room that it exists
-			for _, entry := range newEntries {
-				switch x := entry.(type) {
-				case matrix_sdk_ffi.RoomListEntryFilled:
-					c.roomsListener.BroadcastUpdateForRoom(x.RoomId)
-				}
+			for _, room := range newEntries {
+				c.roomsListener.BroadcastUpdateForRoom(room.Id())
 			}
 		}
 	}()
