@@ -39,7 +39,7 @@ func TestDelayedInviteResponse(t *testing.T) {
 
 			config := tc.Deployment.MITM().Configure(t)
 			serverHasInvite := helpers.NewWaiter()
-			config.ForPath("/sync").AccessToken(alice.CurrentAccessToken(t)).Listen(func(cd deploy.CallbackData) {
+			config.ForPath("/sync").AccessToken(alice.CurrentAccessToken(t)).Listen(func(cd deploy.CallbackData) *deploy.CallbackResponse {
 				if strings.Contains(
 					strings.ReplaceAll(string(cd.ResponseBody), " ", ""),
 					`"membership":"invite"`,
@@ -50,6 +50,7 @@ func TestDelayedInviteResponse(t *testing.T) {
 					serverHasInvite.Finish()
 					time.Sleep(delayTime)
 				}
+				return nil
 			})
 			config.Execute(func() {
 				t.Logf("Alice about to /invite Bob")

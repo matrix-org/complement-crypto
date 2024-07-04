@@ -1,7 +1,9 @@
 package deploy
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -14,6 +16,7 @@ import (
 	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/complement/helpers"
 	"github.com/matrix-org/complement/must"
+	"github.com/tidwall/gjson"
 )
 
 func TestMain(m *testing.M) {
@@ -130,12 +133,13 @@ func TestCallbackAddon(t *testing.T) {
 				signalSendUnrelatedRequest := make(chan bool)
 				signalTestFinished := make(chan bool)
 				checker.expect(&callbackRequest{
-					OnCallback: func(cd CallbackData) {
+					OnCallback: func(cd CallbackData) *CallbackResponse {
 						if strings.Contains(cd.URL, "capabilities") {
 							close(signalSendUnrelatedRequest) // send the signal to make the unrelated request
 							time.Sleep(time.Second)           // tarpit this request
 							close(signalTestFinished)         // test is done, cleanup
 						}
+						return nil
 					},
 				})
 				beforeSendingRequests := time.Now()
@@ -167,12 +171,70 @@ func TestCallbackAddon(t *testing.T) {
 				}
 			},
 		},
-
-		// TODO: migrate functionality from status_code addon
-		// TODO: can modify response codes
-		// TODO: can modify response bodies
+		{
+			name:   "can modify response codes without modifying the response body",
+			filter: "~hq " + client.AccessToken,
+			inner: func(t *testing.T, checker *checker) {
+				checker.expect(&callbackRequest{
+					OnCallback: func(cd CallbackData) *CallbackResponse {
+						return &CallbackResponse{
+							RespondStatusCode: 404,
+						}
+					},
+				})
+				res := client.Do(t, "GET", []string{"_matrix", "client", "v3", "capabilities"})
+				checker.wait()
+				must.Equal(t, res.StatusCode, 404, "response code was not altered")
+				body, err := io.ReadAll(res.Body)
+				must.NotError(t, "failed to read CSAPI response", err)
+				must.Equal(t, gjson.ParseBytes(body).Get("capabilities").Exists(), true, "response body was modified")
+			},
+		},
+		{
+			name:   "can modify response bodies without modifying the response code",
+			filter: "~hq " + client.AccessToken,
+			inner: func(t *testing.T, checker *checker) {
+				checker.expect(&callbackRequest{
+					OnCallback: func(cd CallbackData) *CallbackResponse {
+						return &CallbackResponse{
+							RespondBody: json.RawMessage(`{
+								"foo": "bar"
+							}`),
+						}
+					},
+				})
+				res := client.Do(t, "GET", []string{"_matrix", "client", "v3", "capabilities"})
+				checker.wait()
+				must.Equal(t, res.StatusCode, 200, "response code was modified")
+				body, err := io.ReadAll(res.Body)
+				must.NotError(t, "failed to read CSAPI response", err)
+				must.Equal(t, gjson.ParseBytes(body).Get("foo").Str, "bar", "response body was not altered")
+			},
+		},
+		{
+			name:   "can modify response codes and bodies",
+			filter: "~hq " + client.AccessToken,
+			inner: func(t *testing.T, checker *checker) {
+				checker.expect(&callbackRequest{
+					OnCallback: func(cd CallbackData) *CallbackResponse {
+						return &CallbackResponse{
+							RespondStatusCode: 403,
+							RespondBody: json.RawMessage(`{
+								"foo": "bar"
+							}`),
+						}
+					},
+				})
+				res := client.Do(t, "GET", []string{"_matrix", "client", "v3", "capabilities"})
+				checker.wait()
+				must.Equal(t, res.StatusCode, 403, "response code was not modified")
+				body, err := io.ReadAll(res.Body)
+				must.NotError(t, "failed to read CSAPI response", err)
+				must.Equal(t, gjson.ParseBytes(body).Get("foo").Str, "bar", "response body was not modified")
+			},
+		},
 		// TODO: can block requests
-		// TODO: can block responses
+		// TODO: migrate functionality from status_code addon
 	}
 
 	for _, tc := range testCases {
@@ -184,8 +246,8 @@ func TestCallbackAddon(t *testing.T) {
 			}
 			callbackURL, close := NewCallbackServer(
 				t, deployment.GetConfig().HostnameRunningComplement,
-				func(cd CallbackData) {
-					checker.onCallback(cd)
+				func(cd CallbackData) *CallbackResponse {
+					return checker.onCallback(cd)
 				},
 			)
 			defer close()
@@ -212,7 +274,7 @@ type callbackRequest struct {
 	PathContains string
 	AccessToken  string
 	ResponseCode int
-	OnCallback   func(cd CallbackData)
+	OnCallback   func(cd CallbackData) *CallbackResponse
 }
 
 type checker struct {
@@ -223,14 +285,14 @@ type checker struct {
 	noCallbacks bool
 }
 
-func (c *checker) onCallback(cd CallbackData) {
+func (c *checker) onCallback(cd CallbackData) *CallbackResponse {
 	c.mu.Lock()
 	if c.noCallbacks {
 		ct.Errorf(c.t, "wanted no callbacks but got %+v", cd)
 	}
 	if c.want == nil {
 		c.mu.Unlock()
-		return
+		return nil
 	}
 	if c.want.AccessToken != "" {
 		must.Equal(c.t, cd.AccessToken, c.want.AccessToken, "access token mismatch")
@@ -251,11 +313,13 @@ func (c *checker) onCallback(cd CallbackData) {
 	// unlock early so we don't block other requests, as custom callbacks are generally
 	// used for testing tarpitting.
 	c.mu.Unlock()
+	var callbackResponse *CallbackResponse
 	if customCallback != nil {
-		customCallback(cd)
+		callbackResponse = customCallback(cd)
 	}
 	// signal that we processed the callback
 	c.ch <- *c.want
+	return callbackResponse
 }
 
 func (c *checker) expect(want *callbackRequest) {
@@ -271,9 +335,12 @@ func (c *checker) expectNoCallbacks(noCallbacks bool) {
 }
 
 func (c *checker) wait() {
+	c.t.Helper()
 	select {
 	case got := <-c.ch:
-		if !reflect.DeepEqual(got, *c.want) {
+		// we can't sanity check if there are callbacks involved, as we can't easily
+		// pair responses up.
+		if c.want.OnCallback == nil && !reflect.DeepEqual(got, *c.want) {
 			ct.Fatalf(c.t, "checker: got success from a different request: did you forget to wait?"+
 				" Received %+v but expected +%v", got, c.want)
 		}

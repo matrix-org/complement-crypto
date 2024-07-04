@@ -205,12 +205,13 @@ func TestFailedKeysClaimRetries(t *testing.T) {
 			roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.PresetPublicChat())
 			// block /keys/claim and join the room, causing the Olm session to be created
 			mitmConfiguration := tc.Deployment.MITM().Configure(t)
-			mitmConfiguration.ForPath("/keys/claim").Method("POST").BlockRequest(2, http.StatusGatewayTimeout).Listen(func(cd deploy.CallbackData) {
+			mitmConfiguration.ForPath("/keys/claim").Method("POST").BlockRequest(2, http.StatusGatewayTimeout).Listen(func(cd deploy.CallbackData) *deploy.CallbackResponse {
 				t.Logf("%+v", cd)
 				if cd.ResponseCode == 200 {
 					waiter.Finish()
 					stopPoking.Store(true)
 				}
+				return nil
 			})
 			mitmConfiguration.Execute(func() {
 				// join the room. This should cause an Olm session to be made but it will fail as we cannot

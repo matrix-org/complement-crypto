@@ -75,19 +75,33 @@ class Callback:
             except:
                 res_body = None
             print(f'{datetime.now().strftime("%H:%M:%S.%f")} hitting callback for {flow.request.url}')
+            callback_body = {
+                "method": flow.request.method,
+                "access_token": flow.request.headers.get("Authorization", "").removeprefix("Bearer "),
+                "url": flow.request.url,
+                "response_code": flow.response.status_code,
+                "request_body": req_body,
+                "response_body": res_body,
+            }
             try:
                 # use asyncio so we don't block other unrelated requests from being processed
                 async with aiohttp.request(
                     method="POST",url=self.config["callback_url"], timeout=aiohttp.ClientTimeout(total=10),
                     headers={"Content-Type": "application/json"},
-                    json={
-                        "method": flow.request.method,
-                        "access_token": flow.request.headers.get("Authorization", "").removeprefix("Bearer "),
-                        "url": flow.request.url,
-                        "response_code": flow.response.status_code,
-                        "request_body": req_body,
-                        "response_body": res_body,
-                    }) as response:
+                    json=callback_body) as response:
                     print(f'{datetime.now().strftime("%H:%M:%S.%f")} callback for {flow.request.url} returned HTTP {response.status}')
+                    test_response_body = await response.json()
+                    # if the response includes some keys then we are modifying the response on a per-key basis.
+                    if len(test_response_body) > 0:
+                        respond_status_code = test_response_body.get("respond_status_code", flow.response.status_code)
+                        respond_body = test_response_body.get("respond_body", res_body)
+                        flow.response = Response.make(
+                            respond_status_code, json.dumps(respond_body),
+                            headers={
+                                "MITM-Proxy": "yes", # so we don't reprocess this
+                                "Content-Type": "application/json",
+                            })
+
             except Exception as error:
-                print(f"ERR: callback returned {error}")
+                print(f"ERR: callback for {flow.request.url} returned {error}")
+                print(f"ERR: callback, provided request body was {callback_body}")

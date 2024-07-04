@@ -38,7 +38,7 @@ func testSigkillBeforeKeysUploadResponseRust(t *testing.T, clientType api.Client
 	tc := Instance().CreateTestContext(t, clientType, clientType)
 
 	mitmConfiguration := tc.Deployment.MITM().Configure(t)
-	mitmConfiguration.ForPath("/keys/upload").Listen(func(cd deploy.CallbackData) {
+	mitmConfiguration.ForPath("/keys/upload").Listen(func(cd deploy.CallbackData) *deploy.CallbackResponse {
 		if terminated.Load() {
 			// make sure the 2nd upload 200 OKs
 			if cd.ResponseCode != 200 {
@@ -46,12 +46,13 @@ func testSigkillBeforeKeysUploadResponseRust(t *testing.T, clientType api.Client
 			}
 			t.Logf("recv 2nd /keys/upload => HTTP %d", cd.ResponseCode)
 			seenSecondKeysUploadWaiter.Finish()
-			return
+			return nil
 		}
 		// destroy the client
 		mu.Lock()
 		terminateClient()
 		mu.Unlock()
+		return nil
 	})
 	mitmConfiguration.Execute(func() {
 		// login in a different process
@@ -98,9 +99,9 @@ func testSigkillBeforeKeysUploadResponseJS(t *testing.T, clientType api.ClientTy
 	seenSecondKeysUploadWaiter := helpers.NewWaiter()
 	tc := Instance().CreateTestContext(t, clientType, clientType)
 	mitmConfiguration := tc.Deployment.MITM().Configure(t)
-	mitmConfiguration.ForPath("/keys/upload").Listen(func(cd deploy.CallbackData) {
+	mitmConfiguration.ForPath("/keys/upload").Listen(func(cd deploy.CallbackData) *deploy.CallbackResponse {
 		if cd.Method == "OPTIONS" {
-			return // ignore CORS
+			return nil // ignore CORS
 		}
 		if terminated.Load() {
 			// make sure the 2nd upload 200 OKs
@@ -108,7 +109,7 @@ func testSigkillBeforeKeysUploadResponseJS(t *testing.T, clientType api.ClientTy
 				ct.Errorf(t, "2nd /keys/upload did not 200 OK => got %v", cd.ResponseCode)
 			}
 			seenSecondKeysUploadWaiter.Finish()
-			return
+			return nil
 		}
 		// destroy the client
 		mu.Lock()
@@ -118,6 +119,7 @@ func testSigkillBeforeKeysUploadResponseJS(t *testing.T, clientType api.ClientTy
 			ct.Errorf(t, "terminateClient is nil. Did WithMITMOptions lock?")
 		}
 		mu.Unlock()
+		return nil
 	})
 	mitmConfiguration.Execute(func() {
 		clientWhichWillBeKilled := tc.MustCreateClient(t, &cc.ClientCreationRequest{
