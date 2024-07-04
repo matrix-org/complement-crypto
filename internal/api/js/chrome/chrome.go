@@ -87,6 +87,8 @@ func RunHeadless(onConsoleLog func(s string), requiresPersistance bool, listenPo
 			chromedp.UserDataDir(userDir),
 		)
 	}
+	// increase the WS timeout from 20s (default) to 30s as we see timeouts with 20s in CI
+	opts = append(opts, chromedp.WSURLReadTimeout(30*time.Second))
 
 	allocCtx, allocCancel := chromedp.NewExecAllocator(context.Background(), opts...)
 	ctx, cancel := chromedp.NewContext(allocCtx, chromedp.WithBrowserOption(
