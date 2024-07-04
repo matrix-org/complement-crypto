@@ -126,8 +126,8 @@ func (c *MITMConfiguration) Execute(inner func()) {
 			defer closeCallbackServer()
 
 			body["callback"] = map[string]any{
-				"callback_url": callbackURL,
-				"filter":       pathConfig.filter(),
+				"callback_response_url": callbackURL,
+				"filter":                pathConfig.filter(),
 			}
 		}
 		if pathConfig.blockRequest != nil {

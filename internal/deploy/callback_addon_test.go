@@ -254,7 +254,7 @@ func TestCallbackAddon(t *testing.T) {
 			mitmClient := deployment.MITM()
 			mitmOpts := map[string]any{
 				"callback": map[string]any{
-					"callback_url": callbackURL,
+					"callback_response_url": callbackURL,
 				},
 			}
 			if tc.filter != "" {
