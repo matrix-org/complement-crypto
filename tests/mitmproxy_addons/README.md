@@ -70,14 +70,36 @@ To use this with the controller API, you would send an HTTP request like this:
 }
 ```
 
-#### `callback_response_url`
-mitmproxy will POST to `callback_response_url` with the following JSON object:
+#### `callback_request_url`
+
+mitmproxy will POST to `callback_request_url` with the following JSON object:
 ```js
 {
    method: "GET|PUT|...",
    access_token: "syt_11...",
    url: "http://hs1/_matrix/client/...",
    request_body: { some json object or null if no body },
+}
+```
+The callback server can then either return an empty object or the following object (all fields are required):
+```js
+{
+   respond_status_code: 200,
+   respond_body: { "some": "json_object" }
+}
+```
+If an empty object is returned, mitmproxy will forward the request unaltered to the server. If the above object (with all fields set) is returned, mitmproxy will send that response _immediately_ and **will not send the request to the server**. This can be used to block HTTP requests.
+
+
+#### `callback_response_url`
+Similarly, mitmproxy will POST to `callback_response_url` with the following JSON object:
+```js
+{
+   method: "GET|PUT|...",
+   access_token: "syt_11...",
+   url: "http://hs1/_matrix/client/...",
+   request_body: { some json object or null if no body },
+   // note these are new fields because the request was sent to the HS and a response returned from it
    response_body: { some json object },
    response_code: 200,
 }
@@ -93,24 +115,3 @@ The values returned here will be returned to the Matrix client:
 These keys are optional. If neither are specified, the response is sent unaltered to
 the Matrix client. If the body is set but the status code is not, only the body is
 modified and the status code is left unaltered and vice versa.
-
-#### `callback_request_url`
-
-Similarly, mitmproxy will POST to `callback_request_url` with the following JSON object:
-```js
-{
-   method: "GET|PUT|...",
-   access_token: "syt_11...",
-   url: "http://hs1/_matrix/client/...",
-   request_body: { some json object or null if no body },
-   // note the absence of response_* fields, as the request has yet to reach the HS
-}
-```
-The callback server can then either return an empty object or the following object (all fields are required):
-```js
-{
-   respond_status_code: 200,
-   respond_body: { "some": "json_object" }
-}
-```
-If an empty object is returned, mitmproxy will forward the request unaltered to the server. If the above object is returned, mitmproxy will send that response _immediately_ and **will not send the request to the server**. This can be used to block HTTP requests.
