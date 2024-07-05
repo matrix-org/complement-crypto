@@ -149,6 +149,7 @@ class Callback:
                     # For responses: fields are optional but the default case is always specified. 
                     respond_status_code = test_response_body.get("respond_status_code", body.get("response_code"))
                     respond_body = test_response_body.get("respond_body", body.get("response_body"))
+                    print(f'{datetime.now().strftime("%H:%M:%S.%f")} callback for {flow.request.url} returning custom response: HTTP {respond_status_code} {json.dumps(respond_body)}')
                     flow.response = Response.make(
                         respond_status_code, json.dumps(respond_body),
                         headers={

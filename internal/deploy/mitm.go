@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -111,39 +112,48 @@ func (c *MITMConfiguration) Execute(inner func()) {
 	//       $addon_values...
 	//     }
 	//   }
-	// We have 2 add-ons: "callback" and "status_code". The former just sniffs
-	// requests/responses. The latter modifies the request/response in some way.
 	//
 	// The API shape of the add-ons are located inside the python files in tests/mitmproxy_addons
-	body := map[string]any{}
 	if len(c.pathCfgs) > 1 {
 		c.t.Fatalf(">1 path config currently unsupported") // TODO
 	}
 	c.mu.Lock()
+	callbackAddon := map[string]any{}
 	for _, pathConfig := range c.pathCfgs {
-		if pathConfig.listener != nil {
-			cbServer, err := NewCallbackServer(c.t, c.client.hostnameRunningComplement)
-			must.NotError(c.t, "failed to start callback server", err)
-			callbackURL := cbServer.SetOnResponseCallback(c.t, pathConfig.listener)
-			defer cbServer.Close()
-
-			body["callback"] = map[string]any{
-				"callback_response_url": callbackURL,
-				"filter":                pathConfig.filter(),
-			}
+		if pathConfig.filter() != "" {
+			callbackAddon["filter"] = pathConfig.filter()
 		}
-		if pathConfig.blockRequest != nil {
-			body["statuscode"] = map[string]any{
-				"return_status": pathConfig.blockStatusCode,
-				"block_request": *pathConfig.blockRequest,
-				"count":         pathConfig.blockCount,
-				"filter":        pathConfig.filter(),
-			}
+		cbServer, err := NewCallbackServer(c.t, c.client.hostnameRunningComplement)
+		must.NotError(c.t, "failed to start callback server", err)
+		defer cbServer.Close()
+
+		if pathConfig.listener != nil {
+			responseCallbackURL := cbServer.SetOnResponseCallback(c.t, pathConfig.listener)
+			callbackAddon["callback_response_url"] = responseCallbackURL
+		}
+		if pathConfig.blockRequest != nil && *pathConfig.blockRequest {
+			// reimplement statuscode plugin logic in Go
+			// TODO: refactor this
+			var count atomic.Uint32
+			requestCallbackURL := cbServer.SetOnRequestCallback(c.t, func(cd CallbackData) *CallbackResponse {
+				newCount := count.Add(1)
+				if pathConfig.blockCount > 0 && newCount > uint32(pathConfig.blockCount) {
+					return nil // don't block
+				}
+				// block this request by sending back a fake response
+				return &CallbackResponse{
+					RespondStatusCode: pathConfig.blockStatusCode,
+					RespondBody:       json.RawMessage(`{"error":"complement-crypto says no"}`),
+				}
+			})
+			callbackAddon["callback_request_url"] = requestCallbackURL
 		}
 	}
 	c.mu.Unlock()
 
-	lockID := c.client.lockOptions(c.t, body)
+	lockID := c.client.lockOptions(c.t, map[string]any{
+		"callback": callbackAddon,
+	})
 	defer c.client.unlockOptions(c.t, lockID)
 	inner()
 
