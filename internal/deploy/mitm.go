@@ -122,8 +122,10 @@ func (c *MITMConfiguration) Execute(inner func()) {
 	c.mu.Lock()
 	for _, pathConfig := range c.pathCfgs {
 		if pathConfig.listener != nil {
-			callbackURL, closeCallbackServer := NewCallbackServer(c.t, c.client.hostnameRunningComplement, pathConfig.listener)
-			defer closeCallbackServer()
+			cbServer, err := NewCallbackServer(c.t, c.client.hostnameRunningComplement)
+			must.NotError(c.t, "failed to start callback server", err)
+			callbackURL := cbServer.SetOnResponseCallback(c.t, pathConfig.listener)
+			defer cbServer.Close()
 
 			body["callback"] = map[string]any{
 				"callback_response_url": callbackURL,
