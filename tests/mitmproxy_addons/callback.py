@@ -130,9 +130,12 @@ class Callback:
         try:
             # use asyncio so we don't block other unrelated requests from being processed
             async with aiohttp.request(
-                method="POST",url=url, timeout=aiohttp.ClientTimeout(total=10),
+                method="POST",
+                url=url,
+                timeout=aiohttp.ClientTimeout(total=10),
                 headers={"Content-Type": "application/json"},
-                json=body) as response:
+                json=body,
+            ) as response:
                 print(f'{datetime.now().strftime("%H:%M:%S.%f")} callback for {flow.request.url} returned HTTP {response.status}')
                 if response.content_type != 'application/json':
                     err_response_body = await response.text()
