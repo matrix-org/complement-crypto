@@ -7,14 +7,14 @@ import (
 	"net"
 	"net/http"
 	"strings"
-	"testing"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/matrix-org/complement/ct"
-	"github.com/matrix-org/complement/must"
 )
 
-var lastTestName string
+var lastTestName atomic.Value = atomic.Value{}
 
 type CallbackData struct {
 	Method       string          `json:"method"`
@@ -36,16 +36,41 @@ func (cd CallbackData) String() string {
 	return fmt.Sprintf("%s %s (token=%s) req_len=%d => HTTP %v", cd.Method, cd.URL, cd.AccessToken, len(cd.RequestBody), cd.ResponseCode)
 }
 
-// NewCallbackServer runs a local HTTP server that can read callbacks from mitmproxy.
-// Returns the URL of the callback server for use with WithMITMOptions, along with a close function
-// which should be called when the test finishes to shut down the HTTP server.
-func NewCallbackServer(t *testing.T, hostnameRunningComplement string, cb func(CallbackData) *CallbackResponse) (callbackURL string, close func()) {
-	if lastTestName != "" {
-		t.Logf("WARNING[%s]: NewCallbackServer called without closing the last one. Check test '%s'", t.Name(), lastTestName)
-	}
-	lastTestName = t.Name()
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+const (
+	requestPath  = "/request"
+	responsePath = "/response"
+)
+
+type CallbackServer struct {
+	srv     *http.Server
+	mux     *http.ServeMux
+	baseURL string
+
+	mu         *sync.Mutex
+	onRequest  http.HandlerFunc
+	onResponse http.HandlerFunc
+}
+
+func (s *CallbackServer) SetOnRequestCallback(t ct.TestLike, cb func(CallbackData) *CallbackResponse) (callbackURL string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.onRequest = s.createHandler(t, cb)
+	return s.baseURL + requestPath
+}
+func (s *CallbackServer) SetOnResponseCallback(t ct.TestLike, cb func(CallbackData) *CallbackResponse) (callbackURL string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.onResponse = s.createHandler(t, cb)
+	return s.baseURL + responsePath
+}
+
+// Shut down the server.
+func (s *CallbackServer) Close() {
+	s.srv.Close()
+	lastTestName.Store("")
+}
+func (s *CallbackServer) createHandler(t ct.TestLike, cb func(CallbackData) *CallbackResponse) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		var data CallbackData
 		if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
 			ct.Errorf(t, "error decoding json: %s", err)
@@ -74,18 +99,60 @@ func NewCallbackServer(t *testing.T, hostnameRunningComplement string, cb func(C
 		}
 		fmt.Println(string(cbResBytes))
 		w.Write(cbResBytes)
-	})
+	}
+}
+
+// NewCallbackServer runs a local HTTP server that can read callbacks from mitmproxy.
+// Automatically listens on a high numbered port. Must be Close()d at the end of the test.
+// Register callback handlers via CallbackServer.SetOnRequestCallback and CallbackServer.SetOnResponseCallback
+func NewCallbackServer(t ct.TestLike, hostnameRunningComplement string) (*CallbackServer, error) {
+	last := lastTestName.Load()
+	if last != nil && last.(string) != "" {
+		t.Logf("WARNING[%s]: NewCallbackServer called without closing the last one. Check test '%s'", t.Name(), last.(string))
+	}
+	lastTestName.Store(t.Name())
+	mux := http.NewServeMux()
+
 	// listen on a random high numbered port
 	ln, err := net.Listen("tcp", ":0") //nolint
-	must.NotError(t, "failed to listen on a tcp port", err)
+	if err != nil {
+		return nil, fmt.Errorf("failed to listen on a tcp port: %s", err)
+	}
 	port := ln.Addr().(*net.TCPAddr).Port
-	srv := http.Server{
+	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
 		Handler: mux,
 	}
 	go srv.Serve(ln)
-	return fmt.Sprintf("http://%s:%d", hostnameRunningComplement, port), func() {
-		srv.Close()
-		lastTestName = ""
+
+	callbackServer := &CallbackServer{
+		mux:     mux,
+		srv:     srv,
+		mu:      &sync.Mutex{},
+		baseURL: fmt.Sprintf("http://%s:%d", hostnameRunningComplement, port),
 	}
+	mux.HandleFunc(requestPath, func(w http.ResponseWriter, r *http.Request) {
+		callbackServer.mu.Lock()
+		h := callbackServer.onRequest
+		callbackServer.mu.Unlock()
+		if h == nil {
+			w.WriteHeader(404)
+			w.Write([]byte(`{"error":"no request handler registered"}`))
+			return
+		}
+		h(w, r)
+	})
+	mux.HandleFunc(responsePath, func(w http.ResponseWriter, r *http.Request) {
+		callbackServer.mu.Lock()
+		h := callbackServer.onResponse
+		callbackServer.mu.Unlock()
+		if h == nil {
+			w.WriteHeader(404)
+			w.Write([]byte(`{"error":"no response handler registered"}`))
+			return
+		}
+		h(w, r)
+	})
+
+	return callbackServer, nil
 }

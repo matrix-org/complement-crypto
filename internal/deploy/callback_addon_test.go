@@ -38,9 +38,10 @@ func TestCallbackAddon(t *testing.T) {
 	})
 
 	testCases := []struct {
-		name   string
-		filter string
-		inner  func(t *testing.T, checker *checker)
+		name                 string
+		filter               string
+		needsRequestCallback bool
+		inner                func(t *testing.T, checker *checker)
 	}{
 		{
 			name:   "works",
@@ -233,8 +234,32 @@ func TestCallbackAddon(t *testing.T) {
 				must.Equal(t, gjson.ParseBytes(body).Get("foo").Str, "bar", "response body was not modified")
 			},
 		},
-		// TODO: can block requests
-		// TODO: migrate functionality from status_code addon
+		{
+			name:                 "can block requests and modify response codes and bodies",
+			filter:               "~m PUT",
+			needsRequestCallback: true,
+			inner: func(t *testing.T, checker *checker) {
+				checker.expect(&callbackRequest{
+					OnRequestCallback: func(cd CallbackData) *CallbackResponse {
+						return &CallbackResponse{
+							RespondStatusCode: 200,
+							RespondBody:       json.RawMessage(`{"yep": "ok"}`),
+						}
+					},
+				})
+				// This is a PUT so will be intercepted
+				res := client.MustSetGlobalAccountData(t, "this_wont_go_through", map[string]any{"foo": "bar"})
+				checker.wait()
+				must.Equal(t, res.StatusCode, 200, "response code was not set")
+				body, err := io.ReadAll(res.Body)
+				must.NotError(t, "failed to read CSAPI response", err)
+				must.Equal(t, gjson.ParseBytes(body).Get("yep").Str, "ok", "response body was not set")
+
+				// now check it didn't go through by doing a GET which isn't intercepted
+				res = client.GetGlobalAccountData(t, "this_wont_go_through")
+				must.Equal(t, res.StatusCode, 404, "GET returned data when the PUT should have been intercepted")
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -244,25 +269,34 @@ func TestCallbackAddon(t *testing.T) {
 				ch: make(chan callbackRequest, 3),
 				mu: &sync.Mutex{},
 			}
-			callbackURL, close := NewCallbackServer(
+			cbServer, err := NewCallbackServer(
 				t, deployment.GetConfig().HostnameRunningComplement,
-				func(cd CallbackData) *CallbackResponse {
-					return checker.onCallback(cd)
-				},
 			)
-			defer close()
-			mitmClient := deployment.MITM()
-			mitmOpts := map[string]any{
-				"callback": map[string]any{
-					"callback_url": callbackURL,
-				},
+			callbackURL := cbServer.SetOnResponseCallback(t, func(cd CallbackData) *CallbackResponse {
+				return checker.onResponseCallback(cd)
+			})
+			var reqCallbackURL string
+			if tc.needsRequestCallback {
+				reqCallbackURL = cbServer.SetOnRequestCallback(t, func(cd CallbackData) *CallbackResponse {
+					return checker.onRequestCallback(cd)
+				})
+			}
+			must.NotError(t, "failed to create callback server", err)
+			defer cbServer.Close()
+			callbackOpts := map[string]any{
+				"callback_response_url": callbackURL,
 			}
 			if tc.filter != "" {
-				cb := mitmOpts["callback"].(map[string]any)
-				cb["filter"] = tc.filter
-				mitmOpts["callback"] = cb
+				callbackOpts["filter"] = tc.filter
 			}
-			lockID := mitmClient.lockOptions(t, mitmOpts)
+			if reqCallbackURL != "" {
+				callbackOpts["callback_request_url"] = reqCallbackURL
+			}
+
+			mitmClient := deployment.MITM()
+			lockID := mitmClient.lockOptions(t, map[string]any{
+				"callback": callbackOpts,
+			})
 			tc.inner(t, checker)
 			mitmClient.unlockOptions(t, lockID)
 		})
@@ -270,11 +304,12 @@ func TestCallbackAddon(t *testing.T) {
 }
 
 type callbackRequest struct {
-	Method       string
-	PathContains string
-	AccessToken  string
-	ResponseCode int
-	OnCallback   func(cd CallbackData) *CallbackResponse
+	Method            string
+	PathContains      string
+	AccessToken       string
+	ResponseCode      int
+	OnRequestCallback func(cd CallbackData) *CallbackResponse
+	OnCallback        func(cd CallbackData) *CallbackResponse
 }
 
 type checker struct {
@@ -285,7 +320,7 @@ type checker struct {
 	noCallbacks bool
 }
 
-func (c *checker) onCallback(cd CallbackData) *CallbackResponse {
+func (c *checker) onResponseCallback(cd CallbackData) *CallbackResponse {
 	c.mu.Lock()
 	if c.noCallbacks {
 		ct.Errorf(c.t, "wanted no callbacks but got %+v", cd)
@@ -322,6 +357,16 @@ func (c *checker) onCallback(cd CallbackData) *CallbackResponse {
 	return callbackResponse
 }
 
+func (c *checker) onRequestCallback(cd CallbackData) *CallbackResponse {
+	c.mu.Lock()
+	cb := c.want.OnRequestCallback
+	c.mu.Unlock()
+	if cb != nil {
+		return cb(cd)
+	}
+	return nil
+}
+
 func (c *checker) expect(want *callbackRequest) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -340,7 +385,7 @@ func (c *checker) wait() {
 	case got := <-c.ch:
 		// we can't sanity check if there are callbacks involved, as we can't easily
 		// pair responses up.
-		if c.want.OnCallback == nil && !reflect.DeepEqual(got, *c.want) {
+		if c.want.OnCallback == nil && c.want.OnRequestCallback == nil && !reflect.DeepEqual(got, *c.want) {
 			ct.Fatalf(c.t, "checker: got success from a different request: did you forget to wait?"+
 				" Received %+v but expected +%v", got, c.want)
 		}
