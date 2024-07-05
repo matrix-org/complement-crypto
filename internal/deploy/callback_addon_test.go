@@ -38,9 +38,10 @@ func TestCallbackAddon(t *testing.T) {
 	})
 
 	testCases := []struct {
-		name   string
-		filter string
-		inner  func(t *testing.T, checker *checker)
+		name                 string
+		filter               string
+		needsRequestCallback bool
+		inner                func(t *testing.T, checker *checker)
 	}{
 		{
 			name:   "works",
@@ -234,16 +235,15 @@ func TestCallbackAddon(t *testing.T) {
 			},
 		},
 		{
-			name:   "can block requests and modify response codes and bodies",
-			filter: "~m PUT",
+			name:                 "can block requests and modify response codes and bodies",
+			filter:               "~m PUT",
+			needsRequestCallback: true,
 			inner: func(t *testing.T, checker *checker) {
 				checker.expect(&callbackRequest{
 					OnRequestCallback: func(cd CallbackData) *CallbackResponse {
 						return &CallbackResponse{
 							RespondStatusCode: 200,
-							RespondBody: json.RawMessage(`{
-								"yep": "ok",
-							}`),
+							RespondBody:       json.RawMessage(`{"yep": "ok"}`),
 						}
 					},
 				})
@@ -273,22 +273,30 @@ func TestCallbackAddon(t *testing.T) {
 				t, deployment.GetConfig().HostnameRunningComplement,
 			)
 			callbackURL := cbServer.SetOnResponseCallback(t, func(cd CallbackData) *CallbackResponse {
-				return checker.onCallback(cd)
+				return checker.onResponseCallback(cd)
 			})
+			var reqCallbackURL string
+			if tc.needsRequestCallback {
+				reqCallbackURL = cbServer.SetOnRequestCallback(t, func(cd CallbackData) *CallbackResponse {
+					return checker.onRequestCallback(cd)
+				})
+			}
 			must.NotError(t, "failed to create callback server", err)
 			defer cbServer.Close()
-			mitmClient := deployment.MITM()
-			mitmOpts := map[string]any{
-				"callback": map[string]any{
-					"callback_response_url": callbackURL,
-				},
+			callbackOpts := map[string]any{
+				"callback_response_url": callbackURL,
 			}
 			if tc.filter != "" {
-				cb := mitmOpts["callback"].(map[string]any)
-				cb["filter"] = tc.filter
-				mitmOpts["callback"] = cb
+				callbackOpts["filter"] = tc.filter
 			}
-			lockID := mitmClient.lockOptions(t, mitmOpts)
+			if reqCallbackURL != "" {
+				callbackOpts["callback_request_url"] = reqCallbackURL
+			}
+
+			mitmClient := deployment.MITM()
+			lockID := mitmClient.lockOptions(t, map[string]any{
+				"callback": callbackOpts,
+			})
 			tc.inner(t, checker)
 			mitmClient.unlockOptions(t, lockID)
 		})
@@ -312,7 +320,7 @@ type checker struct {
 	noCallbacks bool
 }
 
-func (c *checker) onCallback(cd CallbackData) *CallbackResponse {
+func (c *checker) onResponseCallback(cd CallbackData) *CallbackResponse {
 	c.mu.Lock()
 	if c.noCallbacks {
 		ct.Errorf(c.t, "wanted no callbacks but got %+v", cd)
@@ -347,6 +355,16 @@ func (c *checker) onCallback(cd CallbackData) *CallbackResponse {
 	// signal that we processed the callback
 	c.ch <- *c.want
 	return callbackResponse
+}
+
+func (c *checker) onRequestCallback(cd CallbackData) *CallbackResponse {
+	c.mu.Lock()
+	cb := c.want.OnRequestCallback
+	c.mu.Unlock()
+	if cb != nil {
+		return cb(cd)
+	}
+	return nil
 }
 
 func (c *checker) expect(want *callbackRequest) {
