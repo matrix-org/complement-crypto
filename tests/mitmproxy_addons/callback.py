@@ -10,35 +10,7 @@ from urllib.request import urlopen, Request
 from urllib.error import HTTPError, URLError
 from datetime import datetime
 
-# Callback will intercept a request and/or response and send a POST request to the provided url, with
-# the following JSON object. Supports filters: https://docs.mitmproxy.org/stable/concepts-filters/
-# {
-#   method: "GET|PUT|...",
-#   access_token: "syt_11...",
-#   url: "http://hs1/_matrix/client/...",
-#   request_body: { some json object or null if no body },
-#   response_body: { some json object },
-#   response_code: 200,
-# }
-# The response to this request can control what gets returned to the client. The response object:
-# {
-#    "respond_status_code": 200,
-#    "respond_body": { "some": "json_object" }
-# }
-# If {} is sent back, the response is not modified. Likewise, if `respond_body` is set but
-# `respond_status_code` is not, only the response body is modified, not the status code, and vice versa.
-#
-# To use this addon, configure it with these fields:
-#  - callback_request_url: the URL to send outbound requests to. This allows callbacks to intercept
-#                          requests BEFORE they reach the server. The request/response struct in this
-#                          callback is the same as `callback_response_url`, except `response_body`
-#                          and `response_code` will be missing as the request hasn't been processed
-#                          yet. To block the request from reaching the server, the callback needs to
-#                          provide both `respond_status_code` and `respond_body`.
-#  - callback_response_url: the URL to send inbound responses to. This allows callbacks to modify
-#                           response content.
-#  - filter: the mitmproxy filter to apply. If unset, ALL requests are eligible to go to the callback
-#            server.
+# See README.md for information about this addon
 class Callback:
     def __init__(self):
         self.reset()
@@ -149,6 +121,7 @@ class Callback:
                     # For responses: fields are optional but the default case is always specified. 
                     respond_status_code = test_response_body.get("respond_status_code", body.get("response_code"))
                     respond_body = test_response_body.get("respond_body", body.get("response_body"))
+                    print(f'{datetime.now().strftime("%H:%M:%S.%f")} callback for {flow.request.url} returning custom response: HTTP {respond_status_code} {json.dumps(respond_body)}')
                     flow.response = Response.make(
                         respond_status_code, json.dumps(respond_body),
                         headers={
