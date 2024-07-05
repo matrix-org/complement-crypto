@@ -38,7 +38,7 @@ POST /options/unlock
 }
 ```
 
-Tests will lock/unlock whenever they need to interact with mitmproxy.
+Tests will lock/unlock whenever they need to interact with mitmproxy. Attempting to lock an already locked controller will return an HTTP 400 error. Attempting to unlock an already unlocked controller will return an HTTP 400 error.
 
 ### Callback addon
 
@@ -56,7 +56,7 @@ Available configuration options are optional:
    requests BEFORE they reach the server.
  - `callback_response_url`: the URL to send inbound responses to. This allows callbacks to modify
    response content.
- - `filter`: the mitmproxy filter to apply. If unset, ALL requests are eligible to go to the callback
+ - `filter`: the [mitmproxy filter](https://docs.mitmproxy.org/stable/concepts-filters/) to apply. If unset, ALL requests are eligible to go to the callback
    server.
 
 To use this with the controller API, you would send an HTTP request like this:
