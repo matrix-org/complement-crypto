@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
+	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
 )
 
@@ -32,8 +34,6 @@ func GlobalBrowser() (*Browser, error) {
 }
 
 type Browser struct {
-	BaseURL         string
-	Cancel          func()
 	Ctx             context.Context // topmost chromedp context
 	ctxCancel       func()
 	execAllocCancel func()
@@ -74,4 +74,35 @@ func NewBrowser() (*Browser, error) {
 func (b *Browser) Close() {
 	b.ctxCancel()
 	b.execAllocCancel()
+}
+
+func (b *Browser) NewTab(baseJSURL string, onConsoleLog func(s string)) (*Tab, error) {
+	tabCtx, closeTab := chromedp.NewContext(b.Ctx)
+	err := chromedp.Run(tabCtx,
+		chromedp.Navigate(baseJSURL),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("NewTab: failed to navigate to %s: %s", baseJSURL, err)
+	}
+
+	// Listen for console logs for debugging AND to communicate live updates
+	chromedp.ListenTarget(tabCtx, func(ev interface{}) {
+		switch ev := ev.(type) {
+		case *runtime.EventConsoleAPICalled:
+			for _, arg := range ev.Args {
+				s, err := strconv.Unquote(string(arg.Value))
+				if err != nil {
+					s = string(arg.Value)
+				}
+				onConsoleLog(s)
+			}
+		}
+	})
+
+	return &Tab{
+		BaseURL: baseJSURL,
+		Ctx:     tabCtx,
+		browser: b,
+		cancel:  closeTab,
+	}, nil
 }

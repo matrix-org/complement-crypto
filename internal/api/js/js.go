@@ -51,7 +51,7 @@ func writeToLog(s string, args ...interface{}) {
 }
 
 type JSClient struct {
-	browser               *chrome.Browser
+	tab                   *chrome.Tab
 	listeners             map[int32]func(ctrlMsg *ControlMessage)
 	listenerID            atomic.Int32
 	listenersMu           *sync.RWMutex
@@ -70,7 +70,7 @@ func NewJSClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, error)
 		verificationChannelMu: &sync.Mutex{},
 	}
 	portKey := opts.UserID + opts.DeviceID
-	browser, err := chrome.RunHeadless(func(s string) {
+	tab, err := chrome.RunHeadless(func(s string) {
 		writeToLog("[%s,%s] console.log %s\n", opts.UserID, opts.DeviceID, s)
 
 		msg := unpackControlMessage(t, s)
@@ -86,11 +86,11 @@ func NewJSClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, error)
 		for _, l := range listeners {
 			l(msg)
 		}
-	}, opts.PersistentStorage, userDeviceToPort[portKey])
+	}, userDeviceToPort[portKey])
 	if err != nil {
 		return nil, fmt.Errorf("failed to RunHeadless: %s", err)
 	}
-	jsc.browser = browser
+	jsc.tab = tab
 
 	// now login
 	deviceID := "undefined"
@@ -103,7 +103,7 @@ func NewJSClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, error)
 		// TODO: Cannot Must this because of a bug in JS SDK
 		// "Uncaught (in promise) Error: createUser is undefined, it should be set with setUserCreator()!"
 		// https://github.com/matrix-org/matrix-js-sdk/blob/76b9c3950bfdfca922bec7f70502ff2da93bd731/src/store/indexeddb.ts#L143
-		chrome.RunAsyncFn[chrome.Void](t, browser.Ctx, fmt.Sprintf(`
+		chrome.RunAsyncFn[chrome.Void](t, tab.Ctx, fmt.Sprintf(`
 		// FIXME: this doesn't seem to work.
 		// JS SDK doesn't store this for us, so we need to. Do this before making the stores which can error out.
 		// window.__accessToken = window.localStorage.getItem("complement_crypto_access_token") || undefined;
@@ -119,17 +119,17 @@ func NewJSClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, error)
 		store = "window.__store"
 		//cryptoStore = fmt.Sprintf(`new IndexedDBCryptoStore(indexedDB, "%s")`, indexedDBCryptoName)
 		// remember the port for same-origin to remember the store
-		u, _ := url.Parse(browser.BaseURL)
+		u, _ := url.Parse(tab.BaseURL)
 		portStr := u.Port()
 		port, err := strconv.Atoi(portStr)
 		if portStr == "" || err != nil {
-			ct.Fatalf(t, "failed to extract port from base url %s", browser.BaseURL)
+			ct.Fatalf(t, "failed to extract port from base url %s", tab.BaseURL)
 		}
 		userDeviceToPort[portKey] = port
-		t.Logf("user=%s device=%s will be served from %s due to persistent storage", opts.UserID, opts.DeviceID, browser.BaseURL)
+		t.Logf("user=%s device=%s will be served from %s due to persistent storage", opts.UserID, opts.DeviceID, tab.BaseURL)
 	}
 
-	chrome.MustRunAsyncFn[chrome.Void](t, browser.Ctx, fmt.Sprintf(`
+	chrome.MustRunAsyncFn[chrome.Void](t, tab.Ctx, fmt.Sprintf(`
 	window._secretStorageKeys = {};
 	window.__client = matrix.createClient({
 		baseUrl:                "%s",
@@ -176,7 +176,7 @@ func (c *JSClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {
 		deviceID = `"` + opts.DeviceID + `"`
 	}
 	// cannot use loginWithPassword as this generates a new device ID
-	_, err := chrome.RunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`
+	_, err := chrome.RunAsyncFn[chrome.Void](t, c.tab.Ctx, fmt.Sprintf(`
 	await window.__client.login("m.login.password", {
 		user: "%s",
 		password: "%s",
@@ -190,7 +190,7 @@ func (c *JSClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {
 	}
 
 	// any events need to log the control string so we get notified
-	_, err = chrome.RunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`
+	_, err = chrome.RunAsyncFn[chrome.Void](t, c.tab.Ctx, fmt.Sprintf(`
 	window.__client.on("Event.decrypted", function(event) {
 		`+EmitControlMessageEventJS("event.getRoomId()", "event.getEffectiveEvent()")+`
 	});
@@ -203,7 +203,7 @@ func (c *JSClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {
 
 	if c.opts.PersistentStorage {
 		/* FIXME: this doesn't work. It doesn't seem to remember across restarts.
-		chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `
+		chrome.MustRunAsyncFn[chrome.Void](t, c.tab.Ctx, `
 			const token = window.__client.getAccessToken();
 			if (token) {
 				window.localStorage.setItem("complement_crypto_access_token",token);
@@ -217,7 +217,7 @@ func (c *JSClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {
 
 func (c *JSClient) DeletePersistentStorage(t ct.TestLike) {
 	t.Helper()
-	chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`
+	chrome.MustRunAsyncFn[chrome.Void](t, c.tab.Ctx, fmt.Sprintf(`
 	window.localStorage.clear();
 	window.sessionStorage.clear();
 	const dbName = "%s";
@@ -246,7 +246,7 @@ func (c *JSClient) DeletePersistentStorage(t ct.TestLike) {
 }
 
 func (c *JSClient) CurrentAccessToken(t ct.TestLike) string {
-	token := chrome.MustRunAsyncFn[string](t, c.browser.Ctx, `
+	token := chrome.MustRunAsyncFn[string](t, c.tab.Ctx, `
 		return window.__client.getAccessToken();`)
 	return *token
 }
@@ -257,7 +257,7 @@ func (c *JSClient) GetNotification(t ct.TestLike, roomID, eventID string) (*api.
 
 func (c *JSClient) bootstrapCrossSigning(t ct.TestLike) {
 	// when MSC3967 is everywhere, we can drop the auth dict
-	chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`
+	chrome.MustRunAsyncFn[chrome.Void](t, c.tab.Ctx, fmt.Sprintf(`
 	await window.__client.getCrypto().bootstrapCrossSigning({
 		authUploadDeviceSigningKeys: async function (makeRequest) {
 			return await makeRequest({
@@ -281,7 +281,7 @@ func (c *JSClient) ensureListeningForVerificationRequests(t ct.TestLike) chan ap
 		c.bootstrapCrossSigning(t)
 		// we need to support multiple transition stages firing at once
 		c.verificationChannel = make(chan api.VerificationStage, 4)
-		chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `
+		chrome.MustRunAsyncFn[chrome.Void](t, c.tab.Ctx, `
 	window.__client.on(CryptoEvent.VerificationRequestReceived, function(request) {
 		console.log("CryptoEvent.VerificationRequestReceived fired: request.initiatedByMe " + request.initiatedByMe);
 		request.on("change", () => {
@@ -373,17 +373,17 @@ func (c *JSClient) ListenForVerificationRequests(t ct.TestLike) chan api.Verific
 				ReceiverDeviceID: c.opts.DeviceID,
 			},
 			SendReady: func() {
-				chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `
+				chrome.MustRunAsyncFn[chrome.Void](t, c.tab.Ctx, `
 						await window.__pendingVerificationByTxnID["`+msg.TxnID+`"].accept();
 					`)
 			},
 			SendStart: func(method string) {
-				chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `
+				chrome.MustRunAsyncFn[chrome.Void](t, c.tab.Ctx, `
 						const verifier = await window.__pendingVerificationByTxnID["`+msg.TxnID+`"].startVerification("`+method+`");
 					`)
 			},
 			SendTransition: func() {
-				chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `
+				chrome.MustRunAsyncFn[chrome.Void](t, c.tab.Ctx, `
 					const request = window.__pendingVerificationByTxnID["`+msg.TxnID+`"];
 					const verifier = request.verifier;
 					verifier.on(VerifierEvent.ShowSas, (sas) => {
@@ -400,18 +400,18 @@ func (c *JSClient) ListenForVerificationRequests(t ct.TestLike) chan api.Verific
 				`)
 			},
 			SendCancel: func() {
-				chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `
+				chrome.MustRunAsyncFn[chrome.Void](t, c.tab.Ctx, `
 						await window.__pendingVerificationByTxnID["`+msg.TxnID+`"].cancel();
 					`)
 			},
 			SendApprove: func() {
-				chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `
+				chrome.MustRunAsyncFn[chrome.Void](t, c.tab.Ctx, `
 						const verifier = window.__pendingVerificationByTxnID["`+msg.TxnID+`"].verifier;
 						await verifier.getShowSasCallbacks().confirm()
 					`)
 			},
 			SendDecline: func() {
-				chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `
+				chrome.MustRunAsyncFn[chrome.Void](t, c.tab.Ctx, `
 					const verifier = window.__pendingVerificationByTxnID["`+msg.TxnID+`"].verifier;
 					await verifier.getShowSasCallbacks().mismatch()
 				`)
@@ -470,7 +470,7 @@ func (c *JSClient) RequestOwnUserVerification(t ct.TestLike) chan api.Verificati
 	// the state accordingly. Because of this, we only need to call requestOwnUserVerification
 	// and do nothing else.
 	ch := c.ListenForVerificationRequests(t)
-	chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, `
+	chrome.MustRunAsyncFn[chrome.Void](t, c.tab.Ctx, `
 	const request = await window.__client.getCrypto().requestOwnUserVerification();
 	`)
 	return ch
@@ -488,7 +488,7 @@ func (c *JSClient) ForceClose(t ct.TestLike) {
 // log messages.
 func (c *JSClient) Close(t ct.TestLike) {
 	t.Helper()
-	c.browser.Cancel()
+	c.tab.Close()
 	c.listenersMu.Lock()
 	c.listeners = make(map[int32]func(ctrlMsg *ControlMessage))
 	c.listenersMu.Unlock()
@@ -503,7 +503,7 @@ func (c *JSClient) Opts() api.ClientCreationOpts {
 }
 
 func (c *JSClient) InviteUser(t ct.TestLike, roomID, userID string) error {
-	_, err := chrome.RunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprint(`
+	_, err := chrome.RunAsyncFn[chrome.Void](t, c.tab.Ctx, fmt.Sprint(`
 		await window.__client.invite("`, roomID, `","`, userID, `");
 	`))
 	return err
@@ -517,7 +517,7 @@ func (c *JSClient) MustGetEvent(t ct.TestLike, roomID, eventID string) api.Event
 	//    decrypted: { event }
 	// }
 	// else just returns { event }
-	evSerialised := chrome.MustRunAsyncFn[string](t, c.browser.Ctx, fmt.Sprintf(`
+	evSerialised := chrome.MustRunAsyncFn[string](t, c.tab.Ctx, fmt.Sprintf(`
 	return JSON.stringify(window.__client.getRoom("%s")?.getLiveTimeline()?.getEvents().filter((ev, i) => {
 		console.log("MustGetEvent["+i+"] => " + ev.getId()+ " " + JSON.stringify(ev.toJSON()));
 		return ev.getId() === "%s";
@@ -560,7 +560,7 @@ func (c *JSClient) MustStartSyncing(t ct.TestLike) (stopSyncing func()) {
 // Tests should call stopSyncing() at the end of the test.
 func (c *JSClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error) {
 	t.Helper()
-	_, err = chrome.RunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`
+	_, err = chrome.RunAsyncFn[chrome.Void](t, c.tab.Ctx, fmt.Sprintf(`
 		var fn;
 		fn = function(state) {
 			if (state !== "SYNCING") {
@@ -580,7 +580,7 @@ func (c *JSClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error) {
 			close(ch)
 		}
 	})
-	chrome.RunAsyncFn[chrome.Void](t, c.browser.Ctx, `await window.__client.startClient({});`)
+	chrome.RunAsyncFn[chrome.Void](t, c.tab.Ctx, `await window.__client.startClient({});`)
 	select {
 	case <-time.After(5 * time.Second):
 		return nil, fmt.Errorf("[%s](js) took >5s to StartSyncing", c.userID)
@@ -592,7 +592,7 @@ func (c *JSClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error) {
 	// See https://github.com/matrix-org/matrix-js-sdk/blob/v29.1.0/src/rust-crypto/rust-crypto.ts#L1483
 	time.Sleep(500 * time.Millisecond)
 	return func() {
-		chrome.RunAsyncFn[chrome.Void](t, c.browser.Ctx, `await window.__client.stopClient();`)
+		chrome.RunAsyncFn[chrome.Void](t, c.tab.Ctx, `await window.__client.stopClient();`)
 	}, nil
 }
 
@@ -601,7 +601,7 @@ func (c *JSClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error) {
 func (c *JSClient) IsRoomEncrypted(t ct.TestLike, roomID string) (bool, error) {
 	t.Helper()
 	isEncrypted, err := chrome.RunAsyncFn[bool](
-		t, c.browser.Ctx, fmt.Sprintf(`return window.__client.isRoomEncrypted("%s")`, roomID),
+		t, c.tab.Ctx, fmt.Sprintf(`return window.__client.isRoomEncrypted("%s")`, roomID),
 	)
 	if err != nil {
 		return false, err
@@ -620,7 +620,7 @@ func (c *JSClient) SendMessage(t ct.TestLike, roomID, text string) (eventID stri
 
 func (c *JSClient) TrySendMessage(t ct.TestLike, roomID, text string) (eventID string, err error) {
 	t.Helper()
-	res, err := chrome.RunAsyncFn[map[string]interface{}](t, c.browser.Ctx, fmt.Sprintf(`
+	res, err := chrome.RunAsyncFn[map[string]interface{}](t, c.tab.Ctx, fmt.Sprintf(`
 	return await window.__client.sendMessage("%s", {
 		"msgtype": "m.text",
 		"body": "%s"
@@ -633,14 +633,14 @@ func (c *JSClient) TrySendMessage(t ct.TestLike, roomID, text string) (eventID s
 
 func (c *JSClient) MustBackpaginate(t ct.TestLike, roomID string, count int) {
 	t.Helper()
-	chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(
+	chrome.MustRunAsyncFn[chrome.Void](t, c.tab.Ctx, fmt.Sprintf(
 		`await window.__client.scrollback(window.__client.getRoom("%s"), %d);`, roomID, count,
 	))
 }
 
 func (c *JSClient) MustBackupKeys(t ct.TestLike) (recoveryKey string) {
 	t.Helper()
-	key := chrome.MustRunAsyncFn[string](t, c.browser.Ctx, `
+	key := chrome.MustRunAsyncFn[string](t, c.tab.Ctx, `
 		// we need to ensure that we have a recovery key first, though we don't actually care about it..?
 		const recoveryKey = await window.__client.getCrypto().createRecoveryKeyFromPassphrase();
 		// now use said key to make backups
@@ -664,7 +664,7 @@ func (c *JSClient) MustLoadBackup(t ct.TestLike, recoveryKey string) {
 }
 
 func (c *JSClient) LoadBackup(t ct.TestLike, recoveryKey string) error {
-	_, err := chrome.RunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`
+	_, err := chrome.RunAsyncFn[chrome.Void](t, c.tab.Ctx, fmt.Sprintf(`
 		// we assume the recovery key is the private key for the default key id so
 		// figure out what that key id is.
 		const keyId = await window.__client.secretStorage.getDefaultKeyId();
@@ -693,8 +693,8 @@ func (c *JSClient) WaitUntilEventInRoom(t ct.TestLike, roomID string, checker fu
 func (c *JSClient) Logf(t ct.TestLike, format string, args ...interface{}) {
 	t.Helper()
 	formatted := fmt.Sprintf(t.Name()+": "+format, args...)
-	if c.browser.Ctx.Err() == nil { // don't log on dead browsers
-		chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`console.log("%s");`, strings.Replace(formatted, `"`, `\"`, -1)))
+	if c.tab.Ctx.Err() == nil { // don't log on dead browsers
+		chrome.MustRunAsyncFn[chrome.Void](t, c.tab.Ctx, fmt.Sprintf(`console.log("%s");`, strings.Replace(formatted, `"`, `\"`, -1)))
 		t.Logf(format, args...)
 	}
 }
@@ -748,7 +748,7 @@ func (w *jsTimelineWaiter) TryWaitf(t ct.TestLike, s time.Duration, format strin
 	defer cancel()
 
 	// check if it already exists by echoing the current timeline. This will call the callback above.
-	chrome.MustRunAsyncFn[chrome.Void](t, w.client.browser.Ctx, fmt.Sprintf(
+	chrome.MustRunAsyncFn[chrome.Void](t, w.client.tab.Ctx, fmt.Sprintf(
 		`window.__client.getRoom("%s")?.getLiveTimeline()?.getEvents().forEach((e)=>{
 			`+EmitControlMessageEventJS("e.getRoomId()", "e.getEffectiveEvent()")+`
 		});`, w.roomID,

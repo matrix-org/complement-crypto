@@ -6,21 +6,12 @@ package chrome
 
 import (
 	"context"
-	"embed"
 	"fmt"
-	"io/fs"
-	"net"
-	"net/http"
-	"strconv"
-	"sync"
 
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
 	"github.com/matrix-org/complement/ct"
 )
-
-//go:embed dist
-var jsSDKDistDirectory embed.FS
 
 // Void is a type which can be used when you want to run an async function without returning anything.
 // It can stop large responses causing errors "Object reference chain is too long (-32000)"
@@ -61,68 +52,30 @@ func MustRunAsyncFn[T any](t ct.TestLike, ctx context.Context, js string) *T {
 	return result
 }
 
-func RunHeadless(onConsoleLog func(s string), requiresPersistance bool, listenPort int) (*Browser, error) {
+func RunHeadless(onConsoleLog func(s string), listenPort int) (*Tab, error) {
+	// make a Chrome browser
 	browser, err := GlobalBrowser()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GlobalBrowser: %s", err)
 	}
 
-	// Listen for console logs for debugging AND to communicate live updates
-	chromedp.ListenTarget(browser.Ctx, func(ev interface{}) {
-		switch ev := ev.(type) {
-		case *runtime.EventConsoleAPICalled:
-			for _, arg := range ev.Args {
-				s, err := strconv.Unquote(string(arg.Value))
-				if err != nil {
-					s = string(arg.Value)
-				}
-				onConsoleLog(s)
-			}
-		}
+	// Host the JS SDK
+	baseJSURL, closeSDKInstance, err := NewJSSDKWebsite(JSSDKInstanceOpts{
+		Port: listenPort,
 	})
-
-	// strip /dist so /index.html loads correctly as does /assets/xxx.js
-	c, err := fs.Sub(jsSDKDistDirectory, "dist")
 	if err != nil {
-		return nil, fmt.Errorf("failed to strip /dist off JS SDK files: %s", err)
+		return nil, fmt.Errorf("failed to create new js sdk instance: %s", err)
 	}
 
-	baseJSURL := ""
-	// run js-sdk (need to run this as a web server to avoid CORS errors you'd otherwise get with file: URLs)
-	var wg sync.WaitGroup
-	wg.Add(1)
-	mux := &http.ServeMux{}
-	mux.Handle("/", http.FileServer(http.FS(c)))
-	srv := &http.Server{
-		Addr:    fmt.Sprintf("127.0.0.1:%d", listenPort),
-		Handler: mux,
-	}
-	startServer := func() {
-		ln, err := net.Listen("tcp", srv.Addr)
-		if err != nil {
-			panic(err)
-		}
-		baseJSURL = "http://" + ln.Addr().String()
-		fmt.Println("JS SDK listening on", baseJSURL)
-		wg.Done()
-		srv.Serve(ln)
-		fmt.Println("JS SDK closing webserver")
-	}
-	go startServer()
-	wg.Wait()
-
-	// navigate to the page
-	err = chromedp.Run(browser.Ctx,
-		chromedp.Navigate(baseJSURL),
-	)
+	// Make a tab
+	tab, err := browser.NewTab(baseJSURL, onConsoleLog)
 	if err != nil {
-		return nil, fmt.Errorf("failed to navigate to %s: %s", baseJSURL, err)
+		closeSDKInstance()
+		return nil, fmt.Errorf("failed to create new tab: %s", err)
 	}
 
-	browser.BaseURL = baseJSURL
-	browser.Cancel = func() {
-		browser.Close()
-		srv.Close()
-	}
-	return browser, nil
+	// when we close the tab, close the hosted files too
+	tab.SetCloseServer(closeSDKInstance)
+
+	return tab, nil
 }
