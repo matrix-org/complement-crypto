@@ -52,7 +52,8 @@ func MustRunAsyncFn[T any](t ct.TestLike, ctx context.Context, js string) *T {
 	return result
 }
 
-func RunHeadless(onConsoleLog func(s string), listenPort int) (*Tab, error) {
+// Run a headless JS SDK instance for the given user/device ID.
+func RunHeadless(userID, deviceID string, onConsoleLog func(s string)) (*Tab, error) {
 	// make a Chrome browser
 	browser, err := GlobalBrowser()
 	if err != nil {
@@ -60,9 +61,12 @@ func RunHeadless(onConsoleLog func(s string), listenPort int) (*Tab, error) {
 	}
 
 	// Host the JS SDK
-	baseJSURL, closeSDKInstance, err := NewJSSDKWebsite(JSSDKInstanceOpts{
-		Port: listenPort,
-	})
+	baseURL := origins.GetBaseURL(userID, deviceID)
+	opts, err := NewJSSDKInstanceOptsFromURL(baseURL, userID, deviceID)
+	if err != nil {
+		return nil, fmt.Errorf("NewJSSDKInstanceOptsFromURL: %v", err)
+	}
+	baseJSURL, closeSDKInstance, err := NewJSSDKWebsite(opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new js sdk instance: %s", err)
 	}
@@ -73,6 +77,8 @@ func RunHeadless(onConsoleLog func(s string), listenPort int) (*Tab, error) {
 		closeSDKInstance()
 		return nil, fmt.Errorf("failed to create new tab: %s", err)
 	}
+	// we will have a random high numbered port now, so remember it.
+	origins.StoreBaseURL(userID, deviceID, baseJSURL)
 
 	// when we close the tab, close the hosted files too
 	tab.SetCloseServer(closeSDKInstance)

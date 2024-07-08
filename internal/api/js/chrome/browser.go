@@ -19,6 +19,7 @@ import (
 var (
 	browserInstance   *Browser
 	browserInstanceMu = &sync.Mutex{}
+	origins           *Origins
 )
 
 // GlobalBrowser returns the browser singleton, making it if needed.
@@ -28,6 +29,7 @@ func GlobalBrowser() (*Browser, error) {
 	if browserInstance == nil {
 		var err error
 		browserInstance, err = NewBrowser()
+		origins = NewOrigins()
 		return browserInstance, err
 	}
 	return browserInstance, nil
@@ -105,4 +107,30 @@ func (b *Browser) NewTab(baseJSURL string, onConsoleLog func(s string)) (*Tab, e
 		browser: b,
 		cancel:  closeTab,
 	}, nil
+}
+
+// For clients which want persistent storage, we need to ensure when the browser
+// starts up a 2nd+ time we serve the same URL so the browser uses the same origin
+type Origins struct {
+	clientToBaseURL map[string]string
+	mu              *sync.RWMutex
+}
+
+func NewOrigins() *Origins {
+	return &Origins{
+		clientToBaseURL: make(map[string]string),
+		mu:              &sync.RWMutex{},
+	}
+}
+
+func (o *Origins) StoreBaseURL(userID, deviceID, baseURL string) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	o.clientToBaseURL[userID+deviceID] = baseURL
+}
+
+func (o *Origins) GetBaseURL(userID, deviceID string) (baseURL string) {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+	return o.clientToBaseURL[userID+deviceID]
 }

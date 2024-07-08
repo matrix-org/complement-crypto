@@ -3,9 +3,7 @@ package js
 import (
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -22,10 +20,6 @@ const (
 	indexedDBName       = "complement-crypto"
 	indexedDBCryptoName = "complement-crypto:crypto"
 )
-
-// For clients which want persistent storage, we need to ensure when the browser
-// starts up a 2nd+ time we serve the same URL so the browser uses the same origin
-var userDeviceToPort = map[string]int{}
 
 var logFile *os.File
 
@@ -69,8 +63,7 @@ func NewJSClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, error)
 		opts:                  opts,
 		verificationChannelMu: &sync.Mutex{},
 	}
-	portKey := opts.UserID + opts.DeviceID
-	tab, err := chrome.RunHeadless(func(s string) {
+	tab, err := chrome.RunHeadless(opts.UserID, opts.DeviceID, func(s string) {
 		writeToLog("[%s,%s] console.log %s\n", opts.UserID, opts.DeviceID, s)
 
 		msg := unpackControlMessage(t, s)
@@ -86,7 +79,7 @@ func NewJSClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, error)
 		for _, l := range listeners {
 			l(msg)
 		}
-	}, userDeviceToPort[portKey])
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to RunHeadless: %s", err)
 	}
@@ -117,15 +110,6 @@ func NewJSClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, error)
 		await window.__store.startup();
 		`, indexedDBName))
 		store = "window.__store"
-		//cryptoStore = fmt.Sprintf(`new IndexedDBCryptoStore(indexedDB, "%s")`, indexedDBCryptoName)
-		// remember the port for same-origin to remember the store
-		u, _ := url.Parse(tab.BaseURL)
-		portStr := u.Port()
-		port, err := strconv.Atoi(portStr)
-		if portStr == "" || err != nil {
-			ct.Fatalf(t, "failed to extract port from base url %s", tab.BaseURL)
-		}
-		userDeviceToPort[portKey] = port
 		t.Logf("user=%s device=%s will be served from %s due to persistent storage", opts.UserID, opts.DeviceID, tab.BaseURL)
 	}
 
