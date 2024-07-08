@@ -11,11 +11,8 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strconv"
 	"sync"
-	"time"
 
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
@@ -64,39 +61,14 @@ func MustRunAsyncFn[T any](t ct.TestLike, ctx context.Context, js string) *T {
 	return result
 }
 
-type Browser struct {
-	BaseURL string
-	Ctx     context.Context
-	Cancel  func()
-}
-
 func RunHeadless(onConsoleLog func(s string), requiresPersistance bool, listenPort int) (*Browser, error) {
-	ansiRedForeground := "\x1b[31m"
-	ansiResetForeground := "\x1b[39m"
-
-	colorifyError := func(format string, args ...any) {
-		format = ansiRedForeground + time.Now().Format(time.RFC3339) + " " + format + ansiResetForeground
-		fmt.Printf(format, args...)
+	browser, err := GlobalBrowser()
+	if err != nil {
+		return nil, err
 	}
-	opts := chromedp.DefaultExecAllocatorOptions[:]
-	if requiresPersistance {
-		os.Mkdir("chromedp", os.ModePerm) // ignore errors to allow repeated runs
-		wd, _ := os.Getwd()
-		userDir := filepath.Join(wd, "chromedp")
-		opts = append(opts,
-			chromedp.UserDataDir(userDir),
-		)
-	}
-	// increase the WS timeout from 20s (default) to 30s as we see timeouts with 20s in CI
-	opts = append(opts, chromedp.WSURLReadTimeout(30*time.Second))
-
-	allocCtx, allocCancel := chromedp.NewExecAllocator(context.Background(), opts...)
-	ctx, cancel := chromedp.NewContext(allocCtx, chromedp.WithBrowserOption(
-		chromedp.WithBrowserLogf(colorifyError), chromedp.WithBrowserErrorf(colorifyError), //chromedp.WithBrowserDebugf(log.Printf),
-	))
 
 	// Listen for console logs for debugging AND to communicate live updates
-	chromedp.ListenTarget(ctx, func(ev interface{}) {
+	chromedp.ListenTarget(browser.Ctx, func(ev interface{}) {
 		switch ev := ev.(type) {
 		case *runtime.EventConsoleAPICalled:
 			for _, arg := range ev.Args {
@@ -140,20 +112,17 @@ func RunHeadless(onConsoleLog func(s string), requiresPersistance bool, listenPo
 	wg.Wait()
 
 	// navigate to the page
-	err = chromedp.Run(ctx,
+	err = chromedp.Run(browser.Ctx,
 		chromedp.Navigate(baseJSURL),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to navigate to %s: %s", baseJSURL, err)
 	}
 
-	return &Browser{
-		Ctx: ctx,
-		Cancel: func() {
-			cancel()
-			allocCancel()
-			srv.Close()
-		},
-		BaseURL: baseJSURL,
-	}, nil
+	browser.BaseURL = baseJSURL
+	browser.Cancel = func() {
+		browser.Close()
+		srv.Close()
+	}
+	return browser, nil
 }
