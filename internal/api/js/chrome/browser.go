@@ -87,7 +87,7 @@ func (b *Browser) NewTab(baseJSURL string, onConsoleLog func(s string)) (*Tab, e
 		return nil, fmt.Errorf("NewTab: failed to navigate to %s: %s", baseJSURL, err)
 	}
 
-	// Listen for console logs for debugging AND to communicate live updates
+	// Listen for console logs for debugging, and to communicate live updates
 	chromedp.ListenTarget(tabCtx, func(ev interface{}) {
 		switch ev := ev.(type) {
 		case *runtime.EventConsoleAPICalled:
