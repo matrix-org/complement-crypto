@@ -54,7 +54,7 @@ func MustRunAsyncFn[T any](t ct.TestLike, ctx context.Context, js string) *T {
 
 // Run a headless JS SDK instance for the given user/device ID.
 func RunHeadless(userID, deviceID string, onConsoleLog func(s string)) (*Tab, error) {
-	// make a Chrome browser
+	// Make, or acquire, a Chrome browser
 	browser, err := GlobalBrowser()
 	if err != nil {
 		return nil, fmt.Errorf("GlobalBrowser: %s", err)
