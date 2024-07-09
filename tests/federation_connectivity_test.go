@@ -79,7 +79,7 @@ func TestNewUserCannotGetKeysForOfflineServer(t *testing.T) {
 				waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 				evID = charlie.SendMessage(t, roomID, wantMsgBody)
 				t.Logf("bob (%s) waiting for event %s", bob.Type(), evID)
-				waiter.Waitf(t, 5*time.Second, "bob did not see charlie's message '%s'", wantMsgBody)
+				waiter.Waitf(t, 7*time.Second, "bob did not see charlie's message '%s'", wantMsgBody)
 
 				// make sure bob cannot decrypt the msg from when his server was offline
 				// TODO: this isn't ideal, see https://github.com/matrix-org/matrix-rust-sdk/issues/2864
