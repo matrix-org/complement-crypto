@@ -77,6 +77,19 @@ func (b *Browser) Close() {
 	b.ctxCancel()
 	b.execAllocCancel()
 }
+func (b *Browser) Info() {
+	targets, err := chromedp.Targets(b.Ctx)
+	if err != nil {
+		fmt.Println("DEBUG: failed to get targets: ", err)
+		return
+	}
+	fmt.Printf("DEBUG: got %d targets\n", len(targets))
+	var urls []string
+	for _, t := range targets {
+		urls = append(urls, t.URL)
+	}
+	fmt.Println(urls)
+}
 
 func (b *Browser) NewTab(baseJSURL string, onConsoleLog func(s string)) (*Tab, error) {
 	tabCtx, closeTab := chromedp.NewContext(b.Ctx)
@@ -104,7 +117,7 @@ func (b *Browser) NewTab(baseJSURL string, onConsoleLog func(s string)) (*Tab, e
 	return &Tab{
 		BaseURL: baseJSURL,
 		Ctx:     tabCtx,
-		browser: b,
+		Browser: b,
 		cancel:  closeTab,
 	}, nil
 }

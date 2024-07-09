@@ -99,7 +99,7 @@ func NewJSSDKWebsite(opts *JSSDKInstanceOpts) (baseURL string, close func(), err
 type Tab struct {
 	BaseURL     string
 	Ctx         context.Context // tab context
-	browser     *Browser        // a ref to the browser which made this tab
+	Browser     *Browser        // a ref to the browser which made this tab
 	closeServer func()
 	cancel      func() // closes the tab
 }
