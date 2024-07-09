@@ -71,26 +71,21 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, erro
 		clientSessionDelegate = NewMemoryClientSessionDelegate()
 		ab = ab.EnableCrossProcessRefreshLock(opts.EnableCrossProcessRefreshLockProcessName, clientSessionDelegate)
 	}
-	var username string
-	if opts.PersistentStorage {
-		// @alice:hs1, FOOBAR => alice_hs1_FOOBAR
-		username = strings.Replace(opts.UserID[1:], ":", "_", -1) + "_" + opts.DeviceID
-		ab = ab.SessionPath("rust_storage/" + username).Username(username)
-	}
+	// @alice:hs1, FOOBAR => alice_hs1_FOOBAR
+	username := strings.Replace(opts.UserID[1:], ":", "_", -1) + "_" + opts.DeviceID
+	ab = ab.SessionPath("rust_storage/" + username).Username(username)
 	client, err := ab.Build()
 	if err != nil {
 		return nil, fmt.Errorf("ClientBuilder.Build failed: %s", err)
 	}
 	c := &RustClient{
-		userID:        opts.UserID,
-		FFIClient:     client,
-		roomsListener: NewRoomsListener(),
-		rooms:         make(map[string]*RustRoomInfo),
-		roomsMu:       &sync.RWMutex{},
-		opts:          opts,
-	}
-	if opts.PersistentStorage {
-		c.persistentStoragePath = "./rust_storage/" + username
+		userID:                opts.UserID,
+		FFIClient:             client,
+		roomsListener:         NewRoomsListener(),
+		rooms:                 make(map[string]*RustRoomInfo),
+		roomsMu:               &sync.RWMutex{},
+		opts:                  opts,
+		persistentStoragePath: "./rust_storage/" + username,
 	}
 	if opts.AccessToken != "" { // restore the session
 		session := matrix_sdk_ffi.Session{

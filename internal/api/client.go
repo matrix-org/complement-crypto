@@ -226,12 +226,14 @@ type ClientCreationOpts struct {
 	// Required. The password for this account.
 	Password string
 
-	// Optional. If true, persistent storage will be used for the same user|device ID.
-	PersistentStorage bool
 	// Required for rust clients. The URL of the sliding sync proxy.
 	SlidingSyncURL string
 	// Optional. Set this to login with this device ID.
 	DeviceID string
+
+	// A hint to the client implementation that persistent storage is required. Clients may ignore
+	// this flag and always use persistence.
+	PersistentStorage bool
 
 	// Rust only. If set, enables the cross process refresh lock on the FFI client with the process name provided.
 	EnableCrossProcessRefreshLockProcessName string
