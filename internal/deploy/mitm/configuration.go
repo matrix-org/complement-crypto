@@ -79,8 +79,8 @@ func (p FilterParams) FilterString() string {
 	return s.String()
 }
 
-// ConfigOpts specifies the desired configuration for mitmproxy
-type ConfigOpts struct {
+// InterceptOpts specifies the desired configuration for mitmproxy
+type InterceptOpts struct {
 	// Which HTTP requests/responses should be caught for this configuration.
 	// Any HTTP request/response which does not meet this filter criteria will
 	// be passed through without invoking the callback function. If no Filter
@@ -104,10 +104,10 @@ type ConfigOpts struct {
 	ResponseCallback callback.Fn
 }
 
-// Apply the given configuration to mitmproxy, and call the `inner` function whilst
-// that configuration has been applied. mitmproxy will revert back to its default
-// configuration when `inner` returns.
-func (c *Configuration) Apply(opts ConfigOpts, inner func()) {
+// WithIntercept provides the intercept options to mitmproxy, and calls the
+// `inner` function whilst that configuration has been applied. mitmproxy will
+// revert back to its default configuration when `inner` returns.
+func (c *Configuration) WithIntercept(opts InterceptOpts, inner func()) {
 	// run a callback server
 	cbServer, err := callback.NewCallbackServer(c.t, c.client.hostnameRunningComplement)
 	must.NotError(c.t, "failed to start callback server", err)

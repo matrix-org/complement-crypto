@@ -40,7 +40,7 @@ func TestDelayedInviteResponse(t *testing.T) {
 
 			config := tc.Deployment.MITM().Configure(t)
 			serverHasInvite := helpers.NewWaiter()
-			config.Apply(mitm.ConfigOpts{
+			config.WithIntercept(mitm.InterceptOpts{
 				Filter: mitm.FilterParams{
 					PathContains: "/sync",
 					AccessToken:  alice.CurrentAccessToken(t),
