@@ -159,3 +159,163 @@ func NewCallbackServer(t ct.TestLike, hostnameRunningComplement string) (*Callba
 
 	return callbackServer, nil
 }
+
+// SendError returns a callback.Fn which returns the provided statusCode
+// along with a JSON error $count times, after which it lets the response
+// pass through. This is useful for testing retries.
+func SendError(count uint32, statusCode int) Fn {
+	var seen atomic.Uint32
+	return func(d Data) *Response {
+		next := seen.Add(1)
+		if next > count {
+			return nil
+		}
+		return &Response{
+			RespondStatusCode: statusCode,
+			RespondBody:       json.RawMessage(`{"error":"callback.SendError"}`),
+		}
+	}
+}
+
+// TODO: helpers for "wait for this conditional to pass then execute this code whilst blocking"
+//  - for tarpitting
+//  - for sigkilling
+
+type PassiveChannel struct {
+	recvCh  chan *Data
+	timeout time.Duration
+	closed  *atomic.Bool
+}
+
+func (c *PassiveChannel) Close() {
+	if c.closed.CompareAndSwap(false, true) {
+		close(c.recvCh)
+	}
+}
+
+// Callback returns the callback implementation used to send data to this channel.
+func (c *PassiveChannel) Callback() Fn {
+	return func(d Data) *Response {
+		if c.closed.Load() {
+			return nil // test has ended, don't send on a closed channel else we panic
+		}
+		c.recvCh <- &d
+		return nil // don't modify the response
+	}
+}
+
+// Block until this channel receives a callback.
+func (c *PassiveChannel) Recv(t ct.TestLike, msg string, args ...any) *Data {
+	t.Helper()
+	select {
+	case d := <-c.recvCh:
+		return d
+	case <-time.After(c.timeout):
+		ct.Fatalf(t, msg, args...)
+	}
+	panic("unreachable")
+}
+
+// Try to receive from the channel. Does not block. Returns nil if there is nothing
+// waiting in the channel. Useful for detecting absence of a callback.
+func (c *PassiveChannel) TryRecv(t ct.TestLike) *Data {
+	t.Helper()
+	select {
+	case d := <-c.recvCh:
+		return d
+	default:
+		return nil
+	}
+}
+
+// Chan returns a consume-only channel.
+//
+// This exists as an escape hatch for when Recv/TryRecv are insufficient, and
+// this channel needs to be used as part of a larger `select` block.
+func (c *PassiveChannel) Chan() <-chan *Data {
+	return c.recvCh
+}
+
+type ActiveChannel struct {
+	*PassiveChannel
+	sendCh chan *Response
+}
+
+func (c *ActiveChannel) Close() {
+	if c.PassiveChannel.closed.CompareAndSwap(false, true) {
+		close(c.recvCh)
+		close(c.sendCh)
+	}
+}
+
+// Callback returns the callback implementation used to send data to this channel.
+func (c *ActiveChannel) Callback() Fn {
+	return func(d Data) *Response {
+		if c.closed.Load() {
+			fmt.Println("DEBUG: AC closed")
+			return nil // test has ended, don't send on a closed channel else we panic
+		}
+		fmt.Println("DEBUG: AC sending on recv")
+		c.recvCh <- &d
+		fmt.Println("DEBUG: AC waiting for send")
+		defer func() {
+			fmt.Println("DEBUG: AC got send")
+		}()
+		// wait for the response from the test
+		return <-c.sendCh
+	}
+}
+
+// Send a callback response to this channel.
+// Fails the test if the response cannot be put
+// into the channel for $timeout time.
+func (c *ActiveChannel) Send(t ct.TestLike, res *Response) {
+	t.Helper()
+	select {
+	case c.sendCh <- res:
+		return
+	case <-time.After(c.timeout):
+		ct.Fatalf(t, "Channel.Send timed out sending the response")
+	}
+}
+
+// NewPassiveChannel returns a channel which can receive callback responses,
+// but cannot modify them. This is useful for sniffing network traffic. The
+// timeout controls how long Recv() can wait until there is callback data before
+// failing. If blocking is true, callbacks will not return until Recv() is called.
+// This can be useful for synchronising actions when a callback is invoked.
+//
+// Channels are useful when tests want to manipulate callbacks from within an `inner`
+// function.
+func NewPassiveChannel(timeout time.Duration, blocking bool) *PassiveChannel {
+	// passive channels can be non-blocking as there is nothing to pair up,
+	// so let there be at most 10 callbacks in-flight at any one time.
+	// If this is too low then concurrent callbacks will block each other.
+	// If this is too high then we consume needless amounts of memory.
+	buffer := 10
+	if blocking {
+		buffer = 0
+	}
+	return &PassiveChannel{
+		timeout: timeout,
+		recvCh:  make(chan *Data, buffer),
+		closed:  &atomic.Bool{},
+	}
+}
+
+// NewActiveChannel returns a channel which can receive and modify callback responses. The
+// timeout controls how long Recv() and Send() can wait until there is callback data before
+// failing.
+//
+// Channels are useful when tests want to manipulate callbacks from within an `inner`
+// function.
+func NewActiveChannel(timeout time.Duration) *ActiveChannel {
+	// An active channel is a passive channel with bits on top
+	passive := NewPassiveChannel(timeout, true)
+	return &ActiveChannel{
+		PassiveChannel: passive,
+		// active channels need to be blocking to pair up requests/responses,
+		// so set the buffer size to 0 (blocking).
+		sendCh: make(chan *Response),
+	}
+}

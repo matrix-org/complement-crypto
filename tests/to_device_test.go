@@ -9,6 +9,7 @@ import (
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/cc"
 	"github.com/matrix-org/complement-crypto/internal/deploy/callback"
+	"github.com/matrix-org/complement-crypto/internal/deploy/mitm"
 	"github.com/matrix-org/complement/helpers"
 	"github.com/matrix-org/complement/must"
 	"github.com/tidwall/gjson"
@@ -116,7 +117,7 @@ func TestUnprocessedToDeviceMessagesArentLostOnRestart(t *testing.T) {
 			case api.ClientTypeRust:
 				testUnprocessedToDeviceMessagesArentLostOnRestartRust(t, tc, bobOpts, roomID, eventID)
 			case api.ClientTypeJS:
-				testUnprocessedToDeviceMessagesArentLostOnRestartJS(t, tc, bobOpts, roomID, eventID)
+				testUnprocessedToDeviceMessagesArentLostOnRestartJS(t, tc, roomID, eventID)
 			default:
 				t.Fatalf("unknown lang: %s", clientType.Lang)
 			}
@@ -183,47 +184,51 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartRust(t *testing.T, tc *cc.
 	})
 }
 
-func testUnprocessedToDeviceMessagesArentLostOnRestartJS(t *testing.T, tc *cc.TestContext, bobOpts api.ClientCreationOpts, roomID, eventID string) {
+func testUnprocessedToDeviceMessagesArentLostOnRestartJS(t *testing.T, tc *cc.TestContext, roomID, eventID string) {
 	// sniff /sync traffic
-	waitForRoomKey := helpers.NewWaiter()
-	mitmConfiguration := tc.Deployment.MITM().Configure(t)
-	mitmConfiguration.ForPath("/sync").Listen(func(cd callback.Data) *callback.Response {
-		// When /sync shows a to-device message from Alice (indicating the room key) then SIGKILL Bob.
-		body := gjson.ParseBytes(cd.ResponseBody)
-		toDeviceEvents := body.Get("to_device.events").Array() // Sync v2 form
-		if len(toDeviceEvents) > 0 {
-			for _, ev := range toDeviceEvents {
-				if ev.Get("type").Str == "m.room.encrypted" {
-					t.Logf("detected potential room key")
-					waitForRoomKey.Finish()
-				}
-			}
-		}
-		return nil
-	})
-	mitmConfiguration.Execute(func() {
+	activeChannel := callback.NewActiveChannel(5 * time.Second)
+	defer activeChannel.Close()
+	tc.Deployment.MITM().Configure(t).WithIntercept(mitm.InterceptOpts{
+		Filter: mitm.FilterParams{
+			PathContains: "/sync",
+			Method:       "GET",
+		},
+		ResponseCallback: activeChannel.Callback(),
+	}, func() {
 		bob := tc.MustLoginClient(t, &cc.ClientCreationRequest{
 			User: tc.Bob,
 			Opts: api.ClientCreationOpts{
 				PersistentStorage: true,
 			},
 		}) // no need to login as we have an account in storage already
-		// this is time-sensitive: start waiting for waitForRoomKey BEFORE we call MustStartSyncing
-		// which itself needs to be in a separate goroutine.
-		browserIsClosed := helpers.NewWaiter()
-		go func() {
-			waitForRoomKey.Wait(t, 10*time.Second)
-			t.Logf("killing bob as room key event received")
-			bob.Close(t) // close the browser
-			browserIsClosed.Finish()
-		}()
-		time.Sleep(100 * time.Millisecond)
+
 		go func() { // in a goroutine so we don't need this to return before closing the browser
 			t.Logf("bob starting to sync, expecting to be killed..")
 			bob.StartSyncing(t)
 		}()
-
-		browserIsClosed.Wait(t, 10*time.Second)
+	ReceiveCallbacks:
+		for {
+			// wait for a /sync response
+			cd := activeChannel.Recv(t, "did not see /sync response")
+			// at this point we have a /sync response and are stopping the response from
+			// being sent to the client until we call .Send
+			body := gjson.ParseBytes(cd.ResponseBody)
+			toDeviceEvents := body.Get("to_device.events").Array() // Sync v2 form
+			if len(toDeviceEvents) > 0 {
+				for _, ev := range toDeviceEvents {
+					// When /sync shows a to-device message from Alice (indicating the room key) then SIGKILL Bob.
+					if ev.Get("type").Str == "m.room.encrypted" {
+						t.Logf("killing bob as room key event received")
+						bob.Close(t) // close the browser
+						// unblock the /sync response and stop listening for callbacks
+						activeChannel.Send(t, nil)
+						break ReceiveCallbacks
+					}
+				}
+			}
+		}
+		// don't block /sync responses now.
+		activeChannel.Close()
 
 		// Ensure Bob can decrypt new messages sent from Alice.
 		tc.WithClientSyncing(t, &cc.ClientCreationRequest{
