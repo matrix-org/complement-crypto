@@ -9,14 +9,14 @@ import (
 
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/cc"
-	"github.com/matrix-org/complement-crypto/internal/deploy"
 	"github.com/matrix-org/complement-crypto/internal/deploy/callback"
+	"github.com/matrix-org/complement-crypto/internal/deploy/mitm"
 	"github.com/matrix-org/complement/client"
 	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/complement/must"
 )
 
-func sniffToDeviceEvent(t *testing.T, tc *cc.TestContext, ch chan callback.CallbackData) *deploy.MITMConfiguration {
+func sniffToDeviceEvent(t *testing.T, tc *cc.TestContext, ch chan callback.CallbackData) *mitm.MITMConfiguration {
 	mitmConfiguration := tc.Deployment.MITM().Configure(t)
 	mitmConfiguration.ForPath("/sendToDevice").Method("PUT").Listen(func(cd callback.CallbackData) *callback.CallbackResponse {
 		if strings.Contains(cd.URL, "m.room.encrypted") {
