@@ -252,15 +252,9 @@ func (c *ActiveChannel) Close() {
 func (c *ActiveChannel) Callback() Fn {
 	return func(d Data) *Response {
 		if c.closed.Load() {
-			fmt.Println("DEBUG: AC closed")
 			return nil // test has ended, don't send on a closed channel else we panic
 		}
-		fmt.Println("DEBUG: AC sending on recv")
 		c.recvCh <- &d
-		fmt.Println("DEBUG: AC waiting for send")
-		defer func() {
-			fmt.Println("DEBUG: AC got send")
-		}()
 		// wait for the response from the test
 		return <-c.sendCh
 	}

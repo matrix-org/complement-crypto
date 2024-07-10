@@ -25,6 +25,7 @@ func sniffToDeviceEvent(t *testing.T, tc *cc.TestContext, inner func(pc *callbac
 		},
 		ResponseCallback: func(cd callback.Data) *callback.Response {
 			// only invoke the callback for encrypted to-device events
+			// we can't decrypt this, but we know that this should most likely be the m.room_key to-device event.
 			if strings.Contains(cd.URL, "m.room.encrypted") {
 				return passiveChannel.Callback()(cd)
 			}
