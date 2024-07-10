@@ -9,7 +9,7 @@ import (
 
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/cc"
-	"github.com/matrix-org/complement-crypto/internal/deploy"
+	"github.com/matrix-org/complement-crypto/internal/deploy/callback"
 	"github.com/matrix-org/complement/must"
 )
 
@@ -568,7 +568,7 @@ func TestMultiprocessDupeOTKUpload(t *testing.T) {
 	// at once. If the NSE and main apps are talking to each other, they should be using the same key ID + key.
 	// If not... well, that's a bug because then the client will forget one of these keys.
 	mitmConfiguration := tc.Deployment.MITM().Configure(t)
-	mitmConfiguration.ForPath("/keys/upload").Listen(func(cd deploy.CallbackData) *deploy.CallbackResponse {
+	mitmConfiguration.ForPath("/keys/upload").Listen(func(cd callback.CallbackData) *callback.CallbackResponse {
 		if cd.AccessToken != aliceAccessToken {
 			return nil // let bob upload OTKs
 		}

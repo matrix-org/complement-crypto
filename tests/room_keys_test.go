@@ -10,14 +10,15 @@ import (
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/cc"
 	"github.com/matrix-org/complement-crypto/internal/deploy"
+	"github.com/matrix-org/complement-crypto/internal/deploy/callback"
 	"github.com/matrix-org/complement/client"
 	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/complement/must"
 )
 
-func sniffToDeviceEvent(t *testing.T, tc *cc.TestContext, ch chan deploy.CallbackData) *deploy.MITMConfiguration {
+func sniffToDeviceEvent(t *testing.T, tc *cc.TestContext, ch chan callback.CallbackData) *deploy.MITMConfiguration {
 	mitmConfiguration := tc.Deployment.MITM().Configure(t)
-	mitmConfiguration.ForPath("/sendToDevice").Method("PUT").Listen(func(cd deploy.CallbackData) *deploy.CallbackResponse {
+	mitmConfiguration.ForPath("/sendToDevice").Method("PUT").Listen(func(cd callback.CallbackData) *callback.CallbackResponse {
 		if strings.Contains(cd.URL, "m.room.encrypted") {
 			// we can't decrypt this, but we know that this should most likely be the m.room_key to-device event.
 			ch <- cd
@@ -59,7 +60,7 @@ func TestRoomKeyIsCycledOnDeviceLogout(t *testing.T) {
 			waiter2.Waitf(t, 5*time.Second, "alice2 did not see alice's message")
 
 			// we're going to sniff calls to /sendToDevice to ensure we see the new room key being sent.
-			ch := make(chan deploy.CallbackData, 10)
+			ch := make(chan callback.CallbackData, 10)
 			mitmConfiguration := sniffToDeviceEvent(t, tc, ch)
 
 			alice2StopSyncing()
@@ -126,7 +127,7 @@ func TestRoomKeyIsCycledAfterEnoughMessages(t *testing.T) {
 			}
 
 			// Sniff calls to /sendToDevice to ensure we see the new room key being sent.
-			ch := make(chan deploy.CallbackData, 10)
+			ch := make(chan callback.CallbackData, 10)
 			mitmConfiguration := sniffToDeviceEvent(t, tc, ch)
 			mitmConfiguration.Execute(func() {
 				// When we send two messages (one to hit the threshold and one to pass it)
@@ -206,7 +207,7 @@ func TestRoomKeyIsCycledAfterEnoughTime(t *testing.T) {
 			waiter.Waitf(t, 5*time.Second, "Did not see 'before we start' event in the room")
 
 			// Sniff calls to /sendToDevice to ensure we see the new room key being sent.
-			ch := make(chan deploy.CallbackData, 10)
+			ch := make(chan callback.CallbackData, 10)
 			mitmConfiguration := sniffToDeviceEvent(t, tc, ch)
 			mitmConfiguration.Execute(func() {
 				// Send a message to ensure the room is working, and any timer is set up
@@ -261,7 +262,7 @@ func TestRoomKeyIsCycledOnMemberLeaving(t *testing.T) {
 			waiter2.Waitf(t, 5*time.Second, "charlie did not see alice's message")
 
 			// we're going to sniff calls to /sendToDevice to ensure we see the new room key being sent.
-			ch := make(chan deploy.CallbackData, 10)
+			ch := make(chan callback.CallbackData, 10)
 			mitmConfiguration := sniffToDeviceEvent(t, tc, ch)
 
 			// we don't know when the new room key will be sent, it could be sent as soon as the device list update
@@ -313,7 +314,7 @@ func TestRoomKeyIsNotCycled(t *testing.T) {
 			waiter.Waitf(t, 5*time.Second, "bob did not see alice's message")
 
 			// we're going to sniff calls to /sendToDevice to ensure we see the new room key being sent.
-			ch := make(chan deploy.CallbackData, 10)
+			ch := make(chan callback.CallbackData, 10)
 			mitmConfiguration := sniffToDeviceEvent(t, tc, ch)
 
 			t.Run("on display name change", func(t *testing.T) {
@@ -462,7 +463,7 @@ func testRoomKeyIsNotCycledOnClientRestartRust(t *testing.T, clientType api.Clie
 		// Now recreate the same client and make sure we don't send new room keys.
 
 		// we're going to sniff calls to /sendToDevice to ensure we do NOT see a new room key being sent.
-		ch := make(chan deploy.CallbackData, 10)
+		ch := make(chan callback.CallbackData, 10)
 		mitmConfiguration := sniffToDeviceEvent(t, tc, ch)
 		mitmConfiguration.Execute(func() {
 			// login as alice
@@ -525,7 +526,7 @@ func testRoomKeyIsNotCycledOnClientRestartJS(t *testing.T, clientType api.Client
 		waiter.Waitf(t, 5*time.Second, "bob did not see alice's message")
 
 		// we're going to sniff calls to /sendToDevice to ensure we do NOT see a new room key being sent.
-		ch := make(chan deploy.CallbackData, 10)
+		ch := make(chan callback.CallbackData, 10)
 		mitmConfiguration := sniffToDeviceEvent(t, tc, ch)
 		mitmConfiguration.Execute(func() {
 			// now alice is going to restart her client

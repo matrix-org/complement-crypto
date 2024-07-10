@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
-	"github.com/matrix-org/complement-crypto/internal/deploy"
+	"github.com/matrix-org/complement-crypto/internal/deploy/callback"
 	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/complement/helpers"
 	"github.com/matrix-org/complement/must"
@@ -39,7 +39,7 @@ func TestDelayedInviteResponse(t *testing.T) {
 
 			config := tc.Deployment.MITM().Configure(t)
 			serverHasInvite := helpers.NewWaiter()
-			config.ForPath("/sync").AccessToken(alice.CurrentAccessToken(t)).Listen(func(cd deploy.CallbackData) *deploy.CallbackResponse {
+			config.ForPath("/sync").AccessToken(alice.CurrentAccessToken(t)).Listen(func(cd callback.CallbackData) *callback.CallbackResponse {
 				if strings.Contains(
 					strings.ReplaceAll(string(cd.ResponseBody), " ", ""),
 					`"membership":"invite"`,

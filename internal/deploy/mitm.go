@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/matrix-org/complement-crypto/internal/deploy/callback"
 	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/complement/must"
 )
@@ -123,7 +124,7 @@ func (c *MITMConfiguration) Execute(inner func()) {
 		if pathConfig.filter() != "" {
 			callbackAddon["filter"] = pathConfig.filter()
 		}
-		cbServer, err := NewCallbackServer(c.t, c.client.hostnameRunningComplement)
+		cbServer, err := callback.NewCallbackServer(c.t, c.client.hostnameRunningComplement)
 		must.NotError(c.t, "failed to start callback server", err)
 		defer cbServer.Close()
 
@@ -135,13 +136,13 @@ func (c *MITMConfiguration) Execute(inner func()) {
 			// reimplement statuscode plugin logic in Go
 			// TODO: refactor this
 			var count atomic.Uint32
-			requestCallbackURL := cbServer.SetOnRequestCallback(c.t, func(cd CallbackData) *CallbackResponse {
+			requestCallbackURL := cbServer.SetOnRequestCallback(c.t, func(cd callback.CallbackData) *callback.CallbackResponse {
 				newCount := count.Add(1)
 				if pathConfig.blockCount > 0 && newCount > uint32(pathConfig.blockCount) {
 					return nil // don't block
 				}
 				// block this request by sending back a fake response
-				return &CallbackResponse{
+				return &callback.CallbackResponse{
 					RespondStatusCode: pathConfig.blockStatusCode,
 					RespondBody:       json.RawMessage(`{"error":"complement-crypto says no"}`),
 				}
@@ -164,7 +165,7 @@ type MITMPathConfiguration struct {
 	path        string
 	accessToken string
 	method      string
-	listener    func(cd CallbackData) *CallbackResponse
+	listener    func(cd callback.CallbackData) *callback.CallbackResponse
 
 	blockCount      int
 	blockStatusCode int
@@ -192,7 +193,7 @@ func (p *MITMPathConfiguration) filter() string {
 	return s.String()
 }
 
-func (p *MITMPathConfiguration) Listen(cb func(cd CallbackData) *CallbackResponse) *MITMPathConfiguration {
+func (p *MITMPathConfiguration) Listen(cb func(cd callback.CallbackData) *callback.CallbackResponse) *MITMPathConfiguration {
 	p.listener = cb
 	return p
 }

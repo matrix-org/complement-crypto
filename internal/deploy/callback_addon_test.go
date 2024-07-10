@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/matrix-org/complement"
+	"github.com/matrix-org/complement-crypto/internal/deploy/callback"
 	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/complement/helpers"
 	"github.com/matrix-org/complement/must"
@@ -134,7 +135,7 @@ func TestCallbackAddon(t *testing.T) {
 				signalSendUnrelatedRequest := make(chan bool)
 				signalTestFinished := make(chan bool)
 				checker.expect(&callbackRequest{
-					OnCallback: func(cd CallbackData) *CallbackResponse {
+					OnCallback: func(cd callback.CallbackData) *callback.CallbackResponse {
 						if strings.Contains(cd.URL, "capabilities") {
 							close(signalSendUnrelatedRequest) // send the signal to make the unrelated request
 							time.Sleep(time.Second)           // tarpit this request
@@ -177,8 +178,8 @@ func TestCallbackAddon(t *testing.T) {
 			filter: "~hq " + client.AccessToken,
 			inner: func(t *testing.T, checker *checker) {
 				checker.expect(&callbackRequest{
-					OnCallback: func(cd CallbackData) *CallbackResponse {
-						return &CallbackResponse{
+					OnCallback: func(cd callback.CallbackData) *callback.CallbackResponse {
+						return &callback.CallbackResponse{
 							RespondStatusCode: 404,
 						}
 					},
@@ -196,8 +197,8 @@ func TestCallbackAddon(t *testing.T) {
 			filter: "~hq " + client.AccessToken,
 			inner: func(t *testing.T, checker *checker) {
 				checker.expect(&callbackRequest{
-					OnCallback: func(cd CallbackData) *CallbackResponse {
-						return &CallbackResponse{
+					OnCallback: func(cd callback.CallbackData) *callback.CallbackResponse {
+						return &callback.CallbackResponse{
 							RespondBody: json.RawMessage(`{
 								"foo": "bar"
 							}`),
@@ -217,8 +218,8 @@ func TestCallbackAddon(t *testing.T) {
 			filter: "~hq " + client.AccessToken,
 			inner: func(t *testing.T, checker *checker) {
 				checker.expect(&callbackRequest{
-					OnCallback: func(cd CallbackData) *CallbackResponse {
-						return &CallbackResponse{
+					OnCallback: func(cd callback.CallbackData) *callback.CallbackResponse {
+						return &callback.CallbackResponse{
 							RespondStatusCode: 403,
 							RespondBody: json.RawMessage(`{
 								"foo": "bar"
@@ -240,8 +241,8 @@ func TestCallbackAddon(t *testing.T) {
 			needsRequestCallback: true,
 			inner: func(t *testing.T, checker *checker) {
 				checker.expect(&callbackRequest{
-					OnRequestCallback: func(cd CallbackData) *CallbackResponse {
-						return &CallbackResponse{
+					OnRequestCallback: func(cd callback.CallbackData) *callback.CallbackResponse {
+						return &callback.CallbackResponse{
 							RespondStatusCode: 200,
 							RespondBody:       json.RawMessage(`{"yep": "ok"}`),
 						}
@@ -269,15 +270,15 @@ func TestCallbackAddon(t *testing.T) {
 				ch: make(chan callbackRequest, 3),
 				mu: &sync.Mutex{},
 			}
-			cbServer, err := NewCallbackServer(
+			cbServer, err := callback.NewCallbackServer(
 				t, deployment.GetConfig().HostnameRunningComplement,
 			)
-			callbackURL := cbServer.SetOnResponseCallback(t, func(cd CallbackData) *CallbackResponse {
+			callbackURL := cbServer.SetOnResponseCallback(t, func(cd callback.CallbackData) *callback.CallbackResponse {
 				return checker.onResponseCallback(cd)
 			})
 			var reqCallbackURL string
 			if tc.needsRequestCallback {
-				reqCallbackURL = cbServer.SetOnRequestCallback(t, func(cd CallbackData) *CallbackResponse {
+				reqCallbackURL = cbServer.SetOnRequestCallback(t, func(cd callback.CallbackData) *callback.CallbackResponse {
 					return checker.onRequestCallback(cd)
 				})
 			}
@@ -308,8 +309,8 @@ type callbackRequest struct {
 	PathContains      string
 	AccessToken       string
 	ResponseCode      int
-	OnRequestCallback func(cd CallbackData) *CallbackResponse
-	OnCallback        func(cd CallbackData) *CallbackResponse
+	OnRequestCallback func(cd callback.CallbackData) *callback.CallbackResponse
+	OnCallback        func(cd callback.CallbackData) *callback.CallbackResponse
 }
 
 type checker struct {
@@ -320,7 +321,7 @@ type checker struct {
 	noCallbacks bool
 }
 
-func (c *checker) onResponseCallback(cd CallbackData) *CallbackResponse {
+func (c *checker) onResponseCallback(cd callback.CallbackData) *callback.CallbackResponse {
 	c.mu.Lock()
 	if c.noCallbacks {
 		ct.Errorf(c.t, "wanted no callbacks but got %+v", cd)
@@ -348,7 +349,7 @@ func (c *checker) onResponseCallback(cd CallbackData) *CallbackResponse {
 	// unlock early so we don't block other requests, as custom callbacks are generally
 	// used for testing tarpitting.
 	c.mu.Unlock()
-	var callbackResponse *CallbackResponse
+	var callbackResponse *callback.CallbackResponse
 	if customCallback != nil {
 		callbackResponse = customCallback(cd)
 	}
@@ -357,7 +358,7 @@ func (c *checker) onResponseCallback(cd CallbackData) *CallbackResponse {
 	return callbackResponse
 }
 
-func (c *checker) onRequestCallback(cd CallbackData) *CallbackResponse {
+func (c *checker) onRequestCallback(cd callback.CallbackData) *callback.CallbackResponse {
 	c.mu.Lock()
 	cb := c.want.OnRequestCallback
 	c.mu.Unlock()
