@@ -85,10 +85,10 @@ func (c *Configuration) Execute(inner func()) {
 	}
 	c.mu.Unlock()
 
-	lockID := c.client.lockOptions(c.t, map[string]any{
+	lockID := c.client.LockOptions(c.t, map[string]any{
 		"callback": callbackAddon,
 	})
-	defer c.client.unlockOptions(c.t, lockID)
+	defer c.client.UnlockOptions(c.t, lockID)
 	inner()
 
 }

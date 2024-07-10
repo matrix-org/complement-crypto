@@ -295,11 +295,11 @@ func TestCallbackAddon(t *testing.T) {
 			}
 
 			mitmClient := deployment.MITM()
-			lockID := mitmClient.lockOptions(t, map[string]any{
+			lockID := mitmClient.LockOptions(t, map[string]any{
 				"callback": callbackOpts,
 			})
 			tc.inner(t, checker)
-			mitmClient.unlockOptions(t, lockID)
+			mitmClient.UnlockOptions(t, lockID)
 		})
 	}
 }

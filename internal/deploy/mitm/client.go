@@ -47,7 +47,16 @@ func (m *Client) Configure(t *testing.T) *Configuration {
 	}
 }
 
-func (m *Client) lockOptions(t *testing.T, options map[string]any) (lockID []byte) {
+// Lock mitmproxy with the given set of options.
+//
+// If mitmproxy is already locked, this will fail the test. This is a low-level
+// function which provides an escape hatch if the test needs special mitmproxy
+// options. See https://docs.mitmproxy.org/stable/concepts-options/ for more
+// information about options.
+//
+// In general, tests should not call this function, preferring to use .Configure
+// which has a friendlier API shape.
+func (m *Client) LockOptions(t *testing.T, options map[string]any) (lockID []byte) {
 	jsonBody, err := json.Marshal(map[string]interface{}{
 		"options": options,
 	})
@@ -65,7 +74,17 @@ func (m *Client) lockOptions(t *testing.T, options map[string]any) (lockID []byt
 	return lockID
 }
 
-func (m *Client) unlockOptions(t *testing.T, lockID []byte) {
+// Unlock mitmproxy using the lock ID provided.
+//
+// If mitmproxy is already unlocked, this will fail the test. If the lock ID
+// does not match the ID of the existing lock, this will fail the test.
+// This is a low-level function which provides an escape hatch if the test
+// needs special mitmproxy options. See https://docs.mitmproxy.org/stable/concepts-options/
+// for more information about options.
+//
+// In general, tests should not call this function, preferring to use .Configure
+// which has a friendlier API shape.
+func (m *Client) UnlockOptions(t *testing.T, lockID []byte) {
 	t.Logf("unlockOptions")
 	req, err := http.NewRequest("POST", magicMITMURL+"/options/unlock", bytes.NewBuffer(lockID))
 	must.NotError(t, "failed to prepare request", err)
