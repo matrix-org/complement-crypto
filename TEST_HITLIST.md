@@ -64,7 +64,7 @@ These tests only make sense on a single server, for a single user.
 
 ### Key Verification: (Short Authentication String)
 - [ ] Happy case Alice <-> Bob key verification.
-- [ ] Happy case Alice <-> Alice key verification (different devices).
+- [x] Happy case Alice <-> Alice key verification (different devices).
 - [ ] A MITMed key fails key verification.
 - [ ] Repeat all of the above, but for QR code. (render QR code to png then rescan).
 - [ ] Repeat all of the above, but for Emoji representations of SAS.
@@ -114,10 +114,9 @@ TODO See polyjuice tests, port and add more.
 Tests for known failures.
 
  - [ ] [Receive a to-device event with a room key, then fail requests to `/keys/query`. Ensure you can still see encrypted messages in that room.](https://github.com/matrix-org/complement-crypto/issues/38) Regression test for https://github.com/vector-im/element-web/issues/24682
- - [ ] Receive many to-device events followed by a room key, then quickly restart the client. Ensure you can still see encrypted messages in that room. Tests that to-device events are persisted locally or the since token is not advanced before processing to avoid dropped to-device events. Regression test for https://github.com/vector-im/element-web/issues/23113
  - [ ] If you make a new room key, you need to send it to all devices in the room. If you restart the client mid-way through sending, ensure the rest get sent upon restart.
  - [ ] Tests for [MSC3061](https://github.com/matrix-org/matrix-spec-proposals/pull/3061): Sharing room keys for past messages. Rust SDK: https://github.com/matrix-org/matrix-rust-sdk/issues/580
- - [ ] [Ensure that we send at least 100 to-device messages per HTTP request when changing the room key](https://github.com/matrix-org/complement-crypto/issues/34): https://github.com/vector-im/element-web/issues/24680
+ - [x] [Ensure that we send at least 100 to-device messages per HTTP request when changing the room key](https://github.com/matrix-org/complement-crypto/issues/34): https://github.com/vector-im/element-web/issues/24680
  - [ ] Check that we do not delete OTK private keys when we receive a badly formed pre-key message using that key https://github.com/element-hq/element-ios/issues/7480
- - [ ] [If you get a lot of to-device msgs all at once, ensure they are processed in-order](https://github.com/matrix-org/complement-crypto/issues/35) https://github.com/element-hq/element-web/issues/25723
- - [ ] [Check that to-device msgs are not dropped if you restart the client quickly when it gets a /sync response](https://github.com/matrix-org/complement-crypto/issues/37) https://github.com/element-hq/element-meta/issues/762
+ - [x] [If you get a lot of to-device msgs all at once, ensure they are processed in-order](https://github.com/matrix-org/complement-crypto/issues/35) https://github.com/element-hq/element-web/issues/25723
+ - [x] [Check that to-device msgs are not dropped if you restart the client quickly when it gets a /sync response](https://github.com/matrix-org/complement-crypto/issues/37) https://github.com/element-hq/element-meta/issues/762
