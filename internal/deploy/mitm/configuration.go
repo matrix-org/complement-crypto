@@ -87,14 +87,14 @@ type ConfigOpts struct {
 	// is provided, all HTTP requests/responses will be caught and the respective
 	// callback called for each.
 	Filter Filter
-	// The function to invoke when an HTTP requests have met the filter
+	// The function to invoke when an HTTP request has met the filter
 	// criteria. This callback is invoked BEFORE the request reaches the server.
 	// If this callback function returns a response, the request will never
 	// reach the server and the response provided will be returned instead.
 	// If this callback function returns nil, or no request callback function
 	// is provided, requests will be passed to the server unaltered.
 	RequestCallback callback.Fn
-	// The function to invoke when an HTTP responses have met the filter
+	// The function to invoke when an HTTP response has met the filter
 	// criteria. This callback is invoked AFTER the request has been processed
 	// by the server. If this callback function returns a response, the
 	// server response will never reach the client and the response provided
