@@ -9,7 +9,7 @@ import (
 
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/cc"
-	"github.com/matrix-org/complement-crypto/internal/deploy"
+	"github.com/matrix-org/complement-crypto/internal/deploy/callback"
 	"github.com/matrix-org/complement/b"
 	"github.com/matrix-org/complement/client"
 	"github.com/matrix-org/complement/ct"
@@ -205,7 +205,7 @@ func TestFailedKeysClaimRetries(t *testing.T) {
 			roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.PresetPublicChat())
 			// block /keys/claim and join the room, causing the Olm session to be created
 			mitmConfiguration := tc.Deployment.MITM().Configure(t)
-			mitmConfiguration.ForPath("/keys/claim").Method("POST").BlockRequest(2, http.StatusGatewayTimeout).Listen(func(cd deploy.CallbackData) *deploy.CallbackResponse {
+			mitmConfiguration.ForPath("/keys/claim").Method("POST").BlockRequest(2, http.StatusGatewayTimeout).Listen(func(cd callback.Data) *callback.Response {
 				t.Logf("%+v", cd)
 				if cd.ResponseCode == 200 {
 					waiter.Finish()

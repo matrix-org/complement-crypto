@@ -20,6 +20,7 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/matrix-org/complement"
 	"github.com/matrix-org/complement-crypto/internal/api"
+	"github.com/matrix-org/complement-crypto/internal/deploy/mitm"
 	"github.com/matrix-org/complement/client"
 	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/complement/helpers"
@@ -33,7 +34,7 @@ const mitmDumpFilePathOnContainer = "/tmp/mitm.dump"
 type SlidingSyncDeployment struct {
 	complement.Deployment
 	extraContainers      map[string]testcontainers.Container
-	mitmClient           *MITMClient
+	mitmClient           *mitm.Client
 	ControllerURL        string
 	dnsToReverseProxyURL map[string]string
 	mu                   sync.RWMutex
@@ -42,7 +43,7 @@ type SlidingSyncDeployment struct {
 
 // MITM returns a client capable of configuring man-in-the-middle operations such as
 // snooping on CSAPI traffic and modifying responses.
-func (d *SlidingSyncDeployment) MITM() *MITMClient {
+func (d *SlidingSyncDeployment) MITM() *mitm.Client {
 	return d.mitmClient
 }
 
@@ -326,7 +327,7 @@ func RunNewDeployment(t *testing.T, mitmProxyAddonsDir string, mitmDumpFile stri
 			"mitmproxy": mitmproxyContainer,
 		},
 		ControllerURL: controllerURL,
-		mitmClient:    NewMITMClient(proxyURL, deployment.GetConfig().HostnameRunningComplement),
+		mitmClient:    mitm.NewClient(proxyURL, deployment.GetConfig().HostnameRunningComplement),
 		dnsToReverseProxyURL: map[string]string{
 			"hs1":      rpHS1URL,
 			"hs2":      rpHS2URL,

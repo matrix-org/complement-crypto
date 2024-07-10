@@ -8,7 +8,7 @@ import (
 
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/cc"
-	"github.com/matrix-org/complement-crypto/internal/deploy"
+	"github.com/matrix-org/complement-crypto/internal/deploy/callback"
 	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/complement/helpers"
 )
@@ -38,7 +38,7 @@ func testSigkillBeforeKeysUploadResponseRust(t *testing.T, clientType api.Client
 	tc := Instance().CreateTestContext(t, clientType, clientType)
 
 	mitmConfiguration := tc.Deployment.MITM().Configure(t)
-	mitmConfiguration.ForPath("/keys/upload").Listen(func(cd deploy.CallbackData) *deploy.CallbackResponse {
+	mitmConfiguration.ForPath("/keys/upload").Listen(func(cd callback.Data) *callback.Response {
 		if terminated.Load() {
 			// make sure the 2nd upload 200 OKs
 			if cd.ResponseCode != 200 {
@@ -99,7 +99,7 @@ func testSigkillBeforeKeysUploadResponseJS(t *testing.T, clientType api.ClientTy
 	seenSecondKeysUploadWaiter := helpers.NewWaiter()
 	tc := Instance().CreateTestContext(t, clientType, clientType)
 	mitmConfiguration := tc.Deployment.MITM().Configure(t)
-	mitmConfiguration.ForPath("/keys/upload").Listen(func(cd deploy.CallbackData) *deploy.CallbackResponse {
+	mitmConfiguration.ForPath("/keys/upload").Listen(func(cd callback.Data) *callback.Response {
 		if cd.Method == "OPTIONS" {
 			return nil // ignore CORS
 		}

@@ -8,7 +8,7 @@ import (
 
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/cc"
-	"github.com/matrix-org/complement-crypto/internal/deploy"
+	"github.com/matrix-org/complement-crypto/internal/deploy/callback"
 	"github.com/matrix-org/complement/must"
 )
 
@@ -26,7 +26,7 @@ func TestFailedDeviceKeyDownloadRetries(t *testing.T) {
 
 		// Given that the first 4 attempts to download device keys will fail
 		mitmConfiguration := tc.Deployment.MITM().Configure(t)
-		mitmConfiguration.ForPath("/keys/query").Method("POST").BlockRequest(4, http.StatusGatewayTimeout).Listen(func(data deploy.CallbackData) *deploy.CallbackResponse {
+		mitmConfiguration.ForPath("/keys/query").Method("POST").BlockRequest(4, http.StatusGatewayTimeout).Listen(func(data callback.Data) *callback.Response {
 			queryReceived.Store(true)
 			return nil
 		})
