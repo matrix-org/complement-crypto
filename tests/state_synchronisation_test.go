@@ -38,7 +38,7 @@ func testSigkillBeforeKeysUploadResponseRust(t *testing.T, clientType api.Client
 	tc := Instance().CreateTestContext(t, clientType, clientType)
 
 	mitmConfiguration := tc.Deployment.MITM().Configure(t)
-	mitmConfiguration.ForPath("/keys/upload").Listen(func(cd callback.CallbackData) *callback.CallbackResponse {
+	mitmConfiguration.ForPath("/keys/upload").Listen(func(cd callback.Data) *callback.Response {
 		if terminated.Load() {
 			// make sure the 2nd upload 200 OKs
 			if cd.ResponseCode != 200 {
@@ -99,7 +99,7 @@ func testSigkillBeforeKeysUploadResponseJS(t *testing.T, clientType api.ClientTy
 	seenSecondKeysUploadWaiter := helpers.NewWaiter()
 	tc := Instance().CreateTestContext(t, clientType, clientType)
 	mitmConfiguration := tc.Deployment.MITM().Configure(t)
-	mitmConfiguration.ForPath("/keys/upload").Listen(func(cd callback.CallbackData) *callback.CallbackResponse {
+	mitmConfiguration.ForPath("/keys/upload").Listen(func(cd callback.Data) *callback.Response {
 		if cd.Method == "OPTIONS" {
 			return nil // ignore CORS
 		}

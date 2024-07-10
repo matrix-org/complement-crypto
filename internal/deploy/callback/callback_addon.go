@@ -16,7 +16,7 @@ import (
 
 var lastTestName atomic.Value = atomic.Value{}
 
-type CallbackData struct {
+type Data struct {
 	Method       string          `json:"method"`
 	URL          string          `json:"url"`
 	AccessToken  string          `json:"access_token"`
@@ -25,14 +25,14 @@ type CallbackData struct {
 	RequestBody  json.RawMessage `json:"request_body"`
 }
 
-type CallbackResponse struct {
+type Response struct {
 	// if set, changes the HTTP response status code for this request.
 	RespondStatusCode int `json:"respond_status_code,omitempty"`
 	// if set, changes the HTTP response body for this request.
 	RespondBody json.RawMessage `json:"respond_body,omitempty"`
 }
 
-func (cd CallbackData) String() string {
+func (cd Data) String() string {
 	return fmt.Sprintf("%s %s (token=%s) req_len=%d => HTTP %v", cd.Method, cd.URL, cd.AccessToken, len(cd.RequestBody), cd.ResponseCode)
 }
 
@@ -51,13 +51,13 @@ type CallbackServer struct {
 	onResponse http.HandlerFunc
 }
 
-func (s *CallbackServer) SetOnRequestCallback(t ct.TestLike, cb func(CallbackData) *CallbackResponse) (callbackURL string) {
+func (s *CallbackServer) SetOnRequestCallback(t ct.TestLike, cb func(Data) *Response) (callbackURL string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.onRequest = s.createHandler(t, cb)
 	return s.baseURL + requestPath
 }
-func (s *CallbackServer) SetOnResponseCallback(t ct.TestLike, cb func(CallbackData) *CallbackResponse) (callbackURL string) {
+func (s *CallbackServer) SetOnResponseCallback(t ct.TestLike, cb func(Data) *Response) (callbackURL string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.onResponse = s.createHandler(t, cb)
@@ -69,9 +69,9 @@ func (s *CallbackServer) Close() {
 	s.srv.Close()
 	lastTestName.Store("")
 }
-func (s *CallbackServer) createHandler(t ct.TestLike, cb func(CallbackData) *CallbackResponse) http.HandlerFunc {
+func (s *CallbackServer) createHandler(t ct.TestLike, cb func(Data) *Response) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var data CallbackData
+		var data Data
 		if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
 			ct.Errorf(t, "error decoding json: %s", err)
 			w.WriteHeader(500)

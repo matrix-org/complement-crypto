@@ -26,7 +26,7 @@ func TestFailedDeviceKeyDownloadRetries(t *testing.T) {
 
 		// Given that the first 4 attempts to download device keys will fail
 		mitmConfiguration := tc.Deployment.MITM().Configure(t)
-		mitmConfiguration.ForPath("/keys/query").Method("POST").BlockRequest(4, http.StatusGatewayTimeout).Listen(func(data callback.CallbackData) *callback.CallbackResponse {
+		mitmConfiguration.ForPath("/keys/query").Method("POST").BlockRequest(4, http.StatusGatewayTimeout).Listen(func(data callback.Data) *callback.Response {
 			queryReceived.Store(true)
 			return nil
 		})

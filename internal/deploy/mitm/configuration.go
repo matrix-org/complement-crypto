@@ -12,18 +12,18 @@ import (
 	"github.com/matrix-org/complement/must"
 )
 
-// MITMConfiguration represent a single mitmproxy configuration, with all options specified.
+// Configuration represent a single mitmproxy configuration, with all options specified.
 //
 // Tests will typically build up this configuration by calling `Intercept` with the paths
 // they are interested in.
-type MITMConfiguration struct {
+type Configuration struct {
 	t        *testing.T
 	pathCfgs map[string]*MITMPathConfiguration
 	mu       *sync.Mutex
-	client   *MITMClient
+	client   *Client
 }
 
-func (c *MITMConfiguration) ForPath(partialPath string) *MITMPathConfiguration {
+func (c *Configuration) ForPath(partialPath string) *MITMPathConfiguration {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	p, ok := c.pathCfgs[partialPath]
@@ -39,7 +39,7 @@ func (c *MITMConfiguration) ForPath(partialPath string) *MITMPathConfiguration {
 }
 
 // Execute a mitm proxy configuration for the duration of `inner`.
-func (c *MITMConfiguration) Execute(inner func()) {
+func (c *Configuration) Execute(inner func()) {
 	// The HTTP request to mitmproxy needs to look like:
 	//   {
 	//     $addon_name: {
@@ -69,13 +69,13 @@ func (c *MITMConfiguration) Execute(inner func()) {
 			// reimplement statuscode plugin logic in Go
 			// TODO: refactor this
 			var count atomic.Uint32
-			requestCallbackURL := cbServer.SetOnRequestCallback(c.t, func(cd callback.CallbackData) *callback.CallbackResponse {
+			requestCallbackURL := cbServer.SetOnRequestCallback(c.t, func(cd callback.Data) *callback.Response {
 				newCount := count.Add(1)
 				if pathConfig.blockCount > 0 && newCount > uint32(pathConfig.blockCount) {
 					return nil // don't block
 				}
 				// block this request by sending back a fake response
-				return &callback.CallbackResponse{
+				return &callback.Response{
 					RespondStatusCode: pathConfig.blockStatusCode,
 					RespondBody:       json.RawMessage(`{"error":"complement-crypto says no"}`),
 				}
@@ -98,7 +98,7 @@ type MITMPathConfiguration struct {
 	path        string
 	accessToken string
 	method      string
-	listener    func(cd callback.CallbackData) *callback.CallbackResponse
+	listener    func(cd callback.Data) *callback.Response
 
 	blockCount      int
 	blockStatusCode int
@@ -126,7 +126,7 @@ func (p *MITMPathConfiguration) filter() string {
 	return s.String()
 }
 
-func (p *MITMPathConfiguration) Listen(cb func(cd callback.CallbackData) *callback.CallbackResponse) *MITMPathConfiguration {
+func (p *MITMPathConfiguration) Listen(cb func(cd callback.Data) *callback.Response) *MITMPathConfiguration {
 	p.listener = cb
 	return p
 }

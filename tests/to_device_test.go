@@ -128,7 +128,7 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartRust(t *testing.T, tc *cc.
 	// sniff /sync traffic
 	waitForRoomKey := helpers.NewWaiter()
 	mitmConfiguration := tc.Deployment.MITM().Configure(t)
-	mitmConfiguration.ForPath("/sync").Listen(func(cd callback.CallbackData) *callback.CallbackResponse {
+	mitmConfiguration.ForPath("/sync").Listen(func(cd callback.Data) *callback.Response {
 		// When /sync shows a to-device message from Alice (indicating the room key), then SIGKILL Bob.
 		t.Logf("/sync => %v", string(cd.ResponseBody))
 		body := gjson.ParseBytes(cd.ResponseBody)
@@ -187,7 +187,7 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartJS(t *testing.T, tc *cc.Te
 	// sniff /sync traffic
 	waitForRoomKey := helpers.NewWaiter()
 	mitmConfiguration := tc.Deployment.MITM().Configure(t)
-	mitmConfiguration.ForPath("/sync").Listen(func(cd callback.CallbackData) *callback.CallbackResponse {
+	mitmConfiguration.ForPath("/sync").Listen(func(cd callback.Data) *callback.Response {
 		// When /sync shows a to-device message from Alice (indicating the room key) then SIGKILL Bob.
 		body := gjson.ParseBytes(cd.ResponseBody)
 		toDeviceEvents := body.Get("to_device.events").Array() // Sync v2 form
@@ -274,7 +274,7 @@ func TestToDeviceMessagesAreBatched(t *testing.T) {
 		tc.WithAliceSyncing(t, func(alice api.Client) {
 			// intercept /sendToDevice and check we are sending 100 messages per request
 			mitmConfiguration := tc.Deployment.MITM().Configure(t)
-			mitmConfiguration.ForPath("/sendToDevice").Listen(func(cd callback.CallbackData) *callback.CallbackResponse {
+			mitmConfiguration.ForPath("/sendToDevice").Listen(func(cd callback.Data) *callback.Response {
 				if cd.Method != "PUT" {
 					return nil
 				}
@@ -344,7 +344,7 @@ func TestToDeviceMessagesArentLostWhenKeysQueryFails(t *testing.T) {
 			bobAccessToken := bob.CurrentAccessToken(t)
 			t.Logf("Bob's token => %s", bobAccessToken)
 			mitmConfiguration := tc.Deployment.MITM().Configure(t)
-			mitmConfiguration.ForPath("/keys/query").AccessToken(bobAccessToken).BlockRequest(3, http.StatusGatewayTimeout).Listen(func(cd callback.CallbackData) *callback.CallbackResponse {
+			mitmConfiguration.ForPath("/keys/query").AccessToken(bobAccessToken).BlockRequest(3, http.StatusGatewayTimeout).Listen(func(cd callback.Data) *callback.Response {
 				t.Logf("%+v", cd)
 				waiter.Finish()
 				return nil
@@ -414,7 +414,7 @@ func TestToDeviceMessagesAreProcessedInOrder(t *testing.T) {
 			Body string
 		}{}
 		tc.WithAliceSyncing(t, func(alice api.Client) {
-			callback := func(cd callback.CallbackData) *callback.CallbackResponse {
+			callback := func(cd callback.Data) *callback.Response {
 				// try v2 sync then SS
 				toDeviceEvents := gjson.ParseBytes(cd.ResponseBody).Get("to_device.events").Array()
 				if len(toDeviceEvents) == 0 {

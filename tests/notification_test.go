@@ -568,7 +568,7 @@ func TestMultiprocessDupeOTKUpload(t *testing.T) {
 	// at once. If the NSE and main apps are talking to each other, they should be using the same key ID + key.
 	// If not... well, that's a bug because then the client will forget one of these keys.
 	mitmConfiguration := tc.Deployment.MITM().Configure(t)
-	mitmConfiguration.ForPath("/keys/upload").Listen(func(cd callback.CallbackData) *callback.CallbackResponse {
+	mitmConfiguration.ForPath("/keys/upload").Listen(func(cd callback.Data) *callback.Response {
 		if cd.AccessToken != aliceAccessToken {
 			return nil // let bob upload OTKs
 		}

@@ -21,13 +21,13 @@ var (
 	boolFalse = false
 )
 
-type MITMClient struct {
+type Client struct {
 	client                    *http.Client
 	hostnameRunningComplement string
 }
 
-func NewMITMClient(proxyURL *url.URL, hostnameRunningComplement string) *MITMClient {
-	return &MITMClient{
+func NewClient(proxyURL *url.URL, hostnameRunningComplement string) *Client {
+	return &Client{
 		hostnameRunningComplement: hostnameRunningComplement,
 		client: &http.Client{
 			Timeout: 5 * time.Second,
@@ -38,8 +38,8 @@ func NewMITMClient(proxyURL *url.URL, hostnameRunningComplement string) *MITMCli
 	}
 }
 
-func (m *MITMClient) Configure(t *testing.T) *MITMConfiguration {
-	return &MITMConfiguration{
+func (m *Client) Configure(t *testing.T) *Configuration {
+	return &Configuration{
 		t:        t,
 		pathCfgs: make(map[string]*MITMPathConfiguration),
 		mu:       &sync.Mutex{},
@@ -47,7 +47,7 @@ func (m *MITMClient) Configure(t *testing.T) *MITMConfiguration {
 	}
 }
 
-func (m *MITMClient) lockOptions(t *testing.T, options map[string]any) (lockID []byte) {
+func (m *Client) lockOptions(t *testing.T, options map[string]any) (lockID []byte) {
 	jsonBody, err := json.Marshal(map[string]interface{}{
 		"options": options,
 	})
@@ -65,7 +65,7 @@ func (m *MITMClient) lockOptions(t *testing.T, options map[string]any) (lockID [
 	return lockID
 }
 
-func (m *MITMClient) unlockOptions(t *testing.T, lockID []byte) {
+func (m *Client) unlockOptions(t *testing.T, lockID []byte) {
 	t.Logf("unlockOptions")
 	req, err := http.NewRequest("POST", magicMITMURL+"/options/unlock", bytes.NewBuffer(lockID))
 	must.NotError(t, "failed to prepare request", err)
