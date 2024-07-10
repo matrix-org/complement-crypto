@@ -16,6 +16,9 @@ import (
 
 var lastTestName atomic.Value = atomic.Value{}
 
+// Fn represents the callback function to invoke
+type Fn func(Data) *Response
+
 type Data struct {
 	Method       string          `json:"method"`
 	URL          string          `json:"url"`
@@ -51,13 +54,13 @@ type CallbackServer struct {
 	onResponse http.HandlerFunc
 }
 
-func (s *CallbackServer) SetOnRequestCallback(t ct.TestLike, cb func(Data) *Response) (callbackURL string) {
+func (s *CallbackServer) SetOnRequestCallback(t ct.TestLike, cb Fn) (callbackURL string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.onRequest = s.createHandler(t, cb)
 	return s.baseURL + requestPath
 }
-func (s *CallbackServer) SetOnResponseCallback(t ct.TestLike, cb func(Data) *Response) (callbackURL string) {
+func (s *CallbackServer) SetOnResponseCallback(t ct.TestLike, cb Fn) (callbackURL string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.onResponse = s.createHandler(t, cb)
@@ -69,7 +72,7 @@ func (s *CallbackServer) Close() {
 	s.srv.Close()
 	lastTestName.Store("")
 }
-func (s *CallbackServer) createHandler(t ct.TestLike, cb func(Data) *Response) http.HandlerFunc {
+func (s *CallbackServer) createHandler(t ct.TestLike, cb Fn) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var data Data
 		if err := json.NewDecoder(r.Body).Decode(&data); err != nil {

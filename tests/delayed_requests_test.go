@@ -7,6 +7,7 @@ import (
 
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/deploy/callback"
+	"github.com/matrix-org/complement-crypto/internal/deploy/mitm"
 	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/complement/helpers"
 	"github.com/matrix-org/complement/must"
@@ -39,20 +40,25 @@ func TestDelayedInviteResponse(t *testing.T) {
 
 			config := tc.Deployment.MITM().Configure(t)
 			serverHasInvite := helpers.NewWaiter()
-			config.ForPath("/sync").AccessToken(alice.CurrentAccessToken(t)).Listen(func(cd callback.Data) *callback.Response {
-				if strings.Contains(
-					strings.ReplaceAll(string(cd.ResponseBody), " ", ""),
-					`"membership":"invite"`,
-				) {
-					t.Logf("/sync => %v", string(cd.ResponseBody))
-					delayTime := 3 * time.Second
-					t.Logf("intercepted /sync response which has the invite, tarpitting for %v - %v", delayTime, cd)
-					serverHasInvite.Finish()
-					time.Sleep(delayTime)
-				}
-				return nil
-			})
-			config.Execute(func() {
+			config.WithIntercept(mitm.InterceptOpts{
+				Filter: mitm.FilterParams{
+					PathContains: "/sync",
+					AccessToken:  alice.CurrentAccessToken(t),
+				},
+				ResponseCallback: func(cd callback.Data) *callback.Response {
+					if strings.Contains(
+						strings.ReplaceAll(string(cd.ResponseBody), " ", ""),
+						`"membership":"invite"`,
+					) {
+						t.Logf("/sync => %v", string(cd.ResponseBody))
+						delayTime := 3 * time.Second
+						t.Logf("intercepted /sync response which has the invite, tarpitting for %v - %v", delayTime, cd)
+						serverHasInvite.Finish()
+						time.Sleep(delayTime)
+					}
+					return nil
+				},
+			}, func() {
 				t.Logf("Alice about to /invite Bob")
 				if err := alice.InviteUser(t, roomID, bob.UserID()); err != nil {
 					ct.Errorf(t, "failed to invite user: %s", err)
