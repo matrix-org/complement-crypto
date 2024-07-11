@@ -208,8 +208,13 @@ func (c *PassiveChannel) Callback() Fn {
 		}
 
 		// we never close recvCh because it isn't safe to do so as the callback can
-		// be called concurrently. We expect the GC to eventually clean this up.
-		c.recvCh <- &d
+		// be called concurrently. We expect the GC to eventually clean this up. To
+		// ensure this, we also wait on the close channel so we return immediately
+		// when asked to close.
+		select {
+		case c.recvCh <- &d:
+		case <-c.closeSignal:
+		}
 		return nil // don't modify the response
 	}
 }
@@ -251,22 +256,20 @@ type ActiveChannel struct {
 	sendCh chan *Response
 }
 
-func (c *ActiveChannel) Close() {
-	if c.PassiveChannel.closed.CompareAndSwap(false, true) {
-		close(c.recvCh)
-		close(c.sendCh)
-	}
-}
-
 // Callback returns the callback implementation used to send data to this channel.
 func (c *ActiveChannel) Callback() Fn {
+	passiveCallback := c.PassiveChannel.Callback()
 	return func(d Data) *Response {
-		if c.closed.Load() {
-			return nil // test has ended, don't send on a closed channel else we panic
+		passiveCallback(d)
+
+		select {
+		case res := <-c.sendCh: // wait for the response from the test
+			return res
+		case <-c.closeSignal:
+			// fallthrough and return immediately when closed
 		}
-		c.recvCh <- &d
-		// wait for the response from the test
-		return <-c.sendCh
+
+		return nil
 	}
 }
 
