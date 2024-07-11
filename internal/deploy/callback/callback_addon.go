@@ -298,13 +298,13 @@ func NewPassiveChannel(timeout time.Duration, blocking bool) *PassiveChannel {
 }
 
 // NewActiveChannel returns a channel which can receive and modify callback responses. The
-// timeout controls how long Recv() and Send() can wait until there is callback data before
+// timeout controls how long Recv() and Send() can wait for callback data before
 // failing.
 //
 // Channels are useful when tests want to manipulate callbacks from within an `inner`
 // function.
 func NewActiveChannel(timeout time.Duration) *ActiveChannel {
-	// An active channel is a passive channel with bits on top
+	// An active channel is a PassiveChannel plus a sending channel.
 	passive := NewPassiveChannel(timeout, true)
 	return &ActiveChannel{
 		PassiveChannel: passive,
