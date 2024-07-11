@@ -182,23 +182,33 @@ func SendError(count uint32, statusCode int) Fn {
 //  - for sigkilling
 
 type PassiveChannel struct {
-	recvCh  chan *Data
-	timeout time.Duration
-	closed  *atomic.Bool
+	recvCh      chan *Data
+	timeout     time.Duration
+	closed      *atomic.Bool
+	closeSignal chan struct{}
 }
 
 func (c *PassiveChannel) Close() {
+	// allow Close to be called multiple times. Without this atomic bool,
+	// you get a panic as you cannot close an already closed channel.
 	if c.closed.CompareAndSwap(false, true) {
-		close(c.recvCh)
+		close(c.closeSignal)
 	}
 }
 
 // Callback returns the callback implementation used to send data to this channel.
 func (c *PassiveChannel) Callback() Fn {
 	return func(d Data) *Response {
-		if c.closed.Load() {
+		// This function can be called many times concurrently.
+		select {
+		case <-c.closeSignal: // check if we've been asked to be closed
 			return nil // test has ended, don't send on a closed channel else we panic
+		default:
+			// fallthrough
 		}
+
+		// we never close recvCh because it isn't safe to do so as the callback can
+		// be called concurrently. We expect the GC to eventually clean this up.
 		c.recvCh <- &d
 		return nil // don't modify the response
 	}
@@ -286,14 +296,15 @@ func NewPassiveChannel(timeout time.Duration, blocking bool) *PassiveChannel {
 	// so let there be at most 10 callbacks in-flight at any one time.
 	// If this is too low then concurrent callbacks will block each other.
 	// If this is too high then we consume needless amounts of memory.
-	buffer := 10
+	bufferSize := 10
 	if blocking {
-		buffer = 0
+		bufferSize = 0
 	}
 	return &PassiveChannel{
-		timeout: timeout,
-		recvCh:  make(chan *Data, buffer),
-		closed:  &atomic.Bool{},
+		timeout:     timeout,
+		recvCh:      make(chan *Data, bufferSize),
+		closed:      &atomic.Bool{},
+		closeSignal: make(chan struct{}),
 	}
 }
 
