@@ -9,6 +9,7 @@ import (
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/cc"
 	"github.com/matrix-org/complement-crypto/internal/deploy/callback"
+	"github.com/matrix-org/complement-crypto/internal/deploy/mitm"
 	"github.com/matrix-org/complement/must"
 )
 
@@ -25,12 +26,17 @@ func TestFailedDeviceKeyDownloadRetries(t *testing.T) {
 		var queryReceived atomic.Bool
 
 		// Given that the first 4 attempts to download device keys will fail
-		mitmConfiguration := tc.Deployment.MITM().Configure(t)
-		mitmConfiguration.ForPath("/keys/query").Method("POST").BlockRequest(4, http.StatusGatewayTimeout).Listen(func(data callback.Data) *callback.Response {
-			queryReceived.Store(true)
-			return nil
-		})
-		mitmConfiguration.Execute(func() {
+		tc.Deployment.MITM().Configure(t).WithIntercept(mitm.InterceptOpts{
+			Filter: mitm.FilterParams{
+				PathContains: "/keys/query",
+				Method:       "POST",
+			},
+			RequestCallback: callback.SendError(4, http.StatusGatewayTimeout),
+			ResponseCallback: func(data callback.Data) *callback.Response {
+				queryReceived.Store(true)
+				return nil
+			},
+		}, func() {
 			// And Alice and Bob are in an encrypted room together
 			roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}))
 			tc.Bob.MustJoinRoom(t, roomID, []string{"hs1"})

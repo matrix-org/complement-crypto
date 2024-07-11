@@ -16,16 +16,25 @@ import (
 	"github.com/matrix-org/complement/must"
 )
 
-func sniffToDeviceEvent(t *testing.T, tc *cc.TestContext, ch chan callback.Data) *mitm.Configuration {
-	mitmConfiguration := tc.Deployment.MITM().Configure(t)
-	mitmConfiguration.ForPath("/sendToDevice").Method("PUT").Listen(func(cd callback.Data) *callback.Response {
-		if strings.Contains(cd.URL, "m.room.encrypted") {
+func sniffToDeviceEvent(t *testing.T, tc *cc.TestContext, inner func(pc *callback.PassiveChannel)) {
+	passiveChannel := callback.NewPassiveChannel(5*time.Second, false)
+	tc.Deployment.MITM().Configure(t).WithIntercept(mitm.InterceptOpts{
+		Filter: mitm.FilterParams{
+			PathContains: "/sendToDevice",
+			Method:       "PUT",
+		},
+		ResponseCallback: func(cd callback.Data) *callback.Response {
+			// only invoke the callback for encrypted to-device events
 			// we can't decrypt this, but we know that this should most likely be the m.room_key to-device event.
-			ch <- cd
-		}
-		return nil
+			if strings.Contains(cd.URL, "m.room.encrypted") {
+				return passiveChannel.Callback()(cd)
+			}
+			return nil
+		},
+	}, func() {
+		inner(passiveChannel)
+		passiveChannel.Close()
 	})
-	return mitmConfiguration
 }
 
 // This test ensures we change the m.room_key when a device leaves an E2EE room.
@@ -58,16 +67,10 @@ func TestRoomKeyIsCycledOnDeviceLogout(t *testing.T) {
 			alice.SendMessage(t, roomID, wantMsgBody)
 			waiter.Waitf(t, 5*time.Second, "bob did not see alice's message")
 			waiter2.Waitf(t, 5*time.Second, "alice2 did not see alice's message")
+			alice2StopSyncing()
 
 			// we're going to sniff calls to /sendToDevice to ensure we see the new room key being sent.
-			ch := make(chan callback.Data, 10)
-			mitmConfiguration := sniffToDeviceEvent(t, tc, ch)
-
-			alice2StopSyncing()
-			// we don't know when the new room key will be sent, it could be sent as soon as the device list update
-			// is sent, or it could be delayed until message send. We want to handle both cases so we start sniffing
-			// traffic now.
-			mitmConfiguration.Execute(func() {
+			sniffToDeviceEvent(t, tc, func(pc *callback.PassiveChannel) {
 				// now alice2 is going to logout, causing her user ID to appear in device_lists.changed which
 				// should cause a /keys/query request, resulting in the client realising the device is gone,
 				// which should trigger a new room key to be sent (on message send)
@@ -81,15 +84,12 @@ func TestRoomKeyIsCycledOnDeviceLogout(t *testing.T) {
 				waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 				alice.SendMessage(t, roomID, wantMsgBody)
 				waiter.Waitf(t, 5*time.Second, "bob did not see alice's new message")
-			})
 
-			// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
-			// the room key.
-			select {
-			case <-ch:
-			default:
-				ct.Fatalf(t, "did not see /sendToDevice when logging out and sending a new message")
-			}
+				// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
+				// the room key. We can't actually inspect the event itself, so just the fact we see the
+				// encrypted to-device event is enough. Recv will timeout if we don't see it.
+				pc.Recv(t, "did not see /sendToDevice event")
+			})
 		})
 	})
 }
@@ -127,9 +127,7 @@ func TestRoomKeyIsCycledAfterEnoughMessages(t *testing.T) {
 			}
 
 			// Sniff calls to /sendToDevice to ensure we see the new room key being sent.
-			ch := make(chan callback.Data, 10)
-			mitmConfiguration := sniffToDeviceEvent(t, tc, ch)
-			mitmConfiguration.Execute(func() {
+			sniffToDeviceEvent(t, tc, func(pc *callback.PassiveChannel) {
 				// When we send two messages (one to hit the threshold and one to pass it)
 				//
 				// Note that we deliberately cover two possible valid behaviours
@@ -147,15 +145,10 @@ func TestRoomKeyIsCycledAfterEnoughMessages(t *testing.T) {
 				waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 				alice.SendMessage(t, roomID, wantMsgBody)
 				waiter.Waitf(t, 5*time.Second, "bob did not see alice's message '%s'", wantMsgBody)
-			})
 
-			// Then we did send out new keys
-			select {
-			case <-ch:
-				// Success - keys were sent
-			default:
-				ct.Fatalf(t, "did not see /sendToDevice after sending rotation_period_msgs messages")
-			}
+				// Then we did send out new keys
+				pc.Recv(t, "did not see /sendToDevice after sending rotation_period_msgs messages")
+			})
 		})
 	})
 }
@@ -207,9 +200,7 @@ func TestRoomKeyIsCycledAfterEnoughTime(t *testing.T) {
 			waiter.Waitf(t, 5*time.Second, "Did not see 'before we start' event in the room")
 
 			// Sniff calls to /sendToDevice to ensure we see the new room key being sent.
-			ch := make(chan callback.Data, 10)
-			mitmConfiguration := sniffToDeviceEvent(t, tc, ch)
-			mitmConfiguration.Execute(func() {
+			sniffToDeviceEvent(t, tc, func(pc *callback.PassiveChannel) {
 				// Send a message to ensure the room is working, and any timer is set up
 				wantMsgBody := "Before the time expires"
 				waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
@@ -224,15 +215,9 @@ func TestRoomKeyIsCycledAfterEnoughTime(t *testing.T) {
 				waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 				alice.SendMessage(t, roomID, wantMsgBody)
 				waiter.Waitf(t, 5*time.Second, "Did not see 'after the time expires' event in the room")
-			})
 
-			// Then we sent out new keys because the rotation timer had expired
-			select {
-			case <-ch:
-				// Success - keys were sent
-			default:
-				ct.Fatalf(t, "did not see /sendToDevice after waiting rotation_period_ms milliseconds")
-			}
+				pc.Recv(t, "did not see /sendToDevice after waiting rotation_period_ms milliseconds")
+			})
 		})
 	})
 }
@@ -262,14 +247,8 @@ func TestRoomKeyIsCycledOnMemberLeaving(t *testing.T) {
 			waiter2.Waitf(t, 5*time.Second, "charlie did not see alice's message")
 
 			// we're going to sniff calls to /sendToDevice to ensure we see the new room key being sent.
-			ch := make(chan callback.Data, 10)
-			mitmConfiguration := sniffToDeviceEvent(t, tc, ch)
-
-			// we don't know when the new room key will be sent, it could be sent as soon as the device list update
-			// is sent, or it could be delayed until message send. We want to handle both cases so we start sniffing
-			// traffic now.
-			mitmConfiguration.Execute(func() {
-				// now Charlie is going to leave the room, causing her user ID to appear in device_lists.left
+			sniffToDeviceEvent(t, tc, func(pc *callback.PassiveChannel) {
+				// now Charlie is going to leave the room, causing his user ID to appear in device_lists.left
 				// which should trigger a new room key to be sent (on message send)
 				tc.Charlie.MustDo(t, "POST", []string{"_matrix", "client", "v3", "rooms", roomID, "leave"}, client.WithJSONBody(t, map[string]any{}))
 
@@ -281,15 +260,11 @@ func TestRoomKeyIsCycledOnMemberLeaving(t *testing.T) {
 				waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 				alice.SendMessage(t, roomID, wantMsgBody)
 				waiter.Waitf(t, 5*time.Second, "bob did not see alice's message")
-			})
 
-			// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
-			// the room key.
-			select {
-			case <-ch:
-			default:
-				ct.Fatalf(t, "did not see /sendToDevice when logging out and sending a new message")
-			}
+				// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
+				// the room key.
+				pc.Recv(t, "did not see /sendToDevice when logging out and sending a new message")
+			})
 		})
 	})
 }
@@ -312,16 +287,11 @@ func TestRoomKeyIsNotCycled(t *testing.T) {
 			waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 			alice.SendMessage(t, roomID, wantMsgBody)
 			waiter.Waitf(t, 5*time.Second, "bob did not see alice's message")
-
-			// we're going to sniff calls to /sendToDevice to ensure we see the new room key being sent.
-			ch := make(chan callback.Data, 10)
-			mitmConfiguration := sniffToDeviceEvent(t, tc, ch)
-
 			t.Run("on display name change", func(t *testing.T) {
 				// we don't know when the new room key will be sent, it could be sent as soon as the device list update
 				// is sent, or it could be delayed until message send. We want to handle both cases so we start sniffing
 				// traffic now.
-				mitmConfiguration.Execute(func() {
+				sniffToDeviceEvent(t, tc, func(pc *callback.PassiveChannel) {
 					// now Bob is going to change their display name
 					// which should NOT trigger a new room key to be sent (on message send)
 					tc.Bob.MustDo(t, "PUT", []string{"_matrix", "client", "v3", "profile", tc.Bob.UserID, "displayname"}, client.WithJSONBody(t, map[string]any{
@@ -336,15 +306,12 @@ func TestRoomKeyIsNotCycled(t *testing.T) {
 					waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 					alice.SendMessage(t, roomID, wantMsgBody)
 					waiter.Waitf(t, 5*time.Second, "bob did not see alice's message")
-				})
 
-				// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
-				// the room key.
-				select {
-				case <-ch:
-					ct.Fatalf(t, "saw /sendToDevice when changing display name and sending a new message")
-				default:
-				}
+					got := pc.TryRecv(t)
+					if got != nil {
+						ct.Fatalf(t, "saw /sendToDevice when changing display name and sending a new message")
+					}
+				})
 			})
 			t.Run("on new device login", func(t *testing.T) {
 				if clientTypeA.HS == "hs2" || clientTypeB.HS == "hs2" {
@@ -354,7 +321,7 @@ func TestRoomKeyIsNotCycled(t *testing.T) {
 				// we don't know when the new room key will be sent, it could be sent as soon as the device list update
 				// is sent, or it could be delayed until message send. We want to handle both cases so we start sniffing
 				// traffic now.
-				mitmConfiguration.Execute(func() {
+				sniffToDeviceEvent(t, tc, func(pc *callback.PassiveChannel) {
 					// now Bob is going to login on a new device
 					// which should NOT trigger a new room key to be sent (on message send)
 					csapiBob2 := tc.MustRegisterNewDevice(t, tc.Bob, "OTHER_DEVICE")
@@ -373,42 +340,40 @@ func TestRoomKeyIsNotCycled(t *testing.T) {
 					waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 					alice.SendMessage(t, roomID, wantMsgBody)
 					waiter.Waitf(t, 5*time.Second, "bob did not see alice's message")
-				})
 
-				// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
-				// the room key.
+					// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
+					// the room key.
+				Consume:
+					for { // consume all items in the channel
+						// the logic here is a bit weird because we DO expect some /sendToDevice calls as Alice and Bob
+						// share the room key with Bob2. However, Alice, who is sending the message, should NOT be sending
+						// to-device msgs to Bob, as that would indicate a new exchange of room keys. To do this, we use
+						// the access token to see who the sender is, and check the request body to see who the receiver is,
+						// and make sure it's all what we expect.
+						select {
+						case sendToDevice := <-pc.Chan():
+							cli := tc.Deployment.Deployment.UnauthenticatedClient(t, "hs1")
+							cli.AccessToken = sendToDevice.AccessToken
+							whoami := cli.MustDo(t, "GET", []string{"_matrix", "client", "v3", "account", "whoami"})
+							sender := must.ParseJSON(t, whoami.Body).Get("user_id").Str
+							reqBody := struct {
+								Messages map[string]map[string]any
+							}{}
+							must.NotError(t, "failed to unmarshal intercepted request body", json.Unmarshal(sendToDevice.RequestBody, &reqBody))
 
-			Consume:
-				for { // consume all items in the channel
-					// the logic here is a bit weird because we DO expect some /sendToDevice calls as Alice and Bob
-					// share the room key with Bob2. However, Alice, who is sending the message, should NOT be sending
-					// to-device msgs to Bob, as that would indicate a new exchange of room keys. To do this, we use
-					// the access token to see who the sender is, and check the request body to see who the receiver is,
-					// and make sure it's all what we expect.
-					select {
-					case sendToDevice := <-ch:
-						cli := tc.Deployment.Deployment.UnauthenticatedClient(t, "hs1")
-						cli.AccessToken = sendToDevice.AccessToken
-						whoami := cli.MustDo(t, "GET", []string{"_matrix", "client", "v3", "account", "whoami"})
-						sender := must.ParseJSON(t, whoami.Body).Get("user_id").Str
-						reqBody := struct {
-							Messages map[string]map[string]any
-						}{}
-						must.NotError(t, "failed to unmarshal intercepted request body", json.Unmarshal(sendToDevice.RequestBody, &reqBody))
-
-						for target := range reqBody.Messages {
-							for targetDeviceID := range reqBody.Messages[target] {
-								t.Logf("%s /sendToDevice to %v (%v)", sender, target, targetDeviceID)
-								if sender == alice.UserID() && target == bob.UserID() && targetDeviceID != "OTHER_DEVICE" {
-									ct.Fatalf(t, "saw Alice /sendToDevice to Bob for old device, implying room keys were refreshed")
+							for target := range reqBody.Messages {
+								for targetDeviceID := range reqBody.Messages[target] {
+									t.Logf("%s /sendToDevice to %v (%v)", sender, target, targetDeviceID)
+									if sender == alice.UserID() && target == bob.UserID() && targetDeviceID != "OTHER_DEVICE" {
+										ct.Fatalf(t, "saw Alice /sendToDevice to Bob for old device, implying room keys were refreshed")
+									}
 								}
 							}
+						default:
+							break Consume
 						}
-
-					default:
-						break Consume
 					}
-				}
+				})
 			})
 		})
 	})
@@ -463,9 +428,7 @@ func testRoomKeyIsNotCycledOnClientRestartRust(t *testing.T, clientType api.Clie
 		// Now recreate the same client and make sure we don't send new room keys.
 
 		// we're going to sniff calls to /sendToDevice to ensure we do NOT see a new room key being sent.
-		ch := make(chan callback.Data, 10)
-		mitmConfiguration := sniffToDeviceEvent(t, tc, ch)
-		mitmConfiguration.Execute(func() {
+		sniffToDeviceEvent(t, tc, func(pc *callback.PassiveChannel) {
 			// login as alice
 			alice := tc.MustLoginClient(t, &cc.ClientCreationRequest{
 				User: tc.Alice,
@@ -485,15 +448,14 @@ func testRoomKeyIsNotCycledOnClientRestartRust(t *testing.T, clientType api.Clie
 			waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
 			alice.SendMessage(t, roomID, wantMsgBody)
 			waiter.Waitf(t, 5*time.Second, "bob did not see alice's message")
-		})
 
-		// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
-		// the room key.
-		select {
-		case <-ch:
-			ct.Fatalf(t, "saw /sendToDevice when restarting the client and sending a new message")
-		default:
-		}
+			// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
+			// the room key.
+			got := pc.TryRecv(t)
+			if got != nil {
+				ct.Fatalf(t, "saw /sendToDevice when restarting the client and sending a new message")
+			}
+		})
 	})
 }
 
@@ -526,9 +488,7 @@ func testRoomKeyIsNotCycledOnClientRestartJS(t *testing.T, clientType api.Client
 		waiter.Waitf(t, 5*time.Second, "bob did not see alice's message")
 
 		// we're going to sniff calls to /sendToDevice to ensure we do NOT see a new room key being sent.
-		ch := make(chan callback.Data, 10)
-		mitmConfiguration := sniffToDeviceEvent(t, tc, ch)
-		mitmConfiguration.Execute(func() {
+		sniffToDeviceEvent(t, tc, func(pc *callback.PassiveChannel) {
 			// now alice is going to restart her client
 			aliceStopSyncing()
 			alice.Close(t)
@@ -543,14 +503,13 @@ func testRoomKeyIsNotCycledOnClientRestartJS(t *testing.T, clientType api.Client
 				alice.SendMessage(t, roomID, wantMsgBody)
 				waiter.Waitf(t, 5*time.Second, "bob did not see alice's message")
 			})
-		})
 
-		// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
-		// the room key.
-		select {
-		case <-ch:
-			ct.Fatalf(t, "saw /sendToDevice when restarting the client and sending a new message")
-		default:
-		}
+			// we should have seen a /sendToDevice call by now. If we didn't, this implies we didn't cycle
+			// the room key.
+			got := pc.TryRecv(t)
+			if got != nil {
+				ct.Fatalf(t, "saw /sendToDevice when restarting the client and sending a new message")
+			}
+		})
 	})
 }
