@@ -73,7 +73,8 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, erro
 	}
 	// @alice:hs1, FOOBAR => alice_hs1_FOOBAR
 	username := strings.Replace(opts.UserID[1:], ":", "_", -1) + "_" + opts.DeviceID
-	ab = ab.SessionPath("rust_storage/" + username).Username(username)
+	passphrase := "complement-crypto"
+	ab = ab.SessionPath("rust_storage/" + username).Username(username).Passphrase(&passphrase)
 	client, err := ab.Build()
 	if err != nil {
 		return nil, fmt.Errorf("ClientBuilder.Build failed: %s", err)
