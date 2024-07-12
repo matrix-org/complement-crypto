@@ -16,6 +16,7 @@ import (
 	"github.com/matrix-org/complement-crypto/internal/api/js"
 	"github.com/matrix-org/complement-crypto/internal/api/rust"
 	"github.com/matrix-org/complement-crypto/internal/deploy"
+	"github.com/matrix-org/complement-crypto/internal/deploy/rpc"
 	"github.com/matrix-org/complement/b"
 	"github.com/matrix-org/complement/client"
 	"github.com/matrix-org/complement/helpers"
@@ -60,7 +61,7 @@ func TestMain(m *testing.M) {
 	rpcBinary := os.Getenv("COMPLEMENT_CRYPTO_RPC_BINARY")
 	if rpcBinary != "" {
 		clientFactories = append(clientFactories, func(t *testing.T, cfg api.ClientCreationOpts) api.Client {
-			remoteBindings, err := deploy.NewRPCLanguageBindings(rpcBinary, api.ClientTypeRust, "")
+			remoteBindings, err := rpc.NewLanguageBindings(rpcBinary, api.ClientTypeRust, "")
 			if err != nil {
 				log.Fatal(err)
 			}

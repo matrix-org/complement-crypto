@@ -8,6 +8,7 @@ import (
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/api/langs"
 	"github.com/matrix-org/complement-crypto/internal/deploy"
+	"github.com/matrix-org/complement-crypto/internal/deploy/rpc"
 	"github.com/matrix-org/complement/client"
 	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/complement/helpers"
@@ -113,7 +114,7 @@ func (c *TestContext) mustCreateMultiprocessClient(t *testing.T, req *ClientCrea
 		return nil
 	}
 	ctxPrefix := fmt.Sprintf("%d", c.RPCInstance.Add(1))
-	remoteBindings, err := deploy.NewRPCLanguageBindings(c.RPCBinaryPath, req.User.ClientType.Lang, ctxPrefix)
+	remoteBindings, err := rpc.NewLanguageBindings(c.RPCBinaryPath, req.User.ClientType.Lang, ctxPrefix)
 	if err != nil {
 		t.Fatalf("Failed to create new RPC language bindings: %s", err)
 	}
