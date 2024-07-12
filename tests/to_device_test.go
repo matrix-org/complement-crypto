@@ -3,6 +3,7 @@ package tests
 import (
 	"fmt"
 	"net/http"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -31,9 +32,12 @@ func TestClientRetriesSendToDevice(t *testing.T) {
 			var evID string
 			var err error
 			// now gateway timeout the /sendToDevice endpoint
-			mitmConfiguration := tc.Deployment.MITM().Configure(t)
-			mitmConfiguration.ForPath("/sendToDevice").BlockResponse(0, http.StatusGatewayTimeout)
-			mitmConfiguration.Execute(func() {
+			tc.Deployment.MITM().Configure(t).WithIntercept(mitm.InterceptOpts{
+				Filter: mitm.FilterParams{
+					PathContains: "/sendToDevice",
+				},
+				ResponseCallback: callback.SendError(0, http.StatusGatewayTimeout),
+			}, func() {
 				evID, err = alice.TrySendMessage(t, roomID, wantMsgBody)
 				if err != nil {
 					// we allow clients to fail the send if they cannot call /sendToDevice
@@ -43,7 +47,6 @@ func TestClientRetriesSendToDevice(t *testing.T) {
 					t.Logf("TrySendMessage: => %s", evID)
 				}
 			})
-
 			if err != nil {
 				// retry now we have connectivity
 				evID = alice.SendMessage(t, roomID, wantMsgBody)
@@ -128,23 +131,26 @@ func TestUnprocessedToDeviceMessagesArentLostOnRestart(t *testing.T) {
 func testUnprocessedToDeviceMessagesArentLostOnRestartRust(t *testing.T, tc *cc.TestContext, bobOpts api.ClientCreationOpts, roomID, eventID string) {
 	// sniff /sync traffic
 	waitForRoomKey := helpers.NewWaiter()
-	mitmConfiguration := tc.Deployment.MITM().Configure(t)
-	mitmConfiguration.ForPath("/sync").Listen(func(cd callback.Data) *callback.Response {
-		// When /sync shows a to-device message from Alice (indicating the room key), then SIGKILL Bob.
-		t.Logf("/sync => %v", string(cd.ResponseBody))
-		body := gjson.ParseBytes(cd.ResponseBody)
-		toDeviceEvents := body.Get("extensions.to_device.events").Array() // Sliding Sync form
-		if len(toDeviceEvents) > 0 {
-			for _, ev := range toDeviceEvents {
-				if ev.Get("type").Str == "m.room.encrypted" {
-					t.Logf("detected potential room key")
-					waitForRoomKey.Finish()
+	tc.Deployment.MITM().Configure(t).WithIntercept(mitm.InterceptOpts{
+		Filter: mitm.FilterParams{
+			PathContains: "/sync",
+		},
+		ResponseCallback: func(cd callback.Data) *callback.Response {
+			// When /sync shows a to-device message from Alice (indicating the room key), then SIGKILL Bob.
+			t.Logf("/sync => %v", string(cd.ResponseBody))
+			body := gjson.ParseBytes(cd.ResponseBody)
+			toDeviceEvents := body.Get("extensions.to_device.events").Array() // Sliding Sync form
+			if len(toDeviceEvents) > 0 {
+				for _, ev := range toDeviceEvents {
+					if ev.Get("type").Str == "m.room.encrypted" {
+						t.Logf("detected potential room key")
+						waitForRoomKey.Finish()
+					}
 				}
 			}
-		}
-		return nil
-	})
-	mitmConfiguration.Execute(func() {
+			return nil
+		},
+	}, func() {
 		// bob comes back online, and will be killed a short while later.
 		// No need to login as we will reuse the session from before.
 		// This is critical to ensure we get the room key update as it would have been sent
@@ -278,36 +284,37 @@ func TestToDeviceMessagesAreBatched(t *testing.T) {
 		waiter := helpers.NewWaiter()
 		tc.WithAliceSyncing(t, func(alice api.Client) {
 			// intercept /sendToDevice and check we are sending 100 messages per request
-			mitmConfiguration := tc.Deployment.MITM().Configure(t)
-			mitmConfiguration.ForPath("/sendToDevice").Listen(func(cd callback.Data) *callback.Response {
-				if cd.Method != "PUT" {
-					return nil
-				}
-				// format is:
-				/*
-					{
-					  "messages": {
-					    "@alice:example.com": {
-					      "TLLBEANAAG": {
-					        "example_content_key": "value"
-					      }
-					    }
-					  }
+			tc.Deployment.MITM().Configure(t).WithIntercept(mitm.InterceptOpts{
+				Filter: mitm.FilterParams{
+					PathContains: "/sendToDevice",
+					Method:       "PUT",
+				},
+				ResponseCallback: func(cd callback.Data) *callback.Response {
+					// format is:
+					/*
+						{
+						  "messages": {
+						    "@alice:example.com": {
+						      "TLLBEANAAG": {
+						        "example_content_key": "value"
+						      }
+						    }
+						  }
+						}
+					*/
+					usersMap := gjson.GetBytes(cd.RequestBody, "messages")
+					if !usersMap.Exists() {
+						t.Logf("intercepted PUT /sendToDevice but no messages existed")
+						return nil
 					}
-				*/
-				usersMap := gjson.GetBytes(cd.RequestBody, "messages")
-				if !usersMap.Exists() {
-					t.Logf("intercepted PUT /sendToDevice but no messages existed")
+					if len(usersMap.Map()) != 100 {
+						t.Errorf("PUT /sendToDevice did not batch messages, got %d want 100", len(usersMap.Map()))
+						t.Logf(usersMap.Raw)
+					}
+					waiter.Finish()
 					return nil
-				}
-				if len(usersMap.Map()) != 100 {
-					t.Errorf("PUT /sendToDevice did not batch messages, got %d want 100", len(usersMap.Map()))
-					t.Logf(usersMap.Raw)
-				}
-				waiter.Finish()
-				return nil
-			})
-			mitmConfiguration.Execute(func() {
+				},
+			}, func() {
 				alice.SendMessage(t, roomID, "this should cause to-device msgs to be sent")
 				time.Sleep(time.Second)
 				waiter.Waitf(t, 5*time.Second, "did not see /sendToDevice")
@@ -348,13 +355,17 @@ func TestToDeviceMessagesArentLostWhenKeysQueryFails(t *testing.T) {
 			var eventID string
 			bobAccessToken := bob.CurrentAccessToken(t)
 			t.Logf("Bob's token => %s", bobAccessToken)
-			mitmConfiguration := tc.Deployment.MITM().Configure(t)
-			mitmConfiguration.ForPath("/keys/query").AccessToken(bobAccessToken).BlockRequest(3, http.StatusGatewayTimeout).Listen(func(cd callback.Data) *callback.Response {
-				t.Logf("%+v", cd)
-				waiter.Finish()
-				return nil
-			})
-			mitmConfiguration.Execute(func() {
+			tc.Deployment.MITM().Configure(t).WithIntercept(mitm.InterceptOpts{
+				Filter: mitm.FilterParams{
+					PathContains: "/keys/query",
+				},
+				RequestCallback: callback.SendError(3, http.StatusGatewayTimeout),
+				ResponseCallback: func(d callback.Data) *callback.Response {
+					t.Logf("%+v", d)
+					waiter.Finish()
+					return nil
+				},
+			}, func() {
 				// Alice logs in on a new device.
 				csapiAlice2 := tc.MustRegisterNewDevice(t, tc.Alice, "OTHER_DEVICE")
 				tc.WithClientSyncing(t, &cc.ClientCreationRequest{
@@ -419,7 +430,7 @@ func TestToDeviceMessagesAreProcessedInOrder(t *testing.T) {
 			Body string
 		}{}
 		tc.WithAliceSyncing(t, func(alice api.Client) {
-			callback := func(cd callback.Data) *callback.Response {
+			callbackFn := func(cd callback.Data) *callback.Response {
 				// try v2 sync then SS
 				toDeviceEvents := gjson.ParseBytes(cd.ResponseBody).Get("to_device.events").Array()
 				if len(toDeviceEvents) == 0 {
@@ -430,12 +441,25 @@ func TestToDeviceMessagesAreProcessedInOrder(t *testing.T) {
 				}
 				return nil
 			}
+			shouldBlockRequest := atomic.Bool{}
+			shouldBlockRequest.Store(true)
+			sendError := callback.SendError(0, http.StatusGatewayTimeout)
 			// Block Alice's /sync
-			mitmConfiguration := tc.Deployment.MITM().Configure(t)
 			// intercept /sync just so we can observe the number of to-device msgs coming down.
 			// We also synchronise on this to know when the client has received the to-device msgs
-			mitmConfiguration.ForPath("/sync").AccessToken(alice.CurrentAccessToken(t)).BlockRequest(0, http.StatusGatewayTimeout).Listen(callback)
-			mitmConfiguration.Execute(func() {
+			tc.Deployment.MITM().Configure(t).WithIntercept(mitm.InterceptOpts{
+				Filter: mitm.FilterParams{
+					PathContains: "/sync",
+					AccessToken:  alice.CurrentAccessToken(t),
+				},
+				RequestCallback: func(d callback.Data) *callback.Response {
+					if shouldBlockRequest.Load() {
+						return sendError(d)
+					}
+					return nil
+				},
+				ResponseCallback: callbackFn,
+			}, func() {
 				// create 10 users and join the room
 				creationReqs := make([]*cc.ClientCreationRequest, numClients)
 				for i := range creationReqs {
@@ -461,12 +485,9 @@ func TestToDeviceMessagesAreProcessedInOrder(t *testing.T) {
 					}
 				})
 				t.Logf("sent %d timeline events", len(timelineEvents))
-			})
-			// Alice's /sync is unblocked, wait until we see the last event.
-			// Re-add the callback server TODO: allow composing see https://github.com/matrix-org/complement-crypto/issues/68
-			mitmConfiguration = tc.Deployment.MITM().Configure(t)
-			mitmConfiguration.ForPath("/sync").AccessToken(alice.CurrentAccessToken(t)).Listen(callback)
-			mitmConfiguration.Execute(func() {
+				// Alice's /sync is unblocked, wait until we see the last event.
+				shouldBlockRequest.Store(false)
+
 				lastTimelineEvent := timelineEvents[len(timelineEvents)-1]
 				alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasEventID(lastTimelineEvent.ID)).Waitf(
 					// wait a while here as we need to wait for both /sync to retry and a large response

@@ -10,6 +10,7 @@ import (
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/cc"
 	"github.com/matrix-org/complement-crypto/internal/deploy/callback"
+	"github.com/matrix-org/complement-crypto/internal/deploy/mitm"
 	"github.com/matrix-org/complement/b"
 	"github.com/matrix-org/complement/client"
 	"github.com/matrix-org/complement/ct"
@@ -108,9 +109,14 @@ func TestFallbackKeyIsUsedIfOneTimeKeysRunOut(t *testing.T) {
 			var roomID string
 			var waiter api.Waiter
 			// Block all /keys/upload requests for Alice
-			mitmConfiguration := tc.Deployment.MITM().Configure(t)
-			mitmConfiguration.ForPath("/keys/upload").AccessToken(alice.CurrentAccessToken(t)).BlockRequest(0, http.StatusGatewayTimeout)
-			mitmConfiguration.Execute(func() {
+			tc.Deployment.MITM().Configure(t).WithIntercept(mitm.InterceptOpts{
+				Filter: mitm.FilterParams{
+					PathContains: "/keys/upload",
+					Method:       "POST",
+					AccessToken:  alice.CurrentAccessToken(t),
+				},
+				RequestCallback: callback.SendError(0, http.StatusGatewayTimeout),
+			}, func() {
 				// claim all OTKs
 				mustClaimOTKs(t, otkGobbler, tc.Alice, int(otkCount))
 
@@ -156,9 +162,13 @@ func TestFailedOneTimeKeyUploadRetries(t *testing.T) {
 		// make a room so we can kick clients
 		roomID := tc.Alice.MustCreateRoom(t, map[string]interface{}{"preset": "public_chat"})
 		// block /keys/upload and make a client
-		mitmConfiguration := tc.Deployment.MITM().Configure(t)
-		mitmConfiguration.ForPath("/keys/upload").Method("POST").BlockRequest(2, http.StatusGatewayTimeout)
-		mitmConfiguration.Execute(func() {
+		tc.Deployment.MITM().Configure(t).WithIntercept(mitm.InterceptOpts{
+			Filter: mitm.FilterParams{
+				PathContains: "/keys/upload",
+				Method:       "POST",
+			},
+			RequestCallback: callback.SendError(2, http.StatusGatewayTimeout),
+		}, func() {
 			tc.WithAliceSyncing(t, func(alice api.Client) {
 				tc.Bob.MustDo(t, "POST", []string{
 					"_matrix", "client", "v3", "keys", "claim",
@@ -204,16 +214,21 @@ func TestFailedKeysClaimRetries(t *testing.T) {
 			// make a room which will link the 2 users together when
 			roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.PresetPublicChat())
 			// block /keys/claim and join the room, causing the Olm session to be created
-			mitmConfiguration := tc.Deployment.MITM().Configure(t)
-			mitmConfiguration.ForPath("/keys/claim").Method("POST").BlockRequest(2, http.StatusGatewayTimeout).Listen(func(cd callback.Data) *callback.Response {
-				t.Logf("%+v", cd)
-				if cd.ResponseCode == 200 {
-					waiter.Finish()
-					stopPoking.Store(true)
-				}
-				return nil
-			})
-			mitmConfiguration.Execute(func() {
+			tc.Deployment.MITM().Configure(t).WithIntercept(mitm.InterceptOpts{
+				Filter: mitm.FilterParams{
+					PathContains: "/keys/claim",
+					Method:       "POST",
+				},
+				RequestCallback: callback.SendError(2, http.StatusGatewayTimeout),
+				ResponseCallback: func(cd callback.Data) *callback.Response {
+					t.Logf("%+v", cd)
+					if cd.ResponseCode == 200 {
+						waiter.Finish()
+						stopPoking.Store(true)
+					}
+					return nil
+				},
+			}, func() {
 				// join the room. This should cause an Olm session to be made but it will fail as we cannot
 				// call /keys/claim. We should retry though.
 				tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
