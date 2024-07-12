@@ -162,12 +162,13 @@ func NewCallbackServer(t ct.TestLike, hostnameRunningComplement string) (*Callba
 
 // SendError returns a callback.Fn which returns the provided statusCode
 // along with a JSON error $count times, after which it lets the response
-// pass through. This is useful for testing retries.
+// pass through. This is useful for testing retries. If count=0, always send
+// an error response.
 func SendError(count uint32, statusCode int) Fn {
 	var seen atomic.Uint32
 	return func(d Data) *Response {
 		next := seen.Add(1)
-		if next > count {
+		if count > 0 && next > count {
 			return nil
 		}
 		return &Response{

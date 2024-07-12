@@ -10,6 +10,7 @@ import (
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/cc"
 	"github.com/matrix-org/complement-crypto/internal/deploy/callback"
+	"github.com/matrix-org/complement-crypto/internal/deploy/mitm"
 	"github.com/matrix-org/complement/must"
 )
 
@@ -567,23 +568,26 @@ func TestMultiprocessDupeOTKUpload(t *testing.T) {
 	// artificially slow down the HTTP responses, such that we will potentially have 2 in-flight /keys/upload requests
 	// at once. If the NSE and main apps are talking to each other, they should be using the same key ID + key.
 	// If not... well, that's a bug because then the client will forget one of these keys.
-	mitmConfiguration := tc.Deployment.MITM().Configure(t)
-	mitmConfiguration.ForPath("/keys/upload").Listen(func(cd callback.Data) *callback.Response {
-		if cd.AccessToken != aliceAccessToken {
-			return nil // let bob upload OTKs
-		}
-		aliceUploadedNewKeys = true
-		if cd.ResponseCode != 200 {
-			// we rely on the homeserver checking and rejecting when the same key ID is used with
-			// different keys.
-			t.Errorf("/keys/upload returned an error, duplicate key upload? %+v => %v", cd, string(cd.ResponseBody))
-		}
-		// tarpit the response
-		t.Logf("tarpitting keys/upload response for 4 seconds")
-		time.Sleep(4 * time.Second)
-		return nil
-	})
-	mitmConfiguration.Execute(func() {
+	tc.Deployment.MITM().Configure(t).WithIntercept(mitm.InterceptOpts{
+		Filter: mitm.FilterParams{
+			PathContains: "/keys/upload",
+		},
+		ResponseCallback: func(cd callback.Data) *callback.Response {
+			if cd.AccessToken != aliceAccessToken {
+				return nil // let bob upload OTKs
+			}
+			aliceUploadedNewKeys = true
+			if cd.ResponseCode != 200 {
+				// we rely on the homeserver checking and rejecting when the same key ID is used with
+				// different keys.
+				t.Errorf("/keys/upload returned an error, duplicate key upload? %+v => %v", cd, string(cd.ResponseBody))
+			}
+			// tarpit the response
+			t.Logf("tarpitting keys/upload response for 4 seconds")
+			time.Sleep(4 * time.Second)
+			return nil
+		},
+	}, func() {
 		var eventID string
 		// Bob appears and sends a message, causing Bob to claim one of Alice's OTKs.
 		// The main app will see this in /sync and then try to upload another OTK, which we will tarpit.

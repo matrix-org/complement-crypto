@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"sync"
 	"testing"
 	"time"
 
@@ -40,10 +39,8 @@ func NewClient(proxyURL *url.URL, hostnameRunningComplement string) *Client {
 
 func (m *Client) Configure(t *testing.T) *Configuration {
 	return &Configuration{
-		t:        t,
-		pathCfgs: make(map[string]*MITMPathConfiguration),
-		mu:       &sync.Mutex{},
-		client:   m,
+		t:      t,
+		client: m,
 	}
 }
 

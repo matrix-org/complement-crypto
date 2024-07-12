@@ -9,6 +9,7 @@ import (
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/cc"
 	"github.com/matrix-org/complement-crypto/internal/deploy/callback"
+	"github.com/matrix-org/complement-crypto/internal/deploy/mitm"
 	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/complement/helpers"
 )
@@ -36,25 +37,28 @@ func testSigkillBeforeKeysUploadResponseRust(t *testing.T, clientType api.Client
 	var terminateClient func()
 	seenSecondKeysUploadWaiter := helpers.NewWaiter()
 	tc := Instance().CreateTestContext(t, clientType, clientType)
-
-	mitmConfiguration := tc.Deployment.MITM().Configure(t)
-	mitmConfiguration.ForPath("/keys/upload").Listen(func(cd callback.Data) *callback.Response {
-		if terminated.Load() {
-			// make sure the 2nd upload 200 OKs
-			if cd.ResponseCode != 200 {
-				t.Errorf("2nd /keys/upload did not 200 OK => got %v", cd.ResponseCode)
+	tc.Deployment.MITM().Configure(t).WithIntercept(mitm.InterceptOpts{
+		Filter: mitm.FilterParams{
+			PathContains: "/keys/upload",
+			Method:       "POST",
+		},
+		ResponseCallback: func(cd callback.Data) *callback.Response {
+			if terminated.Load() {
+				// make sure the 2nd upload 200 OKs
+				if cd.ResponseCode != 200 {
+					t.Errorf("2nd /keys/upload did not 200 OK => got %v", cd.ResponseCode)
+				}
+				t.Logf("recv 2nd /keys/upload => HTTP %d", cd.ResponseCode)
+				seenSecondKeysUploadWaiter.Finish()
+				return nil
 			}
-			t.Logf("recv 2nd /keys/upload => HTTP %d", cd.ResponseCode)
-			seenSecondKeysUploadWaiter.Finish()
+			// destroy the client
+			mu.Lock()
+			terminateClient()
+			mu.Unlock()
 			return nil
-		}
-		// destroy the client
-		mu.Lock()
-		terminateClient()
-		mu.Unlock()
-		return nil
-	})
-	mitmConfiguration.Execute(func() {
+		},
+	}, func() {
 		// login in a different process
 		remoteClient := tc.MustCreateClient(t, &cc.ClientCreationRequest{
 			User: tc.Alice,
@@ -98,30 +102,31 @@ func testSigkillBeforeKeysUploadResponseJS(t *testing.T, clientType api.ClientTy
 	var terminateClient func()
 	seenSecondKeysUploadWaiter := helpers.NewWaiter()
 	tc := Instance().CreateTestContext(t, clientType, clientType)
-	mitmConfiguration := tc.Deployment.MITM().Configure(t)
-	mitmConfiguration.ForPath("/keys/upload").Listen(func(cd callback.Data) *callback.Response {
-		if cd.Method == "OPTIONS" {
-			return nil // ignore CORS
-		}
-		if terminated.Load() {
-			// make sure the 2nd upload 200 OKs
-			if cd.ResponseCode != 200 {
-				ct.Errorf(t, "2nd /keys/upload did not 200 OK => got %v", cd.ResponseCode)
+	tc.Deployment.MITM().Configure(t).WithIntercept(mitm.InterceptOpts{
+		Filter: mitm.FilterParams{
+			PathContains: "/keys/upload",
+			Method:       "POST",
+		},
+		ResponseCallback: func(cd callback.Data) *callback.Response {
+			if terminated.Load() {
+				// make sure the 2nd upload 200 OKs
+				if cd.ResponseCode != 200 {
+					ct.Errorf(t, "2nd /keys/upload did not 200 OK => got %v", cd.ResponseCode)
+				}
+				seenSecondKeysUploadWaiter.Finish()
+				return nil
 			}
-			seenSecondKeysUploadWaiter.Finish()
+			// destroy the client
+			mu.Lock()
+			if terminateClient != nil {
+				terminateClient()
+			} else {
+				ct.Errorf(t, "terminateClient is nil. Did WithMITMOptions lock?")
+			}
+			mu.Unlock()
 			return nil
-		}
-		// destroy the client
-		mu.Lock()
-		if terminateClient != nil {
-			terminateClient()
-		} else {
-			ct.Errorf(t, "terminateClient is nil. Did WithMITMOptions lock?")
-		}
-		mu.Unlock()
-		return nil
-	})
-	mitmConfiguration.Execute(func() {
+		},
+	}, func() {
 		clientWhichWillBeKilled := tc.MustCreateClient(t, &cc.ClientCreationRequest{
 			User: tc.Alice,
 			Opts: api.ClientCreationOpts{
