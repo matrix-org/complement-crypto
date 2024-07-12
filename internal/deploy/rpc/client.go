@@ -1,4 +1,4 @@
-package deploy
+package rpc
 
 import (
 	"bufio"
@@ -15,27 +15,27 @@ import (
 	"github.com/matrix-org/complement/ct"
 )
 
-// RPCLanguageBindings implements api.LanguageBindings and instead issues RPC calls to a remote server.
-type RPCLanguageBindings struct {
+// LanguageBindings implements api.LanguageBindings and instead issues RPC calls to a remote server.
+type LanguageBindings struct {
 	binaryPath    string
 	clientType    api.ClientTypeLang
 	contextPrefix string
 }
 
-func NewRPCLanguageBindings(rpcBinaryPath string, clientType api.ClientTypeLang, contextPrefix string) (*RPCLanguageBindings, error) {
-	return &RPCLanguageBindings{
+func NewLanguageBindings(rpcBinaryPath string, clientType api.ClientTypeLang, contextPrefix string) (*LanguageBindings, error) {
+	return &LanguageBindings{
 		binaryPath:    rpcBinaryPath,
 		clientType:    clientType,
 		contextPrefix: contextPrefix,
 	}, nil
 }
 
-func (r *RPCLanguageBindings) PreTestRun(contextID string) {
+func (r *LanguageBindings) PreTestRun(contextID string) {
 	// do nothing, as PreTestRun for all tests is meaningless for RPC clients.
 	// If we were to call the underlying bindings, we would delete logs prematurely.
 	// Instead, we do this call when RPC clients are made.
 }
-func (r *RPCLanguageBindings) PostTestRun(contextID string) {
+func (r *LanguageBindings) PostTestRun(contextID string) {
 	// do nothing, as PostTestRun for all tests is meaningless for RPC clients.
 	// If we were to call the underlying bindings, we would delete logs prematurely.
 	// Instead, we do this call when RPC clients are closed.
@@ -47,7 +47,7 @@ func (r *RPCLanguageBindings) PostTestRun(contextID string) {
 //   - the server cannot be started
 //   - IPC via stdout fails (used to extract the random high numbered port)
 //   - the client cannot talk to the rpc server
-func (r *RPCLanguageBindings) MustCreateClient(t ct.TestLike, cfg api.ClientCreationOpts) api.Client {
+func (r *LanguageBindings) MustCreateClient(t ct.TestLike, cfg api.ClientCreationOpts) api.Client {
 	contextID := fmt.Sprintf("%s%s_%s", r.contextPrefix, strings.Replace(cfg.UserID[1:], ":", "_", -1), cfg.DeviceID)
 	// security: check it is a file not a random bash script...
 	if _, err := os.Stat(r.binaryPath); err != nil {
@@ -122,7 +122,7 @@ func (r *RPCLanguageBindings) MustCreateClient(t ct.TestLike, cfg api.ClientCrea
 			t.Fatalf("DialHTTP: %s", err)
 		}
 
-		err = client.Call("RPCServer.MustCreateClient", RPCClientCreationOpts{
+		err = client.Call("Server.MustCreateClient", ClientCreationOpts{
 			ClientCreationOpts: cfg,
 			ContextID:          contextID,
 			Lang:               r.clientType,
@@ -164,7 +164,7 @@ func (c *RPCClient) Close(t ct.TestLike) {
 	t.Helper()
 	var void int
 	fmt.Println("RPCClient.Close")
-	err := c.client.Call("RPCServer.Close", t.Name(), &void)
+	err := c.client.Call("Server.Close", t.Name(), &void)
 	if err != nil {
 		t.Fatalf("RPCClient.Close: %s", err)
 	}
@@ -177,13 +177,13 @@ func (c *RPCClient) GetNotification(t ct.TestLike, roomID, eventID string) (*api
 		RoomID:  roomID,
 		EventID: eventID,
 	}
-	err := c.client.Call("RPCServer.GetNotification", input, &notification)
+	err := c.client.Call("Server.GetNotification", input, &notification)
 	return &notification, err
 }
 
 func (c *RPCClient) CurrentAccessToken(t ct.TestLike) string {
 	var token string
-	err := c.client.Call("RPCServer.CurrentAccessToken", t.Name(), &token)
+	err := c.client.Call("Server.CurrentAccessToken", t.Name(), &token)
 	if err != nil {
 		ct.Fatalf(t, "RPCServer.CurrentAccessToken: %s", err)
 	}
@@ -205,7 +205,7 @@ func (c *RPCClient) InviteUser(t ct.TestLike, roomID, userID string) error {
 // Remove any persistent storage, if it was enabled.
 func (c *RPCClient) DeletePersistentStorage(t ct.TestLike) {
 	var void int
-	err := c.client.Call("RPCServer.DeletePersistentStorage", t.Name(), &void)
+	err := c.client.Call("Server.DeletePersistentStorage", t.Name(), &void)
 	if err != nil {
 		t.Fatalf("RPCClient.DeletePersistentStorage: %s", err)
 	}
@@ -213,7 +213,7 @@ func (c *RPCClient) DeletePersistentStorage(t ct.TestLike) {
 func (c *RPCClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {
 	var void int
 	fmt.Printf("RPCClient Calling login with %+v\n", opts)
-	err := c.client.Call("RPCServer.Login", opts, &void)
+	err := c.client.Call("Server.Login", opts, &void)
 	fmt.Println("RPCClient login returned => ", err)
 	return err
 }
@@ -224,12 +224,12 @@ func (c *RPCClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {
 // Fails the test if there was a problem syncing.
 func (c *RPCClient) MustStartSyncing(t ct.TestLike) (stopSyncing func()) {
 	var void int
-	err := c.client.Call("RPCServer.MustStartSyncing", t.Name(), &void)
+	err := c.client.Call("Server.MustStartSyncing", t.Name(), &void)
 	if err != nil {
 		t.Fatalf("RPCClient.MustStartSyncing: %s", err)
 	}
 	return func() {
-		err := c.client.Call("RPCServer.StopSyncing", t.Name(), &void)
+		err := c.client.Call("Server.StopSyncing", t.Name(), &void)
 		if err != nil {
 			t.Fatalf("RPCClient.StopSyncing: %s", err)
 		}
@@ -242,12 +242,12 @@ func (c *RPCClient) MustStartSyncing(t ct.TestLike) (stopSyncing func()) {
 // Returns an error if there was a problem syncing.
 func (c *RPCClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error) {
 	var void int
-	err = c.client.Call("RPCServer.StartSyncing", t.Name(), &void)
+	err = c.client.Call("Server.StartSyncing", t.Name(), &void)
 	if err != nil {
 		return
 	}
 	return func() {
-		err := c.client.Call("RPCServer.StopSyncing", t.Name(), &void)
+		err := c.client.Call("Server.StopSyncing", t.Name(), &void)
 		if err != nil {
 			t.Logf("RPCClient.StopSyncing: %s", err)
 		}
@@ -258,14 +258,14 @@ func (c *RPCClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error) 
 // provide a bogus room ID.
 func (c *RPCClient) IsRoomEncrypted(t ct.TestLike, roomID string) (bool, error) {
 	var isEncrypted bool
-	err := c.client.Call("RPCServer.IsRoomEncrypted", roomID, &isEncrypted)
+	err := c.client.Call("Server.IsRoomEncrypted", roomID, &isEncrypted)
 	return isEncrypted, err
 }
 
 // SendMessage sends the given text as an m.room.message with msgtype:m.text into the given
 // room. Returns the event ID of the sent event, so MUST BLOCK until the event has been sent.
 func (c *RPCClient) SendMessage(t ct.TestLike, roomID, text string) (eventID string) {
-	err := c.client.Call("RPCServer.SendMessage", RPCSendMessage{
+	err := c.client.Call("Server.SendMessage", RPCSendMessage{
 		TestName: t.Name(),
 		RoomID:   roomID,
 		Text:     text,
@@ -278,7 +278,7 @@ func (c *RPCClient) SendMessage(t ct.TestLike, roomID, text string) (eventID str
 
 // TrySendMessage tries to send the message, but can fail.
 func (c *RPCClient) TrySendMessage(t ct.TestLike, roomID, text string) (eventID string, err error) {
-	err = c.client.Call("RPCServer.TrySendMessage", RPCSendMessage{
+	err = c.client.Call("Server.TrySendMessage", RPCSendMessage{
 		TestName: t.Name(),
 		RoomID:   roomID,
 		Text:     text,
@@ -290,7 +290,7 @@ func (c *RPCClient) TrySendMessage(t ct.TestLike, roomID, text string) (eventID 
 // a pre-defined one like api.CheckEventHasMembership, api.CheckEventHasBody, or api.CheckEventHasEventID.
 func (c *RPCClient) WaitUntilEventInRoom(t ct.TestLike, roomID string, checker func(e api.Event) bool) api.Waiter {
 	var waiterID int
-	err := c.client.Call("RPCServer.WaitUntilEventInRoom", RPCWaitUntilEvent{
+	err := c.client.Call("Server.WaitUntilEventInRoom", RPCWaitUntilEvent{
 		TestName: t.Name(),
 		RoomID:   roomID,
 	}, &waiterID)
@@ -307,7 +307,7 @@ func (c *RPCClient) WaitUntilEventInRoom(t ct.TestLike, roomID string, checker f
 // Backpaginate in this room by `count` events.
 func (c *RPCClient) MustBackpaginate(t ct.TestLike, roomID string, count int) {
 	var void int
-	err := c.client.Call("RPCServer.MustBackpaginate", RPCBackpaginate{
+	err := c.client.Call("Server.MustBackpaginate", RPCBackpaginate{
 		TestName: t.Name(),
 		RoomID:   roomID,
 		Count:    count,
@@ -320,7 +320,7 @@ func (c *RPCClient) MustBackpaginate(t ct.TestLike, roomID string, count int) {
 // MustGetEvent will return the client's view of this event, or fail the test if the event cannot be found.
 func (c *RPCClient) MustGetEvent(t ct.TestLike, roomID, eventID string) api.Event {
 	var ev api.Event
-	err := c.client.Call("RPCServer.MustGetEvent", RPCGetEvent{
+	err := c.client.Call("Server.MustGetEvent", RPCGetEvent{
 		TestName: t.Name(),
 		RoomID:   roomID,
 		EventID:  eventID,
@@ -333,7 +333,7 @@ func (c *RPCClient) MustGetEvent(t ct.TestLike, roomID, eventID string) api.Even
 
 // MustBackupKeys will backup E2EE keys, else fail the test.
 func (c *RPCClient) MustBackupKeys(t ct.TestLike) (recoveryKey string) {
-	err := c.client.Call("RPCServer.MustBackupKeys", 0, &recoveryKey)
+	err := c.client.Call("Server.MustBackupKeys", 0, &recoveryKey)
 	if err != nil {
 		t.Fatalf("RPCClient.MustBackupKeys: %v", err)
 	}
@@ -343,7 +343,7 @@ func (c *RPCClient) MustBackupKeys(t ct.TestLike) (recoveryKey string) {
 // MustLoadBackup will recover E2EE keys from the latest backup, else fail the test.
 func (c *RPCClient) MustLoadBackup(t ct.TestLike, recoveryKey string) {
 	var void int
-	err := c.client.Call("RPCServer.MustLoadBackup", recoveryKey, &void)
+	err := c.client.Call("Server.MustLoadBackup", recoveryKey, &void)
 	if err != nil {
 		t.Fatalf("RPCClient.MustLoadBackup: %v", err)
 	}
@@ -352,7 +352,7 @@ func (c *RPCClient) MustLoadBackup(t ct.TestLike, recoveryKey string) {
 // LoadBackup will recover E2EE keys from the latest backup, else return an error.
 func (c *RPCClient) LoadBackup(t ct.TestLike, recoveryKey string) error {
 	var void int
-	return c.client.Call("RPCServer.LoadBackup", recoveryKey, &void)
+	return c.client.Call("Server.LoadBackup", recoveryKey, &void)
 }
 
 // Log something to stdout and the underlying client log file
@@ -360,7 +360,7 @@ func (c *RPCClient) Logf(t ct.TestLike, format string, args ...interface{}) {
 	str := fmt.Sprintf(format, args...)
 	str = t.Name() + ": " + str
 	var void int
-	err := c.client.Call("RPCServer.Logf", str, &void)
+	err := c.client.Call("Server.Logf", str, &void)
 	if err != nil {
 		t.Fatalf("RPCClient.Logf: %s", err)
 	}
@@ -368,17 +368,17 @@ func (c *RPCClient) Logf(t ct.TestLike, format string, args ...interface{}) {
 
 func (c *RPCClient) UserID() string {
 	var userID string
-	c.client.Call("RPCServer.UserID", 0, &userID)
+	c.client.Call("Server.UserID", 0, &userID)
 	return userID
 }
 func (c *RPCClient) Type() api.ClientTypeLang {
 	var lang api.ClientTypeLang
-	c.client.Call("RPCServer.Type", 0, &lang)
+	c.client.Call("Server.Type", 0, &lang)
 	return lang
 }
 func (c *RPCClient) Opts() api.ClientCreationOpts {
 	var opts api.ClientCreationOpts
-	c.client.Call("RPCServer.Opts", 0, &opts)
+	c.client.Call("Server.Opts", 0, &opts)
 	return opts
 }
 
@@ -401,7 +401,7 @@ func (w *RPCWaiter) TryWaitf(t ct.TestLike, s time.Duration, format string, args
 	var void int
 	msg := fmt.Sprintf(format, args...)
 	t.Logf("RPCWaiter.TryWaitf: calling RPCServer.WaiterStart")
-	err := w.client.Call("RPCServer.WaiterStart", RPCWait{
+	err := w.client.Call("Server.WaiterStart", RPCWait{
 		TestName: t.Name(),
 		WaiterID: w.waiterID,
 		Msg:      msg,
@@ -415,7 +415,7 @@ func (w *RPCWaiter) TryWaitf(t ct.TestLike, s time.Duration, format string, args
 	for {
 		var eventsToCheck []api.Event
 		t.Logf("RPCWaiter.TryWaitf: calling RPCServer.WaiterPoll")
-		err := w.client.Call("RPCServer.WaiterPoll", w.waiterID, &eventsToCheck)
+		err := w.client.Call("Server.WaiterPoll", w.waiterID, &eventsToCheck)
 		if err != nil {
 			return fmt.Errorf("%s: %s", err, msg)
 		}

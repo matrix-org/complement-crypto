@@ -1,4 +1,4 @@
-package deploy
+package rpc
 
 import (
 	"fmt"
@@ -13,12 +13,12 @@ import (
 
 const InactivityThreshold = 30 * time.Second
 
-// RPCServer exposes the api.Client interface over the wire, consumed via net/rpc.
+// Server exposes the api.Client interface over the wire, consumed via net/rpc.
 // Args and return params must be encodable with encoding/gob.
 // All functions on this struct must meet the form:
 //
 //	func (t *T) MethodName(argType T1, replyType *T2) error
-type RPCServer struct {
+type Server struct {
 	contextID     string // test|user|device
 	bindings      api.LanguageBindings
 	activeClient  api.Client
@@ -30,8 +30,8 @@ type RPCServer struct {
 	lastCmdRecvMu *sync.Mutex
 }
 
-func NewRPCServer() *RPCServer {
-	srv := &RPCServer{
+func NewServer() *Server {
+	srv := &Server{
 		waiters:       make(map[int]*RPCServerWaiter),
 		waitersMu:     &sync.Mutex{},
 		lastCmdRecv:   time.Now(),
@@ -41,7 +41,7 @@ func NewRPCServer() *RPCServer {
 	return srv
 }
 
-type RPCClientCreationOpts struct {
+type ClientCreationOpts struct {
 	api.ClientCreationOpts
 	Lang      api.ClientTypeLang // need to know the type for pulling out the corret bindings
 	ContextID string
@@ -50,7 +50,7 @@ type RPCClientCreationOpts struct {
 // When the RPC server is run locally, we want to make sure we don't persist as an orphan process
 // if the test suite crashes. We do this by checking that we have seen an RPC command within
 // InactivityThreshold duration.
-func (s *RPCServer) checkKeepAlive() {
+func (s *Server) checkKeepAlive() {
 	ticker := time.NewTicker(time.Second)
 	for range ticker.C {
 		s.lastCmdRecvMu.Lock()
@@ -62,14 +62,14 @@ func (s *RPCServer) checkKeepAlive() {
 	}
 }
 
-func (s *RPCServer) keepAlive() {
+func (s *Server) keepAlive() {
 	s.lastCmdRecvMu.Lock()
 	defer s.lastCmdRecvMu.Unlock()
 	s.lastCmdRecv = time.Now()
 }
 
 // MustCreateClient creates a given client and returns it to the caller, else returns an error.
-func (s *RPCServer) MustCreateClient(opts RPCClientCreationOpts, void *int) error {
+func (s *Server) MustCreateClient(opts ClientCreationOpts, void *int) error {
 	defer s.keepAlive()
 	fmt.Printf("RPCServer: Received MustCreateClient: %+v\n", opts)
 	if s.activeClient != nil {
@@ -86,7 +86,7 @@ func (s *RPCServer) MustCreateClient(opts RPCClientCreationOpts, void *int) erro
 	return nil
 }
 
-func (s *RPCServer) Close(testName string, void *int) error {
+func (s *Server) Close(testName string, void *int) error {
 	defer s.keepAlive()
 	s.activeClient.Close(&api.MockT{TestName: testName})
 	// write logs
@@ -94,30 +94,30 @@ func (s *RPCServer) Close(testName string, void *int) error {
 	return nil
 }
 
-func (s *RPCServer) DeletePersistentStorage(testName string, void *int) error {
+func (s *Server) DeletePersistentStorage(testName string, void *int) error {
 	defer s.keepAlive()
 	s.activeClient.DeletePersistentStorage(&api.MockT{TestName: testName})
 	return nil
 }
 
-func (s *RPCServer) CurrentAccessToken(testName string, token *string) error {
+func (s *Server) CurrentAccessToken(testName string, token *string) error {
 	defer s.keepAlive()
 	*token = s.activeClient.CurrentAccessToken(&api.MockT{TestName: testName})
 	return nil
 }
 
-func (s *RPCServer) Login(opts api.ClientCreationOpts, void *int) error {
+func (s *Server) Login(opts api.ClientCreationOpts, void *int) error {
 	defer s.keepAlive()
 	return s.activeClient.Login(&api.MockT{}, opts)
 }
 
-func (s *RPCServer) MustStartSyncing(testName string, void *int) error {
+func (s *Server) MustStartSyncing(testName string, void *int) error {
 	defer s.keepAlive()
 	s.stopSyncing = s.activeClient.MustStartSyncing(&api.MockT{TestName: testName})
 	return nil
 }
 
-func (s *RPCServer) StartSyncing(testName string, void *int) error {
+func (s *Server) StartSyncing(testName string, void *int) error {
 	defer s.keepAlive()
 	stopSyncing, err := s.activeClient.StartSyncing(&api.MockT{TestName: testName})
 	if err != nil {
@@ -127,7 +127,7 @@ func (s *RPCServer) StartSyncing(testName string, void *int) error {
 	return nil
 }
 
-func (s *RPCServer) StopSyncing(testName string, void *int) error {
+func (s *Server) StopSyncing(testName string, void *int) error {
 	defer s.keepAlive()
 	if s.stopSyncing == nil {
 		return fmt.Errorf("%s RPCServer.StopSyncing: cannot stop syncing as StartSyncing wasn't called", testName)
@@ -137,7 +137,7 @@ func (s *RPCServer) StopSyncing(testName string, void *int) error {
 	return nil
 }
 
-func (s *RPCServer) IsRoomEncrypted(roomID string, isEncrypted *bool) error {
+func (s *Server) IsRoomEncrypted(roomID string, isEncrypted *bool) error {
 	defer s.keepAlive()
 	var err error
 	*isEncrypted, err = s.activeClient.IsRoomEncrypted(&api.MockT{}, roomID)
@@ -150,13 +150,13 @@ type RPCSendMessage struct {
 	Text     string
 }
 
-func (s *RPCServer) SendMessage(msg RPCSendMessage, eventID *string) error {
+func (s *Server) SendMessage(msg RPCSendMessage, eventID *string) error {
 	defer s.keepAlive()
 	*eventID = s.activeClient.SendMessage(&api.MockT{TestName: msg.TestName}, msg.RoomID, msg.Text)
 	return nil
 }
 
-func (s *RPCServer) TrySendMessage(msg RPCSendMessage, eventID *string) error {
+func (s *Server) TrySendMessage(msg RPCSendMessage, eventID *string) error {
 	defer s.keepAlive()
 	var err error
 	*eventID, err = s.activeClient.TrySendMessage(&api.MockT{TestName: msg.TestName}, msg.RoomID, msg.Text)
@@ -171,7 +171,7 @@ type RPCWaitUntilEvent struct {
 	RoomID   string
 }
 
-func (s *RPCServer) WaitUntilEventInRoom(input RPCWaitUntilEvent, waiterID *int) error {
+func (s *Server) WaitUntilEventInRoom(input RPCWaitUntilEvent, waiterID *int) error {
 	defer s.keepAlive()
 	waiter := s.activeClient.WaitUntilEventInRoom(&api.MockT{TestName: input.TestName}, input.RoomID, func(e api.Event) bool {
 		s.waitersMu.Lock()
@@ -208,7 +208,7 @@ type RPCWait struct {
 
 // WaiterStart is the RPC equivalent to Waiter.Waitf. It begins accumulating events for the RPC client to check.
 // Clients need to call WaiterPoll to get these new events.
-func (s *RPCServer) WaiterStart(input RPCWait, void *int) error {
+func (s *Server) WaiterStart(input RPCWait, void *int) error {
 	defer s.keepAlive()
 	s.waitersMu.Lock()
 	w := s.waiters[input.WaiterID]
@@ -232,7 +232,7 @@ func (s *RPCServer) WaiterStart(input RPCWait, void *int) error {
 	return nil
 }
 
-func (s *RPCServer) WaiterPoll(waiterID int, eventsToCheck *[]api.Event) error {
+func (s *Server) WaiterPoll(waiterID int, eventsToCheck *[]api.Event) error {
 	defer s.keepAlive()
 	fmt.Println("Acquiring lock")
 	s.waitersMu.Lock()
@@ -261,7 +261,7 @@ type RPCBackpaginate struct {
 	Count    int
 }
 
-func (s *RPCServer) MustBackpaginate(input RPCBackpaginate, void *int) error {
+func (s *Server) MustBackpaginate(input RPCBackpaginate, void *int) error {
 	defer s.keepAlive()
 	s.activeClient.MustBackpaginate(&api.MockT{TestName: input.TestName}, input.RoomID, input.Count)
 	return nil
@@ -274,14 +274,14 @@ type RPCGetEvent struct {
 }
 
 // MustGetEvent will return the client's view of this event, or fail the test if the event cannot be found.
-func (s *RPCServer) MustGetEvent(input RPCGetEvent, output *api.Event) error {
+func (s *Server) MustGetEvent(input RPCGetEvent, output *api.Event) error {
 	defer s.keepAlive()
 	*output = s.activeClient.MustGetEvent(&api.MockT{TestName: input.TestName}, input.RoomID, input.EventID)
 	return nil
 }
 
 // MustBackupKeys will backup E2EE keys, else fail the test.
-func (s *RPCServer) MustBackupKeys(testName string, recoveryKey *string) error {
+func (s *Server) MustBackupKeys(testName string, recoveryKey *string) error {
 	defer s.keepAlive()
 	*recoveryKey = s.activeClient.MustBackupKeys(&api.MockT{TestName: testName})
 	return nil
@@ -292,7 +292,7 @@ type RPCGetNotification struct {
 	EventID string
 }
 
-func (s *RPCServer) GetNotification(input RPCGetNotification, output *api.Notification) (err error) {
+func (s *Server) GetNotification(input RPCGetNotification, output *api.Notification) (err error) {
 	defer s.keepAlive()
 	var n *api.Notification
 	n, err = s.activeClient.GetNotification(&api.MockT{}, input.RoomID, input.EventID)
@@ -303,35 +303,35 @@ func (s *RPCServer) GetNotification(input RPCGetNotification, output *api.Notifi
 }
 
 // MustLoadBackup will recover E2EE keys from the latest backup, else fail the test.
-func (s *RPCServer) MustLoadBackup(recoveryKey string, void *int) error {
+func (s *Server) MustLoadBackup(recoveryKey string, void *int) error {
 	defer s.keepAlive()
 	s.activeClient.MustLoadBackup(&api.MockT{}, recoveryKey)
 	return nil
 }
 
-func (s *RPCServer) LoadBackup(recoveryKey string, void *int) error {
+func (s *Server) LoadBackup(recoveryKey string, void *int) error {
 	defer s.keepAlive()
 	return s.activeClient.LoadBackup(&api.MockT{}, recoveryKey)
 }
 
-func (s *RPCServer) Logf(input string, void *int) error {
+func (s *Server) Logf(input string, void *int) error {
 	defer s.keepAlive()
 	log.Println(input)
 	s.activeClient.Logf(&api.MockT{}, input)
 	return nil
 }
 
-func (s *RPCServer) UserID(void int, userID *string) error {
+func (s *Server) UserID(void int, userID *string) error {
 	defer s.keepAlive()
 	*userID = s.activeClient.UserID()
 	return nil
 }
-func (s *RPCServer) Type(void int, clientType *api.ClientTypeLang) error {
+func (s *Server) Type(void int, clientType *api.ClientTypeLang) error {
 	defer s.keepAlive()
 	*clientType = s.activeClient.Type()
 	return nil
 }
-func (s *RPCServer) Opts(void int, opts *api.ClientCreationOpts) error {
+func (s *Server) Opts(void int, opts *api.ClientCreationOpts) error {
 	defer s.keepAlive()
 	*opts = s.activeClient.Opts()
 	return nil

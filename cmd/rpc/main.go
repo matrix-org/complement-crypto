@@ -7,11 +7,11 @@ import (
 	"net/http"
 	"net/rpc"
 
-	"github.com/matrix-org/complement-crypto/internal/deploy"
+	crpc "github.com/matrix-org/complement-crypto/internal/deploy/rpc"
 )
 
 func main() {
-	srv := deploy.NewRPCServer()
+	srv := crpc.NewServer()
 	rpc.Register(srv)
 	rpc.HandleHTTP()
 	listener, err := net.Listen("tcp", ":0")
