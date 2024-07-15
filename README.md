@@ -3,7 +3,7 @@
 
 Complement Crypto is an end-to-end test suite for next generation Matrix _clients_, designed to test the full spectrum of E2EE APIs.
 It currently tests [rust SDK FFI bindings](https://github.com/matrix-org/matrix-rust-sdk/tree/main/bindings/matrix-sdk-ffi) and
-[JS SDK](https://github.com/matrix-org/matrix-js-sdk/).
+[JS SDK](https://github.com/matrix-org/matrix-js-sdk/), but can be expanded to support any client SDK.
 
 ### Installing
 
@@ -96,13 +96,14 @@ Tests sometimes require reverse proxy interception to let some requests pass thr
  +----------+    |    +-----------+    |    +-----+-----+        V
  | Go tests | <--|--> | mitmproxy | <--+--> | hs1 |          +----------+
  +----------+    |    +-----------+    |    +-----+          | postgres |
-                 |                     +--> | hs2 |          +----------+
-                 |                     |    +-----+-----+        ^
-                 |                     `--> | ss proxy2 | <------`
-                 |                          +-----------+      
+      |          |       ^             +--> | hs2 |          +----------+
+  +---V--------+ |       |             |    +-----+-----+        ^
+  | RPC Client |-|-------`              `--> | ss proxy2 | <------`
+  +------------+ |                          +-----------+      
 ```
-
-TODO: flesh out mitm controller API
+- Go tests can create clients inside the test process or use the Complement Go client to make CSAPI requests. On startup, the first test which calls `Deploy` will deploy the entire stack of homeservers/proxies/mitmproxy.
+- The RPC client is a single client (e.g JS SDK) which can make CSAPI requests. RPC clients are generally only made when testing multiprocess code or testing SIGKILL behaviour.
+- `mitmproxy` reverse proxies all the homeservers so all CSAPI traffic from a client goes through it. This enables requests/responses to be intercepted and modified, as well as traffic to be dumped to file.
 
 ### Rationale
 
