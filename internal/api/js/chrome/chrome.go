@@ -6,24 +6,12 @@ package chrome
 
 import (
 	"context"
-	"embed"
 	"fmt"
-	"io/fs"
-	"net"
-	"net/http"
-	"os"
-	"path/filepath"
-	"strconv"
-	"sync"
-	"time"
 
 	"github.com/chromedp/cdproto/runtime"
 	"github.com/chromedp/chromedp"
 	"github.com/matrix-org/complement/ct"
 )
-
-//go:embed dist
-var jsSDKDistDirectory embed.FS
 
 // Void is a type which can be used when you want to run an async function without returning anything.
 // It can stop large responses causing errors "Object reference chain is too long (-32000)"
@@ -64,96 +52,36 @@ func MustRunAsyncFn[T any](t ct.TestLike, ctx context.Context, js string) *T {
 	return result
 }
 
-type Browser struct {
-	BaseURL string
-	Ctx     context.Context
-	Cancel  func()
-}
-
-func RunHeadless(onConsoleLog func(s string), requiresPersistance bool, listenPort int) (*Browser, error) {
-	ansiRedForeground := "\x1b[31m"
-	ansiResetForeground := "\x1b[39m"
-
-	colorifyError := func(format string, args ...any) {
-		format = ansiRedForeground + time.Now().Format(time.RFC3339) + " " + format + ansiResetForeground
-		fmt.Printf(format, args...)
-	}
-	opts := chromedp.DefaultExecAllocatorOptions[:]
-	if requiresPersistance {
-		os.Mkdir("chromedp", os.ModePerm) // ignore errors to allow repeated runs
-		wd, _ := os.Getwd()
-		userDir := filepath.Join(wd, "chromedp")
-		opts = append(opts,
-			chromedp.UserDataDir(userDir),
-		)
-	}
-	// increase the WS timeout from 20s (default) to 30s as we see timeouts with 20s in CI
-	opts = append(opts, chromedp.WSURLReadTimeout(30*time.Second))
-
-	allocCtx, allocCancel := chromedp.NewExecAllocator(context.Background(), opts...)
-	ctx, cancel := chromedp.NewContext(allocCtx, chromedp.WithBrowserOption(
-		chromedp.WithBrowserLogf(colorifyError), chromedp.WithBrowserErrorf(colorifyError), //chromedp.WithBrowserDebugf(log.Printf),
-	))
-
-	// Listen for console logs for debugging AND to communicate live updates
-	chromedp.ListenTarget(ctx, func(ev interface{}) {
-		switch ev := ev.(type) {
-		case *runtime.EventConsoleAPICalled:
-			for _, arg := range ev.Args {
-				s, err := strconv.Unquote(string(arg.Value))
-				if err != nil {
-					s = string(arg.Value)
-				}
-				onConsoleLog(s)
-			}
-		}
-	})
-
-	// strip /dist so /index.html loads correctly as does /assets/xxx.js
-	c, err := fs.Sub(jsSDKDistDirectory, "dist")
+// Run a headless JS SDK instance for the given user/device ID.
+func RunHeadless(userID, deviceID string, onConsoleLog func(s string)) (*Tab, error) {
+	// Make, or acquire, a Chrome browser
+	browser, err := GlobalBrowser()
 	if err != nil {
-		return nil, fmt.Errorf("failed to strip /dist off JS SDK files: %s", err)
+		return nil, fmt.Errorf("GlobalBrowser: %s", err)
 	}
 
-	baseJSURL := ""
-	// run js-sdk (need to run this as a web server to avoid CORS errors you'd otherwise get with file: URLs)
-	var wg sync.WaitGroup
-	wg.Add(1)
-	mux := &http.ServeMux{}
-	mux.Handle("/", http.FileServer(http.FS(c)))
-	srv := &http.Server{
-		Addr:    fmt.Sprintf("127.0.0.1:%d", listenPort),
-		Handler: mux,
-	}
-	startServer := func() {
-		ln, err := net.Listen("tcp", srv.Addr)
-		if err != nil {
-			panic(err)
-		}
-		baseJSURL = "http://" + ln.Addr().String()
-		fmt.Println("JS SDK listening on", baseJSURL)
-		wg.Done()
-		srv.Serve(ln)
-		fmt.Println("JS SDK closing webserver")
-	}
-	go startServer()
-	wg.Wait()
-
-	// navigate to the page
-	err = chromedp.Run(ctx,
-		chromedp.Navigate(baseJSURL),
-	)
+	// Host the JS SDK
+	baseURL := origins.GetBaseURL(userID, deviceID)
+	opts, err := NewJSSDKInstanceOptsFromURL(baseURL, userID, deviceID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to navigate to %s: %s", baseJSURL, err)
+		return nil, fmt.Errorf("NewJSSDKInstanceOptsFromURL: %v", err)
+	}
+	baseJSURL, closeSDKInstance, err := NewJSSDKWebsite(opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new js sdk instance: %s", err)
 	}
 
-	return &Browser{
-		Ctx: ctx,
-		Cancel: func() {
-			cancel()
-			allocCancel()
-			srv.Close()
-		},
-		BaseURL: baseJSURL,
-	}, nil
+	// Make a tab
+	tab, err := browser.NewTab(baseJSURL, onConsoleLog)
+	if err != nil {
+		closeSDKInstance()
+		return nil, fmt.Errorf("failed to create new tab: %s", err)
+	}
+	// we will have a random high numbered port now, so remember it.
+	origins.StoreBaseURL(userID, deviceID, baseJSURL)
+
+	// when we close the tab, close the hosted files too
+	tab.SetCloseServer(closeSDKInstance)
+
+	return tab, nil
 }
