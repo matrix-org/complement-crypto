@@ -67,7 +67,7 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, erro
 	slidingSyncVersion := matrix_sdk_ffi.SlidingSyncVersionBuilderProxy{Url: opts.SlidingSyncURL}
 	ab := matrix_sdk_ffi.NewClientBuilder().
 		HomeserverUrl(opts.BaseURL).
-		SlidingSyncVersionBuilder(&slidingSyncVersion).
+		SlidingSyncVersionBuilder(slidingSyncVersion).
 		AutoEnableCrossSigning(true)
 	var clientSessionDelegate matrix_sdk_ffi.ClientSessionDelegate
 	if opts.EnableCrossProcessRefreshLockProcessName != "" {
