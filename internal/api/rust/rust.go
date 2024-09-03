@@ -98,7 +98,7 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, erro
 			UserId:             opts.UserID,
 			DeviceId:           opts.DeviceID,
 			HomeserverUrl:      opts.BaseURL,
-			SlidingSyncVersion: &slidingSyncVersion,
+			SlidingSyncVersion: slidingSyncVersion,
 		}
 		if err := client.RestoreSession(session); err != nil {
 			return nil, fmt.Errorf("RestoreSession: %s", err)
