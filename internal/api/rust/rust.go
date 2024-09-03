@@ -94,11 +94,13 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, erro
 	}
 	if opts.AccessToken != "" { // restore the session
 		session := matrix_sdk_ffi.Session{
-			AccessToken:        opts.AccessToken,
-			UserId:             opts.UserID,
-			DeviceId:           opts.DeviceID,
-			HomeserverUrl:      opts.BaseURL,
-			SlidingSyncVersion: slidingSyncVersion,
+			AccessToken:   opts.AccessToken,
+			UserId:        opts.UserID,
+			DeviceId:      opts.DeviceID,
+			HomeserverUrl: opts.BaseURL,
+			SlidingSyncVersion: matrix_sdk_ffi.SlidingSyncVersionProxy{
+				Url: opts.SlidingSyncURL,
+			},
 		}
 		if err := client.RestoreSession(session); err != nil {
 			return nil, fmt.Errorf("RestoreSession: %s", err)
