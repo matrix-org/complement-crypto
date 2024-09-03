@@ -64,7 +64,11 @@ type RustClient struct {
 func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, error) {
 	t.Logf("NewRustClient[%s][%s] creating...", opts.UserID, opts.DeviceID)
 	matrix_sdk_ffi.LogEvent("rust.go", &zero, matrix_sdk_ffi.LogLevelInfo, t.Name(), fmt.Sprintf("NewRustClient[%s][%s] creating...", opts.UserID, opts.DeviceID))
-	ab := matrix_sdk_ffi.NewClientBuilder().HomeserverUrl(opts.BaseURL).SlidingSyncProxy(&opts.SlidingSyncURL).AutoEnableCrossSigning(true)
+	slidingSyncVersion := matrix_sdk_ffi.SlidingSyncVersionBuilderProxy{Url: opts.SlidingSyncURL}
+	ab := matrix_sdk_ffi.NewClientBuilder().
+		HomeserverUrl(opts.BaseURL).
+		SlidingSyncVersionBuilder(slidingSyncVersion).
+		AutoEnableCrossSigning(true)
 	var clientSessionDelegate matrix_sdk_ffi.ClientSessionDelegate
 	if opts.EnableCrossProcessRefreshLockProcessName != "" {
 		t.Logf("enabling cross process refresh lock with proc name=%s", opts.EnableCrossProcessRefreshLockProcessName)
@@ -90,11 +94,13 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, erro
 	}
 	if opts.AccessToken != "" { // restore the session
 		session := matrix_sdk_ffi.Session{
-			AccessToken:      opts.AccessToken,
-			UserId:           opts.UserID,
-			DeviceId:         opts.DeviceID,
-			HomeserverUrl:    opts.BaseURL,
-			SlidingSyncProxy: &opts.SlidingSyncURL,
+			AccessToken:   opts.AccessToken,
+			UserId:        opts.UserID,
+			DeviceId:      opts.DeviceID,
+			HomeserverUrl: opts.BaseURL,
+			SlidingSyncVersion: matrix_sdk_ffi.SlidingSyncVersionProxy{
+				Url: opts.SlidingSyncURL,
+			},
 		}
 		if err := client.RestoreSession(session); err != nil {
 			return nil, fmt.Errorf("RestoreSession: %s", err)
