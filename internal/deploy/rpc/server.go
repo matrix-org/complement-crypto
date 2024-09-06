@@ -11,7 +11,7 @@ import (
 	"github.com/matrix-org/complement-crypto/internal/api/langs"
 )
 
-const InactivityThreshold = 30 * time.Second
+const InactivityThreshold = 60 * time.Second
 
 // Server exposes the api.Client interface over the wire, consumed via net/rpc.
 // Args and return params must be encodable with encoding/gob.
