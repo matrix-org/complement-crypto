@@ -44,6 +44,15 @@ You cannot currently:
 
 ## Debugging
 
+### How do I make Synapse more chatty?
+
+Set these env vars when running your test:
+```
+COMPLEMENT_SHARE_ENV_PREFIX=PASS_
+PASS_SYNAPSE_LOG_LEVEL=DEBUG
+PASS_SYNAPSE_LOG_SENSITIVE=1
+```
+
 ### How do I access client SDK logs for the test and correlate it with the failing test line?
 
 *You should have a file name and line number by this point.*
