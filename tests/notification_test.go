@@ -623,6 +623,112 @@ func TestMultiprocessDupeOTKUpload(t *testing.T) {
 	}
 }
 
+// Regression test for https://github.com/matrix-org/matrix-rust-sdk/issues/3959
+//
+// In SS, doing an initial (pos-less) 'e2ee' connection did not cause device list updates
+// to be dropped. However, in SSS they do. This test ensures that device list updates
+// are not dropped in SSS, meaning that the SDK isn't doing initial (pos-less) syncs in
+// the push process. It does this by doing the following:
+//   - Alice[1] and Bob are in a room and Bob sends a message to Alice
+//     (ensuring Bob has an up-to-date device list for Alice)
+//   - Bob stops syncing.
+//   - Alice[2] logs in on a new device.
+//   - Alice[1] sends a message.
+//   - Bob's push process receives Alice[1]'s message.
+//   - At this point, the old code would do a pos-less sync, clearing device list updates
+//     and forgetting that Alice[2] exists!
+//   - Bob sends a message.
+//   - Ensure Alice[2] can read it.
+func TestMultiprocessInitialE2EESyncDoesntDropDeviceListUpdates(t *testing.T) {
+	if !Instance().ShouldTest(api.ClientTypeRust) {
+		t.Skipf("rust only")
+		return
+	}
+	tc, roomID := createAndJoinRoom(t)
+	bob := tc.MustLoginClient(t, &cc.ClientCreationRequest{
+		User: tc.Bob,
+		Opts: api.ClientCreationOpts{
+			PersistentStorage:                        true,
+			EnableCrossProcessRefreshLockProcessName: "main",
+		},
+	})
+	stopSyncing := bob.MustStartSyncing(t)
+	accessToken := bob.Opts().AccessToken
+	// Bob sends a message to Alice
+	tc.WithClientSyncing(t, &cc.ClientCreationRequest{
+		User: tc.Alice,
+	}, func(alice api.Client) {
+		// ensure bob has queried keys from alice by sending a message.
+		msg := "pre message"
+		bob.SendMessage(t, roomID, msg)
+		alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(msg)).Waitf(t, 5*time.Second, "alice did not see '%s'", msg)
+
+		stopBobSyncing := func() {
+			t.Helper()
+			if bob == nil {
+				t.Fatalf("stopBobSyncing: bob was already not syncing")
+			}
+			bob.Close(t)
+			stopSyncing()
+			bob = nil
+		}
+		startBobSyncing := func() {
+			t.Helper()
+			if bob != nil {
+				t.Fatalf("startBobSyncing: bob was already syncing")
+			}
+			bob = tc.MustCreateClient(t, &cc.ClientCreationRequest{
+				User: tc.Bob,
+				Opts: api.ClientCreationOpts{
+					PersistentStorage:                        true,
+					EnableCrossProcessRefreshLockProcessName: "main",
+					AccessToken:                              accessToken,
+				},
+			}) // this should login already as we provided an access token
+			stopSyncing = bob.MustStartSyncing(t)
+		}
+		nseBob := tc.MustCreateClient(t, &cc.ClientCreationRequest{
+			User:         tc.Bob,
+			Multiprocess: true,
+			Opts: api.ClientCreationOpts{
+				PersistentStorage:                        true,
+				AccessToken:                              accessToken,
+				EnableCrossProcessRefreshLockProcessName: api.ProcessNameNSE,
+			},
+		}) // this should login already as we provided an access token
+
+		// ensure any outstanding key requests have time to complete before we shut it down
+		time.Sleep(time.Second)
+		stopBobSyncing()
+
+		// alice logs in on a new device
+		csapiAlice2 := tc.MustRegisterNewDevice(t, tc.Alice, "NEW_DEVICE")
+		tc.WithClientSyncing(t, &cc.ClientCreationRequest{
+			User: csapiAlice2,
+		}, func(alice2 api.Client) {
+			// wait for device keys to sync up
+			time.Sleep(time.Second)
+			// alice[1] sends a message, this is unimportant other than to grab the event ID for the push process
+			pushEventID := alice.SendMessage(t, roomID, "pre message 2")
+			// Bob's push process receives Alice[1]'s message.
+			// This /should/ make Bob aware of Alice[2].
+			notif, err := nseBob.GetNotification(t, roomID, pushEventID)
+			must.NotError(t, "failed to GetNotification", err)
+			must.Equal(t, notif.FailedToDecrypt, false, "failed to decrypt push event")
+			// grace period to let bob realise alice[2] exists
+			time.Sleep(time.Second)
+			// Bob opens the app, with another grace period because we're feeling nice.
+			startBobSyncing()
+			defer stopBobSyncing()
+			time.Sleep(time.Second)
+			// Bob sends a message.
+			wantMsg := "can alice's new device decrypt this?"
+			bob.SendMessage(t, roomID, wantMsg)
+			alice2.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsg)).Waitf(t, 5*time.Second, "alice[2] did not see '%s'", wantMsg)
+		})
+	})
+}
+
 func createAndJoinRoom(t *testing.T) (tc *cc.TestContext, roomID string) {
 	t.Helper()
 	clientType := api.ClientType{
