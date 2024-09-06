@@ -72,12 +72,12 @@ jobs:
           ./install_uniffi_bindgen_go.sh && ./rebuild_rust_sdk.sh ./rust-sdk
 
       # Temporary: as it takes 3m to build the complement synapse image >:(
-      - name: Pull synapse service v1.94.0 and mitmproxy
+      - name: Pull synapse service v1.114.0 and mitmproxy
         shell: bash
         run: |
-          docker pull ghcr.io/matrix-org/synapse-service:v1.94.0
+          docker pull ghcr.io/matrix-org/synapse-service:v1.114.0
           docker pull mitmproxy/mitmproxy:10.1.5
-          docker tag ghcr.io/matrix-org/synapse-service:v1.94.0 homeserver:latest
+          docker tag ghcr.io/matrix-org/synapse-service:v1.114.0 homeserver:latest
 
       # Build homeserver image, honouring branch names
       #- name: "Checkout corresponding Synapse branch" 

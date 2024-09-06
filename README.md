@@ -56,13 +56,13 @@ The [version] is split into the URL and TAG|BRANCH then fed directly into 'git c
 
 ### Running
 
-Find a complement-compatible homeserver image. If you don't care which image is used, use `ghcr.io/matrix-org/synapse-service:v1.94.0` 
+Find a complement-compatible homeserver image. If you don't care which image is used, use `ghcr.io/matrix-org/synapse-service:v1.114.0` 
 which will Just Work out-of-the-box.
 
 To run only rust tests:
 ```
 COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX=rr \
-COMPLEMENT_BASE_IMAGE=ghcr.io/matrix-org/synapse-service:v1.94.0 \
+COMPLEMENT_BASE_IMAGE=ghcr.io/matrix-org/synapse-service:v1.114.0 \
 LIBRARY_PATH=$LIBRARY_PATH:/path/to/matrix-rust-sdk/target/debug \
 go test -v -count=1 -tags=rust -timeout 15m ./tests
 ```
@@ -70,7 +70,7 @@ go test -v -count=1 -tags=rust -timeout 15m ./tests
 To run only JS tests:
 ```
 COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX=jj \
-COMPLEMENT_BASE_IMAGE=ghcr.io/matrix-org/synapse-service:v1.94.0 \
+COMPLEMENT_BASE_IMAGE=ghcr.io/matrix-org/synapse-service:v1.114.0 \
 go test -v -count=1 -tags=jssdk -timeout 15m ./tests
 ```
 
