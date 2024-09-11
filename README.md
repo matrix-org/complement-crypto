@@ -90,16 +90,15 @@ There is an exhaustive set of tests that this repository aims to exercise. See [
 Tests sometimes require reverse proxy interception to let some requests pass through but not others. For this, we use [mitmproxy](https://mitmproxy.org/).
 
 ```
-     Host        |       dockerd           
-                 |                          +-----------+      
-                 |                     .--> | ss proxy1 | <------.
- +----------+    |    +-----------+    |    +-----+-----+        V
- | Go tests | <--|--> | mitmproxy | <--+--> | hs1 |          +----------+
- +----------+    |    +-----------+    |    +-----+          | postgres |
-      |          |       ^             +--> | hs2 |          +----------+
-  +---V--------+ |       |             |    +-----+-----+        ^
-  | RPC Client |-|-------`              `--> | ss proxy2 | <------`
-  +------------+ |                          +-----------+      
+     Host        |       Containers
+                 |                         
+ +----------+    |    +-----------+         +-----+
+ | Go tests | <--|--> | mitmproxy | <--+--> | hs1 |
+ +----------+    |    +-----------+    |    +-----+
+      |          |       ^             +--> | hs2 |
+  +---V--------+ |       |                  +-----+
+  | RPC Client |-|-------`
+  +------------+ |    
 ```
 - Go tests can create clients inside the test process or use the Complement Go client to make CSAPI requests. On startup, the first test which calls `Deploy` will deploy the entire stack of homeservers/proxies/mitmproxy.
 - The RPC client is a single client (e.g JS SDK) which can make CSAPI requests. RPC clients are generally only made when testing multiprocess code or testing SIGKILL behaviour.
