@@ -397,7 +397,9 @@ func (c *RustClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error)
 			}
 		}
 	}()
-	c.allRooms.Entries(allRoomsListener)
+	entriesAdapters := c.allRooms.EntriesWithDynamicAdapters(1000, allRoomsListener)
+	entriesAdapters.Controller().SetFilter(matrix_sdk_ffi.RoomListEntriesDynamicFilterKindNonLeft{})
+	// TODO: what to do with `entriesAdapters`?
 
 	isSyncing := false
 
