@@ -49,6 +49,7 @@ type RustRoomInfo struct {
 
 type RustClient struct {
 	FFIClient             *matrix_sdk_ffi.Client
+	syncService           *matrix_sdk_ffi.SyncService
 	roomsListener         *RoomsListener
 	allRooms              *matrix_sdk_ffi.RoomList
 	rooms                 map[string]*RustRoomInfo
@@ -57,7 +58,7 @@ type RustClient struct {
 	persistentStoragePath string
 	opts                  api.ClientCreationOpts
 
-	// for NSE tests
+	// for push notification tests (single/multi-process)
 	notifClient *matrix_sdk_ffi.NotificationClient
 }
 
@@ -132,9 +133,14 @@ func (c *RustClient) Opts() api.ClientCreationOpts {
 
 func (c *RustClient) GetNotification(t ct.TestLike, roomID, eventID string) (*api.Notification, error) {
 	if c.notifClient == nil {
-		t.Errorf("RustClient misconfigured. You can only call GetNotification if this is an NSE process. " +
-			"Ensure opts.EnableCrossProcessRefreshLockProcessName and opts.AccessToken are set!")
-		return nil, fmt.Errorf("misconfigured rust client")
+		var err error
+		c.Logf(t, "creating NotificationClient")
+		c.notifClient, err = c.FFIClient.NotificationClient(matrix_sdk_ffi.NotificationProcessSetupSingleProcess{
+			SyncService: c.syncService,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("GetNotification: failed to create NotificationClient: %s", err)
+		}
 	}
 	notifItem, err := c.notifClient.GetNotification(roomID, eventID)
 	if err != nil {
@@ -350,6 +356,7 @@ func (c *RustClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error)
 	}
 	go syncService.Start()
 	c.allRooms = roomList
+	c.syncService = syncService
 	// track new rooms when they are made
 	allRoomsListener := newGenericStateListener[[]matrix_sdk_ffi.RoomListEntriesUpdate]()
 	go func() {
