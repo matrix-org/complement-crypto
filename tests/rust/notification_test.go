@@ -1,4 +1,4 @@
-package tests
+package rust_test
 
 import (
 	"fmt"
@@ -39,28 +39,16 @@ import (
 // These tests try to trip up this logic by providing multiple notifications to a single process, etc.
 
 func TestNSEReceive(t *testing.T) {
-	if !Instance().ShouldTest(api.ClientTypeRust) {
-		t.Skipf("rust only")
-		return
-	}
 	testNSEReceive(t, 0, 0)
 }
 
 // What happens if you get pushed for an event not in the SS response? It should hit /context.
 func TestNSEReceiveForOldMessage(t *testing.T) {
-	if !Instance().ShouldTest(api.ClientTypeRust) {
-		t.Skipf("rust only")
-		return
-	}
 	testNSEReceive(t, 0, 30)
 }
 
 // what happens if there's many events and you only get pushed for the last one?
 func TestNSEReceiveForMessageWithManyUnread(t *testing.T) {
-	if !Instance().ShouldTest(api.ClientTypeRust) {
-		t.Skipf("rust only")
-		return
-	}
 	testNSEReceive(t, 30, 0)
 }
 
@@ -110,10 +98,6 @@ func testNSEReceive(t *testing.T, numMsgsBefore, numMsgsAfter int) {
 
 // what happens if you receive an NSE event for a non-pre key message (i.e not the first encrypted msg sent by that user)
 func TestNSEReceiveForNonPreKeyMessage(t *testing.T) {
-	if !Instance().ShouldTest(api.ClientTypeRust) {
-		t.Skipf("rust only")
-		return
-	}
 	tc, roomID := createAndJoinRoom(t)
 	// Alice starts syncing
 	alice := tc.MustLoginClient(t, &cc.ClientCreationRequest{
@@ -161,10 +145,6 @@ func TestNSEReceiveForNonPreKeyMessage(t *testing.T) {
 // Get an encrypted room set up with keys exchanged, then concurrently receive messages and see if we end up with a wedged
 // session. We should see "Crypto store generation mismatch" log lines in rust SDK.
 func TestMultiprocessNSE(t *testing.T) {
-	if !Instance().ShouldTest(api.ClientTypeRust) {
-		t.Skipf("rust only")
-		return
-	}
 	t.Skipf("TODO: skipped until backup bug is fixed")
 	numPreBackgroundMsgs := 1
 	numPostNSEMsgs := 300
@@ -318,10 +298,6 @@ func TestMultiprocessNSE(t *testing.T) {
 }
 
 func TestMultiprocessNSEBackupKeyMacError(t *testing.T) {
-	if !Instance().ShouldTest(api.ClientTypeRust) {
-		t.Skipf("rust only")
-		return
-	}
 	tc, roomID := createAndJoinRoom(t)
 	// Alice starts syncing to get an encrypted room set up
 	alice := tc.MustLoginClient(t, &cc.ClientCreationRequest{
@@ -433,10 +409,6 @@ func TestMultiprocessNSEBackupKeyMacError(t *testing.T) {
 }
 
 func TestMultiprocessNSEOlmSessionWedge(t *testing.T) {
-	if !Instance().ShouldTest(api.ClientTypeRust) {
-		t.Skipf("rust only")
-		return
-	}
 	tc, roomID := createAndJoinRoom(t)
 	// Alice starts syncing to get an encrypted room set up
 	alice := tc.MustLoginClient(t, &cc.ClientCreationRequest{
@@ -553,10 +525,6 @@ func TestMultiprocessNSEOlmSessionWedge(t *testing.T) {
 //
 // Which will fail the test.
 func TestNotificationClientDupeOTKUpload(t *testing.T) {
-	if !Instance().ShouldTest(api.ClientTypeRust) {
-		t.Skipf("rust only")
-		return
-	}
 	tc, roomID := createAndJoinRoom(t)
 
 	// start the "main" app
@@ -632,10 +600,6 @@ func TestNotificationClientDupeOTKUpload(t *testing.T) {
 //   - Bob sends a message.
 //   - Ensure Alice[2] can read it.
 func TestMultiprocessInitialE2EESyncDoesntDropDeviceListUpdates(t *testing.T) {
-	if !Instance().ShouldTest(api.ClientTypeRust) {
-		t.Skipf("rust only")
-		return
-	}
 	tc, roomID := createAndJoinRoom(t)
 	bob := tc.MustLoginClient(t, &cc.ClientCreationRequest{
 		User: tc.Bob,
