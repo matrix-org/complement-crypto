@@ -31,7 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3 # Checkout crypto tests
 
-      # Install Node, Go and Rust, along with libolm and gotestfmt
+      # Install Node, Go and Rust, along with gotestfmt
       - name: Setup | Node.js LTS
         uses: actions/setup-node@v3
         with:
@@ -58,7 +58,6 @@ jobs:
           workspaces: "rust-sdk"
       - name: "Install Complement Dependencies"
         run: |
-          sudo apt-get update && sudo apt-get install -y libolm3 libolm-dev
           go install -v github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
 
       # Install whatever version of the JS SDK is in package.json

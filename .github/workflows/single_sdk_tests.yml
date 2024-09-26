@@ -108,7 +108,6 @@ jobs:
         - name: "Install Complement Dependencies"
           shell: bash
           run: |
-            sudo apt-get update && sudo apt-get install -y libolm3 libolm-dev
             go install -v github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
 
         # JS SDK only steps
