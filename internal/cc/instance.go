@@ -2,8 +2,6 @@ package cc
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"sync"
 	"testing"
 
@@ -63,12 +61,7 @@ func (i *Instance) Deploy(t *testing.T) *deploy.SlidingSyncDeployment {
 	if i.ssDeployment != nil {
 		return i.ssDeployment
 	}
-	workingDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("failed to find working directory: %s", err)
-	}
-	mitmProxyAddonsDir := filepath.Join(workingDir, "mitmproxy_addons")
-	i.ssDeployment = deploy.RunNewDeployment(t, mitmProxyAddonsDir, i.complementCryptoConfig.MITMDump)
+	i.ssDeployment = deploy.RunNewDeployment(t, i.complementCryptoConfig.MITMProxyAddonsDir, i.complementCryptoConfig.MITMDump)
 	return i.ssDeployment
 }
 
