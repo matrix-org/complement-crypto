@@ -241,9 +241,6 @@ type ClientCreationOpts struct {
 	// this flag and always use persistence.
 	PersistentStorage bool
 
-	// ExtraOpts are client-specific options.
-	ExtraOpts interface{}
-
 	// Rust only. If set, enables the cross process refresh lock on the FFI client with the process name provided.
 	EnableCrossProcessRefreshLockProcessName string
 	// Rust only. If set with EnableCrossProcessRefreshLockProcessName=ProcessNameNSE, the client will be seeded

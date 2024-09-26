@@ -27,7 +27,7 @@ on:
         type: string
 jobs:
   tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
         # At this stage we don't know which repo we have just checked out. We will reference this repo
         # if the workflow uses '.'
