@@ -30,14 +30,14 @@ func NewInstance(cfg *config.ComplementCrypto) *Instance {
 
 // TestMain is the entry point for running a test suite with this Instance.
 // The function signature matches the standard Go test suite TestMain()
-func (i *Instance) TestMain(m *testing.M) {
+func (i *Instance) TestMain(m *testing.M, namespace string) {
 	// Execute PreTestRun lifecycle hook
 	for _, binding := range i.complementCryptoConfig.Bindings() {
 		binding.PreTestRun("")
 	}
 
 	// Defer to complement to run the test suite
-	complement.TestMainWithCleanup(m, "crypto", func() { // always teardown even if panicking
+	complement.TestMainWithCleanup(m, namespace, func() { // always teardown even if panicking
 		i.ssMutex.Lock()
 		if i.ssDeployment != nil {
 			i.ssDeployment.Teardown()
