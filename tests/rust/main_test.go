@@ -16,7 +16,6 @@ var (
 func TestMain(m *testing.M) {
 	instance = cc.NewInstance(config.NewComplementCryptoConfigFromEnvVars("../mitmproxy_addons"))
 	instance.TestMain(m, "rust")
-
 }
 
 // Instance returns the test instance. Guaranteed to be non-nil if called in a test,
