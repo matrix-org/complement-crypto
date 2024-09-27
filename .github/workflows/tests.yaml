@@ -163,5 +163,5 @@ jobs:
         with:
           name: Logs - ${{ job.status }}
           path: |
-              ./complement-crypto/**/logs/*
-              ./complement-crypto/**/mitm.dump
+              ./**/logs/*
+              ./**/mitm.dump
