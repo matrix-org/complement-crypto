@@ -53,6 +53,7 @@ func TestAliceBobEncryptionWorks(t *testing.T) {
 			// Bob receives the message
 			t.Logf("bob (%s) waiting for event %s", bob.Type(), evID)
 			waiter.Waitf(t, 5*time.Second, "bob did not see alice's message")
+			t.Errorf("oh no")
 		})
 	})
 }

@@ -98,6 +98,7 @@ func testNSEReceive(t *testing.T, numMsgsBefore, numMsgsAfter int) {
 
 // what happens if you receive an NSE event for a non-pre key message (i.e not the first encrypted msg sent by that user)
 func TestNSEReceiveForNonPreKeyMessage(t *testing.T) {
+	t.Errorf("oh dear")
 	tc, roomID := createAndJoinRoom(t)
 	// Alice starts syncing
 	alice := tc.MustLoginClient(t, &cc.ClientCreationRequest{

@@ -191,6 +191,6 @@ jobs:
           with:
             name: Logs - ${{ inputs.use_js_sdk != '' && 'jssdk' || 'rust'}}
             path: |
-              ./complement-crypto/tests/logs/*
-              ./complement-crypto/tests/mitm.dump
+              ./complement-crypto/**/logs/*
+              ./complement-crypto/**/mitm.dump
 
