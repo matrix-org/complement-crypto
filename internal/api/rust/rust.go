@@ -909,20 +909,18 @@ func timelineItemToEvent(item *matrix_sdk_ffi.TimelineItem) *api.Event {
 	return eventTimelineItemToEvent(*ev)
 }
 
-func eventTimelineItemToEvent(item *matrix_sdk_ffi.EventTimelineItem) *api.Event {
-	if item == nil {
-		return nil
-	}
+func eventTimelineItemToEvent(item matrix_sdk_ffi.EventTimelineItem) *api.Event {
 	eventID := ""
-	if item.EventId() != nil {
-		eventID = *item.EventId()
+	switch id := item.EventOrTransactionId.(type) {
+	case matrix_sdk_ffi.EventOrTransactionIdEventId:
+		eventID = id.EventId
 	}
 	complementEvent := api.Event{
 		ID:     eventID,
-		Sender: item.Sender(),
+		Sender: item.Sender,
 	}
-	switch k := item.Content().Kind().(type) {
-	case matrix_sdk_ffi.TimelineItemContentKindRoomMembership:
+	switch k := item.Content.(type) {
+	case matrix_sdk_ffi.TimelineItemContentRoomMembership:
 		complementEvent.Target = k.UserId
 		change := *k.Change
 		switch change {
@@ -949,16 +947,16 @@ func eventTimelineItemToEvent(item *matrix_sdk_ffi.EventTimelineItem) *api.Event
 		default:
 			fmt.Printf("%s unhandled membership %d\n", k.UserId, change)
 		}
-	case matrix_sdk_ffi.TimelineItemContentKindUnableToDecrypt:
+	case matrix_sdk_ffi.TimelineItemContentUnableToDecrypt:
 		complementEvent.FailedToDecrypt = true
 	}
 
-	content := item.Content()
+	content := item.Content
 	if content != nil {
-		msg := content.AsMessage()
-		if msg != nil {
-			msgg := *msg
-			complementEvent.Text = msgg.Body()
+		switch msg := content.(type) {
+		case matrix_sdk_ffi.TimelineItemContentMessage:
+
+			complementEvent.Text = msg.Content.Body
 		}
 	}
 	return &complementEvent
