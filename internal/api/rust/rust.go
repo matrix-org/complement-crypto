@@ -456,7 +456,7 @@ func (c *RustClient) MustBackupKeys(t ct.TestLike) (recoveryKey string) {
 	var listener matrix_sdk_ffi.EnableRecoveryProgressListener = genericListener
 	e := c.FFIClient.Encryption()
 	defer e.Destroy()
-	recoveryKey, err := e.EnableRecovery(true, listener)
+	recoveryKey, err := e.EnableRecovery(true, nil, listener)
 	must.NotError(t, "Encryption.EnableRecovery", err)
 	for !genericListener.isClosed.Load() {
 		select {
