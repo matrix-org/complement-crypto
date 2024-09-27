@@ -216,10 +216,6 @@ func (c *LoggedClient) logPrefix() string {
 	return fmt.Sprintf("[%s](%s)", c.UserID(), c.Type())
 }
 
-// magic value for EnableCrossProcessRefreshLockProcessName which configures the FFI client
-// according to iOS NSE.
-const ProcessNameNSE string = "NSE"
-
 // ClientCreationOpts are options to use when creating crypto clients.
 //
 // This contains a mixture of generic options which can be used across any client, and specific
@@ -241,11 +237,25 @@ type ClientCreationOpts struct {
 	// this flag and always use persistence.
 	PersistentStorage bool
 
-	// Rust only. If set, enables the cross process refresh lock on the FFI client with the process name provided.
-	EnableCrossProcessRefreshLockProcessName string
+	// A map containing any client-specific creation options, for use for client-specific tests.
+	// Any options in this map MUST BE SERIALISABLE as they may be sent over RPC boundaries.
+	ExtraOpts map[string]any
+
 	// Rust only. If set with EnableCrossProcessRefreshLockProcessName=ProcessNameNSE, the client will be seeded
 	// with a logged in session.
 	AccessToken string
+}
+
+// GetExtraOption is a safe way to get an extra option from ExtraOpts, with a default value if the key does not exist.
+func (o *ClientCreationOpts) GetExtraOption(key string, defaultValue any) any {
+	if o.ExtraOpts == nil {
+		return defaultValue
+	}
+	val, ok := o.ExtraOpts[key]
+	if !ok {
+		return defaultValue
+	}
+	return val
 }
 
 func NewClientCreationOpts(c *client.CSAPI) ClientCreationOpts {
@@ -268,8 +278,13 @@ func (o *ClientCreationOpts) Combine(other *ClientCreationOpts) {
 	if other.DeviceID != "" {
 		o.DeviceID = other.DeviceID
 	}
-	if other.EnableCrossProcessRefreshLockProcessName != "" {
-		o.EnableCrossProcessRefreshLockProcessName = other.EnableCrossProcessRefreshLockProcessName
+	if other.ExtraOpts != nil {
+		if o.ExtraOpts == nil {
+			o.ExtraOpts = make(map[string]any)
+		}
+		for k, v := range other.ExtraOpts {
+			o.ExtraOpts[k] = v
+		}
 	}
 	if other.Password != "" {
 		o.Password = other.Password

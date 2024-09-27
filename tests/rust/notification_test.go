@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
+	"github.com/matrix-org/complement-crypto/internal/api/rust"
 	"github.com/matrix-org/complement-crypto/internal/cc"
 	"github.com/matrix-org/complement-crypto/internal/deploy/callback"
 	"github.com/matrix-org/complement-crypto/internal/deploy/mitm"
@@ -60,8 +61,10 @@ func testNSEReceive(t *testing.T, numMsgsBefore, numMsgsAfter int) {
 	alice := tc.MustLoginClient(t, &cc.ClientCreationRequest{
 		User: tc.Alice,
 		Opts: api.ClientCreationOpts{
-			PersistentStorage:                        true,
-			EnableCrossProcessRefreshLockProcessName: "main",
+			PersistentStorage: true,
+			ExtraOpts: map[string]any{
+				rust.OptionEnableCrossProcessRefreshLockProcessName: "main",
+			},
 		},
 	})
 	alice.Logf(t, "syncing and sending dummy message to ensure e2ee keys are uploaded")
@@ -83,9 +86,11 @@ func testNSEReceive(t *testing.T, numMsgsBefore, numMsgsAfter int) {
 		User:         tc.Alice,
 		Multiprocess: true,
 		Opts: api.ClientCreationOpts{
-			PersistentStorage:                        true,
-			EnableCrossProcessRefreshLockProcessName: api.ProcessNameNSE,
-			AccessToken:                              accessToken,
+			PersistentStorage: true,
+			ExtraOpts: map[string]any{
+				rust.OptionEnableCrossProcessRefreshLockProcessName: rust.ProcessNameNSE,
+			},
+			AccessToken: accessToken,
 		},
 	}) // this should login already as we provided an access token
 	defer client.Close(t)
@@ -103,8 +108,10 @@ func TestNSEReceiveForNonPreKeyMessage(t *testing.T) {
 	alice := tc.MustLoginClient(t, &cc.ClientCreationRequest{
 		User: tc.Alice,
 		Opts: api.ClientCreationOpts{
-			PersistentStorage:                        true,
-			EnableCrossProcessRefreshLockProcessName: "main",
+			PersistentStorage: true,
+			ExtraOpts: map[string]any{
+				rust.OptionEnableCrossProcessRefreshLockProcessName: "main",
+			},
 		},
 	})
 	stopSyncing := alice.MustStartSyncing(t)
@@ -128,9 +135,11 @@ func TestNSEReceiveForNonPreKeyMessage(t *testing.T) {
 		client := tc.MustCreateClient(t, &cc.ClientCreationRequest{
 			User: tc.Alice,
 			Opts: api.ClientCreationOpts{
-				PersistentStorage:                        true,
-				EnableCrossProcessRefreshLockProcessName: api.ProcessNameNSE,
-				AccessToken:                              accessToken,
+				PersistentStorage: true,
+				ExtraOpts: map[string]any{
+					rust.OptionEnableCrossProcessRefreshLockProcessName: rust.ProcessNameNSE,
+				},
+				AccessToken: accessToken,
 			},
 		}) // this should login already as we provided an access token
 		defer client.Close(t)
@@ -153,8 +162,10 @@ func TestMultiprocessNSE(t *testing.T) {
 	alice := tc.MustLoginClient(t, &cc.ClientCreationRequest{
 		User: tc.Alice,
 		Opts: api.ClientCreationOpts{
-			PersistentStorage:                        true,
-			EnableCrossProcessRefreshLockProcessName: "main",
+			PersistentStorage: true,
+			ExtraOpts: map[string]any{
+				rust.OptionEnableCrossProcessRefreshLockProcessName: "main",
+			},
 		},
 	})
 	stopSyncing := alice.MustStartSyncing(t)
@@ -188,9 +199,11 @@ func TestMultiprocessNSE(t *testing.T) {
 			alice = tc.MustCreateClient(t, &cc.ClientCreationRequest{
 				User: tc.Alice,
 				Opts: api.ClientCreationOpts{
-					PersistentStorage:                        true,
-					EnableCrossProcessRefreshLockProcessName: "main",
-					AccessToken:                              accessToken,
+					PersistentStorage: true,
+					ExtraOpts: map[string]any{
+						rust.OptionEnableCrossProcessRefreshLockProcessName: "main",
+					},
+					AccessToken: accessToken,
 				},
 			}) // this should login already as we provided an access token
 			stopSyncing = alice.MustStartSyncing(t)
@@ -206,9 +219,11 @@ func TestMultiprocessNSE(t *testing.T) {
 			User:         tc.Alice,
 			Multiprocess: true,
 			Opts: api.ClientCreationOpts{
-				PersistentStorage:                        true,
-				AccessToken:                              accessToken,
-				EnableCrossProcessRefreshLockProcessName: api.ProcessNameNSE,
+				PersistentStorage: true,
+				AccessToken:       accessToken,
+				ExtraOpts: map[string]any{
+					rust.OptionEnableCrossProcessRefreshLockProcessName: "main",
+				},
 			},
 		}) // this should login already as we provided an access token
 
@@ -244,9 +259,11 @@ func TestMultiprocessNSE(t *testing.T) {
 					User:         tc.Alice,
 					Multiprocess: true,
 					Opts: api.ClientCreationOpts{
-						PersistentStorage:                        true,
-						EnableCrossProcessRefreshLockProcessName: api.ProcessNameNSE,
-						AccessToken:                              accessToken,
+						PersistentStorage: true,
+						ExtraOpts: map[string]any{
+							rust.OptionEnableCrossProcessRefreshLockProcessName: rust.ProcessNameNSE,
+						},
+						AccessToken: accessToken,
 					},
 				})
 			} // else we reuse the same NSE process for bob's message
@@ -281,8 +298,10 @@ func TestMultiprocessNSE(t *testing.T) {
 	alice2 := tc.MustLoginClient(t, &cc.ClientCreationRequest{
 		User: newDevice,
 		Opts: api.ClientCreationOpts{
-			PersistentStorage:                        true,
-			EnableCrossProcessRefreshLockProcessName: "main",
+			PersistentStorage: true,
+			ExtraOpts: map[string]any{
+				rust.OptionEnableCrossProcessRefreshLockProcessName: "main",
+			},
 		},
 	})
 	alice2.MustLoadBackup(t, recoveryKey)
@@ -303,8 +322,10 @@ func TestMultiprocessNSEBackupKeyMacError(t *testing.T) {
 	alice := tc.MustLoginClient(t, &cc.ClientCreationRequest{
 		User: tc.Alice,
 		Opts: api.ClientCreationOpts{
-			PersistentStorage:                        true,
-			EnableCrossProcessRefreshLockProcessName: "main",
+			PersistentStorage: true,
+			ExtraOpts: map[string]any{
+				rust.OptionEnableCrossProcessRefreshLockProcessName: "main",
+			},
 		},
 	})
 	stopSyncing := alice.MustStartSyncing(t)
@@ -334,9 +355,11 @@ func TestMultiprocessNSEBackupKeyMacError(t *testing.T) {
 			alice = tc.MustCreateClient(t, &cc.ClientCreationRequest{
 				User: tc.Alice,
 				Opts: api.ClientCreationOpts{
-					PersistentStorage:                        true,
-					AccessToken:                              accessToken,
-					EnableCrossProcessRefreshLockProcessName: "main",
+					PersistentStorage: true,
+					AccessToken:       accessToken,
+					ExtraOpts: map[string]any{
+						rust.OptionEnableCrossProcessRefreshLockProcessName: "main",
+					},
 				},
 			}) // this should login already as we provided an access token
 			stopSyncing = alice.MustStartSyncing(t)
@@ -352,9 +375,11 @@ func TestMultiprocessNSEBackupKeyMacError(t *testing.T) {
 			User:         tc.Alice,
 			Multiprocess: true,
 			Opts: api.ClientCreationOpts{
-				PersistentStorage:                        true,
-				EnableCrossProcessRefreshLockProcessName: api.ProcessNameNSE,
-				AccessToken:                              accessToken,
+				PersistentStorage: true,
+				ExtraOpts: map[string]any{
+					rust.OptionEnableCrossProcessRefreshLockProcessName: rust.ProcessNameNSE,
+				},
+				AccessToken: accessToken,
 			},
 		}) // this should login already as we provided an access token
 
@@ -392,8 +417,10 @@ func TestMultiprocessNSEBackupKeyMacError(t *testing.T) {
 	alice2 := tc.MustLoginClient(t, &cc.ClientCreationRequest{
 		User: newDevice,
 		Opts: api.ClientCreationOpts{
-			PersistentStorage:                        true,
-			EnableCrossProcessRefreshLockProcessName: "main",
+			PersistentStorage: true,
+			ExtraOpts: map[string]any{
+				rust.OptionEnableCrossProcessRefreshLockProcessName: "main",
+			},
 		},
 	})
 	alice2.MustLoadBackup(t, recoveryKey)
@@ -414,8 +441,10 @@ func TestMultiprocessNSEOlmSessionWedge(t *testing.T) {
 	alice := tc.MustLoginClient(t, &cc.ClientCreationRequest{
 		User: tc.Alice,
 		Opts: api.ClientCreationOpts{
-			PersistentStorage:                        true,
-			EnableCrossProcessRefreshLockProcessName: "main",
+			PersistentStorage: true,
+			ExtraOpts: map[string]any{
+				rust.OptionEnableCrossProcessRefreshLockProcessName: "main",
+			},
 		},
 	})
 	stopSyncing := alice.MustStartSyncing(t)
@@ -447,9 +476,11 @@ func TestMultiprocessNSEOlmSessionWedge(t *testing.T) {
 			alice = tc.MustCreateClient(t, &cc.ClientCreationRequest{
 				User: tc.Alice,
 				Opts: api.ClientCreationOpts{
-					PersistentStorage:                        true,
-					EnableCrossProcessRefreshLockProcessName: "main",
-					AccessToken:                              accessToken,
+					PersistentStorage: true,
+					ExtraOpts: map[string]any{
+						rust.OptionEnableCrossProcessRefreshLockProcessName: "main",
+					},
+					AccessToken: accessToken,
 				},
 			}) // this should login already as we provided an access token
 			stopSyncing = alice.MustStartSyncing(t)
@@ -469,9 +500,11 @@ func TestMultiprocessNSEOlmSessionWedge(t *testing.T) {
 			User:         tc.Alice,
 			Multiprocess: true,
 			Opts: api.ClientCreationOpts{
-				PersistentStorage:                        true,
-				AccessToken:                              accessToken,
-				EnableCrossProcessRefreshLockProcessName: api.ProcessNameNSE,
+				PersistentStorage: true,
+				AccessToken:       accessToken,
+				ExtraOpts: map[string]any{
+					rust.OptionEnableCrossProcessRefreshLockProcessName: rust.ProcessNameNSE,
+				},
 			},
 		}) // this should login already as we provided an access token
 
@@ -604,8 +637,10 @@ func TestMultiprocessInitialE2EESyncDoesntDropDeviceListUpdates(t *testing.T) {
 	bob := tc.MustLoginClient(t, &cc.ClientCreationRequest{
 		User: tc.Bob,
 		Opts: api.ClientCreationOpts{
-			PersistentStorage:                        true,
-			EnableCrossProcessRefreshLockProcessName: "main",
+			PersistentStorage: true,
+			ExtraOpts: map[string]any{
+				rust.OptionEnableCrossProcessRefreshLockProcessName: "main",
+			},
 		},
 	})
 	stopSyncing := bob.MustStartSyncing(t)
@@ -636,9 +671,11 @@ func TestMultiprocessInitialE2EESyncDoesntDropDeviceListUpdates(t *testing.T) {
 			bob = tc.MustCreateClient(t, &cc.ClientCreationRequest{
 				User: tc.Bob,
 				Opts: api.ClientCreationOpts{
-					PersistentStorage:                        true,
-					EnableCrossProcessRefreshLockProcessName: "main",
-					AccessToken:                              accessToken,
+					PersistentStorage: true,
+					ExtraOpts: map[string]any{
+						rust.OptionEnableCrossProcessRefreshLockProcessName: "main",
+					},
+					AccessToken: accessToken,
 				},
 			}) // this should login already as we provided an access token
 			stopSyncing = bob.MustStartSyncing(t)
@@ -647,9 +684,11 @@ func TestMultiprocessInitialE2EESyncDoesntDropDeviceListUpdates(t *testing.T) {
 			User:         tc.Bob,
 			Multiprocess: true,
 			Opts: api.ClientCreationOpts{
-				PersistentStorage:                        true,
-				AccessToken:                              accessToken,
-				EnableCrossProcessRefreshLockProcessName: api.ProcessNameNSE,
+				PersistentStorage: true,
+				AccessToken:       accessToken,
+				ExtraOpts: map[string]any{
+					rust.OptionEnableCrossProcessRefreshLockProcessName: rust.ProcessNameNSE,
+				},
 			},
 		}) // this should login already as we provided an access token
 
