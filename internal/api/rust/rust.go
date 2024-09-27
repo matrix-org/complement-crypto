@@ -911,8 +911,9 @@ func timelineItemToEvent(item *matrix_sdk_ffi.TimelineItem) *api.Event {
 
 func eventTimelineItemToEvent(item matrix_sdk_ffi.EventTimelineItem) *api.Event {
 	eventID := ""
-	if item.EventId != nil {
-		eventID = *item.EventId
+	switch id := item.EventOrTransactionId.(type) {
+	case matrix_sdk_ffi.EventOrTransactionIdEventId:
+		eventID = id.EventId
 	}
 	complementEvent := api.Event{
 		ID:     eventID,
