@@ -15,6 +15,8 @@ type ClientType struct {
 
 // Client represents a generic crypto client.
 // It is an abstraction to allow tests to interact with JS and FFI bindings in an agnostic way.
+// Clients are not limited to this interface, and can test functionality specific to their client
+// by type casting at runtime.
 type Client interface {
 	// Close is called to clean up resources.
 	// Specifically, we need to shut off existing browsers and any FFI bindings.
@@ -27,6 +29,9 @@ type Client interface {
 	ForceClose(t ct.TestLike)
 	// Remove any persistent storage, if it was enabled.
 	DeletePersistentStorage(t ct.TestLike)
+	// Login the given user. This function MUST block until one-time keys and device keys have been
+	// uploaded to the server. Failure to block will result in flakey tests as other users may not
+	// encrypt for this Client due to not detecting keys for the Client.
 	Login(t ct.TestLike, opts ClientCreationOpts) error
 	// MustStartSyncing to begin syncing from sync v2 / sliding sync.
 	// Tests should call stopSyncing() at the end of the test.
@@ -43,8 +48,8 @@ type Client interface {
 	IsRoomEncrypted(t ct.TestLike, roomID string) (bool, error)
 	// InviteUser attempts to invite the given user into the given room.
 	InviteUser(t ct.TestLike, roomID, userID string) error
-	// SendMessage sends the given text as an m.room.message with msgtype:m.text into the given
-	// room. Returns the event ID of the sent event, so MUST BLOCK until the event has been sent.
+	// SendMessage sends the given text as an encrypted/unencrypted message in the room, depending
+	// if the room is encrypted or not. Returns the event ID of the sent event, so MUST BLOCK until the event has been sent.
 	SendMessage(t ct.TestLike, roomID, text string) (eventID string)
 	// TrySendMessage tries to send the message, but can fail.
 	TrySendMessage(t ct.TestLike, roomID, text string) (eventID string, err error)
@@ -62,6 +67,7 @@ type Client interface {
 	// LoadBackup will recover E2EE keys from the latest backup, else return an error.
 	LoadBackup(t ct.TestLike, recoveryKey string) error
 	// GetNotification gets push notification-like information for the given event. If there is a problem, an error is returned.
+	// Clients should implement this AS IF they received a push notification.
 	GetNotification(t ct.TestLike, roomID, eventID string) (*Notification, error)
 	// ListenForVerificationRequests will listen for incoming verification requests.
 	// See RequestOwnUserVerification for information on the stages.

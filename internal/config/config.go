@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
@@ -47,6 +48,8 @@ type ComplementCrypto struct {
 	// This binary is used when running multiprocess tests. If this environment variable is not supplied, tests which try to use multiprocess
 	// clients will be skipped, making this environment variable optional.
 	RPCBinaryPath string
+
+	MITMProxyAddonsDir string
 }
 
 func (c *ComplementCrypto) ShouldTest(lang api.ClientTypeLang) bool {
@@ -67,7 +70,7 @@ func (c *ComplementCrypto) Bindings() []api.LanguageBindings {
 	return bindings
 }
 
-func NewComplementCryptoConfigFromEnvVars() *ComplementCrypto {
+func NewComplementCryptoConfigFromEnvVars(relativePathToMITMAddonsDir string) *ComplementCrypto {
 	matrix := os.Getenv("COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX")
 	if matrix == "" {
 		matrix = "jj,jr,rj,rr"
@@ -121,10 +124,16 @@ func NewComplementCryptoConfigFromEnvVars() *ComplementCrypto {
 			panic("COMPLEMENT_CRYPTO_RPC_BINARY must be the absolute path to a binary file: " + err.Error())
 		}
 	}
+	wd, err := os.Getwd()
+	if err != nil {
+		panic("Cannot get current working directory: " + err.Error())
+	}
+
 	return &ComplementCrypto{
-		MITMDump:         os.Getenv("COMPLEMENT_CRYPTO_MITMDUMP"),
-		RPCBinaryPath:    rpcBinaryPath,
-		TestClientMatrix: testClientMatrix,
-		clientLangs:      clientLangs,
+		MITMDump:           os.Getenv("COMPLEMENT_CRYPTO_MITMDUMP"),
+		RPCBinaryPath:      rpcBinaryPath,
+		TestClientMatrix:   testClientMatrix,
+		clientLangs:        clientLangs,
+		MITMProxyAddonsDir: filepath.Join(wd, relativePathToMITMAddonsDir),
 	}
 }

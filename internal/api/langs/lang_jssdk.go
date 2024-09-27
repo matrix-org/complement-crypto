@@ -29,6 +29,7 @@ func (b *JSLanguageBindings) PreTestRun(contextID string) {
 	if contextID != "" {
 		contextID = "_" + contextID
 	}
+	os.Mkdir("./logs", 0750) // ensure directory exists
 	js.SetupJSLogs(fmt.Sprintf("./logs/js_sdk%s.log", contextID))
 }
 

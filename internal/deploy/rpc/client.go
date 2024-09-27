@@ -99,7 +99,7 @@ func (r *LanguageBindings) MustCreateClient(t ct.TestLike, cfg api.ClientCreatio
 				}
 				port, err = strconv.Atoi(strings.TrimSpace(str))
 				if err != nil {
-					log.Printf("  RPC (%s): %s", contextID, str)
+					log.Printf("  RPC (%s) stdout line isn't a port: %s", contextID, str)
 					continue
 				}
 				portCh <- struct {
@@ -119,7 +119,7 @@ func (r *LanguageBindings) MustCreateClient(t ct.TestLike, cfg api.ClientCreatio
 		var void int
 		client, err := rpc.DialHTTP("tcp", rpcAddr)
 		if err != nil {
-			t.Fatalf("DialHTTP: %s", err)
+			t.Fatalf("RPC MustCreateClient DialHTTP: %s", err)
 		}
 
 		err = client.Call("Server.MustCreateClient", ClientCreationOpts{

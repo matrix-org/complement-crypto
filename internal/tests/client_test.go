@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -37,7 +38,11 @@ func Deploy(t *testing.T) *deploy.SlidingSyncDeployment {
 	if ssDeployment != nil {
 		return ssDeployment
 	}
-	ssDeployment = deploy.RunNewDeployment(t, "", "")
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get wd: %s", err)
+	}
+	ssDeployment = deploy.RunNewDeployment(t, filepath.Join(wd, "../../tests/mitmproxy_addons"), "")
 	return ssDeployment
 }
 
