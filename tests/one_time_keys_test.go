@@ -95,7 +95,7 @@ func TestFallbackKeyIsUsedIfOneTimeKeysRunOut(t *testing.T) {
 		// =================
 
 		// Upload OTKs and a fallback
-		tc.WithAliceBobAndCharlieSyncing(t, func(alice, bob, charlie api.Client) {
+		tc.WithAliceBobAndCharlieSyncing(t, func(alice, bob, charlie api.TestClient) {
 			// we need to send _something_ to cause /sync v2 to return a long poll response, as fallback
 			// keys don't wake up /sync v2. If we don't do this, rust SDK fails to realise it needs to upload a fallback
 			// key because SS doesn't tell it, because Synapse doesn't tell SS that the fallback key was used.
@@ -169,7 +169,7 @@ func TestFailedOneTimeKeyUploadRetries(t *testing.T) {
 			},
 			RequestCallback: callback.SendError(2, http.StatusGatewayTimeout),
 		}, func() {
-			tc.WithAliceSyncing(t, func(alice api.Client) {
+			tc.WithAliceSyncing(t, func(alice api.TestClient) {
 				tc.Bob.MustDo(t, "POST", []string{
 					"_matrix", "client", "v3", "keys", "claim",
 				}, client.WithJSONBody(t, map[string]any{
@@ -208,7 +208,7 @@ func TestFailedKeysClaimRetries(t *testing.T) {
 	Instance().ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
 		tc := Instance().CreateTestContext(t, clientType, clientType)
 		// both clients start syncing to upload OTKs
-		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+		tc.WithAliceAndBobSyncing(t, func(alice, bob api.TestClient) {
 			var stopPoking atomic.Bool
 			waiter := helpers.NewWaiter()
 			// make a room which will link the 2 users together when

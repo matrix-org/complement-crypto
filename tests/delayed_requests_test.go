@@ -33,7 +33,7 @@ func TestDelayedInviteResponse(t *testing.T) {
 	Instance().ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
 		tc := Instance().CreateTestContext(t, clientType, clientType)
 		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice)
-		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+		tc.WithAliceAndBobSyncing(t, func(alice, bob api.TestClient) {
 			// we send a message first so clients which lazily call /members can do so now.
 			// if we don't do this, the client won't rely on /sync for the member list so won't fail.
 			alice.SendMessage(t, roomID, "dummy message to make /members call")

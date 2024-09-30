@@ -111,12 +111,6 @@ func (s *Server) Login(opts api.ClientCreationOpts, void *int) error {
 	return s.activeClient.Login(&api.MockT{}, opts)
 }
 
-func (s *Server) MustStartSyncing(testName string, void *int) error {
-	defer s.keepAlive()
-	s.stopSyncing = s.activeClient.MustStartSyncing(&api.MockT{TestName: testName})
-	return nil
-}
-
 func (s *Server) StartSyncing(testName string, void *int) error {
 	defer s.keepAlive()
 	stopSyncing, err := s.activeClient.StartSyncing(&api.MockT{TestName: testName})

@@ -32,7 +32,7 @@ func TestNewUserCannotGetKeysForOfflineServer(t *testing.T) {
 		t.Logf("%s joining room %s", tc.Bob.UserID, roomID)
 		tc.Bob.MustJoinRoom(t, roomID, []string{"hs1"})
 
-		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+		tc.WithAliceAndBobSyncing(t, func(alice, bob api.TestClient) {
 			// let clients sync device keys
 			time.Sleep(time.Second)
 
@@ -50,7 +50,7 @@ func TestNewUserCannotGetKeysForOfflineServer(t *testing.T) {
 			tc.Alice.MustInviteRoom(t, roomID, tc.Charlie.UserID)
 			tc.WithClientSyncing(t, &cc.ClientCreationRequest{
 				User: tc.Charlie,
-			}, func(charlie api.Client) {
+			}, func(charlie api.TestClient) {
 				tc.Charlie.MustJoinRoom(t, roomID, []string{"hs1"})
 
 				// let charlie sync device keys... and fail to get bob's keys!
@@ -116,7 +116,7 @@ func TestExistingSessionCannotGetKeysForOfflineServer(t *testing.T) {
 		tc.Bob.MustJoinRoom(t, roomIDab, []string{"hs1"})
 		tc.Bob.MustJoinRoom(t, roomIDbc, []string{"hs1"})
 
-		tc.WithAliceBobAndCharlieSyncing(t, func(alice, bob, charlie api.Client) {
+		tc.WithAliceBobAndCharlieSyncing(t, func(alice, bob, charlie api.TestClient) {
 			// let clients sync device keys
 			time.Sleep(time.Second)
 

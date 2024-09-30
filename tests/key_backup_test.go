@@ -36,7 +36,7 @@ func TestCanBackupKeys(t *testing.T) {
 
 		// SDK testing below
 		// -----------------
-		tc.WithAliceSyncing(t, func(backupCreator api.Client) {
+		tc.WithAliceSyncing(t, func(backupCreator api.TestClient) {
 			body := "An encrypted message"
 			waiter := backupCreator.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(body))
 			evID := backupCreator.SendMessage(t, roomID, body)
@@ -98,7 +98,7 @@ func TestBackupWrongRecoveryKeyFails(t *testing.T) {
 
 		// SDK testing below
 		// -----------------
-		tc.WithAliceSyncing(t, func(backupCreator api.Client) {
+		tc.WithAliceSyncing(t, func(backupCreator api.TestClient) {
 			body := "An encrypted message"
 			waiter := backupCreator.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(body))
 			evID := backupCreator.SendMessage(t, roomID, body)

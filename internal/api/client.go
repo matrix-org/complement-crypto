@@ -33,11 +33,6 @@ type Client interface {
 	// uploaded to the server. Failure to block will result in flakey tests as other users may not
 	// encrypt for this Client due to not detecting keys for the Client.
 	Login(t ct.TestLike, opts ClientCreationOpts) error
-	// MustStartSyncing to begin syncing from sync v2 / sliding sync.
-	// Tests should call stopSyncing() at the end of the test.
-	// MUST BLOCK until the initial sync is complete.
-	// Fails the test if there was a problem syncing.
-	MustStartSyncing(t ct.TestLike) (stopSyncing func())
 	// StartSyncing to begin syncing from sync v2 / sliding sync.
 	// Tests should call stopSyncing() at the end of the test.
 	// MUST BLOCK until the initial sync is complete.
@@ -96,9 +91,31 @@ type Client interface {
 	Opts() ClientCreationOpts
 }
 
-type Notification struct {
-	Event
-	HasMentions *bool
+// TestClient is a Client with extra helper functions added to make writing tests easier.
+// Client implementations are not expected to implement these helper functions, and are
+// instead composed together by the test rig itself. See TestClientImpl.
+type TestClient interface {
+	Client
+	MustStartSyncing(t ct.TestLike) (stopSyncing func())
+}
+
+func NewTestClient(c Client) TestClient {
+	return &testClientImpl{
+		Client: c,
+	}
+}
+
+type testClientImpl struct {
+	Client
+}
+
+func (c *testClientImpl) MustStartSyncing(t ct.TestLike) (stopSyncing func()) {
+	t.Helper()
+	stopSyncing, err := c.StartSyncing(t)
+	if err != nil {
+		ct.Fatalf(t, "MustStartSyncing: %s", err)
+	}
+	return stopSyncing
 }
 
 type LoggedClient struct {
@@ -134,14 +151,6 @@ func (c *LoggedClient) MustGetEvent(t ct.TestLike, roomID, eventID string) Event
 	t.Helper()
 	c.Logf(t, "%s MustGetEvent(%s, %s)", c.logPrefix(), roomID, eventID)
 	return c.Client.MustGetEvent(t, roomID, eventID)
-}
-
-func (c *LoggedClient) MustStartSyncing(t ct.TestLike) (stopSyncing func()) {
-	t.Helper()
-	c.Logf(t, "%s MustStartSyncing starting to sync", c.logPrefix())
-	stopSyncing = c.Client.MustStartSyncing(t)
-	c.Logf(t, "%s MustStartSyncing now syncing", c.logPrefix())
-	return
 }
 
 func (c *LoggedClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error) {
@@ -214,6 +223,11 @@ func (c *LoggedClient) DeletePersistentStorage(t ct.TestLike) {
 
 func (c *LoggedClient) logPrefix() string {
 	return fmt.Sprintf("[%s](%s)", c.UserID(), c.Type())
+}
+
+type Notification struct {
+	Event
+	HasMentions *bool
 }
 
 // ClientCreationOpts are options to use when creating crypto clients.

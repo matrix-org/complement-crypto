@@ -118,7 +118,7 @@ func TestNSEReceiveForNonPreKeyMessage(t *testing.T) {
 	// Bob sends a message to alice
 	tc.WithClientSyncing(t, &cc.ClientCreationRequest{
 		User: tc.Bob,
-	}, func(bob api.Client) {
+	}, func(bob api.TestClient) {
 		// let bob realise alice exists and claims keys
 		time.Sleep(time.Second)
 		// Send a message as Bob, this will contain ensure an Olm session is set up already before we do NSE work
@@ -175,7 +175,7 @@ func TestMultiprocessNSE(t *testing.T) {
 	// Bob sends a message to alice
 	tc.WithClientSyncing(t, &cc.ClientCreationRequest{
 		User: tc.Bob,
-	}, func(bob api.Client) {
+	}, func(bob api.TestClient) {
 		// let bob realise alice exists and claims keys
 		time.Sleep(time.Second)
 		for i := 0; i < numPreBackgroundMsgs; i++ {
@@ -336,7 +336,7 @@ func TestMultiprocessNSEBackupKeyMacError(t *testing.T) {
 	// Bob sends a message to alice
 	tc.WithClientSyncing(t, &cc.ClientCreationRequest{
 		User: tc.Bob,
-	}, func(bob api.Client) {
+	}, func(bob api.TestClient) {
 		// let bob realise alice exists and claims keys
 		time.Sleep(time.Second)
 
@@ -452,7 +452,7 @@ func TestMultiprocessNSEOlmSessionWedge(t *testing.T) {
 	// Bob sends a message to alice
 	tc.WithClientSyncing(t, &cc.ClientCreationRequest{
 		User: tc.Bob,
-	}, func(bob api.Client) {
+	}, func(bob api.TestClient) {
 		// let bob realise alice exists and claims keys
 		time.Sleep(time.Second)
 		msg := "pre message"
@@ -599,7 +599,7 @@ func TestNotificationClientDupeOTKUpload(t *testing.T) {
 		// The main app will see this in /sync and then try to upload another OTK, which we will tarpit.
 		tc.WithClientSyncing(t, &cc.ClientCreationRequest{
 			User: tc.Bob,
-		}, func(bob api.Client) {
+		}, func(bob api.TestClient) {
 			eventID := bob.SendMessage(t, roomID, "Hello world!")
 			// create a NotificationClient in the same process to fetch this "push notification".
 			// It might make the NotificationClient upload a OTK as it would have seen 1 has been used.
@@ -648,7 +648,7 @@ func TestMultiprocessInitialE2EESyncDoesntDropDeviceListUpdates(t *testing.T) {
 	// Bob sends a message to Alice
 	tc.WithClientSyncing(t, &cc.ClientCreationRequest{
 		User: tc.Alice,
-	}, func(alice api.Client) {
+	}, func(alice api.TestClient) {
 		// ensure bob has queried keys from alice by sending a message.
 		msg := "pre message"
 		bob.SendMessage(t, roomID, msg)
@@ -700,7 +700,7 @@ func TestMultiprocessInitialE2EESyncDoesntDropDeviceListUpdates(t *testing.T) {
 		csapiAlice2 := tc.MustRegisterNewDevice(t, tc.Alice, "NEW_DEVICE")
 		tc.WithClientSyncing(t, &cc.ClientCreationRequest{
 			User: csapiAlice2,
-		}, func(alice2 api.Client) {
+		}, func(alice2 api.TestClient) {
 			// wait for device keys to sync up
 			time.Sleep(time.Second)
 			// alice[1] sends a message, this is unimportant other than to grab the event ID for the push process
@@ -750,7 +750,7 @@ func bobSendsMessage(t *testing.T, tc *cc.TestContext, roomID, text string, msgs
 	pushNotifEventID := ""
 	tc.WithClientSyncing(t, &cc.ClientCreationRequest{
 		User: tc.Bob,
-	}, func(bob api.Client) {
+	}, func(bob api.TestClient) {
 		for i := 0; i < msgsBefore; i++ {
 			bob.SendMessage(t, roomID, fmt.Sprintf("msg before %d", i))
 		}

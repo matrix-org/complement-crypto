@@ -218,24 +218,6 @@ func (c *RPCClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {
 	return err
 }
 
-// MustStartSyncing to begin syncing from sync v2 / sliding sync.
-// Tests should call stopSyncing() at the end of the test.
-// MUST BLOCK until the initial sync is complete.
-// Fails the test if there was a problem syncing.
-func (c *RPCClient) MustStartSyncing(t ct.TestLike) (stopSyncing func()) {
-	var void int
-	err := c.client.Call("Server.MustStartSyncing", t.Name(), &void)
-	if err != nil {
-		t.Fatalf("RPCClient.MustStartSyncing: %s", err)
-	}
-	return func() {
-		err := c.client.Call("Server.StopSyncing", t.Name(), &void)
-		if err != nil {
-			t.Fatalf("RPCClient.StopSyncing: %s", err)
-		}
-	}
-}
-
 // StartSyncing to begin syncing from sync v2 / sliding sync.
 // Tests should call stopSyncing() at the end of the test.
 // MUST BLOCK until the initial sync is complete.

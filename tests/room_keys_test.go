@@ -57,7 +57,7 @@ func TestRoomKeyIsCycledOnDeviceLogout(t *testing.T) {
 			User: csapiAlice2,
 		})
 		defer alice2.Close(t)
-		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+		tc.WithAliceAndBobSyncing(t, func(alice, bob api.TestClient) {
 			alice2StopSyncing := alice2.MustStartSyncing(t)
 			alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(tc.Bob.UserID, "join")).Waitf(t, 5*time.Second, "alice did not see own join")
 			// check the room works
@@ -117,7 +117,7 @@ func TestRoomKeyIsCycledAfterEnoughMessages(t *testing.T) {
 		)
 		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 
-		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+		tc.WithAliceAndBobSyncing(t, func(alice, bob api.TestClient) {
 			// And some messages were sent, but not enough to trigger resending
 			for i := 0; i < 4; i++ {
 				wantMsgBody := fmt.Sprintf("Before we hit the threshold %d", i)
@@ -191,7 +191,7 @@ func TestRoomKeyIsCycledAfterEnoughTime(t *testing.T) {
 		)
 		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 
-		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+		tc.WithAliceAndBobSyncing(t, func(alice, bob api.TestClient) {
 			// Before we start, ensure some keys have already been sent, so we
 			// don't get a false positive.
 			wantMsgBody := "Before we start"
@@ -226,7 +226,7 @@ func TestRoomKeyIsCycledOnMemberLeaving(t *testing.T) {
 	Instance().ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
 		tc := Instance().CreateTestContext(t, clientTypeA, clientTypeB, clientTypeB)
 		// Alice, Bob and Charlie are in a room.
-		tc.WithAliceBobAndCharlieSyncing(t, func(alice, bob, charlie api.Client) {
+		tc.WithAliceBobAndCharlieSyncing(t, func(alice, bob, charlie api.TestClient) {
 			// do setup code after all clients are syncing to ensure that if Alice asks for Charlie's keys on receipt of the
 			// join event, then Charlie has already uploaded keys.
 			roomID := tc.CreateNewEncryptedRoom(
@@ -281,7 +281,7 @@ func TestRoomKeyIsNotCycled(t *testing.T) {
 		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
 
 		// Alice, Bob are in a room.
-		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+		tc.WithAliceAndBobSyncing(t, func(alice, bob api.TestClient) {
 			// check the room works
 			wantMsgBody := "Test Message"
 			waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
@@ -407,7 +407,7 @@ func testRoomKeyIsNotCycledOnClientRestartRust(t *testing.T, clientType api.Clie
 
 	tc.WithClientSyncing(t, &cc.ClientCreationRequest{
 		User: tc.Bob,
-	}, func(bob api.Client) {
+	}, func(bob api.TestClient) {
 		wantMsgBody := "test from another process"
 		// send a message as Alice in a different process
 		tc.WithClientSyncing(t, &cc.ClientCreationRequest{
@@ -416,7 +416,7 @@ func testRoomKeyIsNotCycledOnClientRestartRust(t *testing.T, clientType api.Clie
 				PersistentStorage: true,
 			},
 			Multiprocess: true,
-		}, func(remoteAlice api.Client) {
+		}, func(remoteAlice api.TestClient) {
 			eventID := remoteAlice.SendMessage(t, roomID, wantMsgBody)
 			waiter := remoteAlice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasEventID(eventID))
 			waiter.Waitf(t, 5*time.Second, "client did not see event %s", eventID)
@@ -480,7 +480,7 @@ func testRoomKeyIsNotCycledOnClientRestartJS(t *testing.T, clientType api.Client
 	// no alice.close here as we'll close it in the test mid-way
 	tc.WithClientSyncing(t, &cc.ClientCreationRequest{
 		User: tc.Bob,
-	}, func(bob api.Client) {
+	}, func(bob api.TestClient) {
 		// check the room works
 		wantMsgBody := "Test Message"
 		waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
@@ -496,7 +496,7 @@ func testRoomKeyIsNotCycledOnClientRestartJS(t *testing.T, clientType api.Client
 			tc.WithClientSyncing(t, &cc.ClientCreationRequest{
 				User: tc.Alice,
 				Opts: alice.Opts(),
-			}, func(alice api.Client) {
+			}, func(alice api.TestClient) {
 				// now send another message from Alice, who should NOT send another new room key
 				wantMsgBody = "Another Test Message"
 				waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))

@@ -323,13 +323,6 @@ func (c *RustClient) MustGetEvent(t ct.TestLike, roomID, eventID string) api.Eve
 	return *ev
 }
 
-func (c *RustClient) MustStartSyncing(t ct.TestLike) (stopSyncing func()) {
-	t.Helper()
-	stopSyncing, err := c.StartSyncing(t)
-	must.NotError(t, "StartSyncing", err)
-	return stopSyncing
-}
-
 // StartSyncing to begin syncing from sync v2 / sliding sync.
 // Tests should call stopSyncing() at the end of the test.
 func (c *RustClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error) {

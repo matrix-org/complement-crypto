@@ -22,7 +22,7 @@ func TestClientRetriesSendToDevice(t *testing.T) {
 		tc := Instance().CreateTestContext(t, clientTypeA, clientTypeB)
 		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.PresetPublicChat())
 		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
-		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+		tc.WithAliceAndBobSyncing(t, func(alice, bob api.TestClient) {
 			// lets device keys be exchanged
 			time.Sleep(time.Second)
 
@@ -85,7 +85,7 @@ func TestUnprocessedToDeviceMessagesArentLostOnRestart(t *testing.T) {
 				PersistentStorage: true,
 			},
 		})
-		tc.WithAliceSyncing(t, func(alice api.Client) {
+		tc.WithAliceSyncing(t, func(alice api.TestClient) {
 			// we will close this in the test, no defer
 			bobStopSyncing := bob.MustStartSyncing(t)
 			// check the room works
@@ -178,7 +178,7 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartRust(t *testing.T, tc *cc.
 			Opts: api.ClientCreationOpts{
 				PersistentStorage: true,
 			},
-		}, func(bob api.Client) {
+		}, func(bob api.TestClient) {
 			// we can't rely on MustStartSyncing returning to know that the room key has been received, as
 			// in rust we just wait for RoomListLoadingStateLoaded which is a separate connection to the
 			// encryption loop.
@@ -242,7 +242,7 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartJS(t *testing.T, tc *cc.Te
 			Opts: api.ClientCreationOpts{
 				PersistentStorage: true,
 			},
-		}, func(bob api.Client) {
+		}, func(bob api.TestClient) {
 			// include a grace period like rust, no specific reason beyond consistency.
 			time.Sleep(time.Second)
 			ev := bob.MustGetEvent(t, roomID, eventID)
@@ -282,7 +282,7 @@ func TestToDeviceMessagesAreBatched(t *testing.T) {
 			clientUnderTest.Close(t)
 		}
 		waiter := helpers.NewWaiter()
-		tc.WithAliceSyncing(t, func(alice api.Client) {
+		tc.WithAliceSyncing(t, func(alice api.TestClient) {
 			// intercept /sendToDevice and check we are sending 100 messages per request
 			tc.Deployment.MITM().Configure(t).WithIntercept(mitm.InterceptOpts{
 				Filter: mitm.FilterParams{
@@ -345,7 +345,7 @@ func TestToDeviceMessagesArentLostWhenKeysQueryFails(t *testing.T) {
 		// get a normal E2EE room set up
 		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}))
 		tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
-		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+		tc.WithAliceAndBobSyncing(t, func(alice, bob api.TestClient) {
 			msg := "hello world"
 			msg2 := "new device message from alice"
 			alice.SendMessage(t, roomID, msg)
@@ -370,7 +370,7 @@ func TestToDeviceMessagesArentLostWhenKeysQueryFails(t *testing.T) {
 				csapiAlice2 := tc.MustRegisterNewDevice(t, tc.Alice, "OTHER_DEVICE")
 				tc.WithClientSyncing(t, &cc.ClientCreationRequest{
 					User: csapiAlice2,
-				}, func(alice2 api.Client) {
+				}, func(alice2 api.TestClient) {
 					// we don't know how long it will take for the device list update to be processed, so wait 1s
 					time.Sleep(time.Second)
 
@@ -429,7 +429,7 @@ func TestToDeviceMessagesAreProcessedInOrder(t *testing.T) {
 			ID   string
 			Body string
 		}{}
-		tc.WithAliceSyncing(t, func(alice api.Client) {
+		tc.WithAliceSyncing(t, func(alice api.TestClient) {
 			callbackFn := func(cd callback.Data) *callback.Response {
 				// try v2 sync then SS
 				toDeviceEvents := gjson.ParseBytes(cd.ResponseBody).Get("to_device.events").Array()
@@ -469,7 +469,7 @@ func TestToDeviceMessagesAreProcessedInOrder(t *testing.T) {
 					creationReqs[i].User.MustJoinRoom(t, roomID, []string{clientType.HS})
 				}
 				// send 30 messages as each user (interleaved)
-				tc.WithClientsSyncing(t, creationReqs, func(clients []api.Client) {
+				tc.WithClientsSyncing(t, creationReqs, func(clients []api.TestClient) {
 					for i := 0; i < numMsgsPerClient; i++ {
 						for _, c := range clients {
 							body := fmt.Sprintf("Message %d", i+1)

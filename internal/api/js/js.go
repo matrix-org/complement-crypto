@@ -549,13 +549,6 @@ func (c *JSClient) MustGetEvent(t ct.TestLike, roomID, eventID string) api.Event
 	return ev
 }
 
-func (c *JSClient) MustStartSyncing(t ct.TestLike) (stopSyncing func()) {
-	t.Helper()
-	stopSyncing, err := c.StartSyncing(t)
-	must.NotError(t, "StartSyncing", err)
-	return stopSyncing
-}
-
 // StartSyncing to begin syncing from sync v2 / sliding sync.
 // Tests should call stopSyncing() at the end of the test.
 func (c *JSClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error) {

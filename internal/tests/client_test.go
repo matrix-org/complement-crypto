@@ -29,7 +29,7 @@ var (
 	ssDeployment *deploy.SlidingSyncDeployment
 	// aka functions which make clients, and we don't care about the language.
 	// Tests just loop through this array for each client impl.
-	clientFactories []func(t *testing.T, cfg api.ClientCreationOpts) api.Client
+	clientFactories []func(t *testing.T, cfg api.ClientCreationOpts) api.TestClient
 )
 
 func Deploy(t *testing.T) *deploy.SlidingSyncDeployment {
@@ -47,30 +47,30 @@ func Deploy(t *testing.T) *deploy.SlidingSyncDeployment {
 }
 
 func TestMain(m *testing.M) {
-	rustClientCreator := func(t *testing.T, cfg api.ClientCreationOpts) api.Client {
+	rustClientCreator := func(t *testing.T, cfg api.ClientCreationOpts) api.TestClient {
 		client, err := rust.NewRustClient(t, cfg)
 		if err != nil {
 			t.Fatalf("NewRustClient: %s", err)
 		}
-		return client
+		return api.NewTestClient(client)
 	}
-	jsClientCreator := func(t *testing.T, cfg api.ClientCreationOpts) api.Client {
+	jsClientCreator := func(t *testing.T, cfg api.ClientCreationOpts) api.TestClient {
 		client, err := js.NewJSClient(t, cfg)
 		if err != nil {
 			t.Fatalf("NewJSClient: %s", err)
 		}
-		return client
+		return api.NewTestClient(client)
 	}
 	clientFactories = append(clientFactories, rustClientCreator, jsClientCreator)
 
 	rpcBinary := os.Getenv("COMPLEMENT_CRYPTO_RPC_BINARY")
 	if rpcBinary != "" {
-		clientFactories = append(clientFactories, func(t *testing.T, cfg api.ClientCreationOpts) api.Client {
+		clientFactories = append(clientFactories, func(t *testing.T, cfg api.ClientCreationOpts) api.TestClient {
 			remoteBindings, err := rpc.NewLanguageBindings(rpcBinary, api.ClientTypeRust, "")
 			if err != nil {
 				log.Fatal(err)
 			}
-			return remoteBindings.MustCreateClient(t, cfg)
+			return api.NewTestClient(remoteBindings.MustCreateClient(t, cfg))
 		})
 	}
 	rust.SetupLogs("rust_sdk_logs")
@@ -104,7 +104,7 @@ func TestReceiveTimeline(t *testing.T) {
 	}
 
 	// test that if we start syncing with a room full of events, we see those events.
-	ForEachClient(t, "existing_events", deployment, func(t *testing.T, client api.Client, csapi *client.CSAPI) {
+	ForEachClient(t, "existing_events", deployment, func(t *testing.T, client api.TestClient, csapi *client.CSAPI) {
 		must.NotError(t, "Failed to login", client.Login(t, client.Opts()))
 		roomID, eventIDs := createAndSendEvents(t, csapi)
 		time.Sleep(time.Second) // give time for everything to settle server-side e.g sliding sync proxy
@@ -132,7 +132,7 @@ func TestReceiveTimeline(t *testing.T) {
 	})
 
 	// test that if we are already syncing and then see a room live stream full of events, we see those events.
-	ForEachClient(t, "live_events", deployment, func(t *testing.T, client api.Client, csapi *client.CSAPI) {
+	ForEachClient(t, "live_events", deployment, func(t *testing.T, client api.TestClient, csapi *client.CSAPI) {
 		must.NotError(t, "Failed to login", client.Login(t, client.Opts()))
 		stopSyncing := client.MustStartSyncing(t)
 		defer stopSyncing()
@@ -171,7 +171,7 @@ func TestReceiveTimeline(t *testing.T) {
 
 func TestCanWaitUntilEventInRoomBeforeRoomIsKnown(t *testing.T) {
 	deployment := Deploy(t)
-	ForEachClient(t, "", deployment, func(t *testing.T, client api.Client, csapi *client.CSAPI) {
+	ForEachClient(t, "", deployment, func(t *testing.T, client api.TestClient, csapi *client.CSAPI) {
 		roomID := csapi.MustCreateRoom(t, map[string]interface{}{})
 		eventID := csapi.SendEventSynced(t, roomID, b.Event{
 			Type: "m.room.message",
@@ -196,7 +196,7 @@ func TestCanWaitUntilEventInRoomBeforeRoomIsKnown(t *testing.T) {
 
 func TestSendingEvents(t *testing.T) {
 	deployment := Deploy(t)
-	ForEachClient(t, "", deployment, func(t *testing.T, client api.Client, csapi *client.CSAPI) {
+	ForEachClient(t, "", deployment, func(t *testing.T, client api.TestClient, csapi *client.CSAPI) {
 		must.NotError(t, "Failed to login", client.Login(t, client.Opts()))
 		roomID := csapi.MustCreateRoom(t, map[string]interface{}{})
 		stopSyncing := client.MustStartSyncing(t)
@@ -217,7 +217,7 @@ func TestSendingEvents(t *testing.T) {
 }
 
 // run a subtest for each client factory
-func ForEachClient(t *testing.T, name string, deployment *deploy.SlidingSyncDeployment, fn func(t *testing.T, client api.Client, csapi *client.CSAPI)) {
+func ForEachClient(t *testing.T, name string, deployment *deploy.SlidingSyncDeployment, fn func(t *testing.T, client api.TestClient, csapi *client.CSAPI)) {
 	for _, createClient := range clientFactories {
 		csapiAlice := deployment.Register(t, "hs1", helpers.RegistrationOpts{
 			LocalpartSuffix: "client",
