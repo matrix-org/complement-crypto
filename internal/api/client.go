@@ -93,12 +93,13 @@ type Client interface {
 
 // TestClient is a Client with extra helper functions added to make writing tests easier.
 // Client implementations are not expected to implement these helper functions, and are
-// instead composed together by the test rig itself. See TestClientImpl.
+// instead composed together by the test rig itself.
 type TestClient interface {
 	Client
 	MustStartSyncing(t ct.TestLike) (stopSyncing func())
 }
 
+// NewTestClient wraps a Client implementation with helper functions which tests can use.
 func NewTestClient(c Client) TestClient {
 	return &testClientImpl{
 		Client: c,
