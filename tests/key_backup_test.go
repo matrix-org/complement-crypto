@@ -39,7 +39,7 @@ func TestCanBackupKeys(t *testing.T) {
 		tc.WithAliceSyncing(t, func(backupCreator api.TestClient) {
 			body := "An encrypted message"
 			waiter := backupCreator.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(body))
-			evID := backupCreator.SendMessage(t, roomID, body)
+			evID := backupCreator.MustSendMessage(t, roomID, body)
 			t.Logf("backupCreator (%s) waiting for event %s", backupCreator.Type(), evID)
 			waiter.Waitf(t, 5*time.Second, "backup creator did not see own message %s", evID)
 
@@ -101,7 +101,7 @@ func TestBackupWrongRecoveryKeyFails(t *testing.T) {
 		tc.WithAliceSyncing(t, func(backupCreator api.TestClient) {
 			body := "An encrypted message"
 			waiter := backupCreator.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(body))
-			evID := backupCreator.SendMessage(t, roomID, body)
+			evID := backupCreator.MustSendMessage(t, roomID, body)
 			t.Logf("backupCreator (%s) waiting for event %s", backupCreator.Type(), evID)
 			waiter.Waitf(t, 5*time.Second, "backup creator did not see own message %s", evID)
 
