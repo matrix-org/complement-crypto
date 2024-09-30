@@ -41,6 +41,14 @@ func SetupLogs(prefix string) {
 
 var zero uint32
 
+const (
+	OptionEnableCrossProcessRefreshLockProcessName = "EnableCrossProcessRefreshLockProcessName"
+)
+
+// magic value for EnableCrossProcessRefreshLockProcessName which configures the FFI client
+// according to iOS NSE.
+const ProcessNameNSE string = "NSE"
+
 type RustRoomInfo struct {
 	stream   *matrix_sdk_ffi.TaskHandle
 	room     *matrix_sdk_ffi.Room
@@ -71,10 +79,11 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, erro
 		SlidingSyncVersionBuilder(slidingSyncVersion).
 		AutoEnableCrossSigning(true)
 	var clientSessionDelegate matrix_sdk_ffi.ClientSessionDelegate
-	if opts.EnableCrossProcessRefreshLockProcessName != "" {
-		t.Logf("enabling cross process refresh lock with proc name=%s", opts.EnableCrossProcessRefreshLockProcessName)
+	xprocessName := opts.GetExtraOption(OptionEnableCrossProcessRefreshLockProcessName, "").(string)
+	if xprocessName != "" {
+		t.Logf("enabling cross process refresh lock with proc name=%s", xprocessName)
 		clientSessionDelegate = NewMemoryClientSessionDelegate()
-		ab = ab.EnableCrossProcessRefreshLock(opts.EnableCrossProcessRefreshLockProcessName, clientSessionDelegate)
+		ab = ab.EnableCrossProcessRefreshLock(xprocessName, clientSessionDelegate)
 	}
 	// @alice:hs1, FOOBAR => alice_hs1_FOOBAR
 	username := strings.Replace(opts.UserID[1:], ":", "_", -1) + "_" + opts.DeviceID
@@ -104,7 +113,7 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, erro
 		if err := client.RestoreSession(session); err != nil {
 			return nil, fmt.Errorf("RestoreSession: %s", err)
 		}
-		if opts.EnableCrossProcessRefreshLockProcessName == api.ProcessNameNSE {
+		if xprocessName == ProcessNameNSE {
 			clientSessionDelegate.SaveSessionInKeychain(session)
 			t.Logf("configure NSE client with logged in user: %+v", session)
 			// We purposefully don't SetDelegate as it appears to be unnecessary.
@@ -333,8 +342,9 @@ func (c *RustClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error)
 	//  > thread '<unnamed>' panicked at 'there is no reactor running, must be called from the context of a Tokio 1.x runtime'
 	// where the stack trace doesn't hit any test code, but does start at a `free_` function.
 	sb := c.FFIClient.SyncService()
-	if c.opts.EnableCrossProcessRefreshLockProcessName != "" {
-		sb2 := sb.WithCrossProcessLock(&c.opts.EnableCrossProcessRefreshLockProcessName)
+	xprocessName := c.opts.GetExtraOption(OptionEnableCrossProcessRefreshLockProcessName, "").(string)
+	if xprocessName != "" {
+		sb2 := sb.WithCrossProcessLock(&xprocessName)
 		sb.Destroy()
 		sb = sb2
 	}
