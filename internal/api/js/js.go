@@ -679,8 +679,9 @@ func (c *JSClient) WaitUntilEventInRoom(t ct.TestLike, roomID string, checker fu
 func (c *JSClient) Logf(t ct.TestLike, format string, args ...interface{}) {
 	t.Helper()
 	formatted := fmt.Sprintf(t.Name()+": "+format, args...)
+	firstLine := strings.Split(formatted, "\n")[0]
 	if c.browser.Ctx.Err() == nil { // don't log on dead browsers
-		chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`console.log("%s");`, strings.Replace(formatted, `"`, `\"`, -1)))
+		chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`console.log("%s");`, strings.Replace(firstLine, `"`, `\"`, -1)))
 		t.Logf(format, args...)
 	}
 }
