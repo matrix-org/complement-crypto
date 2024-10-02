@@ -38,18 +38,18 @@ func TestClientRetriesSendToDevice(t *testing.T) {
 				},
 				ResponseCallback: callback.SendError(0, http.StatusGatewayTimeout),
 			}, func() {
-				evID, err = alice.TrySendMessage(t, roomID, wantMsgBody)
+				evID, err = alice.SendMessage(t, roomID, wantMsgBody)
 				if err != nil {
 					// we allow clients to fail the send if they cannot call /sendToDevice
-					t.Logf("TrySendMessage: %s", err)
+					t.Logf("SendMessage: %s", err)
 				}
 				if evID != "" {
-					t.Logf("TrySendMessage: => %s", evID)
+					t.Logf("SendMessage: => %s", evID)
 				}
 			})
 			if err != nil {
 				// retry now we have connectivity
-				evID = alice.SendMessage(t, roomID, wantMsgBody)
+				evID = alice.MustSendMessage(t, roomID, wantMsgBody)
 			}
 
 			// Bob receives the message
@@ -89,7 +89,7 @@ func TestUnprocessedToDeviceMessagesArentLostOnRestart(t *testing.T) {
 			// we will close this in the test, no defer
 			bobStopSyncing := bob.MustStartSyncing(t)
 			// check the room works
-			alice.SendMessage(t, roomID, "Hello World!")
+			alice.MustSendMessage(t, roomID, "Hello World!")
 			bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody("Hello World!")).Waitf(t, 2*time.Second, "bob did not see event with body 'Hello World!'")
 			// stop bob's client, but grab the access token first so we can re-use it
 			bobOpts := bob.Opts()
@@ -113,7 +113,7 @@ func TestUnprocessedToDeviceMessagesArentLostOnRestart(t *testing.T) {
 			t.Logf("to-device msgs sent")
 
 			// send a message as alice to make a new room key
-			eventID := alice.SendMessage(t, roomID, "Kick to make a new room key!")
+			eventID := alice.MustSendMessage(t, roomID, "Kick to make a new room key!")
 
 			// client specific impls to handle restarts.
 			switch clientType.Lang {
@@ -315,7 +315,7 @@ func TestToDeviceMessagesAreBatched(t *testing.T) {
 					return nil
 				},
 			}, func() {
-				alice.SendMessage(t, roomID, "this should cause to-device msgs to be sent")
+				alice.MustSendMessage(t, roomID, "this should cause to-device msgs to be sent")
 				time.Sleep(time.Second)
 				waiter.Waitf(t, 5*time.Second, "did not see /sendToDevice")
 			})
@@ -348,7 +348,7 @@ func TestToDeviceMessagesArentLostWhenKeysQueryFails(t *testing.T) {
 		tc.WithAliceAndBobSyncing(t, func(alice, bob api.TestClient) {
 			msg := "hello world"
 			msg2 := "new device message from alice"
-			alice.SendMessage(t, roomID, msg)
+			alice.MustSendMessage(t, roomID, msg)
 			bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(msg)).Waitf(t, 5*time.Second, "bob failed to see message from alice")
 			// Block /keys/query requests
 			waiter := helpers.NewWaiter()
@@ -375,7 +375,7 @@ func TestToDeviceMessagesArentLostWhenKeysQueryFails(t *testing.T) {
 					time.Sleep(time.Second)
 
 					// Alice sends a message on the new device.
-					eventID = alice2.SendMessage(t, roomID, msg2)
+					eventID = alice2.MustSendMessage(t, roomID, msg2)
 
 					waiter.Waitf(t, 3*time.Second, "did not see /keys/query")
 					time.Sleep(3 * time.Second) // let Bob retry /keys/query
@@ -473,7 +473,7 @@ func TestToDeviceMessagesAreProcessedInOrder(t *testing.T) {
 					for i := 0; i < numMsgsPerClient; i++ {
 						for _, c := range clients {
 							body := fmt.Sprintf("Message %d", i+1)
-							eventID := c.SendMessage(t, roomID, body)
+							eventID := c.MustSendMessage(t, roomID, body)
 							timelineEvents = append(timelineEvents, struct {
 								ID   string
 								Body string

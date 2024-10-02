@@ -309,18 +309,18 @@ func (c *RustClient) Close(t ct.TestLike) {
 	}
 }
 
-func (c *RustClient) MustGetEvent(t ct.TestLike, roomID, eventID string) api.Event {
+func (c *RustClient) GetEvent(t ct.TestLike, roomID, eventID string) (*api.Event, error) {
 	t.Helper()
 	room := c.findRoom(t, roomID)
 	timelineItem, err := mustGetTimeline(t, room).GetEventTimelineItemByEventId(eventID)
 	if err != nil {
-		ct.Fatalf(t, "MustGetEvent(rust) %s (%s, %s): %s", c.userID, roomID, eventID, err)
+		return nil, fmt.Errorf("failed to GetEventTimelineItemByEventId(%s): %s", eventID, err)
 	}
 	ev := eventTimelineItemToEvent(timelineItem)
 	if ev == nil {
-		ct.Fatalf(t, "MustGetEvent(rust) %s (%s, %s): found timeline item but failed to convert it to an Event", c.userID, roomID, eventID)
+		return nil, fmt.Errorf("found timeline item %s but failed to convert it to an Event", eventID)
 	}
-	return *ev
+	return ev, nil
 }
 
 // StartSyncing to begin syncing from sync v2 / sliding sync.
@@ -453,33 +453,40 @@ func (c *RustClient) IsRoomEncrypted(t ct.TestLike, roomID string) (bool, error)
 	return r.IsEncrypted()
 }
 
-func (c *RustClient) MustBackupKeys(t ct.TestLike) (recoveryKey string) {
+func (c *RustClient) BackupKeys(t ct.TestLike) (recoveryKey string, err error) {
 	t.Helper()
 	genericListener := newGenericStateListener[matrix_sdk_ffi.EnableRecoveryProgress]()
 	var listener matrix_sdk_ffi.EnableRecoveryProgressListener = genericListener
 	e := c.FFIClient.Encryption()
 	defer e.Destroy()
-	recoveryKey, err := e.EnableRecovery(true, nil, listener)
-	must.NotError(t, "Encryption.EnableRecovery", err)
+	recoveryKey, err = e.EnableRecovery(true, nil, listener)
+	if err != nil {
+		return "", fmt.Errorf("EnableRecovery: %s", err)
+	}
+	var lastState string
 	for !genericListener.isClosed.Load() {
 		select {
 		case s := <-genericListener.ch:
 			switch x := s.(type) {
 			case matrix_sdk_ffi.EnableRecoveryProgressCreatingBackup:
 				t.Logf("MustBackupKeys: state=CreatingBackup")
+				lastState = "CreatingBackup"
 			case matrix_sdk_ffi.EnableRecoveryProgressBackingUp:
 				t.Logf("MustBackupKeys: state=BackingUp %v/%v", x.BackedUpCount, x.TotalCount)
+				lastState = fmt.Sprintf("BackingUp %v/%v", x.BackedUpCount, x.TotalCount)
 			case matrix_sdk_ffi.EnableRecoveryProgressCreatingRecoveryKey:
 				t.Logf("MustBackupKeys: state=CreatingRecoveryKey")
+				lastState = "CreatingRecoveryKey"
 			case matrix_sdk_ffi.EnableRecoveryProgressDone:
 				t.Logf("MustBackupKeys: state=Done")
+				lastState = "Done"
 				genericListener.Close() // break the loop
 			}
 		case <-time.After(5 * time.Second):
-			ct.Fatalf(t, "timed out enabling backup keys")
+			return "", fmt.Errorf("timed out enabling backup keys: last state: %s", lastState)
 		}
 	}
-	return recoveryKey
+	return recoveryKey, nil
 }
 
 func (c *RustClient) LoadBackup(t ct.TestLike, recoveryKey string) error {
@@ -487,11 +494,6 @@ func (c *RustClient) LoadBackup(t ct.TestLike, recoveryKey string) error {
 	e := c.FFIClient.Encryption()
 	defer e.Destroy()
 	return e.Recover(recoveryKey)
-}
-
-func (c *RustClient) MustLoadBackup(t ct.TestLike, recoveryKey string) {
-	t.Helper()
-	c.LoadBackup(t, recoveryKey)
 }
 
 func (c *RustClient) WaitUntilEventInRoom(t ct.TestLike, roomID string, checker func(api.Event) bool) api.Waiter {
@@ -508,18 +510,7 @@ func (c *RustClient) Type() api.ClientTypeLang {
 	return api.ClientTypeRust
 }
 
-// SendMessage sends the given text as an m.room.message with msgtype:m.text into the given
-// room. Returns the event ID of the sent event.
-func (c *RustClient) SendMessage(t ct.TestLike, roomID, text string) (eventID string) {
-	t.Helper()
-	eventID, err := c.TrySendMessage(t, roomID, text)
-	if err != nil {
-		ct.Fatalf(t, err.Error())
-	}
-	return eventID
-}
-
-func (c *RustClient) TrySendMessage(t ct.TestLike, roomID, text string) (eventID string, err error) {
+func (c *RustClient) SendMessage(t ct.TestLike, roomID, text string) (eventID string, err error) {
 	t.Helper()
 	var isChannelClosed atomic.Bool
 	ch := make(chan bool)
@@ -579,12 +570,17 @@ func (c *RustClient) InviteUser(t ct.TestLike, roomID, userID string) error {
 	return r.InviteUserById(userID)
 }
 
-func (c *RustClient) MustBackpaginate(t ct.TestLike, roomID string, count int) {
+func (c *RustClient) Backpaginate(t ct.TestLike, roomID string, count int) error {
 	t.Helper()
 	r := c.findRoom(t, roomID)
-	must.NotEqual(t, r, nil, "unknown room")
+	if r == nil {
+		return fmt.Errorf("Backpaginate: cannot find room %s", roomID)
+	}
 	_, err := mustGetTimeline(t, r).PaginateBackwards(uint16(count))
-	must.NotError(t, "failed to backpaginate", err)
+	if err != nil {
+		return fmt.Errorf("cannot PaginateBackwards in %s: %s", roomID, err)
+	}
+	return nil
 }
 
 func (c *RustClient) UserID() string {

@@ -136,8 +136,8 @@ func TestFallbackKeyIsUsedIfOneTimeKeysRunOut(t *testing.T) {
 				charlie.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(alice.UserID(), "join")).Waitf(t, 5*time.Second, "charlie did not see alice's join")
 				bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(alice.UserID(), "join")).Waitf(t, 5*time.Second, "bob did not see alice's join")
 				alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(alice.UserID(), "join")).Waitf(t, 5*time.Second, "alice did not see own join")
-				bob.SendMessage(t, roomID, "Hello world!")
-				charlie.SendMessage(t, roomID, "Goodbye world!")
+				bob.MustSendMessage(t, roomID, "Hello world!")
+				charlie.MustSendMessage(t, roomID, "Goodbye world!")
 				waiter = alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody("Hello world!"))
 				// ensure that /keys/upload is actually blocked (OTK count should be 0)
 				res, _ := tc.Alice.MustSync(t, client.SyncReq{})
@@ -239,7 +239,7 @@ func TestFailedKeysClaimRetries(t *testing.T) {
 				// JS SDK won't retry the /keys/claim automatically. Try sending another event to kick it.
 				counter := 0
 				for !stopPoking.Load() && counter < 10 {
-					bob.TrySendMessage(t, roomID, "poke msg")
+					bob.SendMessage(t, roomID, "poke msg")
 					counter++
 					time.Sleep(100 * time.Millisecond * time.Duration(counter+1))
 				}

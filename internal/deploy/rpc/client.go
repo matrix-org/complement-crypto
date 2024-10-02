@@ -244,23 +244,9 @@ func (c *RPCClient) IsRoomEncrypted(t ct.TestLike, roomID string) (bool, error) 
 	return isEncrypted, err
 }
 
-// SendMessage sends the given text as an m.room.message with msgtype:m.text into the given
-// room. Returns the event ID of the sent event, so MUST BLOCK until the event has been sent.
-func (c *RPCClient) SendMessage(t ct.TestLike, roomID, text string) (eventID string) {
-	err := c.client.Call("Server.SendMessage", RPCSendMessage{
-		TestName: t.Name(),
-		RoomID:   roomID,
-		Text:     text,
-	}, &eventID)
-	if err != nil {
-		t.Fatalf("RPCClient.SendMessage: %s", err)
-	}
-	return
-}
-
-// TrySendMessage tries to send the message, but can fail.
-func (c *RPCClient) TrySendMessage(t ct.TestLike, roomID, text string) (eventID string, err error) {
-	err = c.client.Call("Server.TrySendMessage", RPCSendMessage{
+// SendMessage tries to send the message, but can fail.
+func (c *RPCClient) SendMessage(t ct.TestLike, roomID, text string) (eventID string, err error) {
+	err = c.client.Call("Server.SendMessage", RPCSendMessage{
 		TestName: t.Name(),
 		RoomID:   roomID,
 		Text:     text,
@@ -287,48 +273,31 @@ func (c *RPCClient) WaitUntilEventInRoom(t ct.TestLike, roomID string, checker f
 }
 
 // Backpaginate in this room by `count` events.
-func (c *RPCClient) MustBackpaginate(t ct.TestLike, roomID string, count int) {
+func (c *RPCClient) Backpaginate(t ct.TestLike, roomID string, count int) error {
 	var void int
-	err := c.client.Call("Server.MustBackpaginate", RPCBackpaginate{
+	err := c.client.Call("Server.Backpaginate", RPCBackpaginate{
 		TestName: t.Name(),
 		RoomID:   roomID,
 		Count:    count,
 	}, &void)
-	if err != nil {
-		t.Fatalf("RPCClient.MustBackpaginate: %s", err)
-	}
+	return err
 }
 
-// MustGetEvent will return the client's view of this event, or fail the test if the event cannot be found.
-func (c *RPCClient) MustGetEvent(t ct.TestLike, roomID, eventID string) api.Event {
+// GetEvent will return the client's view of this event, or return an error if the event cannot be found.
+func (c *RPCClient) GetEvent(t ct.TestLike, roomID, eventID string) (*api.Event, error) {
 	var ev api.Event
-	err := c.client.Call("Server.MustGetEvent", RPCGetEvent{
+	err := c.client.Call("Server.GetEvent", RPCGetEvent{
 		TestName: t.Name(),
 		RoomID:   roomID,
 		EventID:  eventID,
 	}, &ev)
-	if err != nil {
-		t.Fatalf("RPCClient.MustGetEvent: %s", err)
-	}
-	return ev
+	return &ev, err
 }
 
-// MustBackupKeys will backup E2EE keys, else fail the test.
-func (c *RPCClient) MustBackupKeys(t ct.TestLike) (recoveryKey string) {
-	err := c.client.Call("Server.MustBackupKeys", 0, &recoveryKey)
-	if err != nil {
-		t.Fatalf("RPCClient.MustBackupKeys: %v", err)
-	}
+// BackupKeys will backup E2EE keys, else return an error.
+func (c *RPCClient) BackupKeys(t ct.TestLike) (recoveryKey string, err error) {
+	err = c.client.Call("Server.BackupKeys", 0, &recoveryKey)
 	return
-}
-
-// MustLoadBackup will recover E2EE keys from the latest backup, else fail the test.
-func (c *RPCClient) MustLoadBackup(t ct.TestLike, recoveryKey string) {
-	var void int
-	err := c.client.Call("Server.MustLoadBackup", recoveryKey, &void)
-	if err != nil {
-		t.Fatalf("RPCClient.MustLoadBackup: %v", err)
-	}
 }
 
 // LoadBackup will recover E2EE keys from the latest backup, else return an error.

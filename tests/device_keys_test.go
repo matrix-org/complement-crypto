@@ -43,7 +43,7 @@ func TestFailedDeviceKeyDownloadRetries(t *testing.T) {
 
 			tc.WithAliceAndBobSyncing(t, func(alice, bob api.TestClient) {
 				// When Alice sends a message
-				alice.SendMessage(t, roomID, "checking whether we can send a message")
+				alice.MustSendMessage(t, roomID, "checking whether we can send a message")
 
 				// Then Bob should receive it
 				bob.WaitUntilEventInRoom(
