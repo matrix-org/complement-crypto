@@ -70,7 +70,7 @@ func testNSEReceive(t *testing.T, numMsgsBefore, numMsgsAfter int) {
 	alice.Logf(t, "syncing and sending dummy message to ensure e2ee keys are uploaded")
 	stopSyncing := alice.MustStartSyncing(t)
 	alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(tc.Bob.UserID, "join")).Waitf(t, 5*time.Second, "did not see bob's join")
-	alice.SendMessage(t, roomID, "test message to ensure E2EE keys are uploaded")
+	alice.MustSendMessage(t, roomID, "test message to ensure E2EE keys are uploaded")
 	accessToken := alice.Opts().AccessToken
 
 	// app is "backgrounded" so we tidy things up
@@ -118,18 +118,18 @@ func TestNSEReceiveForNonPreKeyMessage(t *testing.T) {
 	// Bob sends a message to alice
 	tc.WithClientSyncing(t, &cc.ClientCreationRequest{
 		User: tc.Bob,
-	}, func(bob api.Client) {
+	}, func(bob api.TestClient) {
 		// let bob realise alice exists and claims keys
 		time.Sleep(time.Second)
 		// Send a message as Bob, this will contain ensure an Olm session is set up already before we do NSE work
-		bob.SendMessage(t, roomID, "initial message")
+		bob.MustSendMessage(t, roomID, "initial message")
 		alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody("initial message")).Waitf(t, 5*time.Second, "alice did not see bob's initial message")
 		// Alice goes into the background
 		accessToken := alice.Opts().AccessToken
 		stopSyncing()
 		alice.Close(t)
 		// Bob sends another message which the NSE process will get
-		eventID := bob.SendMessage(t, roomID, "for nse")
+		eventID := bob.MustSendMessage(t, roomID, "for nse")
 		bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasEventID(eventID)).Waitf(t, 5*time.Second, "bob did not see his own message")
 		// now make the "NSE" process and get bob's message
 		client := tc.MustCreateClient(t, &cc.ClientCreationRequest{
@@ -175,12 +175,12 @@ func TestMultiprocessNSE(t *testing.T) {
 	// Bob sends a message to alice
 	tc.WithClientSyncing(t, &cc.ClientCreationRequest{
 		User: tc.Bob,
-	}, func(bob api.Client) {
+	}, func(bob api.TestClient) {
 		// let bob realise alice exists and claims keys
 		time.Sleep(time.Second)
 		for i := 0; i < numPreBackgroundMsgs; i++ {
 			msg := fmt.Sprintf("numPreBackgroundMsgs %d", i)
-			bob.SendMessage(t, roomID, msg)
+			bob.MustSendMessage(t, roomID, msg)
 			alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(msg)).Waitf(t, 5*time.Second, "alice did not see '%s'", msg)
 		}
 
@@ -251,7 +251,7 @@ func TestMultiprocessNSE(t *testing.T) {
 				nseAlice.Close(t)
 			}
 			msg := fmt.Sprintf("numPostNSEMsgs %d", i)
-			eventID := bob.SendMessage(t, roomID, msg)
+			eventID := bob.MustSendMessage(t, roomID, msg)
 			eventTimeline = append(eventTimeline, eventID)
 			t.Logf("event %s => '%s'", eventID, msg)
 			if restartNSE { // a new NSE process is created as a result of bob's message
@@ -277,7 +277,7 @@ func TestMultiprocessNSE(t *testing.T) {
 				startAliceSyncing()
 			}
 			if aliceSendsMsg { // this will cause the main app to update the crypto store
-				sentEventID := alice.SendMessage(t, roomID, "dummy")
+				sentEventID := alice.MustSendMessage(t, roomID, "dummy")
 				eventTimeline = append(eventTimeline, sentEventID)
 			}
 			if !nseOpensFirst {
@@ -336,7 +336,7 @@ func TestMultiprocessNSEBackupKeyMacError(t *testing.T) {
 	// Bob sends a message to alice
 	tc.WithClientSyncing(t, &cc.ClientCreationRequest{
 		User: tc.Bob,
-	}, func(bob api.Client) {
+	}, func(bob api.TestClient) {
 		// let bob realise alice exists and claims keys
 		time.Sleep(time.Second)
 
@@ -384,7 +384,7 @@ func TestMultiprocessNSEBackupKeyMacError(t *testing.T) {
 		}) // this should login already as we provided an access token
 
 		msg := "first message"
-		eventID := bob.SendMessage(t, roomID, msg)
+		eventID := bob.MustSendMessage(t, roomID, msg)
 		eventTimeline = append(eventTimeline, eventID)
 		t.Logf("first event %s => '%s'", eventID, msg)
 		checkNSECanDecryptEvent(nseAlice, roomID, eventID, msg)
@@ -395,7 +395,7 @@ func TestMultiprocessNSEBackupKeyMacError(t *testing.T) {
 
 		// send final message
 		msg = "final message"
-		eventID = bob.SendMessage(t, roomID, msg)
+		eventID = bob.MustSendMessage(t, roomID, msg)
 		eventTimeline = append(eventTimeline, eventID)
 		t.Logf("final event %s => '%s'", eventID, msg)
 
@@ -452,11 +452,11 @@ func TestMultiprocessNSEOlmSessionWedge(t *testing.T) {
 	// Bob sends a message to alice
 	tc.WithClientSyncing(t, &cc.ClientCreationRequest{
 		User: tc.Bob,
-	}, func(bob api.Client) {
+	}, func(bob api.TestClient) {
 		// let bob realise alice exists and claims keys
 		time.Sleep(time.Second)
 		msg := "pre message"
-		bob.SendMessage(t, roomID, msg)
+		bob.MustSendMessage(t, roomID, msg)
 		alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(msg)).Waitf(t, 5*time.Second, "alice did not see '%s'", msg)
 
 		stopAliceSyncing := func() {
@@ -510,7 +510,7 @@ func TestMultiprocessNSEOlmSessionWedge(t *testing.T) {
 
 		stopAliceSyncing()
 		msg = fmt.Sprintf("test message %d", 1)
-		eventID := bob.SendMessage(t, roomID, msg)
+		eventID := bob.MustSendMessage(t, roomID, msg)
 		t.Logf("event %s => '%s'", eventID, msg)
 
 		// both the nse process and the app process should be able to decrypt the event.
@@ -519,12 +519,12 @@ func TestMultiprocessNSEOlmSessionWedge(t *testing.T) {
 		t.Logf("restarting alice")
 		nseAlice.Logf(t, "post checkNSECanDecryptEvent")
 		startAliceSyncing()
-		alice.SendMessage(t, roomID, "dummy")
+		alice.MustSendMessage(t, roomID, "dummy")
 
 		// iteration 2
 		stopAliceSyncing()
 		msg = fmt.Sprintf("test message %d", 2)
-		eventID = bob.SendMessage(t, roomID, msg)
+		eventID = bob.MustSendMessage(t, roomID, msg)
 		t.Logf("event %s => '%s'", eventID, msg)
 
 		// both the nse process and the app process should be able to decrypt the event.
@@ -532,7 +532,7 @@ func TestMultiprocessNSEOlmSessionWedge(t *testing.T) {
 		checkNSECanDecryptEvent(nseAlice, roomID, eventID, msg)
 		t.Logf("restarting alice")
 		startAliceSyncing()
-		alice.SendMessage(t, roomID, "dummy")
+		alice.MustSendMessage(t, roomID, "dummy")
 
 		nseAlice.Close(t)
 		stopAliceSyncing()
@@ -599,8 +599,8 @@ func TestNotificationClientDupeOTKUpload(t *testing.T) {
 		// The main app will see this in /sync and then try to upload another OTK, which we will tarpit.
 		tc.WithClientSyncing(t, &cc.ClientCreationRequest{
 			User: tc.Bob,
-		}, func(bob api.Client) {
-			eventID := bob.SendMessage(t, roomID, "Hello world!")
+		}, func(bob api.TestClient) {
+			eventID := bob.MustSendMessage(t, roomID, "Hello world!")
 			// create a NotificationClient in the same process to fetch this "push notification".
 			// It might make the NotificationClient upload a OTK as it would have seen 1 has been used.
 			// The NotificationClient and main Client must talk to each other to ensure they use the same key.
@@ -648,10 +648,10 @@ func TestMultiprocessInitialE2EESyncDoesntDropDeviceListUpdates(t *testing.T) {
 	// Bob sends a message to Alice
 	tc.WithClientSyncing(t, &cc.ClientCreationRequest{
 		User: tc.Alice,
-	}, func(alice api.Client) {
+	}, func(alice api.TestClient) {
 		// ensure bob has queried keys from alice by sending a message.
 		msg := "pre message"
-		bob.SendMessage(t, roomID, msg)
+		bob.MustSendMessage(t, roomID, msg)
 		alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(msg)).Waitf(t, 5*time.Second, "alice did not see '%s'", msg)
 
 		stopBobSyncing := func() {
@@ -700,11 +700,11 @@ func TestMultiprocessInitialE2EESyncDoesntDropDeviceListUpdates(t *testing.T) {
 		csapiAlice2 := tc.MustRegisterNewDevice(t, tc.Alice, "NEW_DEVICE")
 		tc.WithClientSyncing(t, &cc.ClientCreationRequest{
 			User: csapiAlice2,
-		}, func(alice2 api.Client) {
+		}, func(alice2 api.TestClient) {
 			// wait for device keys to sync up
 			time.Sleep(time.Second)
 			// alice[1] sends a message, this is unimportant other than to grab the event ID for the push process
-			pushEventID := alice.SendMessage(t, roomID, "pre message 2")
+			pushEventID := alice.MustSendMessage(t, roomID, "pre message 2")
 			// Bob's push process receives Alice[1]'s message.
 			// This /should/ make Bob aware of Alice[2].
 			notif, err := nseBob.GetNotification(t, roomID, pushEventID)
@@ -718,7 +718,7 @@ func TestMultiprocessInitialE2EESyncDoesntDropDeviceListUpdates(t *testing.T) {
 			time.Sleep(time.Second)
 			// Bob sends a message.
 			wantMsg := "can alice's new device decrypt this?"
-			bob.SendMessage(t, roomID, wantMsg)
+			bob.MustSendMessage(t, roomID, wantMsg)
 			alice2.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsg)).Waitf(t, 5*time.Second, "alice[2] did not see '%s'", wantMsg)
 		})
 	})
@@ -750,15 +750,15 @@ func bobSendsMessage(t *testing.T, tc *cc.TestContext, roomID, text string, msgs
 	pushNotifEventID := ""
 	tc.WithClientSyncing(t, &cc.ClientCreationRequest{
 		User: tc.Bob,
-	}, func(bob api.Client) {
+	}, func(bob api.TestClient) {
 		for i := 0; i < msgsBefore; i++ {
-			bob.SendMessage(t, roomID, fmt.Sprintf("msg before %d", i))
+			bob.MustSendMessage(t, roomID, fmt.Sprintf("msg before %d", i))
 		}
 		bob.Logf(t, "sending push notification message as bob")
-		pushNotifEventID = bob.SendMessage(t, roomID, text)
+		pushNotifEventID = bob.MustSendMessage(t, roomID, text)
 		bob.Logf(t, "sent push notification message as bob => %s", pushNotifEventID)
 		for i := 0; i < msgsAfter; i++ {
-			bob.SendMessage(t, roomID, fmt.Sprintf("msg after %d", i))
+			bob.MustSendMessage(t, roomID, fmt.Sprintf("msg after %d", i))
 		}
 	})
 	return pushNotifEventID

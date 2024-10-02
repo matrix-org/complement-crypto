@@ -67,13 +67,13 @@ func TestVerificationSAS(t *testing.T) {
 			ClientType: verifieeClientType,
 		}
 
-		tc.WithAliceSyncing(t, func(verifier api.Client) {
+		tc.WithAliceSyncing(t, func(verifier api.TestClient) {
 			tc.WithClientSyncing(t, &cc.ClientCreationRequest{
 				User: verifieeUser,
 				Opts: api.ClientCreationOpts{
 					DeviceID: "OTHER_DEVICE",
 				},
-			}, func(verifiee api.Client) {
+			}, func(verifiee api.TestClient) {
 				status := &verificationStatus{
 					mu: &sync.Mutex{},
 				}

@@ -32,14 +32,14 @@ func TestNewUserCannotGetKeysForOfflineServer(t *testing.T) {
 		t.Logf("%s joining room %s", tc.Bob.UserID, roomID)
 		tc.Bob.MustJoinRoom(t, roomID, []string{"hs1"})
 
-		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+		tc.WithAliceAndBobSyncing(t, func(alice, bob api.TestClient) {
 			// let clients sync device keys
 			time.Sleep(time.Second)
 
 			// ensure encrypted messaging works
 			wantMsgBody := "Hello world"
 			waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
-			evID := alice.SendMessage(t, roomID, wantMsgBody)
+			evID := alice.MustSendMessage(t, roomID, wantMsgBody)
 			t.Logf("bob (%s) waiting for event %s", bob.Type(), evID)
 			waiter.Waitf(t, 5*time.Second, "bob did not see alice's message '%s'", wantMsgBody)
 
@@ -50,7 +50,7 @@ func TestNewUserCannotGetKeysForOfflineServer(t *testing.T) {
 			tc.Alice.MustInviteRoom(t, roomID, tc.Charlie.UserID)
 			tc.WithClientSyncing(t, &cc.ClientCreationRequest{
 				User: tc.Charlie,
-			}, func(charlie api.Client) {
+			}, func(charlie api.TestClient) {
 				tc.Charlie.MustJoinRoom(t, roomID, []string{"hs1"})
 
 				// let charlie sync device keys... and fail to get bob's keys!
@@ -59,7 +59,7 @@ func TestNewUserCannotGetKeysForOfflineServer(t *testing.T) {
 				// send a message: bob won't be able to decrypt this, but alice will.
 				wantUndecryptableMsgBody := "Bob can't see this because his server is down"
 				waiter = alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantUndecryptableMsgBody))
-				undecryptableEventID := charlie.SendMessage(t, roomID, wantUndecryptableMsgBody)
+				undecryptableEventID := charlie.MustSendMessage(t, roomID, wantUndecryptableMsgBody)
 				t.Logf("alice (%s) waiting for event %s", alice.Type(), undecryptableEventID)
 				waiter.Waitf(t, 5*time.Second, "alice did not see charlie's messages '%s'", wantUndecryptableMsgBody)
 
@@ -77,7 +77,7 @@ func TestNewUserCannotGetKeysForOfflineServer(t *testing.T) {
 				// send another message, bob should be able to decrypt it.
 				wantMsgBody = "Bob can see this because his server is now back online"
 				waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
-				evID = charlie.SendMessage(t, roomID, wantMsgBody)
+				evID = charlie.MustSendMessage(t, roomID, wantMsgBody)
 				t.Logf("bob (%s) waiting for event %s", bob.Type(), evID)
 				waiter.Waitf(t, 7*time.Second, "bob did not see charlie's message '%s'", wantMsgBody)
 
@@ -116,18 +116,18 @@ func TestExistingSessionCannotGetKeysForOfflineServer(t *testing.T) {
 		tc.Bob.MustJoinRoom(t, roomIDab, []string{"hs1"})
 		tc.Bob.MustJoinRoom(t, roomIDbc, []string{"hs1"})
 
-		tc.WithAliceBobAndCharlieSyncing(t, func(alice, bob, charlie api.Client) {
+		tc.WithAliceBobAndCharlieSyncing(t, func(alice, bob, charlie api.TestClient) {
 			// let clients sync device keys
 			time.Sleep(time.Second)
 
 			// ensure encrypted messaging works in rooms ab,bc
 			wantMsgBody := "Hello world"
 			waiter := bob.WaitUntilEventInRoom(t, roomIDab, api.CheckEventHasBody(wantMsgBody))
-			evID := alice.SendMessage(t, roomIDab, wantMsgBody)
+			evID := alice.MustSendMessage(t, roomIDab, wantMsgBody)
 			t.Logf("bob (%s) waiting for event %s", bob.Type(), evID)
 			waiter.Waitf(t, 5*time.Second, "bob did not see alice's message: '%s'", wantMsgBody)
 			waiter = bob.WaitUntilEventInRoom(t, roomIDbc, api.CheckEventHasBody(wantMsgBody))
-			evID = charlie.SendMessage(t, roomIDbc, wantMsgBody)
+			evID = charlie.MustSendMessage(t, roomIDbc, wantMsgBody)
 			t.Logf("bob (%s) waiting for event %s", bob.Type(), evID)
 			waiter.Waitf(t, 5*time.Second, "bob did not see charlie's message: '%s'", wantMsgBody)
 
@@ -145,7 +145,7 @@ func TestExistingSessionCannotGetKeysForOfflineServer(t *testing.T) {
 			// are per-device, not per-room.
 			wantDecryptableMsgBody := "Bob can see this even though his server is down as we had a session already"
 			waiter = alice.WaitUntilEventInRoom(t, roomIDab, api.CheckEventHasBody(wantDecryptableMsgBody))
-			decryptableEventID := charlie.SendMessage(t, roomIDab, wantDecryptableMsgBody)
+			decryptableEventID := charlie.MustSendMessage(t, roomIDab, wantDecryptableMsgBody)
 			t.Logf("alice (%s) waiting for event %s", alice.Type(), decryptableEventID)
 			waiter.Waitf(t, 5*time.Second, "alice did not see charlie's message: '%s'", wantDecryptableMsgBody)
 

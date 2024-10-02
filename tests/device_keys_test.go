@@ -41,9 +41,9 @@ func TestFailedDeviceKeyDownloadRetries(t *testing.T) {
 			roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}))
 			tc.Bob.MustJoinRoom(t, roomID, []string{"hs1"})
 
-			tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+			tc.WithAliceAndBobSyncing(t, func(alice, bob api.TestClient) {
 				// When Alice sends a message
-				alice.SendMessage(t, roomID, "checking whether we can send a message")
+				alice.MustSendMessage(t, roomID, "checking whether we can send a message")
 
 				// Then Bob should receive it
 				bob.WaitUntilEventInRoom(

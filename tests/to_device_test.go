@@ -22,7 +22,7 @@ func TestClientRetriesSendToDevice(t *testing.T) {
 		tc := Instance().CreateTestContext(t, clientTypeA, clientTypeB)
 		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.PresetPublicChat())
 		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
-		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+		tc.WithAliceAndBobSyncing(t, func(alice, bob api.TestClient) {
 			// lets device keys be exchanged
 			time.Sleep(time.Second)
 
@@ -38,18 +38,18 @@ func TestClientRetriesSendToDevice(t *testing.T) {
 				},
 				ResponseCallback: callback.SendError(0, http.StatusGatewayTimeout),
 			}, func() {
-				evID, err = alice.TrySendMessage(t, roomID, wantMsgBody)
+				evID, err = alice.SendMessage(t, roomID, wantMsgBody)
 				if err != nil {
 					// we allow clients to fail the send if they cannot call /sendToDevice
-					t.Logf("TrySendMessage: %s", err)
+					t.Logf("SendMessage: %s", err)
 				}
 				if evID != "" {
-					t.Logf("TrySendMessage: => %s", evID)
+					t.Logf("SendMessage: => %s", evID)
 				}
 			})
 			if err != nil {
 				// retry now we have connectivity
-				evID = alice.SendMessage(t, roomID, wantMsgBody)
+				evID = alice.MustSendMessage(t, roomID, wantMsgBody)
 			}
 
 			// Bob receives the message
@@ -85,11 +85,11 @@ func TestUnprocessedToDeviceMessagesArentLostOnRestart(t *testing.T) {
 				PersistentStorage: true,
 			},
 		})
-		tc.WithAliceSyncing(t, func(alice api.Client) {
+		tc.WithAliceSyncing(t, func(alice api.TestClient) {
 			// we will close this in the test, no defer
 			bobStopSyncing := bob.MustStartSyncing(t)
 			// check the room works
-			alice.SendMessage(t, roomID, "Hello World!")
+			alice.MustSendMessage(t, roomID, "Hello World!")
 			bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody("Hello World!")).Waitf(t, 2*time.Second, "bob did not see event with body 'Hello World!'")
 			// stop bob's client, but grab the access token first so we can re-use it
 			bobOpts := bob.Opts()
@@ -113,7 +113,7 @@ func TestUnprocessedToDeviceMessagesArentLostOnRestart(t *testing.T) {
 			t.Logf("to-device msgs sent")
 
 			// send a message as alice to make a new room key
-			eventID := alice.SendMessage(t, roomID, "Kick to make a new room key!")
+			eventID := alice.MustSendMessage(t, roomID, "Kick to make a new room key!")
 
 			// client specific impls to handle restarts.
 			switch clientType.Lang {
@@ -178,7 +178,7 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartRust(t *testing.T, tc *cc.
 			Opts: api.ClientCreationOpts{
 				PersistentStorage: true,
 			},
-		}, func(bob api.Client) {
+		}, func(bob api.TestClient) {
 			// we can't rely on MustStartSyncing returning to know that the room key has been received, as
 			// in rust we just wait for RoomListLoadingStateLoaded which is a separate connection to the
 			// encryption loop.
@@ -242,7 +242,7 @@ func testUnprocessedToDeviceMessagesArentLostOnRestartJS(t *testing.T, tc *cc.Te
 			Opts: api.ClientCreationOpts{
 				PersistentStorage: true,
 			},
-		}, func(bob api.Client) {
+		}, func(bob api.TestClient) {
 			// include a grace period like rust, no specific reason beyond consistency.
 			time.Sleep(time.Second)
 			ev := bob.MustGetEvent(t, roomID, eventID)
@@ -282,7 +282,7 @@ func TestToDeviceMessagesAreBatched(t *testing.T) {
 			clientUnderTest.Close(t)
 		}
 		waiter := helpers.NewWaiter()
-		tc.WithAliceSyncing(t, func(alice api.Client) {
+		tc.WithAliceSyncing(t, func(alice api.TestClient) {
 			// intercept /sendToDevice and check we are sending 100 messages per request
 			tc.Deployment.MITM().Configure(t).WithIntercept(mitm.InterceptOpts{
 				Filter: mitm.FilterParams{
@@ -315,7 +315,7 @@ func TestToDeviceMessagesAreBatched(t *testing.T) {
 					return nil
 				},
 			}, func() {
-				alice.SendMessage(t, roomID, "this should cause to-device msgs to be sent")
+				alice.MustSendMessage(t, roomID, "this should cause to-device msgs to be sent")
 				time.Sleep(time.Second)
 				waiter.Waitf(t, 5*time.Second, "did not see /sendToDevice")
 			})
@@ -345,10 +345,10 @@ func TestToDeviceMessagesArentLostWhenKeysQueryFails(t *testing.T) {
 		// get a normal E2EE room set up
 		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}))
 		tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
-		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+		tc.WithAliceAndBobSyncing(t, func(alice, bob api.TestClient) {
 			msg := "hello world"
 			msg2 := "new device message from alice"
-			alice.SendMessage(t, roomID, msg)
+			alice.MustSendMessage(t, roomID, msg)
 			bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(msg)).Waitf(t, 5*time.Second, "bob failed to see message from alice")
 			// Block /keys/query requests
 			waiter := helpers.NewWaiter()
@@ -370,12 +370,12 @@ func TestToDeviceMessagesArentLostWhenKeysQueryFails(t *testing.T) {
 				csapiAlice2 := tc.MustRegisterNewDevice(t, tc.Alice, "OTHER_DEVICE")
 				tc.WithClientSyncing(t, &cc.ClientCreationRequest{
 					User: csapiAlice2,
-				}, func(alice2 api.Client) {
+				}, func(alice2 api.TestClient) {
 					// we don't know how long it will take for the device list update to be processed, so wait 1s
 					time.Sleep(time.Second)
 
 					// Alice sends a message on the new device.
-					eventID = alice2.SendMessage(t, roomID, msg2)
+					eventID = alice2.MustSendMessage(t, roomID, msg2)
 
 					waiter.Waitf(t, 3*time.Second, "did not see /keys/query")
 					time.Sleep(3 * time.Second) // let Bob retry /keys/query
@@ -429,7 +429,7 @@ func TestToDeviceMessagesAreProcessedInOrder(t *testing.T) {
 			ID   string
 			Body string
 		}{}
-		tc.WithAliceSyncing(t, func(alice api.Client) {
+		tc.WithAliceSyncing(t, func(alice api.TestClient) {
 			callbackFn := func(cd callback.Data) *callback.Response {
 				// try v2 sync then SS
 				toDeviceEvents := gjson.ParseBytes(cd.ResponseBody).Get("to_device.events").Array()
@@ -469,11 +469,11 @@ func TestToDeviceMessagesAreProcessedInOrder(t *testing.T) {
 					creationReqs[i].User.MustJoinRoom(t, roomID, []string{clientType.HS})
 				}
 				// send 30 messages as each user (interleaved)
-				tc.WithClientsSyncing(t, creationReqs, func(clients []api.Client) {
+				tc.WithClientsSyncing(t, creationReqs, func(clients []api.TestClient) {
 					for i := 0; i < numMsgsPerClient; i++ {
 						for _, c := range clients {
 							body := fmt.Sprintf("Message %d", i+1)
-							eventID := c.SendMessage(t, roomID, body)
+							eventID := c.MustSendMessage(t, roomID, body)
 							timelineEvents = append(timelineEvents, struct {
 								ID   string
 								Body string
