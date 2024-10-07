@@ -59,6 +59,8 @@ type RustClient struct {
 	FFIClient             *matrix_sdk_ffi.Client
 	syncService           *matrix_sdk_ffi.SyncService
 	roomsListener         *RoomsListener
+	entriesController     *matrix_sdk_ffi.RoomListDynamicEntriesController
+	entriesAdapters       *matrix_sdk_ffi.RoomListEntriesWithDynamicAdaptersResult
 	allRooms              *matrix_sdk_ffi.RoomList
 	rooms                 map[string]*RustRoomInfo
 	roomsMu               *sync.RWMutex
@@ -302,6 +304,14 @@ func (c *RustClient) Close(t ct.TestLike) {
 		}
 	}
 	c.roomsMu.Unlock()
+	if c.entriesController != nil {
+		c.entriesController.Destroy()
+		c.entriesController = nil
+	}
+	if c.entriesAdapters != nil {
+		c.entriesAdapters.Destroy()
+		c.entriesAdapters = nil
+	}
 	c.FFIClient.Destroy()
 	c.FFIClient = nil
 	if c.notifClient != nil {
@@ -407,7 +417,11 @@ func (c *RustClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error)
 			}
 		}
 	}()
-	c.allRooms.Entries(allRoomsListener)
+	entriesAdapters := c.allRooms.EntriesWithDynamicAdapters(1000, allRoomsListener)
+	entriesController := entriesAdapters.Controller()
+	entriesController.SetFilter(matrix_sdk_ffi.RoomListEntriesDynamicFilterKindNonLeft{})
+	c.entriesController = entriesController
+	c.entriesAdapters = entriesAdapters
 
 	isSyncing := false
 
