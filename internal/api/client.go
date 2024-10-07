@@ -15,6 +15,8 @@ type ClientType struct {
 
 // Client represents a generic crypto client.
 // It is an abstraction to allow tests to interact with JS and FFI bindings in an agnostic way.
+// Clients are not limited to this interface, and can test functionality specific to their client
+// by type casting at runtime.
 type Client interface {
 	// Close is called to clean up resources.
 	// Specifically, we need to shut off existing browsers and any FFI bindings.
@@ -27,12 +29,10 @@ type Client interface {
 	ForceClose(t ct.TestLike)
 	// Remove any persistent storage, if it was enabled.
 	DeletePersistentStorage(t ct.TestLike)
+	// Login the given user. This function MUST block until one-time keys and device keys have been
+	// uploaded to the server. Failure to block will result in flakey tests as other users may not
+	// encrypt for this Client due to not detecting keys for the Client.
 	Login(t ct.TestLike, opts ClientCreationOpts) error
-	// MustStartSyncing to begin syncing from sync v2 / sliding sync.
-	// Tests should call stopSyncing() at the end of the test.
-	// MUST BLOCK until the initial sync is complete.
-	// Fails the test if there was a problem syncing.
-	MustStartSyncing(t ct.TestLike) (stopSyncing func())
 	// StartSyncing to begin syncing from sync v2 / sliding sync.
 	// Tests should call stopSyncing() at the end of the test.
 	// MUST BLOCK until the initial sync is complete.
@@ -43,25 +43,24 @@ type Client interface {
 	IsRoomEncrypted(t ct.TestLike, roomID string) (bool, error)
 	// InviteUser attempts to invite the given user into the given room.
 	InviteUser(t ct.TestLike, roomID, userID string) error
-	// SendMessage sends the given text as an m.room.message with msgtype:m.text into the given
-	// room. Returns the event ID of the sent event, so MUST BLOCK until the event has been sent.
-	SendMessage(t ct.TestLike, roomID, text string) (eventID string)
-	// TrySendMessage tries to send the message, but can fail.
-	TrySendMessage(t ct.TestLike, roomID, text string) (eventID string, err error)
+	// SendMessage sends the given text as an encrypted/unencrypted message in the room, depending
+	// if the room is encrypted or not. Returns the event ID of the sent event, so MUST BLOCK until the event has been sent.
+	// If the event cannot be sent, returns an error.
+	SendMessage(t ct.TestLike, roomID, text string) (eventID string, err error)
 	// Wait until an event is seen in the given room. The checker functions can be custom or you can use
 	// a pre-defined one like api.CheckEventHasMembership, api.CheckEventHasBody, or api.CheckEventHasEventID.
 	WaitUntilEventInRoom(t ct.TestLike, roomID string, checker func(e Event) bool) Waiter
-	// Backpaginate in this room by `count` events.
-	MustBackpaginate(t ct.TestLike, roomID string, count int)
-	// MustGetEvent will return the client's view of this event, or fail the test if the event cannot be found.
-	MustGetEvent(t ct.TestLike, roomID, eventID string) Event
-	// MustBackupKeys will backup E2EE keys, else fail the test.
-	MustBackupKeys(t ct.TestLike) (recoveryKey string)
-	// MustLoadBackup will recover E2EE keys from the latest backup, else fail the test.
-	MustLoadBackup(t ct.TestLike, recoveryKey string)
+	// Backpaginate in this room by `count` events. Returns an error if there was a problem backpaginating.
+	// Getting to the beginning of the room is not an error condition.
+	Backpaginate(t ct.TestLike, roomID string, count int) error
+	// GetEvent will return the client's view of this event, or returns an error if the event cannot be found.
+	GetEvent(t ct.TestLike, roomID, eventID string) (*Event, error)
+	// BackupKeys will backup E2EE keys, else return an error.
+	BackupKeys(t ct.TestLike) (recoveryKey string, err error)
 	// LoadBackup will recover E2EE keys from the latest backup, else return an error.
 	LoadBackup(t ct.TestLike, recoveryKey string) error
 	// GetNotification gets push notification-like information for the given event. If there is a problem, an error is returned.
+	// Clients should implement this AS IF they received a push notification.
 	GetNotification(t ct.TestLike, roomID, eventID string) (*Notification, error)
 	// ListenForVerificationRequests will listen for incoming verification requests.
 	// See RequestOwnUserVerification for information on the stages.
@@ -90,9 +89,86 @@ type Client interface {
 	Opts() ClientCreationOpts
 }
 
-type Notification struct {
-	Event
-	HasMentions *bool
+// TestClient is a Client with extra helper functions added to make writing tests easier.
+// Client implementations are not expected to implement these helper functions, and are
+// instead composed together by the test rig itself.
+type TestClient interface {
+	Client
+	// MustStartSyncing is StartSyncing but fails the test on error.
+	MustStartSyncing(t ct.TestLike) (stopSyncing func())
+	// MustLoadBackup is LoadBackup but fails the test on error.
+	MustLoadBackup(t ct.TestLike, recoveryKey string)
+	// MustSendMessage is SendMessage but fails the test on error.
+	MustSendMessage(t ct.TestLike, roomID, text string) (eventID string)
+	// MustGetEvent is GetEvent but fails the test on error.
+	MustGetEvent(t ct.TestLike, roomID, eventID string) *Event
+	// MustBackupKeys is BackupKeys but fails the test on error.
+	MustBackupKeys(t ct.TestLike) (recoveryKey string)
+	// MustBackpaginate is Backpaginate but fails the test on error.
+	MustBackpaginate(t ct.TestLike, roomID string, count int)
+}
+
+// NewTestClient wraps a Client implementation with helper functions which tests can use.
+func NewTestClient(c Client) TestClient {
+	return &testClientImpl{
+		Client: c,
+	}
+}
+
+type testClientImpl struct {
+	Client
+}
+
+func (c *testClientImpl) MustStartSyncing(t ct.TestLike) (stopSyncing func()) {
+	t.Helper()
+	stopSyncing, err := c.StartSyncing(t)
+	if err != nil {
+		ct.Fatalf(t, "MustStartSyncing: %s", err)
+	}
+	return stopSyncing
+}
+
+func (c *testClientImpl) MustLoadBackup(t ct.TestLike, recoveryKey string) {
+	t.Helper()
+	err := c.LoadBackup(t, recoveryKey)
+	if err != nil {
+		ct.Fatalf(t, "MustLoadBackup: %s", err)
+	}
+}
+
+func (c *testClientImpl) MustBackupKeys(t ct.TestLike) (recoveryKey string) {
+	t.Helper()
+	recoveryKey, err := c.BackupKeys(t)
+	if err != nil {
+		ct.Fatalf(t, "MustBackupKeys: %s", err)
+	}
+	return recoveryKey
+}
+
+func (c *testClientImpl) MustBackpaginate(t ct.TestLike, roomID string, count int) {
+	t.Helper()
+	err := c.Backpaginate(t, roomID, count)
+	if err != nil {
+		ct.Fatalf(t, "MustBackpaginate: %s", err)
+	}
+}
+
+func (c *testClientImpl) MustSendMessage(t ct.TestLike, roomID, text string) (eventID string) {
+	t.Helper()
+	eventID, err := c.SendMessage(t, roomID, text)
+	if err != nil {
+		ct.Fatalf(t, "MustSendMessage: %s", err)
+	}
+	return eventID
+}
+
+func (c *testClientImpl) MustGetEvent(t ct.TestLike, roomID, eventID string) *Event {
+	t.Helper()
+	ev, err := c.GetEvent(t, roomID, eventID)
+	if err != nil {
+		ct.Fatalf(t, "MustGetEvent: %s", err)
+	}
+	return ev
 }
 
 type LoggedClient struct {
@@ -124,18 +200,10 @@ func (c *LoggedClient) ForceClose(t ct.TestLike) {
 	c.Client.ForceClose(t)
 }
 
-func (c *LoggedClient) MustGetEvent(t ct.TestLike, roomID, eventID string) Event {
+func (c *LoggedClient) GetEvent(t ct.TestLike, roomID, eventID string) (*Event, error) {
 	t.Helper()
-	c.Logf(t, "%s MustGetEvent(%s, %s)", c.logPrefix(), roomID, eventID)
-	return c.Client.MustGetEvent(t, roomID, eventID)
-}
-
-func (c *LoggedClient) MustStartSyncing(t ct.TestLike) (stopSyncing func()) {
-	t.Helper()
-	c.Logf(t, "%s MustStartSyncing starting to sync", c.logPrefix())
-	stopSyncing = c.Client.MustStartSyncing(t)
-	c.Logf(t, "%s MustStartSyncing now syncing", c.logPrefix())
-	return
+	c.Logf(t, "%s GetEvent(%s, %s)", c.logPrefix(), roomID, eventID)
+	return c.Client.GetEvent(t, roomID, eventID)
 }
 
 func (c *LoggedClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error) {
@@ -152,19 +220,11 @@ func (c *LoggedClient) IsRoomEncrypted(t ct.TestLike, roomID string) (bool, erro
 	return c.Client.IsRoomEncrypted(t, roomID)
 }
 
-func (c *LoggedClient) TrySendMessage(t ct.TestLike, roomID, text string) (eventID string, err error) {
-	t.Helper()
-	c.Logf(t, "%s TrySendMessage %s => %s", c.logPrefix(), roomID, text)
-	eventID, err = c.Client.TrySendMessage(t, roomID, text)
-	c.Logf(t, "%s TrySendMessage %s => %s", c.logPrefix(), roomID, eventID)
-	return
-}
-
-func (c *LoggedClient) SendMessage(t ct.TestLike, roomID, text string) (eventID string) {
+func (c *LoggedClient) SendMessage(t ct.TestLike, roomID, text string) (eventID string, err error) {
 	t.Helper()
 	c.Logf(t, "%s SendMessage %s => %s", c.logPrefix(), roomID, text)
-	eventID = c.Client.SendMessage(t, roomID, text)
-	c.Logf(t, "%s SendMessage %s => %s", c.logPrefix(), roomID, eventID)
+	eventID, err = c.Client.SendMessage(t, roomID, text)
+	c.Logf(t, "%s SendMessage %s => %s %s", c.logPrefix(), roomID, eventID, err)
 	return
 }
 
@@ -174,24 +234,20 @@ func (c *LoggedClient) WaitUntilEventInRoom(t ct.TestLike, roomID string, checke
 	return c.Client.WaitUntilEventInRoom(t, roomID, checker)
 }
 
-func (c *LoggedClient) MustBackpaginate(t ct.TestLike, roomID string, count int) {
+func (c *LoggedClient) Backpaginate(t ct.TestLike, roomID string, count int) error {
 	t.Helper()
-	c.Logf(t, "%s MustBackpaginate %d %s", c.logPrefix(), count, roomID)
-	c.Client.MustBackpaginate(t, roomID, count)
+	c.Logf(t, "%s Backpaginate %d %s", c.logPrefix(), count, roomID)
+	err := c.Client.Backpaginate(t, roomID, count)
+	c.Logf(t, "%s Backpaginate %d %s => %s", c.logPrefix(), count, roomID, err)
+	return err
 }
 
-func (c *LoggedClient) MustBackupKeys(t ct.TestLike) (recoveryKey string) {
+func (c *LoggedClient) BackupKeys(t ct.TestLike) (recoveryKey string, err error) {
 	t.Helper()
-	c.Logf(t, "%s MustBackupKeys", c.logPrefix())
-	recoveryKey = c.Client.MustBackupKeys(t)
-	c.Logf(t, "%s MustBackupKeys => %s", c.logPrefix(), recoveryKey)
-	return recoveryKey
-}
-
-func (c *LoggedClient) MustLoadBackup(t ct.TestLike, recoveryKey string) {
-	t.Helper()
-	c.Logf(t, "%s MustLoadBackup key=%s", c.logPrefix(), recoveryKey)
-	c.Client.MustLoadBackup(t, recoveryKey)
+	c.Logf(t, "%s BackupKeys", c.logPrefix())
+	recoveryKey, err = c.Client.BackupKeys(t)
+	c.Logf(t, "%s BackupKeys => %s %s", c.logPrefix(), recoveryKey, err)
+	return recoveryKey, err
 }
 
 func (c *LoggedClient) LoadBackup(t ct.TestLike, recoveryKey string) error {
@@ -210,9 +266,10 @@ func (c *LoggedClient) logPrefix() string {
 	return fmt.Sprintf("[%s](%s)", c.UserID(), c.Type())
 }
 
-// magic value for EnableCrossProcessRefreshLockProcessName which configures the FFI client
-// according to iOS NSE.
-const ProcessNameNSE string = "NSE"
+type Notification struct {
+	Event
+	HasMentions *bool
+}
 
 // ClientCreationOpts are options to use when creating crypto clients.
 //
@@ -235,11 +292,25 @@ type ClientCreationOpts struct {
 	// this flag and always use persistence.
 	PersistentStorage bool
 
-	// Rust only. If set, enables the cross process refresh lock on the FFI client with the process name provided.
-	EnableCrossProcessRefreshLockProcessName string
+	// A map containing any client-specific creation options, for use for client-specific tests.
+	// Any options in this map MUST BE SERIALISABLE as they may be sent over RPC boundaries.
+	ExtraOpts map[string]any
+
 	// Rust only. If set with EnableCrossProcessRefreshLockProcessName=ProcessNameNSE, the client will be seeded
 	// with a logged in session.
 	AccessToken string
+}
+
+// GetExtraOption is a safe way to get an extra option from ExtraOpts, with a default value if the key does not exist.
+func (o *ClientCreationOpts) GetExtraOption(key string, defaultValue any) any {
+	if o.ExtraOpts == nil {
+		return defaultValue
+	}
+	val, ok := o.ExtraOpts[key]
+	if !ok {
+		return defaultValue
+	}
+	return val
 }
 
 func NewClientCreationOpts(c *client.CSAPI) ClientCreationOpts {
@@ -262,8 +333,13 @@ func (o *ClientCreationOpts) Combine(other *ClientCreationOpts) {
 	if other.DeviceID != "" {
 		o.DeviceID = other.DeviceID
 	}
-	if other.EnableCrossProcessRefreshLockProcessName != "" {
-		o.EnableCrossProcessRefreshLockProcessName = other.EnableCrossProcessRefreshLockProcessName
+	if other.ExtraOpts != nil {
+		if o.ExtraOpts == nil {
+			o.ExtraOpts = make(map[string]any)
+		}
+		for k, v := range other.ExtraOpts {
+			o.ExtraOpts[k] = v
+		}
 	}
 	if other.Password != "" {
 		o.Password = other.Password

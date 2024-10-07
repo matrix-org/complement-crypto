@@ -15,8 +15,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/go-connections/nat"
 	"github.com/matrix-org/complement"
 	"github.com/matrix-org/complement-crypto/internal/api"
@@ -128,7 +128,7 @@ func (d *SlidingSyncDeployment) Teardown() {
 			"container-hs2.log": d.Deployment.ContainerID(&api.MockT{}, "hs2"),
 		}
 		for filename, containerID := range filenameToContainerID {
-			logs, err := dockerClient.ContainerLogs(context.Background(), containerID, types.ContainerLogsOptions{
+			logs, err := dockerClient.ContainerLogs(context.Background(), containerID, container.LogsOptions{
 				ShowStdout: true,
 				ShowStderr: true,
 				Follow:     false,
@@ -151,7 +151,7 @@ func (d *SlidingSyncDeployment) Teardown() {
 	}
 }
 
-func RunNewDeployment(t *testing.T, mitmProxyAddonsDir string, mitmDumpFile string) *SlidingSyncDeployment {
+func RunNewDeployment(t *testing.T, mitmAddonsDir, mitmDumpFile string) *SlidingSyncDeployment {
 	// allow time for everything to deploy
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -221,8 +221,10 @@ func RunNewDeployment(t *testing.T, mitmProxyAddonsDir string, mitmDumpFile stri
 			"--mode", "reverse:http://ssproxy2:6789@3003",
 			"--mode", "regular",
 			"-w", mitmDumpFilePathOnContainer,
+			"-s", "/addons/__init__.py",
 		},
-		Networks: []string{networkName},
+		WaitingFor: wait.ForLog("loading complement crypto addons"),
+		Networks:   []string{networkName},
 		NetworkAliases: map[string][]string{
 			networkName: {"mitmproxy"},
 		},
@@ -234,20 +236,21 @@ func RunNewDeployment(t *testing.T, mitmProxyAddonsDir string, mitmDumpFile stri
 				// see https://github.com/moby/moby/pull/40007
 				hc.ExtraHosts = []string{"host.docker.internal:host-gateway"}
 			}
+			hc.Mounts = []mount.Mount{
+				{
+					Type:   mount.TypeBind,
+					Source: mitmAddonsDir,
+					Target: "/addons",
+				},
+			}
 		},
-	}
-	if mitmProxyAddonsDir != "" {
-		mitmContainerReq.Mounts = testcontainers.Mounts(
-			testcontainers.BindMount(mitmProxyAddonsDir, "/addons"),
-		)
-		mitmContainerReq.Cmd = append(mitmContainerReq.Cmd, "-s", "/addons/__init__.py")
-		mitmContainerReq.WaitingFor = wait.ForLog("loading complement crypto addons")
 	}
 	mitmproxyContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: mitmContainerReq,
 		Started:          true,
 	})
 	must.NotError(t, "failed to start reverse proxy container", err)
+
 	rpHS1URL := externalURL(t, mitmproxyContainer, hs1ExposedPort)
 	rpHS2URL := externalURL(t, mitmproxyContainer, hs2ExposedPort)
 	rpSS1URL := externalURL(t, mitmproxyContainer, ss1RevProxyExposedPort)

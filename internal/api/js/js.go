@@ -14,7 +14,6 @@ import (
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/api/js/chrome"
 	"github.com/matrix-org/complement/ct"
-	"github.com/matrix-org/complement/must"
 	"github.com/tidwall/gjson"
 )
 
@@ -509,7 +508,7 @@ func (c *JSClient) InviteUser(t ct.TestLike, roomID, userID string) error {
 	return err
 }
 
-func (c *JSClient) MustGetEvent(t ct.TestLike, roomID, eventID string) api.Event {
+func (c *JSClient) GetEvent(t ct.TestLike, roomID, eventID string) (*api.Event, error) {
 	t.Helper()
 	// serialised output (if encrypted):
 	// {
@@ -517,14 +516,17 @@ func (c *JSClient) MustGetEvent(t ct.TestLike, roomID, eventID string) api.Event
 	//    decrypted: { event }
 	// }
 	// else just returns { event }
-	evSerialised := chrome.MustRunAsyncFn[string](t, c.browser.Ctx, fmt.Sprintf(`
+	evSerialised, err := chrome.RunAsyncFn[string](t, c.browser.Ctx, fmt.Sprintf(`
 	return JSON.stringify(window.__client.getRoom("%s")?.getLiveTimeline()?.getEvents().filter((ev, i) => {
 		console.log("MustGetEvent["+i+"] => " + ev.getId()+ " " + JSON.stringify(ev.toJSON()));
 		return ev.getId() === "%s";
 	})[0].toJSON());
 	`, roomID, eventID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get event %s: %s", eventID, err)
+	}
 	if !gjson.Valid(*evSerialised) {
-		ct.Fatalf(t, "MustGetEvent(%s, %s) %s (js): invalid event, got %s", roomID, eventID, c.userID, *evSerialised)
+		return nil, fmt.Errorf("invalid event %s, got %s", eventID, *evSerialised)
 	}
 	result := gjson.Parse(*evSerialised)
 	decryptedEvent := result.Get("decrypted")
@@ -533,7 +535,7 @@ func (c *JSClient) MustGetEvent(t ct.TestLike, roomID, eventID string) api.Event
 	}
 	encryptedEvent := result.Get("encrypted")
 	//fmt.Printf("DECRYPTED: %s\nENCRYPTED: %s\n\n", decryptedEvent.Raw, encryptedEvent.Raw)
-	ev := api.Event{
+	ev := &api.Event{
 		ID:     decryptedEvent.Get("event_id").Str,
 		Text:   decryptedEvent.Get("content.body").Str,
 		Sender: decryptedEvent.Get("sender").Str,
@@ -546,14 +548,7 @@ func (c *JSClient) MustGetEvent(t ct.TestLike, roomID, eventID string) api.Event
 		ev.FailedToDecrypt = true
 	}
 
-	return ev
-}
-
-func (c *JSClient) MustStartSyncing(t ct.TestLike) (stopSyncing func()) {
-	t.Helper()
-	stopSyncing, err := c.StartSyncing(t)
-	must.NotError(t, "StartSyncing", err)
-	return stopSyncing
+	return ev, nil
 }
 
 // StartSyncing to begin syncing from sync v2 / sliding sync.
@@ -609,16 +604,7 @@ func (c *JSClient) IsRoomEncrypted(t ct.TestLike, roomID string) (bool, error) {
 	return *isEncrypted, nil
 }
 
-// SendMessage sends the given text as an m.room.message with msgtype:m.text into the given
-// room.
-func (c *JSClient) SendMessage(t ct.TestLike, roomID, text string) (eventID string) {
-	t.Helper()
-	eventID, err := c.TrySendMessage(t, roomID, text)
-	must.NotError(t, "failed to sendMessage", err)
-	return eventID
-}
-
-func (c *JSClient) TrySendMessage(t ct.TestLike, roomID, text string) (eventID string, err error) {
+func (c *JSClient) SendMessage(t ct.TestLike, roomID, text string) (eventID string, err error) {
 	t.Helper()
 	res, err := chrome.RunAsyncFn[map[string]interface{}](t, c.browser.Ctx, fmt.Sprintf(`
 	return await window.__client.sendMessage("%s", {
@@ -631,16 +617,17 @@ func (c *JSClient) TrySendMessage(t ct.TestLike, roomID, text string) (eventID s
 	return (*res)["event_id"].(string), nil
 }
 
-func (c *JSClient) MustBackpaginate(t ct.TestLike, roomID string, count int) {
+func (c *JSClient) Backpaginate(t ct.TestLike, roomID string, count int) error {
 	t.Helper()
-	chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(
+	_, err := chrome.RunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(
 		`await window.__client.scrollback(window.__client.getRoom("%s"), %d);`, roomID, count,
 	))
+	return err
 }
 
-func (c *JSClient) MustBackupKeys(t ct.TestLike) (recoveryKey string) {
+func (c *JSClient) BackupKeys(t ct.TestLike) (recoveryKey string, err error) {
 	t.Helper()
-	key := chrome.MustRunAsyncFn[string](t, c.browser.Ctx, `
+	key, err := chrome.RunAsyncFn[string](t, c.browser.Ctx, `
 		// we need to ensure that we have a recovery key first, though we don't actually care about it..?
 		const recoveryKey = await window.__client.getCrypto().createRecoveryKeyFromPassphrase();
 		// now use said key to make backups
@@ -652,15 +639,14 @@ func (c *JSClient) MustBackupKeys(t ct.TestLike) (recoveryKey string) {
 		// now we can enable key backups
 		await window.__client.getCrypto().checkKeyBackupAndEnable();
 		return recoveryKey.encodedPrivateKey;`)
+	if err != nil {
+		return "", fmt.Errorf("error enabling key backup: %s", err)
+	}
 	// the backup loop which sends keys will wait between 0-10s before uploading keys...
 	// See https://github.com/matrix-org/matrix-js-sdk/blob/49624d5d7308e772ebee84322886a39d2e866869/src/rust-crypto/backup.ts#L319
 	// Ideally this would be configurable..
 	time.Sleep(11 * time.Second)
-	return *key
-}
-
-func (c *JSClient) MustLoadBackup(t ct.TestLike, recoveryKey string) {
-	must.NotError(t, "failed to load backup", c.LoadBackup(t, recoveryKey))
+	return *key, nil
 }
 
 func (c *JSClient) LoadBackup(t ct.TestLike, recoveryKey string) error {
@@ -693,8 +679,9 @@ func (c *JSClient) WaitUntilEventInRoom(t ct.TestLike, roomID string, checker fu
 func (c *JSClient) Logf(t ct.TestLike, format string, args ...interface{}) {
 	t.Helper()
 	formatted := fmt.Sprintf(t.Name()+": "+format, args...)
+	firstLine := strings.Split(formatted, "\n")[0]
 	if c.browser.Ctx.Err() == nil { // don't log on dead browsers
-		chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`console.log("%s");`, strings.Replace(formatted, `"`, `\"`, -1)))
+		chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`console.log("%s");`, strings.Replace(firstLine, `"`, `\"`, -1)))
 		t.Logf(format, args...)
 	}
 }

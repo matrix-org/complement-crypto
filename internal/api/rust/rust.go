@@ -41,6 +41,14 @@ func SetupLogs(prefix string) {
 
 var zero uint32
 
+const (
+	OptionEnableCrossProcessRefreshLockProcessName = "EnableCrossProcessRefreshLockProcessName"
+)
+
+// magic value for EnableCrossProcessRefreshLockProcessName which configures the FFI client
+// according to iOS NSE.
+const ProcessNameNSE string = "NSE"
+
 type RustRoomInfo struct {
 	stream   *matrix_sdk_ffi.TaskHandle
 	room     *matrix_sdk_ffi.Room
@@ -49,6 +57,7 @@ type RustRoomInfo struct {
 
 type RustClient struct {
 	FFIClient             *matrix_sdk_ffi.Client
+	syncService           *matrix_sdk_ffi.SyncService
 	roomsListener         *RoomsListener
 	entriesController     *matrix_sdk_ffi.RoomListDynamicEntriesController
 	entriesAdapters       *matrix_sdk_ffi.RoomListEntriesWithDynamicAdaptersResult
@@ -59,7 +68,7 @@ type RustClient struct {
 	persistentStoragePath string
 	opts                  api.ClientCreationOpts
 
-	// for NSE tests
+	// for push notification tests (single/multi-process)
 	notifClient *matrix_sdk_ffi.NotificationClient
 }
 
@@ -72,10 +81,11 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, erro
 		SlidingSyncVersionBuilder(slidingSyncVersion).
 		AutoEnableCrossSigning(true)
 	var clientSessionDelegate matrix_sdk_ffi.ClientSessionDelegate
-	if opts.EnableCrossProcessRefreshLockProcessName != "" {
-		t.Logf("enabling cross process refresh lock with proc name=%s", opts.EnableCrossProcessRefreshLockProcessName)
+	xprocessName := opts.GetExtraOption(OptionEnableCrossProcessRefreshLockProcessName, "").(string)
+	if xprocessName != "" {
+		t.Logf("enabling cross process refresh lock with proc name=%s", xprocessName)
 		clientSessionDelegate = NewMemoryClientSessionDelegate()
-		ab = ab.EnableCrossProcessRefreshLock(opts.EnableCrossProcessRefreshLockProcessName, clientSessionDelegate)
+		ab = ab.EnableCrossProcessRefreshLock(xprocessName, clientSessionDelegate)
 	}
 	// @alice:hs1, FOOBAR => alice_hs1_FOOBAR
 	username := strings.Replace(opts.UserID[1:], ":", "_", -1) + "_" + opts.DeviceID
@@ -105,7 +115,7 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, erro
 		if err := client.RestoreSession(session); err != nil {
 			return nil, fmt.Errorf("RestoreSession: %s", err)
 		}
-		if opts.EnableCrossProcessRefreshLockProcessName == api.ProcessNameNSE {
+		if xprocessName == ProcessNameNSE {
 			clientSessionDelegate.SaveSessionInKeychain(session)
 			t.Logf("configure NSE client with logged in user: %+v", session)
 			// We purposefully don't SetDelegate as it appears to be unnecessary.
@@ -134,9 +144,14 @@ func (c *RustClient) Opts() api.ClientCreationOpts {
 
 func (c *RustClient) GetNotification(t ct.TestLike, roomID, eventID string) (*api.Notification, error) {
 	if c.notifClient == nil {
-		t.Errorf("RustClient misconfigured. You can only call GetNotification if this is an NSE process. " +
-			"Ensure opts.EnableCrossProcessRefreshLockProcessName and opts.AccessToken are set!")
-		return nil, fmt.Errorf("misconfigured rust client")
+		var err error
+		c.Logf(t, "creating NotificationClient")
+		c.notifClient, err = c.FFIClient.NotificationClient(matrix_sdk_ffi.NotificationProcessSetupSingleProcess{
+			SyncService: c.syncService,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("GetNotification: failed to create NotificationClient: %s", err)
+		}
 	}
 	notifItem, err := c.notifClient.GetNotification(roomID, eventID)
 	if err != nil {
@@ -304,25 +319,18 @@ func (c *RustClient) Close(t ct.TestLike) {
 	}
 }
 
-func (c *RustClient) MustGetEvent(t ct.TestLike, roomID, eventID string) api.Event {
+func (c *RustClient) GetEvent(t ct.TestLike, roomID, eventID string) (*api.Event, error) {
 	t.Helper()
 	room := c.findRoom(t, roomID)
 	timelineItem, err := mustGetTimeline(t, room).GetEventTimelineItemByEventId(eventID)
 	if err != nil {
-		ct.Fatalf(t, "MustGetEvent(rust) %s (%s, %s): %s", c.userID, roomID, eventID, err)
+		return nil, fmt.Errorf("failed to GetEventTimelineItemByEventId(%s): %s", eventID, err)
 	}
 	ev := eventTimelineItemToEvent(timelineItem)
 	if ev == nil {
-		ct.Fatalf(t, "MustGetEvent(rust) %s (%s, %s): found timeline item but failed to convert it to an Event", c.userID, roomID, eventID)
+		return nil, fmt.Errorf("found timeline item %s but failed to convert it to an Event", eventID)
 	}
-	return *ev
-}
-
-func (c *RustClient) MustStartSyncing(t ct.TestLike) (stopSyncing func()) {
-	t.Helper()
-	stopSyncing, err := c.StartSyncing(t)
-	must.NotError(t, "StartSyncing", err)
-	return stopSyncing
+	return ev, nil
 }
 
 // StartSyncing to begin syncing from sync v2 / sliding sync.
@@ -337,8 +345,9 @@ func (c *RustClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error)
 	//  > thread '<unnamed>' panicked at 'there is no reactor running, must be called from the context of a Tokio 1.x runtime'
 	// where the stack trace doesn't hit any test code, but does start at a `free_` function.
 	sb := c.FFIClient.SyncService()
-	if c.opts.EnableCrossProcessRefreshLockProcessName != "" {
-		sb2 := sb.WithCrossProcessLock(&c.opts.EnableCrossProcessRefreshLockProcessName)
+	xprocessName := c.opts.GetExtraOption(OptionEnableCrossProcessRefreshLockProcessName, "").(string)
+	if xprocessName != "" {
+		sb2 := sb.WithCrossProcessLock(&xprocessName)
 		sb.Destroy()
 		sb = sb2
 	}
@@ -360,6 +369,7 @@ func (c *RustClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error)
 	}
 	go syncService.Start()
 	c.allRooms = roomList
+	c.syncService = syncService
 	// track new rooms when they are made
 	allRoomsListener := newGenericStateListener[[]matrix_sdk_ffi.RoomListEntriesUpdate]()
 	go func() {
@@ -457,33 +467,40 @@ func (c *RustClient) IsRoomEncrypted(t ct.TestLike, roomID string) (bool, error)
 	return r.IsEncrypted()
 }
 
-func (c *RustClient) MustBackupKeys(t ct.TestLike) (recoveryKey string) {
+func (c *RustClient) BackupKeys(t ct.TestLike) (recoveryKey string, err error) {
 	t.Helper()
 	genericListener := newGenericStateListener[matrix_sdk_ffi.EnableRecoveryProgress]()
 	var listener matrix_sdk_ffi.EnableRecoveryProgressListener = genericListener
 	e := c.FFIClient.Encryption()
 	defer e.Destroy()
-	recoveryKey, err := e.EnableRecovery(true, listener)
-	must.NotError(t, "Encryption.EnableRecovery", err)
+	recoveryKey, err = e.EnableRecovery(true, nil, listener)
+	if err != nil {
+		return "", fmt.Errorf("EnableRecovery: %s", err)
+	}
+	var lastState string
 	for !genericListener.isClosed.Load() {
 		select {
 		case s := <-genericListener.ch:
 			switch x := s.(type) {
 			case matrix_sdk_ffi.EnableRecoveryProgressCreatingBackup:
 				t.Logf("MustBackupKeys: state=CreatingBackup")
+				lastState = "CreatingBackup"
 			case matrix_sdk_ffi.EnableRecoveryProgressBackingUp:
 				t.Logf("MustBackupKeys: state=BackingUp %v/%v", x.BackedUpCount, x.TotalCount)
+				lastState = fmt.Sprintf("BackingUp %v/%v", x.BackedUpCount, x.TotalCount)
 			case matrix_sdk_ffi.EnableRecoveryProgressCreatingRecoveryKey:
 				t.Logf("MustBackupKeys: state=CreatingRecoveryKey")
+				lastState = "CreatingRecoveryKey"
 			case matrix_sdk_ffi.EnableRecoveryProgressDone:
 				t.Logf("MustBackupKeys: state=Done")
+				lastState = "Done"
 				genericListener.Close() // break the loop
 			}
 		case <-time.After(5 * time.Second):
-			ct.Fatalf(t, "timed out enabling backup keys")
+			return "", fmt.Errorf("timed out enabling backup keys: last state: %s", lastState)
 		}
 	}
-	return recoveryKey
+	return recoveryKey, nil
 }
 
 func (c *RustClient) LoadBackup(t ct.TestLike, recoveryKey string) error {
@@ -491,11 +508,6 @@ func (c *RustClient) LoadBackup(t ct.TestLike, recoveryKey string) error {
 	e := c.FFIClient.Encryption()
 	defer e.Destroy()
 	return e.Recover(recoveryKey)
-}
-
-func (c *RustClient) MustLoadBackup(t ct.TestLike, recoveryKey string) {
-	t.Helper()
-	c.LoadBackup(t, recoveryKey)
 }
 
 func (c *RustClient) WaitUntilEventInRoom(t ct.TestLike, roomID string, checker func(api.Event) bool) api.Waiter {
@@ -512,18 +524,7 @@ func (c *RustClient) Type() api.ClientTypeLang {
 	return api.ClientTypeRust
 }
 
-// SendMessage sends the given text as an m.room.message with msgtype:m.text into the given
-// room. Returns the event ID of the sent event.
-func (c *RustClient) SendMessage(t ct.TestLike, roomID, text string) (eventID string) {
-	t.Helper()
-	eventID, err := c.TrySendMessage(t, roomID, text)
-	if err != nil {
-		ct.Fatalf(t, err.Error())
-	}
-	return eventID
-}
-
-func (c *RustClient) TrySendMessage(t ct.TestLike, roomID, text string) (eventID string, err error) {
+func (c *RustClient) SendMessage(t ct.TestLike, roomID, text string) (eventID string, err error) {
 	t.Helper()
 	var isChannelClosed atomic.Bool
 	ch := make(chan bool)
@@ -583,12 +584,17 @@ func (c *RustClient) InviteUser(t ct.TestLike, roomID, userID string) error {
 	return r.InviteUserById(userID)
 }
 
-func (c *RustClient) MustBackpaginate(t ct.TestLike, roomID string, count int) {
+func (c *RustClient) Backpaginate(t ct.TestLike, roomID string, count int) error {
 	t.Helper()
 	r := c.findRoom(t, roomID)
-	must.NotEqual(t, r, nil, "unknown room")
+	if r == nil {
+		return fmt.Errorf("Backpaginate: cannot find room %s", roomID)
+	}
 	_, err := mustGetTimeline(t, r).PaginateBackwards(uint16(count))
-	must.NotError(t, "failed to backpaginate", err)
+	if err != nil {
+		return fmt.Errorf("cannot PaginateBackwards in %s: %s", roomID, err)
+	}
+	return nil
 }
 
 func (c *RustClient) UserID() string {
@@ -916,20 +922,18 @@ func timelineItemToEvent(item *matrix_sdk_ffi.TimelineItem) *api.Event {
 	return eventTimelineItemToEvent(*ev)
 }
 
-func eventTimelineItemToEvent(item *matrix_sdk_ffi.EventTimelineItem) *api.Event {
-	if item == nil {
-		return nil
-	}
+func eventTimelineItemToEvent(item matrix_sdk_ffi.EventTimelineItem) *api.Event {
 	eventID := ""
-	if item.EventId() != nil {
-		eventID = *item.EventId()
+	switch id := item.EventOrTransactionId.(type) {
+	case matrix_sdk_ffi.EventOrTransactionIdEventId:
+		eventID = id.EventId
 	}
 	complementEvent := api.Event{
 		ID:     eventID,
-		Sender: item.Sender(),
+		Sender: item.Sender,
 	}
-	switch k := item.Content().Kind().(type) {
-	case matrix_sdk_ffi.TimelineItemContentKindRoomMembership:
+	switch k := item.Content.(type) {
+	case matrix_sdk_ffi.TimelineItemContentRoomMembership:
 		complementEvent.Target = k.UserId
 		change := *k.Change
 		switch change {
@@ -956,16 +960,16 @@ func eventTimelineItemToEvent(item *matrix_sdk_ffi.EventTimelineItem) *api.Event
 		default:
 			fmt.Printf("%s unhandled membership %d\n", k.UserId, change)
 		}
-	case matrix_sdk_ffi.TimelineItemContentKindUnableToDecrypt:
+	case matrix_sdk_ffi.TimelineItemContentUnableToDecrypt:
 		complementEvent.FailedToDecrypt = true
 	}
 
-	content := item.Content()
+	content := item.Content
 	if content != nil {
-		msg := content.AsMessage()
-		if msg != nil {
-			msgg := *msg
-			complementEvent.Text = msgg.Body()
+		switch msg := content.(type) {
+		case matrix_sdk_ffi.TimelineItemContentMessage:
+
+			complementEvent.Text = msg.Content.Body
 		}
 	}
 	return &complementEvent

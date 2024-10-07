@@ -2,8 +2,6 @@ package cc
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"sync"
 	"testing"
 
@@ -32,14 +30,14 @@ func NewInstance(cfg *config.ComplementCrypto) *Instance {
 
 // TestMain is the entry point for running a test suite with this Instance.
 // The function signature matches the standard Go test suite TestMain()
-func (i *Instance) TestMain(m *testing.M) {
+func (i *Instance) TestMain(m *testing.M, namespace string) {
 	// Execute PreTestRun lifecycle hook
 	for _, binding := range i.complementCryptoConfig.Bindings() {
 		binding.PreTestRun("")
 	}
 
 	// Defer to complement to run the test suite
-	complement.TestMainWithCleanup(m, "crypto", func() { // always teardown even if panicking
+	complement.TestMainWithCleanup(m, namespace, func() { // always teardown even if panicking
 		i.ssMutex.Lock()
 		if i.ssDeployment != nil {
 			i.ssDeployment.Teardown()
@@ -63,12 +61,7 @@ func (i *Instance) Deploy(t *testing.T) *deploy.SlidingSyncDeployment {
 	if i.ssDeployment != nil {
 		return i.ssDeployment
 	}
-	workingDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("failed to find working directory: %s", err)
-	}
-	mitmProxyAddonsDir := filepath.Join(workingDir, "mitmproxy_addons")
-	i.ssDeployment = deploy.RunNewDeployment(t, mitmProxyAddonsDir, i.complementCryptoConfig.MITMDump)
+	i.ssDeployment = deploy.RunNewDeployment(t, i.complementCryptoConfig.MITMProxyAddonsDir, i.complementCryptoConfig.MITMDump)
 	return i.ssDeployment
 }
 

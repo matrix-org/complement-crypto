@@ -27,11 +27,11 @@ jobs:
 
   complement:
     name: Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3 # Checkout crypto tests
 
-      # Install Node, Go and Rust, along with libolm and gotestfmt
+      # Install Node, Go and Rust, along with gotestfmt
       - name: Setup | Node.js LTS
         uses: actions/setup-node@v3
         with:
@@ -58,7 +58,6 @@ jobs:
           workspaces: "rust-sdk"
       - name: "Install Complement Dependencies"
         run: |
-          sudo apt-get update && sudo apt-get install -y libolm3 libolm-dev
           go install -v github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
 
       # Install whatever version of the JS SDK is in package.json
@@ -147,7 +146,7 @@ jobs:
           export LD_LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
           export COMPLEMENT_CRYPTO_RPC_BINARY="$(pwd)/rpc"
           set -o pipefail &&
-          go test -v -json -tags='jssdk,rust' -count=1 -timeout 15m ./tests | gotestfmt
+          go test -p 3 -v -json -tags='jssdk,rust' -count=1 -timeout 15m ./tests ./tests/js ./tests/rust | gotestfmt
         shell: bash # required for pipefail to be A Thing. pipefail is required to stop gotestfmt swallowing non-zero exit codes
         name: Run Complement Crypto Tests
         env:
@@ -164,5 +163,5 @@ jobs:
         with:
           name: Logs - ${{ job.status }}
           path: |
-            ./tests/logs/*
-            ./complement-crypto/tests/mitm.dump
+              ./**/logs/*
+              ./**/mitm.dump
