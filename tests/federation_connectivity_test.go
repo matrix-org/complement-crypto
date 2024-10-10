@@ -72,7 +72,12 @@ func TestNewUserCannotGetKeysForOfflineServer(t *testing.T) {
 				// See https://github.com/matrix-org/matrix-rust-sdk/issues/281 for why we want to backoff.
 				// See https://github.com/matrix-org/matrix-rust-sdk/issues/2804 for discussions on what the backoff should be.
 				t.Logf("sleeping until client timeout is ready...")
-				time.Sleep(33 * time.Second)
+				time.Sleep(10 * time.Second)
+				// we may need to kick hs1 into letting it know that hs2 is back, we do this by sending a typing notif
+				// in the room, whic will send an EDU over federation which should inform hs1 that hs2 is back online.
+				tc.Bob.MustSendTyping(t, roomID, true, 1000)
+				// wait the remaining client timeout time
+				time.Sleep(23 * time.Second)
 
 				// send another message, bob should be able to decrypt it.
 				wantMsgBody = "Bob can see this because his server is now back online"
