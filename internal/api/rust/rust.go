@@ -985,6 +985,10 @@ type SessionVerificationControllerDelegate struct {
 	ch         chan api.VerificationStage
 }
 
+func (s *SessionVerificationControllerDelegate) DidReceiveVerificationRequest(details matrix_sdk_ffi.SessionVerificationRequestDetails) {
+	// we're not currently testing incoming session verification requests
+}
+
 func (s *SessionVerificationControllerDelegate) DidAcceptVerificationRequest() {
 	s.ch <- api.NewVerificationStageReady(s.container)
 }
