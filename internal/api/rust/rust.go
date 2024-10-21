@@ -985,6 +985,10 @@ type SessionVerificationControllerDelegate struct {
 	ch         chan api.VerificationStage
 }
 
+func (s *SessionVerificationControllerDelegate) DidReceiveVerificationRequest(details matrix_sdk_ffi.SessionVerificationRequestDetails) {
+
+}
+
 func (s *SessionVerificationControllerDelegate) DidAcceptVerificationRequest() {
 	s.ch <- api.NewVerificationStageReady(s.container)
 }
