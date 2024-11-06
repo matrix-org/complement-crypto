@@ -268,7 +268,7 @@ func (c *RustClient) RequestOwnUserVerification(t ct.TestLike) chan api.Verifica
 		container:  container,
 		ch:         ch,
 	}
-	c.FFIClient.Encryption().VerificationStateListener(delegateImpl)
+	c.FFIClient.Encryption().VerificationStateListener(delegateImpl, true)
 
 	var delegate matrix_sdk_ffi.SessionVerificationControllerDelegate = delegateImpl
 	svc.SetDelegate(&delegate)
