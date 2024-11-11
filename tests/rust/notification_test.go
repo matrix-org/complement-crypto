@@ -63,7 +63,7 @@ func testNSEReceive(t *testing.T, numMsgsBefore, numMsgsAfter int) {
 		Opts: api.ClientCreationOpts{
 			PersistentStorage: true,
 			ExtraOpts: map[string]any{
-				rust.OptionEnableCrossProcessRefreshLockProcessName: "main",
+				rust.CrossProcessStoreLocksHolderName: "main",
 			},
 		},
 	})
@@ -88,7 +88,7 @@ func testNSEReceive(t *testing.T, numMsgsBefore, numMsgsAfter int) {
 		Opts: api.ClientCreationOpts{
 			PersistentStorage: true,
 			ExtraOpts: map[string]any{
-				rust.OptionEnableCrossProcessRefreshLockProcessName: rust.ProcessNameNSE,
+				rust.CrossProcessStoreLocksHolderName: rust.ProcessNameNSE,
 			},
 			AccessToken: accessToken,
 		},
@@ -110,7 +110,7 @@ func TestNSEReceiveForNonPreKeyMessage(t *testing.T) {
 		Opts: api.ClientCreationOpts{
 			PersistentStorage: true,
 			ExtraOpts: map[string]any{
-				rust.OptionEnableCrossProcessRefreshLockProcessName: "main",
+				rust.CrossProcessStoreLocksHolderName: "main",
 			},
 		},
 	})
@@ -137,7 +137,7 @@ func TestNSEReceiveForNonPreKeyMessage(t *testing.T) {
 			Opts: api.ClientCreationOpts{
 				PersistentStorage: true,
 				ExtraOpts: map[string]any{
-					rust.OptionEnableCrossProcessRefreshLockProcessName: rust.ProcessNameNSE,
+					rust.CrossProcessStoreLocksHolderName: rust.ProcessNameNSE,
 				},
 				AccessToken: accessToken,
 			},
@@ -164,7 +164,7 @@ func TestMultiprocessNSE(t *testing.T) {
 		Opts: api.ClientCreationOpts{
 			PersistentStorage: true,
 			ExtraOpts: map[string]any{
-				rust.OptionEnableCrossProcessRefreshLockProcessName: "main",
+				rust.CrossProcessStoreLocksHolderName: "main",
 			},
 		},
 	})
@@ -201,7 +201,7 @@ func TestMultiprocessNSE(t *testing.T) {
 				Opts: api.ClientCreationOpts{
 					PersistentStorage: true,
 					ExtraOpts: map[string]any{
-						rust.OptionEnableCrossProcessRefreshLockProcessName: "main",
+						rust.CrossProcessStoreLocksHolderName: "main",
 					},
 					AccessToken: accessToken,
 				},
@@ -222,7 +222,7 @@ func TestMultiprocessNSE(t *testing.T) {
 				PersistentStorage: true,
 				AccessToken:       accessToken,
 				ExtraOpts: map[string]any{
-					rust.OptionEnableCrossProcessRefreshLockProcessName: "main",
+					rust.CrossProcessStoreLocksHolderName: "main",
 				},
 			},
 		}) // this should login already as we provided an access token
@@ -261,7 +261,7 @@ func TestMultiprocessNSE(t *testing.T) {
 					Opts: api.ClientCreationOpts{
 						PersistentStorage: true,
 						ExtraOpts: map[string]any{
-							rust.OptionEnableCrossProcessRefreshLockProcessName: rust.ProcessNameNSE,
+							rust.CrossProcessStoreLocksHolderName: rust.ProcessNameNSE,
 						},
 						AccessToken: accessToken,
 					},
@@ -300,7 +300,7 @@ func TestMultiprocessNSE(t *testing.T) {
 		Opts: api.ClientCreationOpts{
 			PersistentStorage: true,
 			ExtraOpts: map[string]any{
-				rust.OptionEnableCrossProcessRefreshLockProcessName: "main",
+				rust.CrossProcessStoreLocksHolderName: "main",
 			},
 		},
 	})
@@ -324,7 +324,7 @@ func TestMultiprocessNSEBackupKeyMacError(t *testing.T) {
 		Opts: api.ClientCreationOpts{
 			PersistentStorage: true,
 			ExtraOpts: map[string]any{
-				rust.OptionEnableCrossProcessRefreshLockProcessName: "main",
+				rust.CrossProcessStoreLocksHolderName: "main",
 			},
 		},
 	})
@@ -358,7 +358,7 @@ func TestMultiprocessNSEBackupKeyMacError(t *testing.T) {
 					PersistentStorage: true,
 					AccessToken:       accessToken,
 					ExtraOpts: map[string]any{
-						rust.OptionEnableCrossProcessRefreshLockProcessName: "main",
+						rust.CrossProcessStoreLocksHolderName: "main",
 					},
 				},
 			}) // this should login already as we provided an access token
@@ -377,7 +377,7 @@ func TestMultiprocessNSEBackupKeyMacError(t *testing.T) {
 			Opts: api.ClientCreationOpts{
 				PersistentStorage: true,
 				ExtraOpts: map[string]any{
-					rust.OptionEnableCrossProcessRefreshLockProcessName: rust.ProcessNameNSE,
+					rust.CrossProcessStoreLocksHolderName: rust.ProcessNameNSE,
 				},
 				AccessToken: accessToken,
 			},
@@ -419,7 +419,7 @@ func TestMultiprocessNSEBackupKeyMacError(t *testing.T) {
 		Opts: api.ClientCreationOpts{
 			PersistentStorage: true,
 			ExtraOpts: map[string]any{
-				rust.OptionEnableCrossProcessRefreshLockProcessName: "main",
+				rust.CrossProcessStoreLocksHolderName: "main",
 			},
 		},
 	})
@@ -443,7 +443,7 @@ func TestMultiprocessNSEOlmSessionWedge(t *testing.T) {
 		Opts: api.ClientCreationOpts{
 			PersistentStorage: true,
 			ExtraOpts: map[string]any{
-				rust.OptionEnableCrossProcessRefreshLockProcessName: "main",
+				rust.CrossProcessStoreLocksHolderName: "main",
 			},
 		},
 	})
@@ -478,7 +478,7 @@ func TestMultiprocessNSEOlmSessionWedge(t *testing.T) {
 				Opts: api.ClientCreationOpts{
 					PersistentStorage: true,
 					ExtraOpts: map[string]any{
-						rust.OptionEnableCrossProcessRefreshLockProcessName: "main",
+						rust.CrossProcessStoreLocksHolderName: "main",
 					},
 					AccessToken: accessToken,
 				},
@@ -503,7 +503,7 @@ func TestMultiprocessNSEOlmSessionWedge(t *testing.T) {
 				PersistentStorage: true,
 				AccessToken:       accessToken,
 				ExtraOpts: map[string]any{
-					rust.OptionEnableCrossProcessRefreshLockProcessName: rust.ProcessNameNSE,
+					rust.CrossProcessStoreLocksHolderName: rust.ProcessNameNSE,
 				},
 			},
 		}) // this should login already as we provided an access token
@@ -639,7 +639,7 @@ func TestMultiprocessInitialE2EESyncDoesntDropDeviceListUpdates(t *testing.T) {
 		Opts: api.ClientCreationOpts{
 			PersistentStorage: true,
 			ExtraOpts: map[string]any{
-				rust.OptionEnableCrossProcessRefreshLockProcessName: "main",
+				rust.CrossProcessStoreLocksHolderName: "main",
 			},
 		},
 	})
@@ -673,7 +673,7 @@ func TestMultiprocessInitialE2EESyncDoesntDropDeviceListUpdates(t *testing.T) {
 				Opts: api.ClientCreationOpts{
 					PersistentStorage: true,
 					ExtraOpts: map[string]any{
-						rust.OptionEnableCrossProcessRefreshLockProcessName: "main",
+						rust.CrossProcessStoreLocksHolderName: "main",
 					},
 					AccessToken: accessToken,
 				},
@@ -687,7 +687,7 @@ func TestMultiprocessInitialE2EESyncDoesntDropDeviceListUpdates(t *testing.T) {
 				PersistentStorage: true,
 				AccessToken:       accessToken,
 				ExtraOpts: map[string]any{
-					rust.OptionEnableCrossProcessRefreshLockProcessName: rust.ProcessNameNSE,
+					rust.CrossProcessStoreLocksHolderName: rust.ProcessNameNSE,
 				},
 			},
 		}) // this should login already as we provided an access token
