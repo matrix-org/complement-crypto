@@ -42,7 +42,7 @@ func SetupLogs(prefix string) {
 var zero uint32
 
 const (
-	OptionEnableCrossProcessRefreshLockProcessName = "EnableCrossProcessRefreshLockProcessName"
+	CrossProcessStoreLocksHolderName = "CrossProcessStoreLocksHolderName"
 )
 
 // magic value for EnableCrossProcessRefreshLockProcessName which configures the FFI client
@@ -76,16 +76,16 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, erro
 	t.Logf("NewRustClient[%s][%s] creating...", opts.UserID, opts.DeviceID)
 	matrix_sdk_ffi.LogEvent("rust.go", &zero, matrix_sdk_ffi.LogLevelInfo, t.Name(), fmt.Sprintf("NewRustClient[%s][%s] creating...", opts.UserID, opts.DeviceID))
 	slidingSyncVersion := matrix_sdk_ffi.SlidingSyncVersionBuilderNative{}
+	clientSessionDelegate := NewMemoryClientSessionDelegate()
 	ab := matrix_sdk_ffi.NewClientBuilder().
 		HomeserverUrl(opts.BaseURL).
 		SlidingSyncVersionBuilder(slidingSyncVersion).
-		AutoEnableCrossSigning(true)
-	var clientSessionDelegate matrix_sdk_ffi.ClientSessionDelegate
-	xprocessName := opts.GetExtraOption(OptionEnableCrossProcessRefreshLockProcessName, "").(string)
+		AutoEnableCrossSigning(true).
+		SetSessionDelegate(clientSessionDelegate)
+	xprocessName := opts.GetExtraOption(CrossProcessStoreLocksHolderName, "").(string)
 	if xprocessName != "" {
-		t.Logf("enabling cross process refresh lock with proc name=%s", xprocessName)
-		clientSessionDelegate = NewMemoryClientSessionDelegate()
-		ab = ab.EnableCrossProcessRefreshLock(xprocessName, clientSessionDelegate)
+		t.Logf("setting cross process store locks holder name=%s", xprocessName)
+		ab = ab.CrossProcessStoreLocksHolderName(xprocessName)
 	}
 	// @alice:hs1, FOOBAR => alice_hs1_FOOBAR
 	username := strings.Replace(opts.UserID[1:], ":", "_", -1) + "_" + opts.DeviceID
@@ -345,9 +345,9 @@ func (c *RustClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error)
 	//  > thread '<unnamed>' panicked at 'there is no reactor running, must be called from the context of a Tokio 1.x runtime'
 	// where the stack trace doesn't hit any test code, but does start at a `free_` function.
 	sb := c.FFIClient.SyncService()
-	xprocessName := c.opts.GetExtraOption(OptionEnableCrossProcessRefreshLockProcessName, "").(string)
+	xprocessName := c.opts.GetExtraOption(CrossProcessStoreLocksHolderName, "").(string)
 	if xprocessName != "" {
-		sb2 := sb.WithCrossProcessLock(&xprocessName)
+		sb2 := sb.WithCrossProcessLock()
 		sb.Destroy()
 		sb = sb2
 	}
