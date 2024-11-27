@@ -26,13 +26,13 @@ import (
 
 var (
 	ssMutex      *sync.Mutex = &sync.Mutex{}
-	ssDeployment *deploy.SlidingSyncDeployment
+	ssDeployment *deploy.ComplementCryptoDeployment
 	// aka functions which make clients, and we don't care about the language.
 	// Tests just loop through this array for each client impl.
 	clientFactories []func(t *testing.T, cfg api.ClientCreationOpts) api.TestClient
 )
 
-func Deploy(t *testing.T) *deploy.SlidingSyncDeployment {
+func Deploy(t *testing.T) *deploy.ComplementCryptoDeployment {
 	ssMutex.Lock()
 	defer ssMutex.Unlock()
 	if ssDeployment != nil {
@@ -217,14 +217,13 @@ func TestSendingEvents(t *testing.T) {
 }
 
 // run a subtest for each client factory
-func ForEachClient(t *testing.T, name string, deployment *deploy.SlidingSyncDeployment, fn func(t *testing.T, client api.TestClient, csapi *client.CSAPI)) {
+func ForEachClient(t *testing.T, name string, deployment *deploy.ComplementCryptoDeployment, fn func(t *testing.T, client api.TestClient, csapi *client.CSAPI)) {
 	for _, createClient := range clientFactories {
 		csapiAlice := deployment.Register(t, "hs1", helpers.RegistrationOpts{
 			LocalpartSuffix: "client",
 			Password:        "complement-crypto-password",
 		})
 		opts := api.NewClientCreationOpts(csapiAlice)
-		opts.SlidingSyncURL = deployment.SlidingSyncURLForHS(t, "hs1")
 		client := createClient(t, opts)
 		t.Run(name+" "+string(client.Type()), func(t *testing.T) {
 			fn(t, client, csapiAlice)

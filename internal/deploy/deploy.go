@@ -4,11 +4,9 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/fs"
 	"log"
 	"net/url"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
@@ -31,7 +29,7 @@ import (
 
 const mitmDumpFilePathOnContainer = "/tmp/mitm.dump"
 
-type SlidingSyncDeployment struct {
+type ComplementCryptoDeployment struct {
 	complement.Deployment
 	extraContainers      map[string]testcontainers.Container
 	mitmClient           *mitm.Client
@@ -43,39 +41,28 @@ type SlidingSyncDeployment struct {
 
 // MITM returns a client capable of configuring man-in-the-middle operations such as
 // snooping on CSAPI traffic and modifying responses.
-func (d *SlidingSyncDeployment) MITM() *mitm.Client {
+func (d *ComplementCryptoDeployment) MITM() *mitm.Client {
 	return d.mitmClient
 }
 
-func (d *SlidingSyncDeployment) UnauthenticatedClient(t ct.TestLike, serverName string) *client.CSAPI {
+func (d *ComplementCryptoDeployment) UnauthenticatedClient(t ct.TestLike, serverName string) *client.CSAPI {
 	return d.withReverseProxyURL(serverName, d.Deployment.UnauthenticatedClient(t, serverName))
 }
 
-func (d *SlidingSyncDeployment) Register(t ct.TestLike, hsName string, opts helpers.RegistrationOpts) *client.CSAPI {
+func (d *ComplementCryptoDeployment) Register(t ct.TestLike, hsName string, opts helpers.RegistrationOpts) *client.CSAPI {
 	return d.withReverseProxyURL(hsName, d.Deployment.Register(t, hsName, opts))
 }
 
-func (d *SlidingSyncDeployment) Login(t ct.TestLike, hsName string, existing *client.CSAPI, opts helpers.LoginOpts) *client.CSAPI {
+func (d *ComplementCryptoDeployment) Login(t ct.TestLike, hsName string, existing *client.CSAPI, opts helpers.LoginOpts) *client.CSAPI {
 	return d.withReverseProxyURL(hsName, d.Deployment.Login(t, hsName, existing, opts))
 }
 
-func (d *SlidingSyncDeployment) AppServiceUser(t ct.TestLike, hsName, appServiceUserID string) *client.CSAPI {
+func (d *ComplementCryptoDeployment) AppServiceUser(t ct.TestLike, hsName, appServiceUserID string) *client.CSAPI {
 	return d.withReverseProxyURL(hsName, d.Deployment.AppServiceUser(t, hsName, appServiceUserID))
 }
 
-func (d *SlidingSyncDeployment) SlidingSyncURLForHS(t ct.TestLike, hsName string) string {
-	switch hsName {
-	case "hs1":
-		return d.dnsToReverseProxyURL["ssproxy1"]
-	case "hs2":
-		return d.dnsToReverseProxyURL["ssproxy2"]
-	}
-	ct.Fatalf(t, "SlidingSyncURLForHS: unknown hs name '%s'", hsName)
-	return ""
-}
-
 // Replace the actual HS URL with a mitmproxy reverse proxy URL so we can sniff/intercept/modify traffic.
-func (d *SlidingSyncDeployment) withReverseProxyURL(hsName string, c *client.CSAPI) *client.CSAPI {
+func (d *ComplementCryptoDeployment) withReverseProxyURL(hsName string, c *client.CSAPI) *client.CSAPI {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 	proxyURL := d.dnsToReverseProxyURL[hsName]
@@ -83,7 +70,7 @@ func (d *SlidingSyncDeployment) withReverseProxyURL(hsName string, c *client.CSA
 	return c
 }
 
-func (d *SlidingSyncDeployment) writeMITMDump() {
+func (d *ComplementCryptoDeployment) writeMITMDump() {
 	if d.mitmDumpFile == "" {
 		return
 	}
@@ -104,7 +91,7 @@ func (d *SlidingSyncDeployment) writeMITMDump() {
 	}
 }
 
-func (d *SlidingSyncDeployment) Teardown() {
+func (d *ComplementCryptoDeployment) Teardown() {
 	d.writeMITMDump()
 	for name, c := range d.extraContainers {
 		filename := fmt.Sprintf("container-%s.log", name)
@@ -151,7 +138,7 @@ func (d *SlidingSyncDeployment) Teardown() {
 	}
 }
 
-func RunNewDeployment(t *testing.T, mitmAddonsDir, mitmDumpFile string) *SlidingSyncDeployment {
+func RunNewDeployment(t *testing.T, mitmAddonsDir, mitmDumpFile string) *ComplementCryptoDeployment {
 	// allow time for everything to deploy
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -160,65 +147,21 @@ func RunNewDeployment(t *testing.T, mitmAddonsDir, mitmDumpFile string) *Sliding
 	deployment := complement.Deploy(t, 2)
 	networkName := deployment.Network()
 
-	// rather than use POSTGRES_DB which only lets us make 1 db, inject some sql
-	// to allow us to make 2 DBs, one for each SS instance on each HS.
-	createdbFile := filepath.Join(os.TempDir(), "createdb.sql")
-	err := os.WriteFile(createdbFile, []byte(`
-	CREATE DATABASE syncv3_hs1;
-	CREATE DATABASE syncv3_hs2;
-	`), fs.ModePerm)
-	if err != nil {
-		ct.Fatalf(t, "failed to write createdb.sql: %s", err)
-	}
-
-	// Make a postgres container
-	postgresContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        "postgres:13-alpine",
-			ExposedPorts: []string{"5432/tcp"},
-			Env: map[string]string{
-				"POSTGRES_USER":     "postgres",
-				"POSTGRES_PASSWORD": "postgres",
-			},
-			Files: []testcontainers.ContainerFile{
-				{
-					HostFilePath:      createdbFile,
-					ContainerFilePath: "/docker-entrypoint-initdb.d/create-dbs.sql",
-					FileMode:          0o777,
-				},
-			},
-			WaitingFor: wait.ForExec([]string{"pg_isready"}).WithExitCodeMatcher(func(exitCode int) bool {
-				fmt.Println("pg_isready exit code", exitCode)
-				return exitCode == 0
-			}).WithPollInterval(time.Second),
-			Networks: []string{networkName},
-			NetworkAliases: map[string][]string{
-				networkName: {"postgres"},
-			},
-		},
-		Started: true,
-	})
-	must.NotError(t, "failed to start postgres container", err)
-
 	// Make the mitmproxy and hardcode CONTAINER PORTS for hs1/hs2. HOST PORTS are still dynamically allocated.
 	// By running this container on the same network as the homeservers, we can leverage DNS hence hs1/hs2 URLs.
 	// We also need to preload addons into the proxy, so we bind mount the addons directory. This also allows
 	// test authors to easily add custom addons.
 	hs1ExposedPort := "3000/tcp"
 	hs2ExposedPort := "3001/tcp"
-	ss1RevProxyExposedPort := "3002/tcp"
-	ss2RevProxyExposedPort := "3003/tcp"
 	controllerExposedPort := "8080/tcp" // default mitmproxy uses
 	mitmContainerReq := testcontainers.ContainerRequest{
 		Image:        "mitmproxy/mitmproxy:10.1.5",
-		ExposedPorts: []string{hs1ExposedPort, hs2ExposedPort, controllerExposedPort, ss1RevProxyExposedPort, ss2RevProxyExposedPort},
+		ExposedPorts: []string{hs1ExposedPort, hs2ExposedPort, controllerExposedPort},
 		Env:          map[string]string{},
 		Cmd: []string{
 			"mitmdump",
 			"--mode", "reverse:http://hs1:8008@3000",
 			"--mode", "reverse:http://hs2:8008@3001",
-			"--mode", "reverse:http://ssproxy1:6789@3002",
-			"--mode", "reverse:http://ssproxy2:6789@3003",
 			"--mode", "regular",
 			"-w", mitmDumpFilePathOnContainer,
 			"-s", "/addons/__init__.py",
@@ -253,89 +196,32 @@ func RunNewDeployment(t *testing.T, mitmAddonsDir, mitmDumpFile string) *Sliding
 
 	rpHS1URL := externalURL(t, mitmproxyContainer, hs1ExposedPort)
 	rpHS2URL := externalURL(t, mitmproxyContainer, hs2ExposedPort)
-	rpSS1URL := externalURL(t, mitmproxyContainer, ss1RevProxyExposedPort)
-	rpSS2URL := externalURL(t, mitmproxyContainer, ss2RevProxyExposedPort)
 	controllerURL := externalURL(t, mitmproxyContainer, controllerExposedPort)
 
-	// Make 2x sliding sync proxy
-	ssExposedPort := "6789/tcp"
-	ss1Container, err := testcontainers.GenericContainer(ctx,
-		testcontainers.GenericContainerRequest{
-			ContainerRequest: testcontainers.ContainerRequest{
-				Image:        "ghcr.io/matrix-org/sliding-sync:v0.99.17",
-				ExposedPorts: []string{ssExposedPort},
-				Env: map[string]string{
-					"SYNCV3_SECRET":    "secret",
-					"SYNCV3_BINDADDR":  ":6789",
-					"SYNCV3_SERVER":    "http://hs1:8008",
-					"SYNCV3_LOG_LEVEL": "trace",
-					"SYNCV3_DB":        "user=postgres dbname=syncv3_hs1 sslmode=disable password=postgres host=postgres",
-				},
-				WaitingFor: wait.ForLog("listening on"),
-				Networks:   []string{networkName},
-				NetworkAliases: map[string][]string{
-					networkName: {"ssproxy1"},
-				},
-			},
-			Started: true,
-		})
-	must.NotError(t, "failed to start sliding sync container", err)
-	ss2Container, err := testcontainers.GenericContainer(ctx,
-		testcontainers.GenericContainerRequest{
-			ContainerRequest: testcontainers.ContainerRequest{
-				Image:        "ghcr.io/matrix-org/sliding-sync:v0.99.17",
-				ExposedPorts: []string{ssExposedPort},
-				Env: map[string]string{
-					"SYNCV3_SECRET":    "secret",
-					"SYNCV3_BINDADDR":  ":6789",
-					"SYNCV3_SERVER":    "http://hs2:8008",
-					"SYNCV3_LOG_LEVEL": "trace",
-					"SYNCV3_DB":        "user=postgres dbname=syncv3_hs2 sslmode=disable password=postgres host=postgres",
-				},
-				WaitingFor: wait.ForLog("listening on"),
-				Networks:   []string{networkName},
-				NetworkAliases: map[string][]string{
-					networkName: {"ssproxy2"},
-				},
-			},
-			Started: true,
-		})
-	must.NotError(t, "failed to start sliding sync container", err)
-
-	ss1URL := externalURL(t, ss1Container, ssExposedPort)
-	ss2URL := externalURL(t, ss2Container, ssExposedPort)
 	csapi1 := deployment.UnauthenticatedClient(t, "hs1")
 	csapi2 := deployment.UnauthenticatedClient(t, "hs2")
 
 	// log for debugging purposes
-	t.Logf("SlidingSyncDeployment created (network=%s):", networkName)
+	t.Logf("ComplementCryptoDeployment created (network=%s):", networkName)
 	t.Logf("  NAME          INT          EXT")
-	t.Logf("  sliding sync: ssproxy1     %s (rp=%s)", ss1URL, rpSS1URL)
-	t.Logf("  sliding sync: ssproxy2     %s (rp=%s)", ss2URL, rpSS2URL)
 	t.Logf("  synapse:      hs1          %s (rp=%s)", csapi1.BaseURL, rpHS1URL)
 	t.Logf("  synapse:      hs2          %s (rp=%s)", csapi2.BaseURL, rpHS2URL)
-	t.Logf("  postgres:     postgres")
 	t.Logf("  mitmproxy:    mitmproxy    controller=%s", controllerURL)
 	// without this, GHA will fail when trying to hit the controller with "Post "http://mitm.code/options/lock": EOF"
 	// suspected IPv4 vs IPv6 problems in Docker as Flask is listening on v4/v6.
 	controllerURL = strings.Replace(controllerURL, "localhost", "127.0.0.1", 1)
 	proxyURL, err := url.Parse(controllerURL)
 	must.NotError(t, "failed to parse controller URL", err)
-	return &SlidingSyncDeployment{
+	return &ComplementCryptoDeployment{
 		Deployment: deployment,
 		extraContainers: map[string]testcontainers.Container{
-			"ssproxy1":  ss1Container,
-			"ssproxy2":  ss2Container,
-			"postgres":  postgresContainer,
 			"mitmproxy": mitmproxyContainer,
 		},
 		ControllerURL: controllerURL,
 		mitmClient:    mitm.NewClient(proxyURL, deployment.GetConfig().HostnameRunningComplement),
 		dnsToReverseProxyURL: map[string]string{
-			"hs1":      rpHS1URL,
-			"hs2":      rpHS2URL,
-			"ssproxy1": rpSS1URL,
-			"ssproxy2": rpSS2URL,
+			"hs1": rpHS1URL,
+			"hs2": rpHS2URL,
 		},
 		mitmDumpFile: mitmDumpFile,
 	}
