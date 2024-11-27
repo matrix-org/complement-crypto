@@ -67,6 +67,7 @@ type RustClient struct {
 	userID                string
 	persistentStoragePath string
 	opts                  api.ClientCreationOpts
+	closed                *atomic.Bool
 
 	// for push notification tests (single/multi-process)
 	notifClient *matrix_sdk_ffi.NotificationClient
@@ -103,6 +104,7 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, erro
 		roomsMu:               &sync.RWMutex{},
 		opts:                  opts,
 		persistentStoragePath: "./rust_storage/" + username,
+		closed:                &atomic.Bool{},
 	}
 	if opts.AccessToken != "" { // restore the session
 		session := matrix_sdk_ffi.Session{
@@ -295,6 +297,7 @@ func (c *RustClient) ForceClose(t ct.TestLike) {
 
 func (c *RustClient) Close(t ct.TestLike) {
 	t.Helper()
+	c.closed.Store(true)
 	c.roomsMu.Lock()
 	for _, rri := range c.rooms {
 		if rri.stream != nil {
@@ -668,7 +671,9 @@ func (c *RustClient) findRoom(t ct.TestLike, roomID string) *matrix_sdk_ffi.Room
 func (c *RustClient) Logf(t ct.TestLike, format string, args ...interface{}) {
 	t.Helper()
 	c.logToFile(t, format, args...)
-	t.Logf(format, args...)
+	if !c.closed.Load() {
+		t.Logf(format, args...)
+	}
 }
 
 func (c *RustClient) logToFile(t ct.TestLike, format string, args ...interface{}) {
