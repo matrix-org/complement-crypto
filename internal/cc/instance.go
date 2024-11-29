@@ -16,7 +16,7 @@ import (
 // The instance is the global variable holding onto all data that must be shared
 // between tests, such as the configuration options and the deployed containers.
 type Instance struct {
-	ssDeployment           *deploy.SlidingSyncDeployment
+	ssDeployment           *deploy.ComplementCryptoDeployment
 	ssMutex                *sync.Mutex
 	complementCryptoConfig *config.ComplementCrypto
 }
@@ -55,7 +55,7 @@ func (i *Instance) TestMain(m *testing.M, namespace string) {
 //
 // Tests will rarely use this function directly, preferring to use TestContext.
 // See Instance.CreateTestContext
-func (i *Instance) Deploy(t *testing.T) *deploy.SlidingSyncDeployment {
+func (i *Instance) Deploy(t *testing.T) *deploy.ComplementCryptoDeployment {
 	i.ssMutex.Lock()
 	defer i.ssMutex.Unlock()
 	if i.ssDeployment != nil {

@@ -38,7 +38,7 @@ type ClientCreationRequest struct {
 // TestContext provides a consistent set of variables which most tests will need access to.
 // The variables are suitable for a single test.
 type TestContext struct {
-	Deployment    *deploy.SlidingSyncDeployment
+	Deployment    *deploy.ComplementCryptoDeployment
 	RPCBinaryPath string
 	RPCInstance   atomic.Int32
 
@@ -305,8 +305,6 @@ func (c *TestContext) MustCreateClient(t *testing.T, req *ClientCreationRequest)
 	opts := api.NewClientCreationOpts(req.User.CSAPI)
 	// now apply the supplied opts on top
 	opts.Combine(&req.Opts)
-	// always set the SS URL based on the client type HS
-	opts.SlidingSyncURL = c.Deployment.SlidingSyncURLForHS(t, req.User.ClientType.HS)
 	if req.Multiprocess {
 		req.Opts = opts
 		return c.mustCreateMultiprocessClient(t, req)
