@@ -176,6 +176,7 @@ jobs:
           env:
             COMPLEMENT_BASE_IMAGE: homeserver
             COMPLEMENT_ENABLE_DIRTY_RUNS: 1
+            TESTCONTAINERS_RYUK_DISABLED: true # ryuk was implicated in terminating mitmproxy early, causing test failures.
             COMPLEMENT_CRYPTO_MITMDUMP: mitm.dump
             COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX: ${{ inputs.use_js_sdk != '' && 'jj' || 'rr' }} # TODO: brittle, we don't check rust-sdk input
             COMPLEMENT_SHARE_ENV_PREFIX: PASS_
