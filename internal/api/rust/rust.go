@@ -30,8 +30,9 @@ func DeleteOldLogs(prefix string) {
 func SetupLogs(prefix string) {
 	// log new files
 	matrix_sdk_ffi.SetupTracing(matrix_sdk_ffi.TracingConfiguration{
+		LogLevel:              matrix_sdk_ffi.LogLevelTrace,
+		ExtraTargets:          nil,
 		WriteToStdoutOrSystem: false,
-		Filter:                "debug,hyper=warn,log=warn,eyeball=warn,matrix_sdk_common=trace,matrix_sdk_base=trace", //,matrix_sdk_ffi=trace,matrix_sdk=trace,matrix_sdk_crypto=trace,matrix_sdk_base=trace,matrix_sdk_ui=trace",
 		WriteToFiles: &matrix_sdk_ffi.TracingFileConfiguration{
 			Path:       "./logs",
 			FilePrefix: prefix,
