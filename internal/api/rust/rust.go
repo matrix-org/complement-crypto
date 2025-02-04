@@ -275,8 +275,8 @@ func (c *RustClient) RequestOwnUserVerification(t ct.TestLike) chan api.Verifica
 
 	var delegate matrix_sdk_ffi.SessionVerificationControllerDelegate = delegateImpl
 	svc.SetDelegate(&delegate)
-	if err = svc.RequestVerification(); err != nil {
-		ct.Fatalf(t, "RequestVerification: %s", err)
+	if err = svc.RequestDeviceVerification(); err != nil {
+		ct.Fatalf(t, "RequestDeviceVerification: %s", err)
 	}
 	ch <- api.NewVerificationStageRequested(container)
 	return ch
@@ -981,7 +981,7 @@ func eventTimelineItemToEvent(item matrix_sdk_ffi.EventTimelineItem) *api.Event 
 	return &complementEvent
 }
 
-// you call requestVerification(), then you wait for acceptedVerificationRequest and then you
+// you call requestDeviceVerification(), then you wait for acceptedVerificationRequest and then you
 // call startSasVerification
 // you should then receivedVerificationData and approveVerification or declineVerification
 type SessionVerificationControllerDelegate struct {
