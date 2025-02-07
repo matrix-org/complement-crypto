@@ -662,7 +662,8 @@ func (c *JSClient) LoadBackup(t ct.TestLike, recoveryKey string) error {
 		console.log("will return recovery key for default key id " + keyId);
 		const keyBackupCheck = await window.__client.getCrypto().checkKeyBackupAndEnable();
 		console.log("key backup: ", JSON.stringify(keyBackupCheck));
-		await window.__client.restoreKeyBackupWithSecretStorage(keyBackupCheck ? keyBackupCheck.backupInfo : null, undefined, undefined);`,
+		await window.__client.getCrypto().loadSessionBackupPrivateKeyFromSecretStorage();
+		await window.__client.getCrypto().restoreKeyBackup();`,
 		recoveryKey))
 	return err
 }
