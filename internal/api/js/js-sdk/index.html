@@ -5,12 +5,10 @@
   <script type="module">
     import { Buffer } from "buffer";
     window.Buffer = Buffer;
-    import { decodeRecoveryKey } from "matrix-js-sdk/src/crypto/recoverykey";
+    import { VerificationPhase, VerifierEvent, decodeRecoveryKey, CryptoEvent } from "matrix-js-sdk/src/crypto-api";
     window.decodeRecoveryKey = decodeRecoveryKey;
-    import { VerificationPhase, VerifierEvent } from "matrix-js-sdk/src/crypto-api/verification";
     window.VerificationPhase = VerificationPhase;
     window.VerifierEvent = VerifierEvent;
-    import { CryptoEvent } from "matrix-js-sdk/src/crypto";
     window.CryptoEvent = CryptoEvent;
     import * as sdk from "matrix-js-sdk/src/index";
     window.matrix = sdk;
