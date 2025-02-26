@@ -567,7 +567,11 @@ func (c *RustClient) SendMessage(t ct.TestLike, roomID, text string) (eventID st
 		err = fmt.Errorf("SendMessage(rust) %s: failed to find room %s", c.userID, roomID)
 		return
 	}
-	timeline, err := r.Timeline()
+	timeline, err := r.TimelineWithConfiguration(matrix_sdk_ffi.TimelineConfiguration {
+        Focus: matrix_sdk_ffi.TimelineFocusLive,
+        AllowedMessageTypes: matrix_sdk_ffi.AllowedMessageTypesAll,
+        DateDividerMode: matrix_sdk_ffi.DateDividerModeDaily
+    })
 	if err != nil {
 		err = fmt.Errorf("SendMessage(rust) %s: %s", c.userID, err)
 		return
@@ -635,17 +639,13 @@ func (c *RustClient) findRoom(t ct.TestLike, roomID string) *matrix_sdk_ffi.Room
 					c.Logf(t, "allRooms.InitTimeline(%s) err: %s", roomID, err)
 				}
 			}
-			room, err := roomListItem.FullRoom()
-			if err != nil {
-				c.Logf(t, "allRooms.FullRoom(%s) err: %s", roomID, err)
-			} else {
-				c.roomsMu.Lock()
-				c.rooms[roomID] = &RustRoomInfo{
-					room: room,
-				}
-				c.roomsMu.Unlock()
-				return room
-			}
+			room := roomListItem.Room()
+            c.roomsMu.Lock()
+            c.rooms[roomID] = &RustRoomInfo{
+                room: room,
+            }
+            c.roomsMu.Unlock()
+            return room
 		}
 	}
 	// try to find it from FFI
@@ -907,7 +907,11 @@ func mustGetTimeline(t ct.TestLike, room *matrix_sdk_ffi.Room) *matrix_sdk_ffi.T
 	if room == nil {
 		ct.Fatalf(t, "mustGetTimeline: room does not exist")
 	}
-	timeline, err := room.Timeline()
+	timeline, err := r.TimelineWithConfiguration(matrix_sdk_ffi.TimelineConfiguration {
+        Focus: matrix_sdk_ffi.TimelineFocusLive,
+        AllowedMessageTypes: matrix_sdk_ffi.AllowedMessageTypesAll,
+        DateDividerMode: matrix_sdk_ffi.DateDividerModeDaily
+    })
 	must.NotError(t, "failed to get room timeline", err)
 	return timeline
 }
