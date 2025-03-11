@@ -11,6 +11,7 @@ import (
 
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/api/rust/matrix_sdk_ffi"
+	"github.com/matrix-org/complement-crypto/internal/api/rust/matrix_sdk_base"
 	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/complement/helpers"
 	"github.com/matrix-org/complement/must"
@@ -468,7 +469,12 @@ func (c *RustClient) IsRoomEncrypted(t ct.TestLike, roomID string) (bool, error)
 		rooms := c.FFIClient.Rooms()
 		return false, fmt.Errorf("failed to find room %s, got %d rooms", roomID, len(rooms))
 	}
-	return r.IsEncrypted()
+	encryptionState, err := r.LatestEncryptionState()
+	if err != nil {
+		err = fmt.Errorf("IsRoomEncrpted(rust): %s", err)
+		return false, err
+	}
+	return encryptionState == matrix_sdk_base.EncryptionStateEncrypted, nil
 }
 
 func (c *RustClient) BackupKeys(t ct.TestLike) (recoveryKey string, err error) {
