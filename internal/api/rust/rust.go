@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
-	"github.com/matrix-org/complement-crypto/internal/api/rust/matrix_sdk_ffi"
 	"github.com/matrix-org/complement-crypto/internal/api/rust/matrix_sdk_base"
+	"github.com/matrix-org/complement-crypto/internal/api/rust/matrix_sdk_ffi"
 	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/complement/helpers"
 	"github.com/matrix-org/complement/must"
@@ -717,8 +717,9 @@ func (c *RustClient) ensureListening(t ct.TestLike, roomID string) {
 	// _before_ we have set the initial entries in the timeline. This would cause a lost update
 	// as setting the initial entries clears the timeline, which can then result in test flakes.
 	waiter := helpers.NewWaiter()
+	c.rooms[roomID].timeline = make([]*api.Event, 0)
 	result := mustGetTimeline(t, r).AddListener(&timelineListener{fn: func(diff []*matrix_sdk_ffi.TimelineDiff) {
-		waiter.Waitf(t, 5*time.Second, "timed out waiting for Timeline.AddListener to return")
+		defer waiter.Finish()
 		timeline := c.rooms[roomID].timeline
 		var newEvents []*api.Event
 		c.Logf(t, "[%s]AddTimelineListener[%s] TimelineDiff len=%d", c.userID, roomID, len(diff))
@@ -821,9 +822,9 @@ func (c *RustClient) ensureListening(t ct.TestLike, roomID string) {
 		}
 	}})
 	c.rooms[roomID].stream = result
-	c.rooms[roomID].timeline = make([]*api.Event, 0)
 	c.Logf(t, "[%s]AddTimelineListener[%s] set up", c.userID, roomID)
-	waiter.Finish()
+	waiter.Waitf(t, 5*time.Second, "timed out waiting for Timeline.AddListener to return")
+
 }
 
 type timelineWaiter struct {
