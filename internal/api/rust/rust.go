@@ -697,7 +697,12 @@ func (c *RustClient) ensureListening(t ct.TestLike, roomID string) {
 				return false
 			}
 			if room := c.findRoom(t, roomID); room != nil {
-				c.ensureListening(t, roomID) // this should work now
+				// Do this asynchronously because adding a timeline listener is done synchronously
+				// which will cause "signal arrived during cgo execution" if it happens within
+				// this rooms listener callback.
+				go func() {
+					c.ensureListening(t, roomID) // this should work now
+				}()
 				return true
 			}
 			return false
