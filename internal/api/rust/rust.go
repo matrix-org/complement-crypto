@@ -978,16 +978,21 @@ func eventTimelineItemToEvent(item matrix_sdk_ffi.EventTimelineItem) *api.Event 
 		default:
 			fmt.Printf("%s unhandled membership %d\n", k.UserId, change)
 		}
-	case matrix_sdk_ffi.TimelineItemContentUnableToDecrypt:
-		complementEvent.FailedToDecrypt = true
+	case matrix_sdk_ffi.TimelineItemContentMsgLike:
+		switch k.Content.Kind.(type) {
+		case matrix_sdk_ffi.MsgLikeKindUnableToDecrypt:
+			complementEvent.FailedToDecrypt = true
+		}
 	}
 
 	content := item.Content
 	if content != nil {
-		switch msg := content.(type) {
-		case matrix_sdk_ffi.TimelineItemContentMessage:
-
-			complementEvent.Text = msg.Content.Body
+		switch msglike := content.(type) {
+		case matrix_sdk_ffi.TimelineItemContentMsgLike:
+			switch msg := msglike.Content.Kind.(type) {
+			case matrix_sdk_ffi.MsgLikeKindMessage:
+				complementEvent.Text = msg.Content.Body
+			}
 		}
 	}
 	return &complementEvent
