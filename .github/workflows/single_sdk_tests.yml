@@ -169,6 +169,8 @@ jobs:
             export LIBRARY_PATH="$(pwd)$RUST_SDK_LIB_RELATIVE"
             export LD_LIBRARY_PATH="$(pwd)$RUST_SDK_LIB_RELATIVE"
             export COMPLEMENT_CRYPTO_RPC_BINARY="$(pwd)/complement-crypto/rpc"
+            docker ps
+            docker container ls
             cd complement-crypto &&
             set -o pipefail &&
             go test -v -p 1 -count=1 -json -tags=$GO_TAGS -timeout 20m ./tests ./tests/$LANG_SPECIFIC_TESTS | gotestfmt
