@@ -11,20 +11,6 @@ jobs:
     if: "github.event_name == 'pull_request'"
     uses: "matrix-org/backend-meta/.github/workflows/sign-off.yml@v2"
 
-  js-latest-main:
-    name: Tests (JS only, latest)
-    uses: ./.github/workflows/single_sdk_tests.yml
-    with:
-      use_js_sdk: 'MATCHING_BRANCH'
-      use_complement_crypto: '.'
-
-  rust-latest-main:
-    name: Tests (Rust only, latest)
-    uses: ./.github/workflows/single_sdk_tests.yml
-    with:
-      use_rust_sdk: 'MATCHING_BRANCH'
-      use_complement_crypto: '.'
-
   complement:
     name: Tests
     runs-on: ubuntu-22.04
@@ -146,7 +132,7 @@ jobs:
           export LD_LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
           export COMPLEMENT_CRYPTO_RPC_BINARY="$(pwd)/rpc"
           set -o pipefail &&
-          go test -p 3 -v -json -tags='jssdk,rust' -count=1 -timeout 15m ./tests ./tests/js ./tests/rust | gotestfmt
+          go test -p 1 -v -json -tags='jssdk,rust' -count=1 -timeout 15m ./tests ./tests/js ./tests/rust | gotestfmt
         shell: bash # required for pipefail to be A Thing. pipefail is required to stop gotestfmt swallowing non-zero exit codes
         name: Run Complement Crypto Tests
         env:
