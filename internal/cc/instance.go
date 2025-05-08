@@ -37,7 +37,7 @@ func (i *Instance) TestMain(m *testing.M, namespace string) {
 	}
 
 	// Defer to complement to run the test suite
-	complement.TestMainWithCleanup(m, namespace, func() { // always teardown even if panicking
+	complement.TestMain(m, namespace, complement.WithCleanup(func() { // always teardown even if panicking
 		i.ssMutex.Lock()
 		if i.ssDeployment != nil {
 			i.ssDeployment.Teardown()
@@ -47,7 +47,7 @@ func (i *Instance) TestMain(m *testing.M, namespace string) {
 		for _, binding := range i.complementCryptoConfig.Bindings() {
 			binding.PostTestRun("")
 		}
-	})
+	}))
 }
 
 // Deploy all backend servers if they do not already exist. Calling this multiple

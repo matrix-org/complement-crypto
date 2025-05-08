@@ -74,15 +74,15 @@ func TestMain(m *testing.M) {
 		})
 	}
 	rust.SetupLogs("rust_sdk_logs")
-	js.SetupJSLogs("./logs/js_sdk.log")                       // rust sdk logs on its own
-	complement.TestMainWithCleanup(m, "clienttests", func() { // always teardown even if panicking
+	js.SetupJSLogs("./logs/js_sdk.log")                                   // rust sdk logs on its own
+	complement.TestMain(m, "clienttests", complement.WithCleanup(func() { // always teardown even if panicking
 		ssMutex.Lock()
 		if ssDeployment != nil {
 			ssDeployment.Teardown()
 		}
 		ssMutex.Unlock()
 		js.WriteJSLogs()
-	})
+	}))
 }
 
 // Test that the client can receive live messages as well as return events that have already been received.
