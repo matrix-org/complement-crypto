@@ -636,21 +636,16 @@ func (c *RustClient) findRoom(t ct.TestLike, roomID string) *matrix_sdk_ffi.Room
 		if err != nil {
 			c.Logf(t, "allRooms.Room(%s) err: %s", roomID, err)
 		} else if roomListItem != nil {
-			if !roomListItem.IsTimelineInitialized() {
-				if err = roomListItem.InitTimeline(nil, nil); err != nil {
-					c.Logf(t, "allRooms.InitTimeline(%s) err: %s", roomID, err)
-				}
-			}
-			room, err := roomListItem.FullRoom()
+			room, err := c.FFIClient.GetRoom(roomID)
 			if err != nil {
 				c.Logf(t, "allRooms.FullRoom(%s) err: %s", roomID, err)
 			} else {
 				c.roomsMu.Lock()
 				c.rooms[roomID] = &RustRoomInfo{
-					room: room,
+					room: *room,
 				}
 				c.roomsMu.Unlock()
-				return room
+				return *room
 			}
 		}
 	}
