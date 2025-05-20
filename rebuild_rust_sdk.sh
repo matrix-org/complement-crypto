@@ -56,5 +56,5 @@ uniffi-bindgen-go -o $COMPLEMENT_DIR/internal/api/rust --config $COMPLEMENT_DIR/
 cd $COMPLEMENT_DIR
 sed -i.bak 's^// #include <matrix_sdk_ffi.h>^// #include <matrix_sdk_ffi.h>\n// #cgo LDFLAGS: -lmatrix_sdk_ffi^' internal/api/rust/matrix_sdk_ffi/matrix_sdk_ffi.go
 
-echo "OK! Ensure LIBRARY_PATH is set to $RUST_SDK_DIR/target/debug so the .a/.dylib file is picked up when 'go test' is run."
-echo "e.g COMPLEMENT_BASE_IMAGE=homeserver:latest LIBRARY_PATH=\$LIBRARY_PATH:$RUST_SDK_DIR/target/debug go test ./tests"
+echo "OK! Ensure LIBRARY_PATH and LD_LIBRARY_PATH are set to $RUST_SDK_DIR/target/debug so the .so/.dylib file is picked up when 'go test' is run."
+echo "e.g COMPLEMENT_BASE_IMAGE=homeserver:latest LIBRARY_PATH=\$LIBRARY_PATH:$RUST_SDK_DIR/target/debug LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$RUST_SDK_DIR/target/debug go test ./tests"

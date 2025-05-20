@@ -10,6 +10,11 @@ It currently tests [rust SDK FFI bindings](https://github.com/matrix-org/matrix-
 *Please ensure you have met Complement's [Dependencies](https://github.com/matrix-org/complement?tab=readme-ov-file#dependencies) first.
 In practice, this means you must have `go` and `docker` installed.*
 
+As of this writing, Complement Crypto's bindings to the Rust SDK are
+incompatible with `go` 1.24 due to
+https://github.com/NordSecurity/uniffi-bindgen-go/issues/66. Use `go` 1.23 for
+now.
+
 Complement Crypto can be compiled and run in different modes depending on which SDK is being tested. For example, if you only want
 to test JS SDK then you do not need to compile rust code or run rust tests, and vice versa. Conversely, if you want to test
 interoperability between the two SDKs then you need to compile both SDKs.
@@ -64,6 +69,7 @@ To run only rust tests:
 COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX=rr \
 COMPLEMENT_BASE_IMAGE=ghcr.io/matrix-org/synapse-service:v1.114.0 \
 LIBRARY_PATH=$LIBRARY_PATH:/path/to/matrix-rust-sdk/target/debug \
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/matrix-rust-sdk/target/debug \
 go test -v -count=1 -tags=rust -timeout 15m ./tests
 ```
 
