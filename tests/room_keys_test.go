@@ -14,6 +14,8 @@ import (
 	"github.com/matrix-org/complement/client"
 	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/complement/must"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 )
 
 func sniffToDeviceEvent(t *testing.T, tc *cc.TestContext, inner func(pc *callback.PassiveChannel)) {
@@ -512,4 +514,142 @@ func testRoomKeyIsNotCycledOnClientRestartJS(t *testing.T, clientType api.Client
 			}
 		})
 	})
+}
+
+// An attacker working in cahoots with a homeserver admin cannot spoof the `sender` of an event to make it look like
+// someone else's.
+func TestSpoofedEventSenderHandling(t *testing.T) {
+	runTest := func(t *testing.T, clientType api.ClientType, spoofAsMXID bool, expectUTD bool) {
+		tc := Instance().CreateTestContext(t, clientType, clientType, clientType)
+		// Alice, Bob and Charlie are in a room.
+		tc.WithAliceBobAndCharlieSyncing(t, func(alice, bob, charlie api.TestClient) {
+			roomID := tc.CreateNewEncryptedRoom(
+				t,
+				tc.Alice,
+				cc.EncRoomOptions.PresetTrustedPrivateChat(),
+				cc.EncRoomOptions.Invite([]string{tc.Bob.UserID, tc.Charlie.UserID}),
+			)
+			tc.Bob.MustJoinRoom(t, roomID, []spec.ServerName{})
+			tc.Charlie.MustJoinRoom(t, roomID, []spec.ServerName{})
+			alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(tc.Charlie.UserID, "join")).Waitf(t, 5*time.Second, "alice did not see charlie's join")
+
+			// Alice sends a message to the room; Bob and Charlie should both receive it.
+			wantMsgBody := "Test Message"
+			waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+			waiter2 := charlie.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+			alice.MustSendMessage(t, roomID, wantMsgBody)
+			waiter.Waitf(t, 5*time.Second, "bob did not see alice's message")
+			waiter2.Waitf(t, 5*time.Second, "charlie did not see alice's message")
+
+			// Intercept Bob's /sync requests, and rewrite any events from Alice to have a sender of Charlie.
+			var spoofedUserId string
+			if spoofAsMXID {
+				spoofedUserId = tc.Charlie.UserID
+			} else {
+				spoofedUserId = "charlie"
+			}
+			withSpoofSender(t, tc, tc.Alice.UserID, bob.CurrentAccessToken(t), spoofedUserId, func() {
+				// Alice sends another message. Wait for Charlie to see it so we know it has got through.
+				wantMsgBody = "Another Test Message"
+				waiter = charlie.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
+				spoofedEventID := alice.MustSendMessage(t, roomID, wantMsgBody)
+				waiter.Waitf(t, 5*time.Second, "Charlie did not see Alice's message")
+
+				// Decryption happens asynchronously, so give a chance for it to happen.
+				time.Sleep(1 * time.Second)
+
+				if expectUTD {
+					ev := bob.MustGetEvent(t, roomID, spoofedEventID)
+					must.Equal(t, ev.FailedToDecrypt, true, fmt.Sprintf("Bob was able to decrypt the spoofed event: %v", ev))
+				} else {
+					// Bob should see a red shield.
+					shield, err := bob.GetEventShield(t, roomID, spoofedEventID)
+					must.NotError(t, "Could not get shield for Bob's view of spoofed message", err)
+					if shield == nil {
+						t.Errorf("Bob did not get a shield for the spoofed message")
+					} else {
+						must.Equal(t, shield.Colour, api.EventShieldColourRed, "Colour of shield")
+						must.Equal(t, shield.Code, api.EventShieldCodeUnknownDevice, "Shield code")
+					}
+				}
+			})
+		})
+	}
+
+	Instance().ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
+		t.Run("SpoofedMXIDSenderGivesRedShield", func(t *testing.T) {
+			runTest(t, clientType, true, false)
+		})
+
+		if clientType.Lang != api.ClientTypeRust {
+			// The Rust SDK refuses to deserialize /sync responses that have non-MXID senders, so we don't bother
+			// with this test.
+			t.Run("SpoofedPlaintextSenderGivesUTD", func(t *testing.T) {
+				runTest(t, clientType, false, true)
+			})
+		}
+	})
+}
+
+// withSpoofSender sets up a MITM intercept which rewrites responses to `/sync` requests from the device with
+// access token `targetUserAccessToken`, so that all events sent by `attackerUserID` appear to have been sent by
+// `spoofedUserID`.
+//
+// The `inner` function is called with the intercept in place, and the configuration is reverted when `inner` completes.
+func withSpoofSender(t *testing.T, tc *cc.TestContext, attackerUserID string, targetUserAccessToken string, spoofedUserID string, inner func()) {
+	// Take the given event timeline from a `/sync` response, and rewrite any matching events in the list.
+	//
+	// Returns the modified JSON.
+	patchTimeline := func(eventArray gjson.Result) string {
+		eventArrayRaw := eventArray.Raw
+		eventArray.ForEach(func(idx, event gjson.Result) bool {
+			if event.Get("type").String() == "m.room.encrypted" && event.Get("sender").String() == attackerUserID {
+				t.Logf("Rewriting event %s from %s to have sender of %s", event.Get("event_id").String(), event.Get("sender").String(), spoofedUserID)
+				var err error
+				if eventArrayRaw, err = sjson.Set(eventArrayRaw, fmt.Sprintf("%d.sender", idx.Int()), spoofedUserID); err != nil {
+					t.Fatalf("Couldn't patch event array: %s", err)
+				}
+			}
+			return true
+		})
+		return eventArrayRaw
+	}
+
+	tc.Deployment.MITM().Configure(t).WithIntercept(mitm.InterceptOpts{
+		Filter: mitm.FilterParams{
+			PathContains: "/sync",
+			AccessToken:  targetUserAccessToken,
+		},
+		ResponseCallback: func(cd callback.Data) *callback.Response {
+			var roomListJSONPath, timelineJSONPath string
+
+			if strings.Contains(cd.URL, "/_matrix/client/v3/sync") {
+				roomListJSONPath = "rooms.join"
+				timelineJSONPath = "timeline.events"
+			} else if strings.Contains(cd.URL, "org.matrix.simplified_msc3575/sync") {
+				roomListJSONPath = "rooms"
+				timelineJSONPath = "timeline"
+			} else {
+				t.Fatalf("Unknown sync endpoint: %s", cd.URL)
+			}
+
+			rawBody := string(cd.ResponseBody)
+			// t.Logf("%s => %s", cd.URL, rawBody)
+			joinedRooms := gjson.Parse(rawBody).Get(roomListJSONPath)
+			joinedRooms.ForEach(func(roomID, room gjson.Result) bool {
+				patchedTimeline := patchTimeline(room.Get(timelineJSONPath))
+
+				jsonPath := fmt.Sprintf("%s.%s.%s", roomListJSONPath, gjson.Escape(roomID.String()), timelineJSONPath)
+				var err error
+				if rawBody, err = sjson.SetRaw(rawBody, jsonPath, patchedTimeline); err != nil {
+					t.Fatalf("Couldn't patch response json: %s", err)
+				}
+				return true
+			})
+
+			return &callback.Response{
+				RespondBody: json.RawMessage(rawBody),
+			}
+		},
+	}, inner)
 }
