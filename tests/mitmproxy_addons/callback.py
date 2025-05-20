@@ -3,6 +3,7 @@ import asyncio
 import aiohttp
 import json
 
+import mitmproxy
 from mitmproxy import ctx, flowfilter
 from mitmproxy.http import Response
 from controller import MITM_DOMAIN_NAME
@@ -98,7 +99,7 @@ class Callback:
             }
             await self.send_callback(flow, self.config["callback_response_url"], callback_body)
 
-    async def send_callback(self, flow, url: str, body: dict):
+    async def send_callback(self, flow: mitmproxy.http.HTTPFlow, url: str, body: dict):
         try:
             # use asyncio so we don't block other unrelated requests from being processed
             async with aiohttp.request(
@@ -122,12 +123,17 @@ class Callback:
                     respond_status_code = test_response_body.get("respond_status_code", body.get("response_code"))
                     respond_body = test_response_body.get("respond_body", body.get("response_body"))
                     print(f'{datetime.now().strftime("%H:%M:%S.%f")} callback for {flow.request.url} returning custom response: HTTP {respond_status_code} {json.dumps(respond_body)}')
+
                     flow.response = Response.make(
                         respond_status_code, json.dumps(respond_body),
                         headers={
                             "MITM-Proxy": "yes", # so we don't reprocess this
                             "Content-Type": "application/json",
-                        })
+
+                            # Copy the CORS headers from the original response
+                            **{k: v for k, v in flow.response.headers.items() if k.startswith("Access-Control")}
+                        },
+                    )
         except Exception as error:
             print(f"ERR: callback for {flow.request.url} returned {error}")
             print(f"ERR: callback, provided request body was {body}")
