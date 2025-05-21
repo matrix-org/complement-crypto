@@ -238,7 +238,7 @@ Check out matrix-rust-sdk, edit your files and then run:
 ./rebuild_rust_sdk.sh /path/to/your/matrix-rust-sdk
 ```
 
-Make sure you launch the tests with `LIBRARY_PATH` pointing to
+Make sure you launch the tests with `LIBRARY_PATH` and `LD_LIBRARY_PATH` pointing to
 `$matrix-rust-sdk/target/debug` so that the built code gets used.
 
 Make sure you add `-count=1` on the command line when you re-run the tests,
