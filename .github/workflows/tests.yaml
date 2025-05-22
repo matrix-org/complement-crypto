@@ -71,6 +71,8 @@ jobs:
           ./install_uniffi_bindgen_go.sh && ./rebuild_rust_sdk.sh ./rust-sdk
 
       # Temporary: as it takes 3m to build the complement synapse image >:(
+      # If you're bumping the image version here, don't forget to bump it in ./single_sdk_tests.yml
+      # and the README as well!
       - name: Pull synapse service v1.115.0 and mitmproxy
         shell: bash
         run: |
