@@ -72,11 +72,15 @@ type Browser struct {
 
 func RunHeadless(onConsoleLog func(s string), requiresPersistance bool, listenPort int) (*Browser, error) {
 	ansiRedForeground := "\x1b[31m"
+	ansiYellowForeground := "\x1b[33m"
 	ansiResetForeground := "\x1b[39m"
 
-	colorifyError := func(format string, args ...any) {
-		format = ansiRedForeground + time.Now().Format(time.RFC3339) + " " + format + ansiResetForeground
-		fmt.Printf(format, args...)
+	// colorifyError returns a log format function which prints its input with a given prefix and colour.
+	colorifyError := func(colour string, prefix string) func(format string, args ...any) {
+		return func(format string, args ...any) {
+			format = ansiRedForeground + time.Now().Format(time.RFC3339) + " [chromedp: " + prefix + "] " + format + ansiResetForeground + "\n"
+			fmt.Printf(format, args...)
+		}
 	}
 	opts := chromedp.DefaultExecAllocatorOptions[:]
 	if requiresPersistance {
@@ -92,7 +96,9 @@ func RunHeadless(onConsoleLog func(s string), requiresPersistance bool, listenPo
 
 	allocCtx, allocCancel := chromedp.NewExecAllocator(context.Background(), opts...)
 	ctx, cancel := chromedp.NewContext(allocCtx, chromedp.WithBrowserOption(
-		chromedp.WithBrowserLogf(colorifyError), chromedp.WithBrowserErrorf(colorifyError), //chromedp.WithBrowserDebugf(log.Printf),
+		chromedp.WithBrowserLogf(colorifyError(ansiYellowForeground, "LOG")),
+		chromedp.WithBrowserErrorf(colorifyError(ansiRedForeground, "ERROR")),
+		// chromedp.WithBrowserDebugf(log.Printf),
 	))
 
 	// Listen for console logs for debugging AND to communicate live updates
