@@ -294,6 +294,17 @@ func (c *RPCClient) GetEvent(t ct.TestLike, roomID, eventID string) (*api.Event,
 	return &ev, err
 }
 
+// GetEventShield will return the "shield state" for this event, or `nil` if the event should have no shield, or an error if the event cannot be found.
+func (c *RPCClient) GetEventShield(t ct.TestLike, roomID, eventID string) (*api.EventShield, error) {
+	var shield *api.EventShield
+	err := c.client.Call("Server.GetEventShield", RPCGetEvent{
+		TestName: t.Name(),
+		RoomID:   roomID,
+		EventID:  eventID,
+	}, &shield)
+	return shield, err
+}
+
 // BackupKeys will backup E2EE keys, else return an error.
 func (c *RPCClient) BackupKeys(t ct.TestLike) (recoveryKey string, err error) {
 	err = c.client.Call("Server.BackupKeys", 0, &recoveryKey)
