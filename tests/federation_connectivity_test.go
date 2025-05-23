@@ -74,7 +74,7 @@ func TestNewUserCannotGetKeysForOfflineServer(t *testing.T) {
 				t.Logf("sleeping until client timeout is ready...")
 				time.Sleep(10 * time.Second)
 				// we may need to kick hs1 into letting it know that hs2 is back, we do this by sending a typing notif
-				// in the room, whic will send an EDU over federation which should inform hs1 that hs2 is back online.
+				// in the room, which will send an EDU over federation which should inform hs1 that hs2 is back online.
 				tc.Bob.MustSendTyping(t, roomID, true, 1000)
 				// wait the remaining client timeout time
 				time.Sleep(23 * time.Second)
