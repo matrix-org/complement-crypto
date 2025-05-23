@@ -70,7 +70,7 @@ type Browser struct {
 	Cancel  func()
 }
 
-func RunHeadless(onConsoleLog func(s string), requiresPersistance bool, listenPort int) (*Browser, error) {
+func RunHeadless(onConsoleLog func(s string), requiresPersistence bool, listenPort int) (*Browser, error) {
 	ansiRedForeground := "\x1b[31m"
 	ansiYellowForeground := "\x1b[33m"
 	ansiResetForeground := "\x1b[39m"
@@ -83,7 +83,7 @@ func RunHeadless(onConsoleLog func(s string), requiresPersistance bool, listenPo
 		}
 	}
 	opts := chromedp.DefaultExecAllocatorOptions[:]
-	if requiresPersistance {
+	if requiresPersistence {
 		os.Mkdir("chromedp", os.ModePerm) // ignore errors to allow repeated runs
 		wd, _ := os.Getwd()
 		userDir := filepath.Join(wd, "chromedp")

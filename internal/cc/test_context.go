@@ -83,7 +83,7 @@ func (c *TestContext) WithClientSyncing(t *testing.T, req *ClientCreationRequest
 //
 // All clients are logged in FIRST before syncing any one of them. As Login() is supposed to block until all keys
 // are uploaded, this guarantees that device keys / OTKs / etc exist prior to syncing. This means it is not
-// neccessary to synchronise device list changes between these clients.
+// necessary to synchronise device list changes between these clients.
 //
 // The callback function is invoked after this, and cleanup functions are called on your behalf when the
 // callback function ends.
