@@ -95,6 +95,8 @@ jobs:
             ln -s . complement-crypto
 
         # Setup code we always need
+        # If you're bumping the image version here, don't forget to bump it in ./tests.yaml and the
+        # README as well!
         - name: Pull synapse service v1.115.0 and mitmproxy
           shell: bash
           run: |

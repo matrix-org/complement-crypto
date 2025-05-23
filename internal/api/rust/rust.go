@@ -203,7 +203,7 @@ func (c *RustClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {
 	if err != nil {
 		return fmt.Errorf("Client.Login failed: %s", err)
 	}
-	// let the client upload device keys and OTKs
+	// let the client upload device keys and one-time keys
 	e := c.FFIClient.Encryption()
 	e.WaitForE2eeInitializationTasks()
 	e.Destroy()
@@ -378,10 +378,10 @@ func (c *RustClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error)
 	// track new rooms when they are made
 	allRoomsListener := newGenericStateListener[[]matrix_sdk_ffi.RoomListEntriesUpdate]()
 	go func() {
-		var allRooms DynamicSlice[*matrix_sdk_ffi.RoomListItem]
+		var allRooms DynamicSlice[*matrix_sdk_ffi.Room]
 		for !allRoomsListener.isClosed.Load() {
 			updates := <-allRoomsListener.ch
-			var newEntries []*matrix_sdk_ffi.RoomListItem
+			var newEntries []*matrix_sdk_ffi.Room
 			for _, update := range updates {
 				switch x := update.(type) {
 				case matrix_sdk_ffi.RoomListEntriesUpdateAppend:
@@ -471,7 +471,7 @@ func (c *RustClient) IsRoomEncrypted(t ct.TestLike, roomID string) (bool, error)
 	}
 	encryptionState, err := r.LatestEncryptionState()
 	if err != nil {
-		err = fmt.Errorf("IsRoomEncrpted(rust): %s", err)
+		err = fmt.Errorf("IsRoomEncrypted(rust): %s", err)
 		return false, err
 	}
 	return encryptionState == matrix_sdk_base.EncryptionStateEncrypted, nil
@@ -632,21 +632,16 @@ func (c *RustClient) findRoom(t ct.TestLike, roomID string) *matrix_sdk_ffi.Room
 	}
 	// try to find it in all_rooms
 	if c.allRooms != nil {
-		roomListItem, err := c.allRooms.Room(roomID)
+		room, err := c.allRooms.Room(roomID)
 		if err != nil {
 			c.Logf(t, "allRooms.Room(%s) err: %s", roomID, err)
-		} else if roomListItem != nil {
-			room, err := c.FFIClient.GetRoom(roomID)
-			if err != nil {
-				c.Logf(t, "allRooms.FullRoom(%s) err: %s", roomID, err)
-			} else {
-				c.roomsMu.Lock()
-				c.rooms[roomID] = &RustRoomInfo{
-					room: *room,
-				}
-				c.roomsMu.Unlock()
-				return *room
+		} else if room != nil {
+			c.roomsMu.Lock()
+			c.rooms[roomID] = &RustRoomInfo{
+				room: room,
 			}
+			c.roomsMu.Unlock()
+			return room
 		}
 	}
 	// try to find it from FFI
