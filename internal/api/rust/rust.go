@@ -471,7 +471,7 @@ func (c *RustClient) IsRoomEncrypted(t ct.TestLike, roomID string) (bool, error)
 	}
 	encryptionState, err := r.LatestEncryptionState()
 	if err != nil {
-		err = fmt.Errorf("IsRoomEncrpted(rust): %s", err)
+		err = fmt.Errorf("IsRoomEncrypted(rust): %s", err)
 		return false, err
 	}
 	return encryptionState == matrix_sdk_base.EncryptionStateEncrypted, nil

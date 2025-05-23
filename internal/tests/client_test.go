@@ -184,7 +184,7 @@ func TestCanWaitUntilEventInRoomBeforeRoomIsKnown(t *testing.T) {
 		completed := helpers.NewWaiter()
 		waiter := client.WaitUntilEventInRoom(t, roomID, api.CheckEventHasEventID(eventID))
 		go func() {
-			waiter.Waitf(t, 5*time.Second, "client did not seee event %s", eventID)
+			waiter.Waitf(t, 5*time.Second, "client did not see event %s", eventID)
 			completed.Finish()
 		}()
 		t.Logf("waiting for event %s", eventID)
