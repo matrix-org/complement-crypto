@@ -124,15 +124,17 @@ class Callback:
                     respond_body = test_response_body.get("respond_body", body.get("response_body"))
                     print(f'{datetime.now().strftime("%H:%M:%S.%f")} callback for {flow.request.url} returning custom response: HTTP {respond_status_code} {json.dumps(respond_body)}')
 
-                    flow.response = Response.make(
-                        respond_status_code, json.dumps(respond_body),
-                        headers={
-                            "MITM-Proxy": "yes", # so we don't reprocess this
-                            "Content-Type": "application/json",
+                    response_headers = {
+                       "MITM-Proxy": "yes", # so we don't reprocess this
+                       "Content-Type": "application/json",
+                    }
 
-                            # Copy the CORS headers from the original response
-                            **{k: v for k, v in flow.response.headers.items() if k.startswith("Access-Control")}
-                        },
+                    # If we're handling a response callback, copy the CORS headers from the original response
+                    if flow.response is not None:
+                        response_headers.update({k: v for k, v in flow.response.headers.items() if k.startswith("Access-Control")})
+
+                    flow.response = Response.make(
+                        respond_status_code, json.dumps(respond_body), headers=response_headers,
                     )
         except Exception as error:
             print(f"ERR: callback for {flow.request.url} returned {error}")
