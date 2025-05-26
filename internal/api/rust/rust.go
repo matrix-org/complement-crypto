@@ -52,9 +52,10 @@ const (
 const ProcessNameNSE string = "NSE"
 
 type RustRoomInfo struct {
-	stream   *matrix_sdk_ffi.TaskHandle
-	room     *matrix_sdk_ffi.Room
-	timeline []*api.Event
+	stream      *matrix_sdk_ffi.TaskHandle
+	room        *matrix_sdk_ffi.Room
+	timeline    []*api.Event
+	ui_timeline *matrix_sdk_ffi.Timeline
 }
 
 type RustClient struct {
@@ -326,8 +327,8 @@ func (c *RustClient) Close(t ct.TestLike) {
 
 func (c *RustClient) GetEvent(t ct.TestLike, roomID, eventID string) (*api.Event, error) {
 	t.Helper()
-	room := c.findRoom(t, roomID)
-	timelineItem, err := mustGetTimeline(t, room).GetEventTimelineItemByEventId(eventID)
+	_, ui_timeline := c.findRoom(t, roomID)
+	timelineItem, err := ui_timeline.GetEventTimelineItemByEventId(eventID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to GetEventTimelineItemByEventId(%s): %s", eventID, err)
 	}
@@ -464,7 +465,7 @@ func (c *RustClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error)
 // provide a bogus room ID.
 func (c *RustClient) IsRoomEncrypted(t ct.TestLike, roomID string) (bool, error) {
 	t.Helper()
-	r := c.findRoom(t, roomID)
+	r, _ := c.findRoom(t, roomID)
 	if r == nil {
 		rooms := c.FFIClient.Rooms()
 		return false, fmt.Errorf("failed to find room %s, got %d rooms", roomID, len(rooms))
@@ -541,7 +542,7 @@ func (c *RustClient) SendMessage(t ct.TestLike, roomID, text string) (eventID st
 	// we need a timeline listener before we can send messages, AND that listener must be attached to the
 	// same *Room you call .Send on :S
 	c.ensureListening(t, roomID)
-	r := c.findRoom(t, roomID)
+	r, timeline := c.findRoom(t, roomID)
 	cancel := c.roomsListener.AddListener(func(broadcastRoomID string) bool {
 		if roomID != broadcastRoomID {
 			return false
@@ -573,9 +574,8 @@ func (c *RustClient) SendMessage(t ct.TestLike, roomID, text string) (eventID st
 		err = fmt.Errorf("SendMessage(rust) %s: failed to find room %s", c.userID, roomID)
 		return
 	}
-	timeline, err := r.Timeline()
-	if err != nil {
-		err = fmt.Errorf("SendMessage(rust) %s: %s", c.userID, err)
+	if timeline == nil {
+		err = fmt.Errorf("SendMessage(rust) %s: failed to get timeline %s", c.userID, roomID)
 		return
 	}
 	timeline.Send(matrix_sdk_ffi.MessageEventContentFromHtml(text, text))
@@ -590,17 +590,17 @@ func (c *RustClient) SendMessage(t ct.TestLike, roomID, text string) (eventID st
 
 func (c *RustClient) InviteUser(t ct.TestLike, roomID, userID string) error {
 	t.Helper()
-	r := c.findRoom(t, roomID)
+	r, _ := c.findRoom(t, roomID)
 	return r.InviteUserById(userID)
 }
 
 func (c *RustClient) Backpaginate(t ct.TestLike, roomID string, count int) error {
 	t.Helper()
-	r := c.findRoom(t, roomID)
-	if r == nil {
-		return fmt.Errorf("Backpaginate: cannot find room %s", roomID)
+	_, timeline := c.findRoom(t, roomID)
+	if timeline == nil {
+		return fmt.Errorf("Backpaginate: cannot find timeline for room %s", roomID)
 	}
-	_, err := mustGetTimeline(t, r).PaginateBackwards(uint16(count))
+	_, err := timeline.PaginateBackwards(uint16(count))
 	if err != nil {
 		return fmt.Errorf("cannot PaginateBackwards in %s: %s", roomID, err)
 	}
@@ -611,24 +611,24 @@ func (c *RustClient) UserID() string {
 	return c.userID
 }
 
-func (c *RustClient) findRoomInCache(roomID string) *matrix_sdk_ffi.Room {
+func (c *RustClient) findRoomInCache(roomID string) (*matrix_sdk_ffi.Room, *matrix_sdk_ffi.Timeline) {
 	c.roomsMu.RLock()
 	defer c.roomsMu.RUnlock()
 	// do we have a reference to it already?
 	roomInfo := c.rooms[roomID]
 	if roomInfo != nil {
-		return roomInfo.room
+		return roomInfo.room, roomInfo.ui_timeline
 	}
-	return nil
+	return nil, nil
 }
 
 // findRoom tries to find the room in the FFI client. Has a cache of already found rooms to ensure
 // the same pointer is always returned for the same room.
-func (c *RustClient) findRoom(t ct.TestLike, roomID string) *matrix_sdk_ffi.Room {
+func (c *RustClient) findRoom(t ct.TestLike, roomID string) (*matrix_sdk_ffi.Room, *matrix_sdk_ffi.Timeline) {
 	t.Helper()
-	room := c.findRoomInCache(roomID)
+	room, ui_timeline := c.findRoomInCache(roomID)
 	if room != nil {
-		return room
+		return room, ui_timeline
 	}
 	// try to find it in all_rooms
 	if c.allRooms != nil {
@@ -637,11 +637,13 @@ func (c *RustClient) findRoom(t ct.TestLike, roomID string) *matrix_sdk_ffi.Room
 			c.Logf(t, "allRooms.Room(%s) err: %s", roomID, err)
 		} else if room != nil {
 			c.roomsMu.Lock()
+			ui_timeline := mustGetTimeline(t, room)
 			c.rooms[roomID] = &RustRoomInfo{
-				room: room,
+				room:        room,
+				ui_timeline: ui_timeline,
 			}
 			c.roomsMu.Unlock()
-			return room
+			return room, ui_timeline
 		}
 	}
 	// try to find it from FFI
@@ -652,17 +654,20 @@ func (c *RustClient) findRoom(t ct.TestLike, roomID string) *matrix_sdk_ffi.Room
 		_, exists := c.rooms[rid]
 		if !exists {
 			c.roomsMu.Lock()
+			room := rooms[i]
+			ui_timeline := mustGetTimeline(t, room)
 			c.rooms[rid] = &RustRoomInfo{
-				room: rooms[i],
+				room:        room,
+				ui_timeline: ui_timeline,
 			}
 			c.roomsMu.Unlock()
 		}
 		if r.Id() == roomID {
-			return c.rooms[rid].room
+			return c.rooms[rid].room, c.rooms[rid].ui_timeline
 		}
 	}
 	// we really don't know about this room yet
-	return nil
+	return nil, nil
 }
 
 func (c *RustClient) Logf(t ct.TestLike, format string, args ...interface{}) {
@@ -679,14 +684,14 @@ func (c *RustClient) logToFile(t ct.TestLike, format string, args ...interface{}
 
 func (c *RustClient) ensureListening(t ct.TestLike, roomID string) {
 	t.Helper()
-	r := c.findRoom(t, roomID)
+	r, ui_timeline := c.findRoom(t, roomID)
 	if r == nil {
 		// we allow the room to not exist yet. If this happens, wait until we see the room before continuing
 		c.roomsListener.AddListener(func(broadcastRoomID string) bool {
 			if broadcastRoomID != roomID {
 				return false
 			}
-			if room := c.findRoom(t, roomID); room != nil {
+			if room, _ := c.findRoom(t, roomID); room != nil {
 				// Do this asynchronously because adding a timeline listener is done synchronously
 				// which will cause "signal arrived during cgo execution" if it happens within
 				// this rooms listener callback.
@@ -699,7 +704,9 @@ func (c *RustClient) ensureListening(t ct.TestLike, roomID string) {
 		})
 		return
 	}
+
 	must.NotEqual(t, r, nil, fmt.Sprintf("room %s does not exist", roomID))
+	must.NotEqual(t, ui_timeline, nil, fmt.Sprintf("ui_timeline for room %s does not exist", roomID))
 
 	info := c.rooms[roomID]
 	if info != nil && info.stream != nil {
@@ -713,7 +720,8 @@ func (c *RustClient) ensureListening(t ct.TestLike, roomID string) {
 	// as setting the initial entries clears the timeline, which can then result in test flakes.
 	waiter := helpers.NewWaiter()
 	c.rooms[roomID].timeline = make([]*api.Event, 0)
-	result := mustGetTimeline(t, r).AddListener(&timelineListener{fn: func(diff []*matrix_sdk_ffi.TimelineDiff) {
+
+	result := ui_timeline.AddListener(&timelineListener{fn: func(diff []*matrix_sdk_ffi.TimelineDiff) {
 		defer waiter.Finish()
 		timeline := c.rooms[roomID].timeline
 		var newEvents []*api.Event
