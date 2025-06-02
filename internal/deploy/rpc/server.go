@@ -43,7 +43,7 @@ func NewServer() *Server {
 
 type ClientCreationOpts struct {
 	api.ClientCreationOpts
-	Lang      api.ClientTypeLang // need to know the type for pulling out the corret bindings
+	Lang      api.ClientTypeLang // need to know the type for pulling out the correct bindings
 	ContextID string
 }
 

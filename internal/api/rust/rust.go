@@ -343,8 +343,8 @@ func (c *RustClient) GetEvent(t ct.TestLike, roomID, eventID string) (*api.Event
 
 func (c *RustClient) GetEventShield(t ct.TestLike, roomID, eventID string) (*api.EventShield, error) {
 	t.Helper()
-	room := c.findRoom(t, roomID)
-	timelineItem, err := mustGetTimeline(t, room).GetEventTimelineItemByEventId(eventID)
+	_, uiTimeline := c.findRoom(t, roomID)
+	timelineItem, err := uiTimeline.GetEventTimelineItemByEventId(eventID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to GetEventTimelineItemByEventId(%s): %s", eventID, err)
 	}
