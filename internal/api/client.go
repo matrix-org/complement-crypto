@@ -55,6 +55,8 @@ type Client interface {
 	Backpaginate(t ct.TestLike, roomID string, count int) error
 	// GetEvent will return the client's view of this event, or returns an error if the event cannot be found.
 	GetEvent(t ct.TestLike, roomID, eventID string) (*Event, error)
+	// GetEventShield will return the "shield state" for this event, or `nil` if the event should have no shield, or an error if the event cannot be found.
+	GetEventShield(t ct.TestLike, roomID, eventID string) (*EventShield, error)
 	// BackupKeys will backup E2EE keys, else return an error.
 	BackupKeys(t ct.TestLike) (recoveryKey string, err error)
 	// LoadBackup will recover E2EE keys from the latest backup, else return an error.
@@ -364,6 +366,11 @@ type Event struct {
 	// FFI bindings don't expose type
 	Membership      string
 	FailedToDecrypt bool
+}
+
+type EventShield struct {
+	Colour string // "Red" or "Grey"
+	Code   string // "VerificationViolation" or similar
 }
 
 type Waiter interface {

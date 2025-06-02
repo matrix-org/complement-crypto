@@ -269,6 +269,17 @@ func (s *Server) GetEvent(input RPCGetEvent, output *api.Event) error {
 	return nil
 }
 
+// GetEventShield will return the "shield state" for this event, or `nil` if the event should have no shield, or an error if the event cannot be found.
+func (s *Server) GetEventShield(input RPCGetEvent, output **api.EventShield) error {
+	defer s.keepAlive()
+	shield, err := s.activeClient.GetEventShield(&api.MockT{TestName: input.TestName}, input.RoomID, input.EventID)
+	if err != nil {
+		return err
+	}
+	*output = shield
+	return nil
+}
+
 // BackupKeys will backup E2EE keys, else fail the test.
 func (s *Server) BackupKeys(testName string, recoveryKey *string) error {
 	defer s.keepAlive()

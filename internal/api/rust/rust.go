@@ -2,6 +2,8 @@ package rust
 
 import (
 	"fmt"
+	"github.com/matrix-org/complement-crypto/internal/api/rust/matrix_sdk_common"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -337,6 +339,60 @@ func (c *RustClient) GetEvent(t ct.TestLike, roomID, eventID string) (*api.Event
 		return nil, fmt.Errorf("found timeline item %s but failed to convert it to an Event", eventID)
 	}
 	return ev, nil
+}
+
+func (c *RustClient) GetEventShield(t ct.TestLike, roomID, eventID string) (*api.EventShield, error) {
+	t.Helper()
+	room := c.findRoom(t, roomID)
+	timelineItem, err := mustGetTimeline(t, room).GetEventTimelineItemByEventId(eventID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to GetEventTimelineItemByEventId(%s): %s", eventID, err)
+	}
+	shieldState := timelineItem.LazyProvider.GetShields(false)
+
+	codeToString := func(code matrix_sdk_common.ShieldStateCode) string {
+		var result string
+		switch code {
+		case matrix_sdk_common.ShieldStateCodeAuthenticityNotGuaranteed:
+			result = "AuthenticityNotGuaranteed"
+		case matrix_sdk_common.ShieldStateCodeUnknownDevice:
+			result = "UnknownDevice"
+		case matrix_sdk_common.ShieldStateCodeUnsignedDevice:
+			result = "UnsignedDevice"
+		case matrix_sdk_common.ShieldStateCodeUnverifiedIdentity:
+			result = "UnverifiedIdentity"
+		case matrix_sdk_common.ShieldStateCodeSentInClear:
+			result = "SentInClear"
+		case matrix_sdk_common.ShieldStateCodeVerificationViolation:
+			result = "VerificationViolation"
+		default:
+			log.Panicf("Unknown shield code %d", code)
+		}
+		return result
+	}
+
+	var eventShield *api.EventShield
+
+	if shieldState != nil {
+		shield := *shieldState
+		switch shield.(type) {
+		case matrix_sdk_ffi.ShieldStateNone:
+			// no-op
+
+		case matrix_sdk_ffi.ShieldStateGrey:
+			eventShield = &api.EventShield{
+				Colour: "grey",
+				Code:   codeToString(shield.(matrix_sdk_ffi.ShieldStateGrey).Code),
+			}
+
+		case matrix_sdk_ffi.ShieldStateRed:
+			eventShield = &api.EventShield{
+				Colour: "red",
+				Code:   codeToString(shield.(matrix_sdk_ffi.ShieldStateRed).Code),
+			}
+		}
+	}
+	return eventShield, nil
 }
 
 // StartSyncing to begin syncing from sync v2 / sliding sync.

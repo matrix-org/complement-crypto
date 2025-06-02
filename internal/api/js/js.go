@@ -551,6 +551,102 @@ func (c *JSClient) GetEvent(t ct.TestLike, roomID, eventID string) (*api.Event, 
 	return ev, nil
 }
 
+func (c *JSClient) GetEventShield(t ct.TestLike, roomID, eventID string) (*api.EventShield, error) {
+	t.Helper()
+	// Serialized output:
+	//
+	// {
+	//    shieldColour: 0 | 1 | 2,  // NONE | GREY | RED
+	//    shieldReason: 0 ... 7
+	// }
+	encryptionInfoSerialised, err := chrome.RunAsyncFn[string](t, c.browser.Ctx, fmt.Sprintf(`
+		const ev = window.__client.getRoom("%s")?.getLiveTimeline()?.getEvents().filter((ev, i) => {
+			return ev.getId() === "%s";
+		})[0];
+		const encryptionInfo = await window.__client.getCrypto().getEncryptionInfoForEvent(ev);
+		return JSON.stringify(encryptionInfo);
+	`, roomID, eventID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get shield for event %s: %s", eventID, err)
+	}
+
+	var encryptionInfo struct {
+		ShieldColour uint `json:"shieldColour"`
+		ShieldReason uint `json:"shieldReason"`
+	}
+
+	if err := json.Unmarshal([]byte(*encryptionInfoSerialised), &encryptionInfo); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal encryption info: %s", err)
+	}
+
+	if encryptionInfo.ShieldColour == 0 {
+		// No shield
+		return nil, nil
+	}
+
+	var eventShield api.EventShield
+	switch encryptionInfo.ShieldColour {
+	case 1:
+		eventShield.Colour = "grey"
+	case 2:
+		eventShield.Colour = "red"
+	default:
+		return nil, fmt.Errorf("unknown shield colour: %d", encryptionInfo.ShieldColour)
+	}
+
+	switch encryptionInfo.ShieldReason {
+	case 0:
+		/** An unknown reason from the crypto library (if you see this, it is a bug in matrix-js-sdk). */
+		eventShield.Code = "Unknown"
+
+	case 1:
+		/** "Encrypted by an unverified user." */
+		eventShield.Code = "UnverifiedIdentity"
+
+	case 2:
+		/** "Encrypted by a device not verified by its owner." */
+		eventShield.Code = "UnsignedDevice"
+
+	case 3:
+		/** "Encrypted by an unknown or deleted device." */
+		eventShield.Code = "UnknownDevice"
+
+	case 4:
+		/**
+		 * "The authenticity of this encrypted message can't be guaranteed on this device."
+		 *
+		 * i.e.: the key has been forwarded, or retrieved from an insecure backup.
+		 */
+		eventShield.Code = "AuthenticityNotGuaranteed"
+
+	case 5:
+		/**
+		 * The (deprecated) sender_key field in the event does not match the Ed25519 key of the device that sent us the
+		 * decryption keys.
+		 *
+		 * No longer used with rust crypto stack, since it doesn't check the sender_key field.
+		 */
+		eventShield.Code = "MismatchedSenderKey"
+
+	case 6:
+		/**
+		 * The event was sent unencrypted in an encrypted room.
+		 */
+		eventShield.Code = "SentInClear"
+
+	case 7:
+		/**
+		 * The sender was previously verified but changed their identity.
+		 */
+		eventShield.Code = "VerificationViolation"
+
+	default:
+		return nil, fmt.Errorf("unknown shield reason code: %d", encryptionInfo.ShieldReason)
+	}
+
+	return &eventShield, nil
+}
+
 // StartSyncing to begin syncing from sync v2 / sliding sync.
 // Tests should call stopSyncing() at the end of the test.
 func (c *JSClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error) {
