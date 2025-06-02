@@ -587,58 +587,37 @@ func (c *JSClient) GetEventShield(t ct.TestLike, roomID, eventID string) (*api.E
 	var eventShield api.EventShield
 	switch encryptionInfo.ShieldColour {
 	case 1:
-		eventShield.Colour = "grey"
+		eventShield.Colour = api.EventShieldColourGrey
 	case 2:
-		eventShield.Colour = "red"
+		eventShield.Colour = api.EventShieldColourRed
 	default:
 		return nil, fmt.Errorf("unknown shield colour: %d", encryptionInfo.ShieldColour)
 	}
 
 	switch encryptionInfo.ShieldReason {
 	case 0:
-		/** An unknown reason from the crypto library (if you see this, it is a bug in matrix-js-sdk). */
-		eventShield.Code = "Unknown"
+		eventShield.Code = api.EventShieldCodeUnknown
 
 	case 1:
-		/** "Encrypted by an unverified user." */
-		eventShield.Code = "UnverifiedIdentity"
+		eventShield.Code = api.EventShieldCodeUnverifiedIdentity
 
 	case 2:
-		/** "Encrypted by a device not verified by its owner." */
-		eventShield.Code = "UnsignedDevice"
+		eventShield.Code = api.EventShieldCodeUnsignedDevice
 
 	case 3:
-		/** "Encrypted by an unknown or deleted device." */
-		eventShield.Code = "UnknownDevice"
+		eventShield.Code = api.EventShieldCodeUnknownDevice
 
 	case 4:
-		/**
-		 * "The authenticity of this encrypted message can't be guaranteed on this device."
-		 *
-		 * i.e.: the key has been forwarded, or retrieved from an insecure backup.
-		 */
-		eventShield.Code = "AuthenticityNotGuaranteed"
+		eventShield.Code = api.EventShieldCodeAuthenticityNotGuaranteed
 
 	case 5:
-		/**
-		 * The (deprecated) sender_key field in the event does not match the Ed25519 key of the device that sent us the
-		 * decryption keys.
-		 *
-		 * No longer used with rust crypto stack, since it doesn't check the sender_key field.
-		 */
-		eventShield.Code = "MismatchedSenderKey"
+		eventShield.Code = api.EventShieldCodeMismatchedSenderKey
 
 	case 6:
-		/**
-		 * The event was sent unencrypted in an encrypted room.
-		 */
-		eventShield.Code = "SentInClear"
+		eventShield.Code = api.EventShieldCodeSentInClear
 
 	case 7:
-		/**
-		 * The sender was previously verified but changed their identity.
-		 */
-		eventShield.Code = "VerificationViolation"
+		eventShield.Code = api.EventShieldCodeVerificationViolation
 
 	default:
 		return nil, fmt.Errorf("unknown shield reason code: %d", encryptionInfo.ShieldReason)

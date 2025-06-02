@@ -350,21 +350,21 @@ func (c *RustClient) GetEventShield(t ct.TestLike, roomID, eventID string) (*api
 	}
 	shieldState := timelineItem.LazyProvider.GetShields(false)
 
-	codeToString := func(code matrix_sdk_common.ShieldStateCode) string {
-		var result string
+	codeToString := func(code matrix_sdk_common.ShieldStateCode) api.EventShieldCode {
+		var result api.EventShieldCode
 		switch code {
 		case matrix_sdk_common.ShieldStateCodeAuthenticityNotGuaranteed:
-			result = "AuthenticityNotGuaranteed"
+			result = api.EventShieldCodeAuthenticityNotGuaranteed
 		case matrix_sdk_common.ShieldStateCodeUnknownDevice:
-			result = "UnknownDevice"
+			result = api.EventShieldCodeUnknownDevice
 		case matrix_sdk_common.ShieldStateCodeUnsignedDevice:
-			result = "UnsignedDevice"
+			result = api.EventShieldCodeUnsignedDevice
 		case matrix_sdk_common.ShieldStateCodeUnverifiedIdentity:
-			result = "UnverifiedIdentity"
+			result = api.EventShieldCodeUnverifiedIdentity
 		case matrix_sdk_common.ShieldStateCodeSentInClear:
-			result = "SentInClear"
+			result = api.EventShieldCodeSentInClear
 		case matrix_sdk_common.ShieldStateCodeVerificationViolation:
-			result = "VerificationViolation"
+			result = api.EventShieldCodeVerificationViolation
 		default:
 			log.Panicf("Unknown shield code %d", code)
 		}
@@ -381,13 +381,13 @@ func (c *RustClient) GetEventShield(t ct.TestLike, roomID, eventID string) (*api
 
 		case matrix_sdk_ffi.ShieldStateGrey:
 			eventShield = &api.EventShield{
-				Colour: "grey",
+				Colour: api.EventShieldColourGrey,
 				Code:   codeToString(shield.(matrix_sdk_ffi.ShieldStateGrey).Code),
 			}
 
 		case matrix_sdk_ffi.ShieldStateRed:
 			eventShield = &api.EventShield{
-				Colour: "red",
+				Colour: api.EventShieldColourRed,
 				Code:   codeToString(shield.(matrix_sdk_ffi.ShieldStateRed).Code),
 			}
 		}
