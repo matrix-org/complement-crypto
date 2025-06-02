@@ -369,9 +369,48 @@ type Event struct {
 }
 
 type EventShield struct {
-	Colour string // "Red" or "Grey"
-	Code   string // "VerificationViolation" or similar
+	Colour EventShieldColour
+	Code   EventShieldCode
 }
+
+type EventShieldColour string
+
+var (
+	EventShieldColourRed  EventShieldColour = "Red"
+	EventShieldColourGrey EventShieldColour = "Grey"
+)
+
+type EventShieldCode string
+
+var (
+	// "An unknown reason from the crypto library (if you see this, it is a bug in matrix-js-sdk)."
+	EventShieldCodeUnknown EventShieldCode = "Unknown"
+
+	// "Encrypted by an unverified user."
+	EventShieldCodeUnverifiedIdentity EventShieldCode = "UnverifiedIdentity"
+
+	// "Encrypted by a device not verified by its owner."
+	EventShieldCodeUnsignedDevice EventShieldCode = "UnsignedDevice"
+
+	// "Encrypted by an unknown or deleted device."
+	EventShieldCodeUnknownDevice EventShieldCode = "UnknownDevice"
+
+	// "The authenticity of this encrypted message can't be guaranteed on this device."
+	//
+	// i.e.: the key has been forwarded, or retrieved from an insecure backup.
+	EventShieldCodeAuthenticityNotGuaranteed EventShieldCode = "AuthenticityNotGuaranteed"
+
+	// "The (deprecated) sender_key field in the event does not match the Ed25519 key of the device that sent us the decryption keys.
+	//
+	// No longer used with rust crypto stack, since it doesn't check the sender_key field.
+	EventShieldCodeMismatchedSenderKey EventShieldCode = "MismatchedSenderKey"
+
+	// "The event was sent unencrypted in an encrypted room."
+	EventShieldCodeSentInClear EventShieldCode = "SentInClear"
+
+	// "The sender was previously verified but changed their identity."
+	EventShieldCodeVerificationViolation EventShieldCode = "VerificationViolation"
+)
 
 type Waiter interface {
 	// Wait for something to happen, up until the timeout s. If nothing happens,
