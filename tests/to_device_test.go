@@ -2,6 +2,7 @@ package tests
 
 import (
 	"fmt"
+	"github.com/matrix-org/gomatrixserverlib/spec"
 	"net/http"
 	"sync/atomic"
 	"testing"
@@ -21,7 +22,7 @@ func TestClientRetriesSendToDevice(t *testing.T) {
 	Instance().ClientTypeMatrix(t, func(t *testing.T, clientTypeA, clientTypeB api.ClientType) {
 		tc := Instance().CreateTestContext(t, clientTypeA, clientTypeB)
 		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.PresetPublicChat())
-		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+		tc.Bob.MustJoinRoom(t, roomID, []spec.ServerName{clientTypeA.HS})
 		tc.WithAliceAndBobSyncing(t, func(alice, bob api.TestClient) {
 			// lets device keys be exchanged
 			time.Sleep(time.Second)
@@ -76,7 +77,7 @@ func TestUnprocessedToDeviceMessagesArentLostOnRestart(t *testing.T) {
 		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice,
 			cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}), cc.EncRoomOptions.RotationPeriodMsgs(1),
 		)
-		tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
+		tc.Bob.MustJoinRoom(t, roomID, []spec.ServerName{clientType.HS})
 		// the initial setup for rust/js is the same.
 		// login bob first so we have OTKs
 		bob := tc.MustLoginClient(t, &cc.ClientCreationRequest{
@@ -274,7 +275,7 @@ func TestToDeviceMessagesAreBatched(t *testing.T) {
 		// create 100 users
 		for i := 0; i < 100; i++ {
 			user := tc.RegisterNewUser(t, clientType, "bob")
-			user.MustJoinRoom(t, roomID, []string{clientType.HS})
+			user.MustJoinRoom(t, roomID, []spec.ServerName{clientType.HS})
 			// this blocks until it has uploaded OTKs/device keys
 			clientUnderTest := tc.MustLoginClient(t, &cc.ClientCreationRequest{
 				User: user,
@@ -344,7 +345,7 @@ func TestToDeviceMessagesArentLostWhenKeysQueryFails(t *testing.T) {
 		tc := Instance().CreateTestContext(t, clientType, clientType)
 		// get a normal E2EE room set up
 		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}))
-		tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
+		tc.Bob.MustJoinRoom(t, roomID, []spec.ServerName{clientType.HS})
 		tc.WithAliceAndBobSyncing(t, func(alice, bob api.TestClient) {
 			msg := "hello world"
 			msg2 := "new device message from alice"
@@ -466,7 +467,7 @@ func TestToDeviceMessagesAreProcessedInOrder(t *testing.T) {
 					creationReqs[i] = &cc.ClientCreationRequest{
 						User: tc.RegisterNewUser(t, clientType, "ilikebots"),
 					}
-					creationReqs[i].User.MustJoinRoom(t, roomID, []string{clientType.HS})
+					creationReqs[i].User.MustJoinRoom(t, roomID, []spec.ServerName{clientType.HS})
 				}
 				// send 30 messages as each user (interleaved)
 				tc.WithClientsSyncing(t, creationReqs, func(clients []api.TestClient) {

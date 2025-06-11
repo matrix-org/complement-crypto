@@ -9,6 +9,8 @@ import (
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/config"
 	"github.com/matrix-org/complement-crypto/internal/deploy"
+
+	complementconfig "github.com/matrix-org/complement/config"
 )
 
 // Instance represents a test instance.
@@ -37,7 +39,7 @@ func (i *Instance) TestMain(m *testing.M, namespace string) {
 	}
 
 	// Defer to complement to run the test suite
-	complement.TestMain(m, namespace, complement.WithCleanup(func() { // always teardown even if panicking
+	complement.TestMain(m, namespace, complement.WithCleanup(func(conf *complementconfig.Complement) { // always teardown even if panicking
 		i.ssMutex.Lock()
 		if i.ssDeployment != nil {
 			i.ssDeployment.Teardown()

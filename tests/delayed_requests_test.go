@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"github.com/matrix-org/gomatrixserverlib/spec"
 	"strings"
 	"testing"
 	"time"
@@ -70,7 +71,7 @@ func TestDelayedInviteResponse(t *testing.T) {
 				eventID := alice.MustSendMessage(t, roomID, "hello world!")
 
 				// bob joins, ensure he can decrypt the message.
-				tc.Bob.JoinRoom(t, roomID, []string{clientType.HS})
+				tc.Bob.JoinRoom(t, roomID, []spec.ServerName{clientType.HS})
 				bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(tc.Bob.UserID, "join")).Waitf(t, 7*time.Second, "did not see own join")
 				bob.MustBackpaginate(t, roomID, 3)
 
