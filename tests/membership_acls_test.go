@@ -2,6 +2,7 @@ package tests
 
 import (
 	"fmt"
+	"github.com/matrix-org/gomatrixserverlib/spec"
 	"testing"
 	"time"
 
@@ -30,7 +31,7 @@ func TestAliceBobEncryptionWorks(t *testing.T) {
 			cc.EncRoomOptions.PresetTrustedPrivateChat(),
 			cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}),
 		)
-		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+		tc.Bob.MustJoinRoom(t, roomID, []spec.ServerName{clientTypeA.HS})
 
 		// SDK testing below
 		// -----------------
@@ -87,7 +88,7 @@ func TestCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T) {
 			alice.MustSendMessage(t, roomID, wantMsgBody)
 
 			// Bob joins the room (via Complement, but it shouldn't matter)
-			tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+			tc.Bob.MustJoinRoom(t, roomID, []spec.ServerName{clientTypeA.HS})
 
 			isEncrypted, err = bob.IsRoomEncrypted(t, roomID)
 			must.NotError(t, "failed to check if room is encrypted", err)
@@ -131,7 +132,7 @@ func TestBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 			waiter.Waitf(t, 5*time.Second, "alice did not see own message")
 
 			// now bob joins the room
-			tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+			tc.Bob.MustJoinRoom(t, roomID, []spec.ServerName{clientTypeA.HS})
 			time.Sleep(time.Second) // wait for it to appear on the client else rust crashes if it cannot find the room FIXME
 			waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(bob.UserID(), "join"))
 			waiter.Waitf(t, 5*time.Second, "bob did not see own join")
@@ -159,7 +160,7 @@ func TestOnRejoinBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 		tc := Instance().CreateTestContext(t, clientTypeA, clientTypeB)
 		// shared history visibility
 		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.PresetPublicChat())
-		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+		tc.Bob.MustJoinRoom(t, roomID, []spec.ServerName{clientTypeA.HS})
 
 		// SDK testing below
 		// -----------------
@@ -184,7 +185,7 @@ func TestOnRejoinBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 			waiter.Waitf(t, 5*time.Second, "alice did not see own message")
 
 			// now bob rejoins the room, wait until he sees it.
-			tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+			tc.Bob.MustJoinRoom(t, roomID, []spec.ServerName{clientTypeA.HS})
 			waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(bob.UserID(), "join"))
 			waiter.Waitf(t, 5*time.Second, "bob did not see own join")
 			// this is required for some reason else tests fail
@@ -217,7 +218,7 @@ func TestOnNewDeviceBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 		tc := Instance().CreateTestContext(t, clientTypeA, clientTypeB)
 		// shared history visibility
 		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.PresetPublicChat())
-		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+		tc.Bob.MustJoinRoom(t, roomID, []spec.ServerName{clientTypeA.HS})
 
 		// SDK testing below
 		// -----------------
@@ -295,7 +296,7 @@ func TestChangingDeviceAfterInviteReEncrypts(t *testing.T) {
 				User: csapiBob2,
 			}, func(bob2 api.TestClient) {
 				time.Sleep(time.Second) // let device keys propagate
-				tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+				tc.Bob.MustJoinRoom(t, roomID, []spec.ServerName{clientTypeA.HS})
 
 				time.Sleep(time.Second) // let the client load the events
 				bob2.MustBackpaginate(t, roomID, 5)

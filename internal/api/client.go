@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"github.com/matrix-org/gomatrixserverlib/spec"
 	"time"
 
 	"github.com/matrix-org/complement/client"
@@ -9,8 +10,8 @@ import (
 )
 
 type ClientType struct {
-	Lang ClientTypeLang // rust or js
-	HS   string         // hs1 or hs2
+	Lang ClientTypeLang  // rust or js
+	HS   spec.ServerName // hs1 or hs2
 }
 
 // Client represents a generic crypto client.
