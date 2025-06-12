@@ -5,6 +5,7 @@ package tests
 
 import (
 	"fmt"
+	complementconfig "github.com/matrix-org/complement/config"
 	"log"
 	"os"
 	"path/filepath"
@@ -74,8 +75,8 @@ func TestMain(m *testing.M) {
 		})
 	}
 	rust.SetupLogs("rust_sdk_logs")
-	js.SetupJSLogs("./logs/js_sdk.log")                                   // rust sdk logs on its own
-	complement.TestMain(m, "clienttests", complement.WithCleanup(func() { // always teardown even if panicking
+	js.SetupJSLogs("./logs/js_sdk.log") // rust sdk logs on its own
+	complement.TestMain(m, "clienttests", complement.WithCleanup(func(conf *complementconfig.Complement) { // always teardown even if panicking
 		ssMutex.Lock()
 		if ssDeployment != nil {
 			ssDeployment.Teardown()

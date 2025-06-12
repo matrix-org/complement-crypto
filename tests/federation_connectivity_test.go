@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"github.com/matrix-org/gomatrixserverlib/spec"
 	"testing"
 	"time"
 
@@ -30,7 +31,7 @@ func TestNewUserCannotGetKeysForOfflineServer(t *testing.T) {
 		})
 		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}))
 		t.Logf("%s joining room %s", tc.Bob.UserID, roomID)
-		tc.Bob.MustJoinRoom(t, roomID, []string{"hs1"})
+		tc.Bob.MustJoinRoom(t, roomID, []spec.ServerName{"hs1"})
 
 		tc.WithAliceAndBobSyncing(t, func(alice, bob api.TestClient) {
 			// let clients sync device keys
@@ -51,7 +52,7 @@ func TestNewUserCannotGetKeysForOfflineServer(t *testing.T) {
 			tc.WithClientSyncing(t, &cc.ClientCreationRequest{
 				User: tc.Charlie,
 			}, func(charlie api.TestClient) {
-				tc.Charlie.MustJoinRoom(t, roomID, []string{"hs1"})
+				tc.Charlie.MustJoinRoom(t, roomID, []spec.ServerName{"hs1"})
 
 				// let charlie sync device keys... and fail to get bob's keys!
 				time.Sleep(time.Second)
@@ -118,8 +119,8 @@ func TestExistingSessionCannotGetKeysForOfflineServer(t *testing.T) {
 		roomIDbc := tc.CreateNewEncryptedRoom(t, tc.Charlie, cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}))
 		roomIDab := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}))
 		t.Logf("%s joining rooms %s and %s", tc.Bob.UserID, roomIDab, roomIDbc)
-		tc.Bob.MustJoinRoom(t, roomIDab, []string{"hs1"})
-		tc.Bob.MustJoinRoom(t, roomIDbc, []string{"hs1"})
+		tc.Bob.MustJoinRoom(t, roomIDab, []spec.ServerName{"hs1"})
+		tc.Bob.MustJoinRoom(t, roomIDbc, []spec.ServerName{"hs1"})
 
 		tc.WithAliceBobAndCharlieSyncing(t, func(alice, bob, charlie api.TestClient) {
 			// let clients sync device keys
@@ -141,7 +142,7 @@ func TestExistingSessionCannotGetKeysForOfflineServer(t *testing.T) {
 
 			// C now joins the room ab
 			tc.Alice.MustInviteRoom(t, roomIDab, tc.Charlie.UserID)
-			tc.Charlie.MustJoinRoom(t, roomIDab, []string{"hs1"})
+			tc.Charlie.MustJoinRoom(t, roomIDab, []spec.ServerName{"hs1"})
 
 			// let charlie sync device keys...
 			time.Sleep(time.Second)

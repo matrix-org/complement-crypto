@@ -2,6 +2,7 @@ package rust_test
 
 import (
 	"fmt"
+	"github.com/matrix-org/gomatrixserverlib/spec"
 	"math/rand"
 	"testing"
 	"time"
@@ -741,7 +742,7 @@ func createAndJoinRoom(t *testing.T) (tc *cc.TestContext, roomID string) {
 		// when we send new room keys!
 		cc.EncRoomOptions.RotationPeriodMsgs(1),
 	)
-	tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
+	tc.Bob.MustJoinRoom(t, roomID, []spec.ServerName{clientType.HS})
 	return
 }
 

@@ -3,6 +3,7 @@ package tests
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/matrix-org/gomatrixserverlib/spec"
 	"strings"
 	"testing"
 	"time"
@@ -49,7 +50,7 @@ func TestRoomKeyIsCycledOnDeviceLogout(t *testing.T) {
 			cc.EncRoomOptions.PresetTrustedPrivateChat(),
 			cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}),
 		)
-		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+		tc.Bob.MustJoinRoom(t, roomID, []spec.ServerName{clientTypeA.HS})
 
 		// Alice, Alice2 and Bob are in a room.
 		csapiAlice2 := tc.MustRegisterNewDevice(t, tc.Alice, "OTHER_DEVICE")
@@ -115,7 +116,7 @@ func TestRoomKeyIsCycledAfterEnoughMessages(t *testing.T) {
 			cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}),
 			cc.EncRoomOptions.RotationPeriodMsgs(5),
 		)
-		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+		tc.Bob.MustJoinRoom(t, roomID, []spec.ServerName{clientTypeA.HS})
 
 		tc.WithAliceAndBobSyncing(t, func(alice, bob api.TestClient) {
 			// And some messages were sent, but not enough to trigger resending
@@ -189,7 +190,7 @@ func TestRoomKeyIsCycledAfterEnoughTime(t *testing.T) {
 			cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}),
 			cc.EncRoomOptions.RotationPeriodMs(int(rotationPeriod.Milliseconds())),
 		)
-		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+		tc.Bob.MustJoinRoom(t, roomID, []spec.ServerName{clientTypeA.HS})
 
 		tc.WithAliceAndBobSyncing(t, func(alice, bob api.TestClient) {
 			// Before we start, ensure some keys have already been sent, so we
@@ -235,8 +236,8 @@ func TestRoomKeyIsCycledOnMemberLeaving(t *testing.T) {
 				cc.EncRoomOptions.PresetTrustedPrivateChat(),
 				cc.EncRoomOptions.Invite([]string{tc.Bob.UserID, tc.Charlie.UserID}),
 			)
-			tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
-			tc.Charlie.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+			tc.Bob.MustJoinRoom(t, roomID, []spec.ServerName{clientTypeA.HS})
+			tc.Charlie.MustJoinRoom(t, roomID, []spec.ServerName{clientTypeA.HS})
 			alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(tc.Charlie.UserID, "join")).Waitf(t, 5*time.Second, "alice did not see charlie's join")
 			// check the room works
 			wantMsgBody := "Test Message"
@@ -278,7 +279,7 @@ func TestRoomKeyIsNotCycled(t *testing.T) {
 			cc.EncRoomOptions.PresetTrustedPrivateChat(),
 			cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}),
 		)
-		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+		tc.Bob.MustJoinRoom(t, roomID, []spec.ServerName{clientTypeA.HS})
 
 		// Alice, Bob are in a room.
 		tc.WithAliceAndBobSyncing(t, func(alice, bob api.TestClient) {
@@ -403,7 +404,7 @@ func testRoomKeyIsNotCycledOnClientRestartRust(t *testing.T, clientType api.Clie
 		cc.EncRoomOptions.PresetTrustedPrivateChat(),
 		cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}),
 	)
-	tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
+	tc.Bob.MustJoinRoom(t, roomID, []spec.ServerName{clientType.HS})
 
 	tc.WithClientSyncing(t, &cc.ClientCreationRequest{
 		User: tc.Bob,
@@ -467,7 +468,7 @@ func testRoomKeyIsNotCycledOnClientRestartJS(t *testing.T, clientType api.Client
 		cc.EncRoomOptions.PresetTrustedPrivateChat(),
 		cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}),
 	)
-	tc.Bob.MustJoinRoom(t, roomID, []string{clientType.HS})
+	tc.Bob.MustJoinRoom(t, roomID, []spec.ServerName{clientType.HS})
 
 	// Alice and Bob are in a room.
 	alice := tc.MustLoginClient(t, &cc.ClientCreationRequest{

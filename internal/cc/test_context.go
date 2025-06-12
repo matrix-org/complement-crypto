@@ -56,7 +56,7 @@ type TestContext struct {
 // This User can then be passed to other functions to login on new test devices.
 func (c *TestContext) RegisterNewUser(t *testing.T, clientType api.ClientType, localpartSuffix string) *User {
 	return &User{
-		CSAPI: c.Deployment.Register(t, clientType.HS, helpers.RegistrationOpts{
+		CSAPI: c.Deployment.Register(t, string(clientType.HS), helpers.RegistrationOpts{
 			LocalpartSuffix: localpartSuffix,
 			Password:        "complement-crypto-password",
 		}),
@@ -277,7 +277,7 @@ func (encRoomOptions) RotationPeriodMs(milliseconds int) EncRoomOption {
 
 // MustRegisterNewDevice logs in a new device for this client, else fails the test.
 func (c *TestContext) MustRegisterNewDevice(t *testing.T, user *User, newDeviceID string) *User {
-	newDevice := c.Deployment.Login(t, user.ClientType.HS, user.CSAPI, helpers.LoginOpts{
+	newDevice := c.Deployment.Login(t, string(user.ClientType.HS), user.CSAPI, helpers.LoginOpts{
 		DeviceID: newDeviceID,
 		Password: user.Password, // TODO: remove? not needed as inherited from client?
 	})
