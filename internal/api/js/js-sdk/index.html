@@ -5,14 +5,14 @@
   <script type="module">
     import { Buffer } from "buffer";
     window.Buffer = Buffer;
-    import { VerificationPhase, VerifierEvent, decodeRecoveryKey, CryptoEvent } from "matrix-js-sdk/src/crypto-api";
+    import { VerificationPhase, VerifierEvent, decodeRecoveryKey, CryptoEvent } from "matrix-js-sdk/lib/crypto-api";
     window.decodeRecoveryKey = decodeRecoveryKey;
     window.VerificationPhase = VerificationPhase;
     window.VerifierEvent = VerifierEvent;
     window.CryptoEvent = CryptoEvent;
-    import * as sdk from "matrix-js-sdk/src/index";
+    import * as sdk from "matrix-js-sdk";
     window.matrix = sdk;
-    import { IndexedDBStore, IndexedDBCryptoStore } from "matrix-js-sdk/src/matrix";
+    import { IndexedDBStore, IndexedDBCryptoStore } from "matrix-js-sdk";
     window.IndexedDBCryptoStore = IndexedDBCryptoStore;
     window.IndexedDBStore = IndexedDBStore;
   </script>
