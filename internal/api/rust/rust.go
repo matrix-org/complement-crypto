@@ -160,11 +160,20 @@ func (c *RustClient) GetNotification(t ct.TestLike, roomID, eventID string) (*ap
 			return nil, fmt.Errorf("GetNotification: failed to create NotificationClient: %s", err)
 		}
 	}
-	notifItem, err := c.notifClient.GetNotification(roomID, eventID)
+	notifStatus, err := c.notifClient.GetNotification(roomID, eventID)
 	if err != nil {
 		return nil, fmt.Errorf("GetNotification: %s", err)
 	}
+
 	// TODO: handle NotificationEventInvite
+	var notifItem *matrix_sdk_ffi.NotificationItem = nil
+	switch notifItemType := notifStatus.(type) {
+	case matrix_sdk_ffi.NotificationStatusEvent:
+		notifItem = &notifItemType.Item
+	}
+	if notifItem == nil {
+		log.Panicf("GetNotification: unexpected notification status type %T", notifItem)
+	}
 	notifEvent := notifItem.Event.(matrix_sdk_ffi.NotificationEventTimeline)
 	// TODO: handle notifications other than messages..
 	evType, err := notifEvent.Event.EventType()
