@@ -365,6 +365,8 @@ func (c *RustClient) GetEventShield(t ct.TestLike, roomID, eventID string) (*api
 			result = api.EventShieldCodeSentInClear
 		case matrix_sdk_common.ShieldStateCodeVerificationViolation:
 			result = api.EventShieldCodeVerificationViolation
+		case matrix_sdk_common.ShieldStateCodeMismatchedSender:
+			result = api.EventShieldCodeMismatchedSender
 		default:
 			log.Panicf("Unknown shield code %d", code)
 		}

@@ -570,7 +570,7 @@ func TestSpoofedEventSenderHandling(t *testing.T) {
 						t.Errorf("Bob did not get a shield for the spoofed message")
 					} else {
 						must.Equal(t, shield.Colour, api.EventShieldColourRed, "Colour of shield")
-						must.Equal(t, shield.Code, api.EventShieldCodeUnknownDevice, "Shield code")
+						must.Equal(t, shield.Code, api.EventShieldCodeMismatchedSender, "Shield code")
 					}
 				}
 			})

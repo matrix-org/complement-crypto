@@ -411,6 +411,10 @@ var (
 
 	// "The sender was previously verified but changed their identity."
 	EventShieldCodeVerificationViolation EventShieldCode = "VerificationViolation"
+
+	// "The `sender` field on the event does not match the owner of the device
+	// that established the Megolm session."
+	EventShieldCodeMismatchedSender EventShieldCode = "MismatchedSender"
 )
 
 type Waiter interface {
