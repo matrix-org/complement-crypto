@@ -619,6 +619,9 @@ func (c *JSClient) GetEventShield(t ct.TestLike, roomID, eventID string) (*api.E
 	case 7:
 		eventShield.Code = api.EventShieldCodeVerificationViolation
 
+	case 8:
+		eventShield.Code = api.EventShieldCodeMismatchedSender
+
 	default:
 		return nil, fmt.Errorf("unknown shield reason code: %d", encryptionInfo.ShieldReason)
 	}
