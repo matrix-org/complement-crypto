@@ -788,81 +788,57 @@ func (c *RustClient) ensureListening(t ct.TestLike, roomID string) {
 	waiter := helpers.NewWaiter()
 	c.rooms[roomID].timeline = make([]*api.Event, 0)
 
-	result := ui_timeline.AddListener(&timelineListener{fn: func(diff []*matrix_sdk_ffi.TimelineDiff) {
+	result := ui_timeline.AddListener(&timelineListener{fn: func(diff []matrix_sdk_ffi.TimelineDiff) {
 		defer waiter.Finish()
 		timeline := c.rooms[roomID].timeline
 		var newEvents []*api.Event
 		c.Logf(t, "[%s]AddTimelineListener[%s] TimelineDiff len=%d", c.userID, roomID, len(diff))
 		for _, d := range diff {
-			switch d.Change() {
-			case matrix_sdk_ffi.TimelineChangeInsert:
-				insertData := d.Insert()
-				if insertData == nil {
-					continue
-				}
-				i := int(insertData.Index)
+			switch x := d.(type) {
+			case matrix_sdk_ffi.TimelineDiffInsert:
+				i := int(x.Index)
 				if i >= len(timeline) {
 					t.Logf("TimelineListener[%s] INSERT %d out of bounds of events timeline of size %d", roomID, i, len(timeline))
 					if i == len(timeline) {
 						t.Logf("TimelineListener[%s] treating as append", roomID)
-						timeline = append(timeline, timelineItemToEvent(insertData.Item))
+						timeline = append(timeline, timelineItemToEvent(x.Value))
 						newEvents = append(newEvents, timeline[i])
 					}
 					continue
 				}
-				timeline = slices.Insert(timeline, i, timelineItemToEvent(insertData.Item))
+				timeline = slices.Insert(timeline, i, timelineItemToEvent(x.Value))
 				c.logToFile(t, "[%s]_______ INSERT %+v\n", c.userID, timeline[i])
 				newEvents = append(newEvents, timeline[i])
-			case matrix_sdk_ffi.TimelineChangeRemove:
-				removeData := d.Remove()
-				if removeData == nil {
-					continue
-				}
-				i := int(*removeData)
+			case matrix_sdk_ffi.TimelineDiffRemove:
+				i := int(x.Index)
 				if i >= len(timeline) {
 					t.Logf("TimelineListener[%s] REMOVE %d out of bounds of events timeline of size %d", roomID, i, len(timeline))
 					continue
 				}
 				timeline = slices.Delete(timeline, i, i+1)
-			case matrix_sdk_ffi.TimelineChangeAppend:
-				appendItems := d.Append()
-				if appendItems == nil {
-					continue
-				}
-				for _, item := range *appendItems {
+			case matrix_sdk_ffi.TimelineDiffAppend:
+				for _, item := range x.Values {
 					ev := timelineItemToEvent(item)
 					timeline = append(timeline, ev)
 					c.logToFile(t, "[%s]_______ APPEND %+v\n", c.userID, ev)
 					newEvents = append(newEvents, ev)
 				}
-			case matrix_sdk_ffi.TimelineChangeReset:
-				resetItems := d.Reset()
-				if resetItems == nil {
-					continue
-				}
-				timeline = make([]*api.Event, len(*resetItems))
-				for i, item := range *resetItems {
+			case matrix_sdk_ffi.TimelineDiffReset:
+				timeline = make([]*api.Event, len(x.Values))
+				for i, item := range x.Values {
 					ev := timelineItemToEvent(item)
 					timeline[i] = ev
 					c.logToFile(t, "[%s]_______ RESET %+v\n", c.userID, ev)
 					newEvents = append(newEvents, ev)
 				}
-			case matrix_sdk_ffi.TimelineChangePushBack: // append but 1 element
-				pbData := d.PushBack()
-				if pbData == nil {
-					continue
-				}
-				ev := timelineItemToEvent(*pbData)
+			case matrix_sdk_ffi.TimelineDiffPushBack: // append but 1 element
+				ev := timelineItemToEvent(x.Value)
 				timeline = append(timeline, ev)
 				c.logToFile(t, "[%s]_______ PUSH BACK %+v\n", c.userID, ev)
 				newEvents = append(newEvents, ev)
-			case matrix_sdk_ffi.TimelineChangeSet:
-				setData := d.Set()
-				if setData == nil {
-					continue
-				}
-				ev := timelineItemToEvent(setData.Item)
-				i := int(setData.Index)
+			case matrix_sdk_ffi.TimelineDiffSet:
+				ev := timelineItemToEvent(x.Value)
+				i := int(x.Index)
 				if i > len(timeline) { // allow appends, hence > not >=
 					t.Logf("TimelineListener[%s] SET %d out of bounds of events timeline of size %d", roomID, i, len(timeline))
 					continue
@@ -873,16 +849,12 @@ func (c *RustClient) ensureListening(t ct.TestLike, roomID string) {
 				}
 				c.logToFile(t, "[%s]_______ SET %+v\n", c.userID, ev)
 				newEvents = append(newEvents, ev)
-			case matrix_sdk_ffi.TimelineChangePushFront:
-				pushFrontData := d.PushFront()
-				if pushFrontData == nil {
-					continue
-				}
-				ev := timelineItemToEvent(*pushFrontData)
+			case matrix_sdk_ffi.TimelineDiffPushFront:
+				ev := timelineItemToEvent(x.Value)
 				timeline = slices.Insert(timeline, 0, ev)
 				newEvents = append(newEvents, ev)
 			default:
-				t.Logf("Unhandled TimelineDiff change %v", d.Change())
+				t.Logf("Unhandled TimelineDiff change %v", d)
 			}
 		}
 		c.rooms[roomID].timeline = timeline
@@ -990,10 +962,10 @@ func mustGetTimeline(t ct.TestLike, room *matrix_sdk_ffi.Room) *matrix_sdk_ffi.T
 }
 
 type timelineListener struct {
-	fn func(diff []*matrix_sdk_ffi.TimelineDiff)
+	fn func(diff []matrix_sdk_ffi.TimelineDiff)
 }
 
-func (l *timelineListener) OnUpdate(diff []*matrix_sdk_ffi.TimelineDiff) {
+func (l *timelineListener) OnUpdate(diff []matrix_sdk_ffi.TimelineDiff) {
 	l.fn(diff)
 }
 
