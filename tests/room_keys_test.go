@@ -80,8 +80,8 @@ func TestRoomKeyIsCycledOnDeviceLogout(t *testing.T) {
 				// which should trigger a new room key to be sent (on message send)
 				csapiAlice2.MustDo(t, "POST", []string{"_matrix", "client", "v3", "logout"}, client.WithJSONBody(t, map[string]any{}))
 
-				// we don't know how long it will take for the device list update to be processed, so wait 1s
-				time.Sleep(time.Second)
+				// we don't know how long it will take for the device list update to be sent, delivered and processed, so wait 3s
+				time.Sleep(3 * time.Second)
 
 				// now send another message from Alice, who should negotiate a new room key
 				wantMsgBody = "Another Test Message"
