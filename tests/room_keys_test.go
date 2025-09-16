@@ -3,10 +3,11 @@ package tests
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/matrix-org/gomatrixserverlib/spec"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/cc"
@@ -254,8 +255,12 @@ func TestRoomKeyIsCycledOnMemberLeaving(t *testing.T) {
 				// now Charlie is going to leave the room, causing his user ID to appear in device_lists.left
 				// which should trigger a new room key to be sent (on message send)
 				tc.Charlie.MustDo(t, "POST", []string{"_matrix", "client", "v3", "rooms", roomID, "leave"}, client.WithJSONBody(t, map[string]any{}))
+				// wait until Alice sees the leave event.
+				// She will send the test message so we need to make sure she knows the member list has changed.
+				alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(tc.Charlie.UserID, "leave")).Waitf(t, 5*time.Second, "alice did not see charlie leave")
 
-				// we don't know how long it will take for the device list update to be processed, so wait 1s
+				// Seeing the leave event isn't enough.
+				// We don't know how long it will take for the device list update to be processed, so wait 1s
 				time.Sleep(time.Second)
 
 				// now send another message from Alice, who should negotiate a new room key
