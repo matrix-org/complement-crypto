@@ -3,7 +3,7 @@
 set dotenv-load := true
 
 BASE_IMAGE := "ghcr.io/matrix-org/synapse-service:v1.117.0"
-UNIFFI_GO_VERSION := "v0.2.2+v0.25.0"
+UNIFFI_GO_VERSION := "v0.4.0+v0.28.3"
 
 # List the available recipes.
 default:
@@ -25,4 +25,4 @@ build-rust-bindings rust-sdk-path:
 
 # Install the uniffi-bindgen-go command line utility, necessary to build the bindings.
 install-uniffi-bindgen:
-    cargo install uniffi-bindgen-go --tag {{ UNIFFI_GO_VERSION }} --git https://github.com/NordSecurity/uniffi-bindgen-go
+    cargo install uniffi-bindgen-go --tag {{ UNIFFI_GO_VERSION }} --git https://github.com/kegsay/uniffi-bindgen-go
