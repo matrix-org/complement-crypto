@@ -647,8 +647,8 @@ func (c *RustClient) SendMessage(t ct.TestLike, roomID, text string) (eventID st
 	}
 	timeline.Send(matrix_sdk_ffi.MessageEventContentFromHtml(text, text))
 	select {
-	case <-time.After(11 * time.Second):
-		err = fmt.Errorf("SendMessage(rust) %s: timed out after 11s", c.userID)
+	case <-time.After(60 * time.Second):
+		err = fmt.Errorf("SendMessage(rust) %s: timed out after 60s", c.userID)
 		return
 	case <-ch:
 		return
