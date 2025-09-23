@@ -56,7 +56,7 @@ The [version] is split into the URL and TAG|BRANCH then fed directly into 'git c
 
 ### Running
 
-Find a complement-compatible homeserver image. If you don't care which image is used, use `ghcr.io/matrix-org/synapse-service:v1.115.0`
+Find a complement-compatible homeserver image. If you don't care which image is used, use `ghcr.io/matrix-org/synapse-service:v1.117.0`
 which will Just Work out-of-the-box.
 
 To run only rust tests:
