@@ -73,12 +73,12 @@ jobs:
       # Temporary: as it takes 3m to build the complement synapse image >:(
       # If you're bumping the image version here, don't forget to bump it in ./single_sdk_tests.yml
       # and the README as well!
-      - name: Pull synapse service v1.115.0 and mitmproxy
+      - name: Pull synapse service v1.117.0 and mitmproxy
         shell: bash
         run: |
-          docker pull ghcr.io/matrix-org/synapse-service:v1.115.0
+          docker pull ghcr.io/matrix-org/synapse-service:v1.117.0
           docker pull mitmproxy/mitmproxy:10.1.5
-          docker tag ghcr.io/matrix-org/synapse-service:v1.115.0 homeserver:latest
+          docker tag ghcr.io/matrix-org/synapse-service:v1.117.0 homeserver:latest
 
       # Build homeserver image, honouring branch names
       #- name: "Checkout corresponding Synapse branch" 
