@@ -11,6 +11,6 @@
   "dependencies": {
     "buffer": "^6.0.3",
     "matrix-js-sdk": "https://github.com/matrix-org/matrix-js-sdk#8df30ed068997aa74f21aa5be3c8df30f7dd07c5",
-    "vite": "^5.4.20"
+    "vite": "^5.4.21"
   }
 }
