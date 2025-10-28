@@ -48,6 +48,7 @@ trap "mv $RUST_SDK_DIR/Cargo.toml.backup $RUST_SDK_DIR/Cargo.toml; mv $RUST_SDK_
 sed -i.bak 's/uniffi =.*/uniffi = "0\.28\.3"/' Cargo.toml
 sed -i.bak 's^uniffi_bindgen =.*^uniffi_bindgen = { git = "https:\/\/github.com\/mozilla\/uniffi-rs", rev = "f7a0ba703b4c06fff8fffa98078f2e5d7588a695" }^' Cargo.toml
 sed -i.bak 's#matrix-sdk-crypto = {#matrix-sdk-crypto = {features = ["_disable-minimum-rotation-period-ms"],#' Cargo.toml
+sed -i.bak 's/\[Remote\]//' bindings/matrix-sdk-ffi/src/api.udl
 cargo build -p matrix-sdk-ffi --features 'native-tls,sentry'
 # generate the bindings
 echo "generating bindings to $COMPLEMENT_DIR/internal/api/rust...";
