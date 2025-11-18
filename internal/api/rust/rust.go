@@ -116,6 +116,7 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, erro
 			AccessToken:        opts.AccessToken,
 			UserId:             opts.UserID,
 			DeviceId:           opts.DeviceID,
+			HomeserverUrl:      opts.BaseURL,
 			SlidingSyncVersion: matrix_sdk_ffi.SlidingSyncVersionNative,
 		}
 		if err := client.RestoreSession(session); err != nil {
