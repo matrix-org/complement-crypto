@@ -1,8 +1,6 @@
 module github.com/matrix-org/complement-crypto
 
-go 1.23.0
-
-toolchain go1.23.9
+go 1.24.0
 
 require (
 	github.com/chromedp/cdproto v0.0.0-20250403032234-65de8f5d025b
@@ -13,6 +11,7 @@ require (
 	github.com/matrix-org/gomatrixserverlib v0.0.0-20250119093516-0a1b2bafb5cf
 	github.com/testcontainers/testcontainers-go v0.35.0
 	github.com/tidwall/gjson v1.18.0
+	github.com/tidwall/sjson v1.2.5
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 )
 
@@ -64,7 +63,6 @@ require (
 	github.com/stretchr/testify v1.9.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
-	github.com/tidwall/sjson v1.2.5 // indirect
 	github.com/tklauser/go-sysconf v0.3.14 // indirect
 	github.com/tklauser/numcpus v0.8.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
@@ -74,8 +72,8 @@ require (
 	go.opentelemetry.io/otel/metric v1.30.0 // indirect
 	go.opentelemetry.io/otel/trace v1.30.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.0.0 // indirect
-	golang.org/x/crypto v0.36.0 // indirect
-	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/crypto v0.45.0 // indirect
+	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/time v0.0.0-20220210224613-90d013bbcef8 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240318140521-94a12d6c2237 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240318140521-94a12d6c2237 // indirect
