@@ -180,10 +180,10 @@ func (c *RustClient) GetNotification(t ct.TestLike, roomID, eventID string) (*ap
 	if err != nil {
 		return nil, fmt.Errorf("notifItem.Event.Content => %s", err)
 	}
-	msgLike := evContent.(matrix_sdk_ffi.TimelineEventTypeMessageLike)
+	msgLike := evContent.(matrix_sdk_ffi.TimelineEventContentMessageLike)
 	failedToDecrypt := true
 	body := ""
-	switch msg := msgLike.Value.(type) {
+	switch msg := msgLike.Content.(type) {
 	case matrix_sdk_ffi.MessageLikeEventContentRoomEncrypted:
 		// failedToDecrypt = true
 	case matrix_sdk_ffi.MessageLikeEventContentRoomMessage:
