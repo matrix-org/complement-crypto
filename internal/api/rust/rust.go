@@ -2,7 +2,7 @@ package rust
 
 import (
 	"fmt"
-	"github.com/matrix-org/complement-crypto/internal/api/rust/matrix_sdk_common"
+	"github.com/matrix-org/complement-crypto/internal/api/rust/matrix_sdk_ui"
 	"log"
 	"os"
 	"path/filepath"
@@ -359,22 +359,22 @@ func (c *RustClient) GetEventShield(t ct.TestLike, roomID, eventID string) (*api
 	}
 	shieldState := timelineItem.LazyProvider.GetShields(false)
 
-	codeToString := func(code matrix_sdk_common.ShieldStateCode) api.EventShieldCode {
+	codeToString := func(code matrix_sdk_ui.TimelineEventShieldStateCode) api.EventShieldCode {
 		var result api.EventShieldCode
 		switch code {
-		case matrix_sdk_common.ShieldStateCodeAuthenticityNotGuaranteed:
+		case matrix_sdk_ui.TimelineEventShieldStateCodeAuthenticityNotGuaranteed:
 			result = api.EventShieldCodeAuthenticityNotGuaranteed
-		case matrix_sdk_common.ShieldStateCodeUnknownDevice:
+		case matrix_sdk_ui.TimelineEventShieldStateCodeUnknownDevice:
 			result = api.EventShieldCodeUnknownDevice
-		case matrix_sdk_common.ShieldStateCodeUnsignedDevice:
+		case matrix_sdk_ui.TimelineEventShieldStateCodeUnsignedDevice:
 			result = api.EventShieldCodeUnsignedDevice
-		case matrix_sdk_common.ShieldStateCodeUnverifiedIdentity:
+		case matrix_sdk_ui.TimelineEventShieldStateCodeUnverifiedIdentity:
 			result = api.EventShieldCodeUnverifiedIdentity
-		case matrix_sdk_common.ShieldStateCodeSentInClear:
+		case matrix_sdk_ui.TimelineEventShieldStateCodeSentInClear:
 			result = api.EventShieldCodeSentInClear
-		case matrix_sdk_common.ShieldStateCodeVerificationViolation:
+		case matrix_sdk_ui.TimelineEventShieldStateCodeVerificationViolation:
 			result = api.EventShieldCodeVerificationViolation
-		case matrix_sdk_common.ShieldStateCodeMismatchedSender:
+		case matrix_sdk_ui.TimelineEventShieldStateCodeMismatchedSender:
 			result = api.EventShieldCodeMismatchedSender
 		default:
 			log.Panicf("Unknown shield code %d", code)
@@ -384,24 +384,22 @@ func (c *RustClient) GetEventShield(t ct.TestLike, roomID, eventID string) (*api
 
 	var eventShield *api.EventShield
 
-	if shieldState != nil {
-		shield := *shieldState
-		switch shield.(type) {
-		case matrix_sdk_ffi.ShieldStateNone:
-			// no-op
+	switch shieldState.(type) {
+	case matrix_sdk_ffi.ShieldStateNone:
+		// no-op
 
-		case matrix_sdk_ffi.ShieldStateGrey:
-			eventShield = &api.EventShield{
-				Colour: api.EventShieldColourGrey,
-				Code:   codeToString(shield.(matrix_sdk_ffi.ShieldStateGrey).Code),
-			}
-
-		case matrix_sdk_ffi.ShieldStateRed:
-			eventShield = &api.EventShield{
-				Colour: api.EventShieldColourRed,
-				Code:   codeToString(shield.(matrix_sdk_ffi.ShieldStateRed).Code),
-			}
+	case matrix_sdk_ffi.ShieldStateGrey:
+		eventShield = &api.EventShield{
+			Colour: api.EventShieldColourGrey,
+			Code:   codeToString(shieldState.(matrix_sdk_ffi.ShieldStateGrey).Code),
 		}
+
+	case matrix_sdk_ffi.ShieldStateRed:
+		eventShield = &api.EventShield{
+			Colour: api.EventShieldColourRed,
+			Code:   codeToString(shieldState.(matrix_sdk_ffi.ShieldStateRed).Code),
+		}
+
 	}
 	return eventShield, nil
 }
