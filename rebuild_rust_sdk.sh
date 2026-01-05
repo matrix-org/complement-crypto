@@ -39,14 +39,19 @@ else # HTTPS URL => git clone into temp dir
   git clone --depth 1 --branch ${SEGMENTS[1]} ${SEGMENTS[0]} $RUST_SDK_DIR;
 fi
 
+function restore_backups {
+    for i in Cargo.toml Cargo.lock bindings/matrix-sdk-ffi/Cargo.toml; do
+        mv "$RUST_SDK_DIR/$i.backup" "$RUST_SDK_DIR/$i"
+    done
+}
+
 # replace uniffi version to one that works with uniffi-bindgen-go
 echo 'building matrix-sdk-ffi...';
 cd $RUST_SDK_DIR;
 cp Cargo.toml Cargo.toml.backup
 cp Cargo.lock Cargo.lock.backup
 cp bindings/matrix-sdk-ffi/Cargo.toml bindings/matrix-sdk-ffi/Cargo.toml.backup
-trap "mv $RUST_SDK_DIR/Cargo.toml.backup $RUST_SDK_DIR/Cargo.toml; mv $RUST_SDK_DIR/Cargo.lock.backup $RUST_SDK_DIR/Cargo.lock" EXIT INT TERM
-trap "mv $RUST_SDK_DIR/bindings/matrix-sdk-ffi/Cargo.toml.backup $RUST_SDK_DIR/bindings/matrix-sdk-ffi/Cargo.toml" EXIT INT TERM
+trap "restore_backups" EXIT INT TERM
 sed -i.bak 's/uniffi =.*/uniffi = "0\.28\.3"/' Cargo.toml
 sed -i.bak 's/"wasm-unstable-single-threaded"//' bindings/matrix-sdk-ffi/Cargo.toml
 sed -i.bak 's^uniffi_bindgen =.*^uniffi_bindgen = { git = "https:\/\/github.com\/mozilla\/uniffi-rs", rev = "f7a0ba703b4c06fff8fffa98078f2e5d7588a695" }^' Cargo.toml
