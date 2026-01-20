@@ -2,7 +2,6 @@ package rust
 
 import (
 	"fmt"
-	"github.com/matrix-org/complement-crypto/internal/api/rust/matrix_sdk_ui"
 	"log"
 	"os"
 	"path/filepath"
@@ -10,6 +9,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/matrix-org/complement-crypto/internal/api/rust/matrix_sdk_ui"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/api/rust/matrix_sdk_base"
