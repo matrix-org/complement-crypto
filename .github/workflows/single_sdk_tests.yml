@@ -104,9 +104,9 @@ jobs:
             docker pull mitmproxy/mitmproxy:10.1.5
             docker tag ghcr.io/matrix-org/synapse-service:v1.117.0 homeserver:latest
         - name: Setup | Go
-          uses: actions/setup-go@v4
+          uses: actions/setup-go@v6
           with:
-            go-version: '1.21'
+            go-version: '1.25'
         - name: "Install Complement Dependencies"
           shell: bash
           run: |
