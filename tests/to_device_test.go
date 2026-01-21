@@ -2,11 +2,12 @@ package tests
 
 import (
 	"fmt"
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"net/http"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/matrix-org/gomatrixserverlib/spec"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/cc"
@@ -310,7 +311,7 @@ func TestToDeviceMessagesAreBatched(t *testing.T) {
 					}
 					if len(usersMap.Map()) != 100 {
 						t.Errorf("PUT /sendToDevice did not batch messages, got %d want 100", len(usersMap.Map()))
-						t.Logf(usersMap.Raw)
+						t.Logf("%s", usersMap.Raw)
 					}
 					waiter.Finish()
 					return nil
