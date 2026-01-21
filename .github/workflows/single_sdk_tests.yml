@@ -2,7 +2,7 @@
 #
 # It does this by checking out the 'main' branch of complement-crypto then checking out the specific commit
 # in the input. It runs single SDK only tests (e.g all JS clients _or_ all Rust clients, not a mixture).
-name: 'Complement Crypto'
+name: "Complement Crypto"
 run-name: "Running Complement-Crypto"
 permissions: read-all
 on:
@@ -13,180 +13,179 @@ on:
       use_js_sdk:
         description: 'tag/commit/branch of the JS SDK to test against. If "." then the caller checkout is used. If "MATCHING_BRANCH" then it tries to use the same branch as another "." input, falling back to the default branch.'
         required: false
-        default: ''
+        default: ""
         type: string
       use_rust_sdk:
         description: 'tag/commit/branch of the Rust SDK to test against. If "." then the caller checkout is used. If "MATCHING_BRANCH" then it tries to use the same branch as another "." input, falling back to the default branch.'
         required: false
-        default: ''
+        default: ""
         type: string
       use_complement_crypto:
         description: 'tag/commit/branch of Complement Crypto to test against. If "." then the caller checkout is used. If "MATCHING_BRANCH" then it tries to use the same branch as another "." input, falling back to the default branch.'
         required: false
-        default: 'main'
+        default: "main"
         type: string
 jobs:
   tests:
     runs-on: ubuntu-22.04
     steps:
-        # At this stage we don't know which repo we have just checked out. We will reference this repo
-        # if the workflow uses '.'
-        - name: Checkout repo
-          uses: actions/checkout@v3
-        - name: Resolve branches
-          shell: bash
-          # these env vars will be modified and used in subsequent steps
-          env:
-            JS_SDK: ${{ inputs.use_js_sdk }}
-            RUST_SDK: ${{ inputs.use_rust_sdk }}
-            COMPLEMENT_CRYPTO: ${{ inputs.use_complement_crypto }}
-          run: |
-            # only 1 '.' is supported. Check it now.
-            count=0
-            input_name=""
-  
-            for var_name in JS_SDK RUST_SDK COMPLEMENT_CRYPTO; do
-              if [ "${!var_name}" = "." ]; then
-                count=$((count + 1))
-                input_name=$var_name
-                echo "$var_name="${!var_name}"" >> $GITHUB_ENV
-              fi
-            done
-  
-  
-            if [ "$count" -gt 1 ]; then
-              echo "Error: this workflow does not support > 1 '.' input for use_js_sdk, use_rust_sdk, use_complement_crypto"
-              exit 1
-            elif [ "$count" -eq 0 ]; then
-              echo "No variables are set to '.' so skipping check for MATCHING_BRANCH"
-              exit 0
+      # At this stage we don't know which repo we have just checked out. We will reference this repo
+      # if the workflow uses '.'
+      - name: Checkout repo
+        uses: actions/checkout@v3
+      - name: Resolve branches
+        shell: bash
+        # these env vars will be modified and used in subsequent steps
+        env:
+          JS_SDK: ${{ inputs.use_js_sdk }}
+          RUST_SDK: ${{ inputs.use_rust_sdk }}
+          COMPLEMENT_CRYPTO: ${{ inputs.use_complement_crypto }}
+        run: |
+          # only 1 '.' is supported. Check it now.
+          count=0
+          input_name=""
+
+          for var_name in JS_SDK RUST_SDK COMPLEMENT_CRYPTO; do
+            if [ "${!var_name}" = "." ]; then
+              count=$((count + 1))
+              input_name=$var_name
+              echo "$var_name="${!var_name}"" >> $GITHUB_ENV
             fi
+          done
 
-            # we need to run the resolve_branch.sh script but that's inside complement-crypto, and we don't
-            # know which branch to use of complement-crypto yet => chicken and egg problem. To break it, let's
-            # just always use the resolve_branch.sh script from 'main'
-            curl -o $PWD/resolve_branch.sh "https://raw.githubusercontent.com/matrix-org/complement-crypto/main/.github/workflows/resolve_branch.sh"
-            chmod +x $PWD/resolve_branch.sh
 
-            declare -A input_to_repo_url
-            input_to_repo_url["JS_SDK"]="matrix-org/matrix-js-sdk"
-            input_to_repo_url["RUST_SDK"]="matrix-org/matrix-rust-sdk"
-            input_to_repo_url["COMPLEMENT_CRYPTO"]="matrix-org/complement-crypto"
+          if [ "$count" -gt 1 ]; then
+            echo "Error: this workflow does not support > 1 '.' input for use_js_sdk, use_rust_sdk, use_complement_crypto"
+            exit 1
+          elif [ "$count" -eq 0 ]; then
+            echo "No variables are set to '.' so skipping check for MATCHING_BRANCH"
+            exit 0
+          fi
 
-            for var_name in JS_SDK RUST_SDK COMPLEMENT_CRYPTO; do
-              if [ "${!var_name}" = "MATCHING_BRANCH" ]; then
-                BRANCH=$(./resolve_branch.sh ${input_to_repo_url["$var_name"]})
-                echo "$var_name=$BRANCH" >> $GITHUB_ENV
-              else
-                echo "Using ${!var_name} for ${input_to_repo_url["$var_name"]}"
-                echo "$var_name=${!var_name}" >> $GITHUB_ENV
-              fi
-            done
+          # we need to run the resolve_branch.sh script but that's inside complement-crypto, and we don't
+          # know which branch to use of complement-crypto yet => chicken and egg problem. To break it, let's
+          # just always use the resolve_branch.sh script from 'main'
+          curl -o $PWD/resolve_branch.sh "https://raw.githubusercontent.com/matrix-org/complement-crypto/main/.github/workflows/resolve_branch.sh"
+          chmod +x $PWD/resolve_branch.sh
 
-        # The aim of these two steps is to guarantee that complement-crypto is at `./complement-crypto`
-        - name: Checkout complement-crypto
-          if: ${{ inputs.use_complement_crypto != '.'}}
-          run: |
-            mkdir complement-crypto
-            (wget -O - "https://github.com/matrix-org/complement-crypto/archive/$COMPLEMENT_CRYPTO.tar.gz" | tar -xz --strip-components=1 -C complement-crypto)
-        - name: Symlink complement-crypto
-          if: ${{ inputs.use_complement_crypto == '.'}}
-          run: |
-            ln -s . complement-crypto
+          declare -A input_to_repo_url
+          input_to_repo_url["JS_SDK"]="matrix-org/matrix-js-sdk"
+          input_to_repo_url["RUST_SDK"]="matrix-org/matrix-rust-sdk"
+          input_to_repo_url["COMPLEMENT_CRYPTO"]="matrix-org/complement-crypto"
 
-        # Setup code we always need
-        # If you're bumping the image version here, don't forget to bump it in ./tests.yaml and the
-        # README as well!
-        - name: Pull synapse service v1.117.0 and mitmproxy
-          shell: bash
-          run: |
-            docker pull ghcr.io/matrix-org/synapse-service:v1.117.0
-            docker pull mitmproxy/mitmproxy:10.1.5
-            docker tag ghcr.io/matrix-org/synapse-service:v1.117.0 homeserver:latest
-        - name: Setup | Go
-          uses: actions/setup-go@v6
-          with:
-            go-version: '1.25'
-        - name: "Install Complement Dependencies"
-          shell: bash
-          run: |
-            go install -v github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
+          for var_name in JS_SDK RUST_SDK COMPLEMENT_CRYPTO; do
+            if [ "${!var_name}" = "MATCHING_BRANCH" ]; then
+              BRANCH=$(./resolve_branch.sh ${input_to_repo_url["$var_name"]})
+              echo "$var_name=$BRANCH" >> $GITHUB_ENV
+            else
+              echo "Using ${!var_name} for ${input_to_repo_url["$var_name"]}"
+              echo "$var_name=${!var_name}" >> $GITHUB_ENV
+            fi
+          done
 
-        # JS SDK only steps
-        - name: Setup | Node.js LTS
-          if: ${{ inputs.use_js_sdk != '' }}
-          uses: actions/setup-node@v3
-          with:
-            node-version: "lts/*"
-        - name: "Install JS SDK"
-          if: ${{ inputs.use_js_sdk != '' }}
-          shell: bash
-          run: ./complement-crypto/.github/workflows/install-js-sdk.sh "$JS_SDK"
+      # The aim of these two steps is to guarantee that complement-crypto is at `./complement-crypto`
+      - name: Checkout complement-crypto
+        if: ${{ inputs.use_complement_crypto != '.'}}
+        run: |
+          mkdir complement-crypto
+          (wget -O - "https://github.com/matrix-org/complement-crypto/archive/$COMPLEMENT_CRYPTO.tar.gz" | tar -xz --strip-components=1 -C complement-crypto)
+      - name: Symlink complement-crypto
+        if: ${{ inputs.use_complement_crypto == '.'}}
+        run: |
+          ln -s . complement-crypto
 
-        # Rust SDK only steps.
-        # The aim is to guarantee that rust-sdk is either at '.' or './complement-crypto/rust-sdk'
-        # which we then pass to rebuild_rust_sdk.sh
-        - name: Setup | Rust
-          if: ${{ inputs.use_rust_sdk != '' }}
-          uses: dtolnay/rust-toolchain@stable
-          with:
-            toolchain: stable
-        - name: "Download Rust SDK" # no need to download rust SDK if we are using the local checkout.
-          if: ${{ inputs.use_rust_sdk != '' && inputs.use_rust_sdk != '.'}}
-          run: |
-            cd complement-crypto
-            mkdir rust-sdk
-            (wget -O - "https://github.com/matrix-org/matrix-rust-sdk/archive/$RUST_SDK.tar.gz" | tar -xz --strip-components=1 -C rust-sdk)
-        - name: Build Rust SDK
-          if: ${{ inputs.use_rust_sdk != '' }}
-          env:
-            RUST_SDK_DIR: ${{ inputs.use_rust_sdk == '.' && '..' || './rust-sdk' }}
-          run: |
-            echo "Compiling matrix-rust-sdk @ $RUST_SDK"
-            cd complement-crypto && ./install_uniffi_bindgen_go.sh && ./rebuild_rust_sdk.sh $RUST_SDK_DIR
+      # Setup code we always need
+      # If you're bumping the image version here, don't forget to bump it in ./tests.yaml and the
+      # README as well!
+      - name: Pull synapse service v1.117.0 and mitmproxy
+        shell: bash
+        run: |
+          docker pull ghcr.io/matrix-org/synapse-service:v1.117.0
+          docker pull mitmproxy/mitmproxy:10.1.5
+          docker tag ghcr.io/matrix-org/synapse-service:v1.117.0 homeserver:latest
+      - name: Setup | Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.25"
+      - name: "Install Complement Dependencies"
+        shell: bash
+        run: |
+          go install -v github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
 
-        - name: Build RPC client (rust)
-          if: ${{ inputs.use_rust_sdk != '' }}
-          env:
-            RUST_SDK_LIB_RELATIVE: ${{ inputs.use_rust_sdk == '.' &&  '/target/debug' || '/complement-crypto/rust-sdk/target/debug'}}
-          run: |
-            export LIBRARY_PATH="$(pwd)$RUST_SDK_LIB_RELATIVE"
-            export LD_LIBRARY_PATH="$(pwd)$RUST_SDK_LIB_RELATIVE"
-            cd complement-crypto && go build -tags=rust ./cmd/rpc
-        - name: Build RPC client (js)
-          if: ${{ inputs.use_js_sdk != '' }}
-          run: |
-            cd complement-crypto && go build -tags=jssdk ./cmd/rpc
+      # JS SDK only steps
+      - name: Setup | Node.js LTS
+        if: ${{ inputs.use_js_sdk != '' }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: "lts/*"
+      - name: "Install JS SDK"
+        if: ${{ inputs.use_js_sdk != '' }}
+        shell: bash
+        run: ./complement-crypto/.github/workflows/install-js-sdk.sh "$JS_SDK"
 
-        # Run the tests
-        - name: Run Complement Crypto Tests
-          run: |
-            export LIBRARY_PATH="$(pwd)$RUST_SDK_LIB_RELATIVE"
-            export LD_LIBRARY_PATH="$(pwd)$RUST_SDK_LIB_RELATIVE"
-            export COMPLEMENT_CRYPTO_RPC_BINARY="$(pwd)/complement-crypto/rpc"
-            cd complement-crypto &&
-            set -o pipefail &&
-            go test -v -p 2 -count=1 -json -tags=$GO_TAGS -timeout 15m ./tests ./tests/$LANG_SPECIFIC_TESTS | gotestfmt
-          shell: bash # required for pipefail to be A Thing. pipefail is required to stop gotestfmt swallowing non-zero exit codes
-          env:
-            COMPLEMENT_BASE_IMAGE: homeserver
-            COMPLEMENT_ENABLE_DIRTY_RUNS: 1
-            TESTCONTAINERS_RYUK_DISABLED: true # ryuk was implicated in terminating mitmproxy early, causing test failures.
-            COMPLEMENT_CRYPTO_MITMDUMP: mitm.dump
-            COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX: ${{ inputs.use_js_sdk != '' && 'jj' || 'rr' }} # TODO: brittle, we don't check rust-sdk input
-            COMPLEMENT_SHARE_ENV_PREFIX: PASS_
-            PASS_SYNAPSE_COMPLEMENT_DATABASE: sqlite
-            DOCKER_BUILDKIT: 1
-            GO_TAGS: ${{ inputs.use_js_sdk != '' && 'jssdk' || 'rust'}}
-            LANG_SPECIFIC_TESTS: ${{ inputs.use_js_sdk != '' && 'js' || 'rust'}}
-            RUST_SDK_LIB_RELATIVE: ${{ inputs.use_rust_sdk == '.' &&  '/target/debug' || '/complement-crypto/rust-sdk/target/debug'}}
+      # Rust SDK only steps.
+      # The aim is to guarantee that rust-sdk is either at '.' or './complement-crypto/rust-sdk'
+      # which we then pass to rebuild_rust_sdk.sh
+      - name: Setup | Rust
+        if: ${{ inputs.use_rust_sdk != '' }}
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - name: "Download Rust SDK" # no need to download rust SDK if we are using the local checkout.
+        if: ${{ inputs.use_rust_sdk != '' && inputs.use_rust_sdk != '.'}}
+        run: |
+          cd complement-crypto
+          mkdir rust-sdk
+          (wget -O - "https://github.com/matrix-org/matrix-rust-sdk/archive/$RUST_SDK.tar.gz" | tar -xz --strip-components=1 -C rust-sdk)
+      - name: Build Rust SDK
+        if: ${{ inputs.use_rust_sdk != '' }}
+        env:
+          RUST_SDK_DIR: ${{ inputs.use_rust_sdk == '.' && '..' || './rust-sdk' }}
+        run: |
+          echo "Compiling matrix-rust-sdk @ $RUST_SDK"
+          cd complement-crypto && ./install_uniffi_bindgen_go.sh && ./rebuild_rust_sdk.sh $RUST_SDK_DIR
 
-        - name: Upload logs
-          uses: actions/upload-artifact@v4
-          if: ${{ failure() }}
-          with:
-            name: Logs - ${{ inputs.use_js_sdk != '' && 'jssdk' || 'rust'}}
-            path: |
-              ./complement-crypto/**/logs/*
-              ./complement-crypto/**/mitm.dump
+      - name: Build RPC client (rust)
+        if: ${{ inputs.use_rust_sdk != '' }}
+        env:
+          RUST_SDK_LIB_RELATIVE: ${{ inputs.use_rust_sdk == '.' &&  '/target/debug' || '/complement-crypto/rust-sdk/target/debug'}}
+        run: |
+          export LIBRARY_PATH="$(pwd)$RUST_SDK_LIB_RELATIVE"
+          export LD_LIBRARY_PATH="$(pwd)$RUST_SDK_LIB_RELATIVE"
+          cd complement-crypto && go build -tags=rust ./cmd/rpc
+      - name: Build RPC client (js)
+        if: ${{ inputs.use_js_sdk != '' }}
+        run: |
+          cd complement-crypto && go build -tags=jssdk ./cmd/rpc
 
+      # Run the tests
+      - name: Run Complement Crypto Tests
+        run: |
+          export LIBRARY_PATH="$(pwd)$RUST_SDK_LIB_RELATIVE"
+          export LD_LIBRARY_PATH="$(pwd)$RUST_SDK_LIB_RELATIVE"
+          export COMPLEMENT_CRYPTO_RPC_BINARY="$(pwd)/complement-crypto/rpc"
+          cd complement-crypto &&
+          set -o pipefail &&
+          go test -v -p 2 -count=1 -tags=$GO_TAGS -timeout 15m ./tests ./tests/$LANG_SPECIFIC_TESTS
+        shell: bash # required for pipefail to be A Thing. pipefail is required to stop gotestfmt swallowing non-zero exit codes
+        env:
+          COMPLEMENT_BASE_IMAGE: homeserver
+          COMPLEMENT_ENABLE_DIRTY_RUNS: 1
+          TESTCONTAINERS_RYUK_DISABLED: true # ryuk was implicated in terminating mitmproxy early, causing test failures.
+          COMPLEMENT_CRYPTO_MITMDUMP: mitm.dump
+          COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX: ${{ inputs.use_js_sdk != '' && 'jj' || 'rr' }} # TODO: brittle, we don't check rust-sdk input
+          COMPLEMENT_SHARE_ENV_PREFIX: PASS_
+          PASS_SYNAPSE_COMPLEMENT_DATABASE: sqlite
+          DOCKER_BUILDKIT: 1
+          GO_TAGS: ${{ inputs.use_js_sdk != '' && 'jssdk' || 'rust'}}
+          LANG_SPECIFIC_TESTS: ${{ inputs.use_js_sdk != '' && 'js' || 'rust'}}
+          RUST_SDK_LIB_RELATIVE: ${{ inputs.use_rust_sdk == '.' &&  '/target/debug' || '/complement-crypto/rust-sdk/target/debug'}}
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: Logs - ${{ inputs.use_js_sdk != '' && 'jssdk' || 'rust'}}
+          path: |
+            ./complement-crypto/**/logs/*
+            ./complement-crypto/**/mitm.dump
