@@ -166,7 +166,7 @@ jobs:
           export COMPLEMENT_CRYPTO_RPC_BINARY="$(pwd)/complement-crypto/rpc"
           cd complement-crypto &&
           set -o pipefail &&
-          go test -v -p 2 -count=1 -tags=$GO_TAGS -timeout 15m ./tests ./tests/$LANG_SPECIFIC_TESTS
+          go test -v -p 2 -count=1 -json -tags=$GO_TAGS -timeout 15m ./tests ./tests/$LANG_SPECIFIC_TESTS | gotestfmt
         shell: bash # required for pipefail to be A Thing. pipefail is required to stop gotestfmt swallowing non-zero exit codes
         env:
           COMPLEMENT_BASE_IMAGE: homeserver
