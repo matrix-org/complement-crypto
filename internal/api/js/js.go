@@ -190,12 +190,13 @@ func (c *JSClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {
 
 	// any events need to log the control string so we get notified
 	_, err = chrome.RunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`
-	window.__client.on("Event.decrypted", function(event) {
-		`+EmitControlMessageEventJS("event.getRoomId()", "event.getEffectiveEvent()")+`
-	});
-	window.__client.on("event", function(event) {
-		`+EmitControlMessageEventJS("event.getRoomId()", "event.getEffectiveEvent()")+`
-	});`))
+	const handleEvent = function(event) {
+		%s
+	};
+	window.__client.on("Event.decrypted", handleEvent);
+	window.__client.on("event", handleEvent);`,
+		EmitControlMessageEventJS("event.getRoomId()", "event.getEffectiveEvent()"),
+	))
 	if err != nil {
 		return err
 	}
@@ -639,11 +640,11 @@ func (c *JSClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error) {
 			if (state !== "SYNCING") {
 				return;
 			}
-			`+EmitControlMessageSyncJS()+`
+			%s
 
 			window.__client.off("sync", fn);
 		};
-		window.__client.on("sync", fn);`))
+		window.__client.on("sync", fn);`, EmitControlMessageSyncJS()))
 	if err != nil {
 		return nil, fmt.Errorf("[%s]failed to listen for sync callback: %s", c.userID, err)
 	}

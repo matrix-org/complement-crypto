@@ -385,20 +385,20 @@ func (c *RustClient) GetEventShield(t ct.TestLike, roomID, eventID string) (*api
 
 	var eventShield *api.EventShield
 
-	switch shieldState.(type) {
+	switch shieldState := shieldState.(type) {
 	case matrix_sdk_ffi.ShieldStateNone:
 		// no-op
 
 	case matrix_sdk_ffi.ShieldStateGrey:
 		eventShield = &api.EventShield{
 			Colour: api.EventShieldColourGrey,
-			Code:   codeToString(shieldState.(matrix_sdk_ffi.ShieldStateGrey).Code),
+			Code:   codeToString(shieldState.Code),
 		}
 
 	case matrix_sdk_ffi.ShieldStateRed:
 		eventShield = &api.EventShield{
 			Colour: api.EventShieldColourRed,
-			Code:   codeToString(shieldState.(matrix_sdk_ffi.ShieldStateRed).Code),
+			Code:   codeToString(shieldState.Code),
 		}
 
 	}
