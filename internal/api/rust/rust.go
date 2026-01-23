@@ -2,7 +2,6 @@ package rust
 
 import (
 	"fmt"
-	"github.com/matrix-org/complement-crypto/internal/api/rust/matrix_sdk_ui"
 	"log"
 	"os"
 	"path/filepath"
@@ -10,6 +9,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/matrix-org/complement-crypto/internal/api/rust/matrix_sdk_ui"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/api/rust/matrix_sdk_base"
@@ -384,20 +385,20 @@ func (c *RustClient) GetEventShield(t ct.TestLike, roomID, eventID string) (*api
 
 	var eventShield *api.EventShield
 
-	switch shieldState.(type) {
+	switch shieldState := shieldState.(type) {
 	case matrix_sdk_ffi.ShieldStateNone:
 		// no-op
 
 	case matrix_sdk_ffi.ShieldStateGrey:
 		eventShield = &api.EventShield{
 			Colour: api.EventShieldColourGrey,
-			Code:   codeToString(shieldState.(matrix_sdk_ffi.ShieldStateGrey).Code),
+			Code:   codeToString(shieldState.Code),
 		}
 
 	case matrix_sdk_ffi.ShieldStateRed:
 		eventShield = &api.EventShield{
 			Colour: api.EventShieldColourRed,
-			Code:   codeToString(shieldState.(matrix_sdk_ffi.ShieldStateRed).Code),
+			Code:   codeToString(shieldState.Code),
 		}
 
 	}
