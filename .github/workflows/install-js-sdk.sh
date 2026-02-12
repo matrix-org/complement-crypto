@@ -24,7 +24,13 @@ echo "Installing matrix-js-sdk @ $js_sdk_src"
 if [ "$js_sdk_src" = "." ]; then
     # If we install from a local directory, we have to build the js-sdk ourselves.
     echo "Building js-sdk @ $(pwd)"
-    yarn install
+
+    PM=$(cat package.json | jq -r '.packageManager')
+    if [[ $PM == "pnpm@"* ]]; then
+        pnpm install
+    else
+        yarn install
+    fi
 
     yarn_path="file:$(pwd)"
 else
