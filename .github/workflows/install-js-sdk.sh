@@ -19,6 +19,7 @@ fi
 
 complement_crypto_dir="$(dirname $0)/../../"
 
+corepack enable
 echo "Installing matrix-js-sdk @ $js_sdk_src"
 
 if [ "$js_sdk_src" = "." ]; then
