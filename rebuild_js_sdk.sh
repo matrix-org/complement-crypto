@@ -17,6 +17,14 @@ then
     exit 1
 fi
 
-(cd ./internal/api/js/js-sdk && yarn add $1 && yarn install && yarn build)
+pushd ./internal/api/js/js-sdk
+PM=$(cat package.json | jq -r '.packageManager')
+if [[ $PM == "pnpm@"* ]]; then
+    pnpm add $1 && pnpm install && pnpm build
+else
+    yarn add $1 && yarn install && yarn build
+fi
+popd
+
 rm -rf ./internal/api/js/chrome/dist || echo 'no dist directory detected';
 cp -r ./internal/api/js/js-sdk/dist/. ./internal/api/js/chrome/dist
