@@ -113,6 +113,11 @@ jobs:
           go install -v github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
 
       # JS SDK only steps
+      - name: Setup | PNPM
+        uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4
+        if: ${{ inputs.use_js_sdk != '' }}
+        with:
+          package_json_file: ${{ inputs.use_js_sdk }}/package.json
       - name: Setup | Node.js LTS
         if: ${{ inputs.use_js_sdk != '' }}
         uses: actions/setup-node@v3
