@@ -27,11 +27,10 @@ if [ "$js_sdk_src" = "." ]; then
     echo "Building js-sdk @ $(pwd)"
 
     PM=$(cat package.json | jq -r '.packageManager')
-    if [[ $PM == "pnpm@"* ]]; then
-        pnpm install
-    else
-        yarn install
-    fi
+    case "$PM" in
+        "pnpm@"*) pnpm install ;;
+        *) yarn install ;;
+    esac
 
     yarn_path="file:$(pwd)"
 else
