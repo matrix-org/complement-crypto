@@ -92,7 +92,7 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, erro
 	xprocessName := opts.GetExtraOption(CrossProcessStoreLocksHolderName, "").(string)
 	if xprocessName != "" {
 		t.Logf("setting cross process store locks holder name=%s", xprocessName)
-		ab = ab.CrossProcessStoreLocksHolderName(xprocessName)
+		ab = ab.CrossProcessLockConfig(matrix_sdk_ffi.CrossProcessLockConfigMultiProcess { xprocessName })
 	}
 	// @alice:hs1, FOOBAR => alice_hs1_FOOBAR
 	username := strings.Replace(opts.UserID[1:], ":", "_", -1) + "_" + opts.DeviceID
@@ -417,12 +417,6 @@ func (c *RustClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error)
 	//  > thread '<unnamed>' panicked at 'there is no reactor running, must be called from the context of a Tokio 1.x runtime'
 	// where the stack trace doesn't hit any test code, but does start at a `free_` function.
 	sb := c.FFIClient.SyncService()
-	xprocessName := c.opts.GetExtraOption(CrossProcessStoreLocksHolderName, "").(string)
-	if xprocessName != "" {
-		sb2 := sb.WithCrossProcessLock()
-		sb.Destroy()
-		sb = sb2
-	}
 	defer sb.Destroy()
 	syncService, err := sb.Finish()
 	if err != nil {
