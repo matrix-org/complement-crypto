@@ -33,7 +33,7 @@ elif [[ $ARG == .* ]]; then # starts with . => relative path
     echo "path not found: $ARG";
     exit 1
   fi
-else # HTTPS URL => git clone into temp dir  
+else # HTTPS URL => git clone into temp dir
   rm -rf $RUST_SDK_DIR || echo 'no temp directory found, cloning';
   SEGMENTS=(${ARG//@/ });
   git clone --depth 1 --branch ${SEGMENTS[1]} ${SEGMENTS[0]} $RUST_SDK_DIR;
@@ -56,7 +56,7 @@ sed -i.bak 's/uniffi =.*/uniffi = "0\.29\.5"/' Cargo.toml
 sed -i.bak 's/"wasm-unstable-single-threaded"//' bindings/matrix-sdk-ffi/Cargo.toml
 sed -i.bak 's^uniffi_bindgen =.*^uniffi_bindgen = { git = "https:\/\/github.com\/mozilla\/uniffi-rs", rev = "f7a0ba703b4c06fff8fffa98078f2e5d7588a695" }^' Cargo.toml
 sed -i.bak 's#matrix-sdk-crypto = {#matrix-sdk-crypto = {features = ["_disable-minimum-rotation-period-ms"],#' Cargo.toml
-cargo build -p matrix-sdk-ffi --features 'native-tls,sentry'
+cargo build -p matrix-sdk-ffi --features 'rustls-tls,sentry'
 # generate the bindings
 echo "generating bindings to $COMPLEMENT_DIR/internal/api/rust...";
 uniffi-bindgen-go -o $COMPLEMENT_DIR/internal/api/rust --config $COMPLEMENT_DIR/uniffi.toml --library ./target/debug/libmatrix_sdk_ffi.a
