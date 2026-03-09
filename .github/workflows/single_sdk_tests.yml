@@ -4,7 +4,11 @@
 # in the input. It runs single SDK only tests (e.g all JS clients _or_ all Rust clients, not a mixture).
 name: "Complement Crypto"
 run-name: "Running Complement-Crypto"
-permissions: read-all
+
+permissions:
+  contents: read
+  actions: read
+
 on:
   workflow_call:
     inputs:
