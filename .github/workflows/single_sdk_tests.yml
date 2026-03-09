@@ -32,7 +32,9 @@ jobs:
       # At this stage we don't know which repo we have just checked out. We will reference this repo
       # if the workflow uses '.'
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
       - name: Resolve branches
         shell: bash
         # these env vars will be modified and used in subsequent steps
@@ -104,18 +106,18 @@ jobs:
           docker pull mitmproxy/mitmproxy:10.1.5
           docker tag ghcr.io/matrix-org/synapse-service:v1.117.0 homeserver:latest
       - name: Setup | Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version: "1.25"
       - name: "Install Complement Dependencies"
         shell: bash
         run: |
-          go install -v github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
+          go install -v github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@4c97682ab858d6bbd26fc020e255cb339c9c8119 # v2.5.0
 
       # JS SDK only steps
       - name: Setup | Node.js LTS
         if: ${{ inputs.use_js_sdk != '' }}
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: "lts/*"
       - name: "Install JS SDK"
@@ -182,7 +184,7 @@ jobs:
           RUST_SDK_LIB_RELATIVE: ${{ inputs.use_rust_sdk == '.' &&  '/target/debug' || '/complement-crypto/rust-sdk/target/debug'}}
 
       - name: Upload logs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         if: ${{ failure() }}
         with:
           name: Logs - ${{ inputs.use_js_sdk != '' && 'jssdk' || 'rust'}}
