@@ -1,51 +1,55 @@
 name: Tests
 
+permissions: {}
+
 on:
   push:
-    branches: [ 'main' ]
+    branches: ["main"]
   pull_request:
   workflow_dispatch:
 
 jobs:
   check-signoff:
     if: "github.event_name == 'pull_request'"
-    uses: "matrix-org/backend-meta/.github/workflows/sign-off.yml@v2"
+    uses: matrix-org/backend-meta/.github/workflows/sign-off.yml@18beaf3c8e536108bd04d18e6c3dc40ba3931e28 # v2
 
   js-latest-main:
     name: Tests (JS only, latest)
     uses: ./.github/workflows/single_sdk_tests.yml
     with:
-      use_js_sdk: 'MATCHING_BRANCH'
-      use_complement_crypto: '.'
+      use_js_sdk: "MATCHING_BRANCH"
+      use_complement_crypto: "."
 
   rust-latest-main:
     name: Tests (Rust only, latest)
     uses: ./.github/workflows/single_sdk_tests.yml
     with:
-      use_rust_sdk: 'MATCHING_BRANCH'
-      use_complement_crypto: '.'
+      use_rust_sdk: "MATCHING_BRANCH"
+      use_complement_crypto: "."
 
   complement:
     name: Tests
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3 # Checkout crypto tests
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       # Install Node, Go and Rust, along with gotestfmt
       - name: Setup | Node.js LTS
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: "lts/*"
-          cache: 'yarn'
+          cache: "yarn"
           cache-dependency-path: "internal/api/js/js-sdk/yarn.lock"
       - name: Setup | Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
-          go-version: '1.21'
+          go-version: "1.25"
       - name: Setup | Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
+        run: |
+          rustup toolchain install stable
+          rustup default stable
       - name: Checkout matrix-rust-sdk
         run: |
           BRANCH=$(./.github/workflows/resolve_branch.sh matrix-org/matrix-rust-sdk)
@@ -53,12 +57,12 @@ jobs:
           wget -O archive.tar.gz "https://github.com/matrix-org/matrix-rust-sdk/archive/$BRANCH.tar.gz"
           zcat < archive.tar.gz | git get-tar-commit-id # useful for debugging
           tar -xz --strip-components=1 -C rust-sdk < archive.tar.gz
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
         with:
           workspaces: "rust-sdk"
       - name: "Install Complement Dependencies"
         run: |
-          go install -v github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@latest
+          go install -v github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@4c97682ab858d6bbd26fc020e255cb339c9c8119 # v2.5.0
 
       # Install whatever version of the JS SDK is in package.json
       - name: Build JS SDK
@@ -81,38 +85,38 @@ jobs:
           docker tag ghcr.io/matrix-org/synapse-service:v1.117.0 homeserver:latest
 
       # Build homeserver image, honouring branch names
-      #- name: "Checkout corresponding Synapse branch" 
-        #shell: bash 
-        #run: |  
-          #mkdir -p homeserver 
-#  
-          ## Attempt to use the version of the homeserver which best matches the 
-          ## current build.  
-          ## 
-          ## 1. If we are not on complement's default branch, check if there's a 
-          ##    similarly named branch (GITHUB_HEAD_REF for pull requests, 
-          ##    otherwise GITHUB_REF). 
-          ## 2. otherwise, use the default homeserver branch ("HEAD")  
-#  
-          #for BRANCH_NAME in "$GITHUB_HEAD_REF" "${GITHUB_REF#refs/heads/}" "HEAD"; do  
-            ## Skip empty branch names, merge commits, and our default branch. 
-            ## (If we are on complement's default branch, we want to fall through to the HS's default branch 
-            ## rather than using the HS's 'master'/'main').  
-            #case "$BRANCH_NAME" in  
-              #"" | refs/pull/* | main | master) 
-                #continue  
-                #;;  
-            #esac  
-            #(wget -O - "https://github.com/matrix-org/synapse/archive/$BRANCH_NAME.tar.gz" | tar -xz --strip-components=1 -C homeserver) && break 
-          #done  
-        ## Build the base Synapse dockerfile and then build a Complement-specific image from that base.  
-      #- run: |  
-          #docker build -t matrixdotorg/synapse:latest -f docker/Dockerfile .  
-          #docker build -t matrixdotorg/synapse-workers:latest -f docker/Dockerfile-workers .  
-          #docker build -t homeserver -f docker/complement/Dockerfile docker/complement  
-        #working-directory: homeserver 
-        #env:  
-          #DOCKER_BUILDKIT: 1  
+      #- name: "Checkout corresponding Synapse branch"
+      #shell: bash
+      #run: |
+      #mkdir -p homeserver
+      #
+      ## Attempt to use the version of the homeserver which best matches the
+      ## current build.
+      ##
+      ## 1. If we are not on complement's default branch, check if there's a
+      ##    similarly named branch (GITHUB_HEAD_REF for pull requests,
+      ##    otherwise GITHUB_REF).
+      ## 2. otherwise, use the default homeserver branch ("HEAD")
+      #
+      #for BRANCH_NAME in "$GITHUB_HEAD_REF" "${GITHUB_REF#refs/heads/}" "HEAD"; do
+      ## Skip empty branch names, merge commits, and our default branch.
+      ## (If we are on complement's default branch, we want to fall through to the HS's default branch
+      ## rather than using the HS's 'master'/'main').
+      #case "$BRANCH_NAME" in
+      #"" | refs/pull/* | main | master)
+      #continue
+      #;;
+      #esac
+      #(wget -O - "https://github.com/matrix-org/synapse/archive/$BRANCH_NAME.tar.gz" | tar -xz --strip-components=1 -C homeserver) && break
+      #done
+      ## Build the base Synapse dockerfile and then build a Complement-specific image from that base.
+      #- run: |
+      #docker build -t matrixdotorg/synapse:latest -f docker/Dockerfile .
+      #docker build -t matrixdotorg/synapse-workers:latest -f docker/Dockerfile-workers .
+      #docker build -t homeserver -f docker/complement/Dockerfile docker/complement
+      #working-directory: homeserver
+      #env:
+      #DOCKER_BUILDKIT: 1
       - name: "Run Complement-Crypto unit tests"
         env:
           COMPLEMENT_BASE_IMAGE: homeserver
@@ -161,10 +165,10 @@ jobs:
           DOCKER_BUILDKIT: 1
 
       - name: Upload logs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         if: ${{ always() }} # do this even if the tests fail
         with:
           name: Logs - ${{ job.status }}
           path: |
-              ./**/logs/*
-              ./**/mitm.dump
+            ./**/logs/*
+            ./**/mitm.dump
