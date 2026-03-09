@@ -6,7 +6,7 @@ permissions:
 
 on:
   push:
-    branches: [ 'main' ]
+    branches: ["main"]
   pull_request:
   workflow_dispatch:
 
@@ -19,15 +19,15 @@ jobs:
     name: Tests (JS only, latest)
     uses: ./.github/workflows/single_sdk_tests.yml
     with:
-      use_js_sdk: 'MATCHING_BRANCH'
-      use_complement_crypto: '.'
+      use_js_sdk: "MATCHING_BRANCH"
+      use_complement_crypto: "."
 
   rust-latest-main:
     name: Tests (Rust only, latest)
     uses: ./.github/workflows/single_sdk_tests.yml
     with:
-      use_rust_sdk: 'MATCHING_BRANCH'
-      use_complement_crypto: '.'
+      use_rust_sdk: "MATCHING_BRANCH"
+      use_complement_crypto: "."
 
   complement:
     name: Tests
@@ -42,12 +42,12 @@ jobs:
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: "lts/*"
-          cache: 'yarn'
+          cache: "yarn"
           cache-dependency-path: "internal/api/js/js-sdk/yarn.lock"
       - name: Setup | Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
-          go-version: '1.21'
+          go-version: "1.21"
       - name: Setup | Rust
         run: |
           rustup toolchain install stable
@@ -172,5 +172,5 @@ jobs:
         with:
           name: Logs - ${{ job.status }}
           path: |
-              ./**/logs/*
-              ./**/mitm.dump
+            ./**/logs/*
+            ./**/mitm.dump
