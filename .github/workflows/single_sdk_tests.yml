@@ -130,9 +130,9 @@ jobs:
       # which we then pass to rebuild_rust_sdk.sh
       - name: Setup | Rust
         if: ${{ inputs.use_rust_sdk != '' }}
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: stable
+        run: |
+          rustup toolchain install stable
+          rustup default stable
       - name: "Download Rust SDK" # no need to download rust SDK if we are using the local checkout.
         if: ${{ inputs.use_rust_sdk != '' && inputs.use_rust_sdk != '.'}}
         run: |
