@@ -12,9 +12,11 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/chromedp/cdproto/runtime"
@@ -70,16 +72,52 @@ type Browser struct {
 	Cancel  func()
 }
 
-func RunHeadless(onConsoleLog func(s string), requiresPersistence bool, listenPort int) (*Browser, error) {
+// colouredLogWriter is an implementation of `io.Writer` which wraps an `os.File`, adding the date and logPrefix to each line,
+// and decorating the text in a specific colour.
+type coloredLogWriter struct {
+	colour    string
+	logPrefix string
+	output    *os.File
+}
+
+func (w coloredLogWriter) Write(p []byte) (n int, err error) {
+	_, err = w.output.WriteString(w.colour)
+	if err != nil {
+		return
+	}
+
+	last := byte('\n')
+	for _, c := range p {
+		// If this is the first byte after a newline, add the date and prefix
+		if last == '\n' {
+			_, err = w.output.WriteString(time.Now().Format(time.RFC3339) + " " + w.logPrefix + " ")
+			if err != nil {
+				return
+			}
+		}
+		_, err = w.output.Write([]byte{c})
+		if err != nil {
+			return
+		}
+		n += 1
+		last = c
+	}
+
+	ansiResetForeground := "\x1b[39m"
+	_, err = w.output.WriteString(ansiResetForeground)
+	return
+}
+
+func RunHeadless(logPrefix string, onConsoleLog func(s string), requiresPersistence bool, listenPort int) (*Browser, error) {
 	ansiRedForeground := "\x1b[31m"
 	ansiYellowForeground := "\x1b[33m"
-	ansiResetForeground := "\x1b[39m"
+	ansiBlueForeground := "\x1b[34m"
 
 	// colorifyError returns a log format function which prints its input with a given prefix and colour.
 	colorifyError := func(colour string, prefix string) func(format string, args ...any) {
+		writer := coloredLogWriter{colour: colour, logPrefix: logPrefix + "[chromedp " + prefix + "]", output: os.Stdout}
 		return func(format string, args ...any) {
-			format = ansiRedForeground + time.Now().Format(time.RFC3339) + " [chromedp: " + prefix + "] " + format + ansiResetForeground + "\n"
-			fmt.Printf(format, args...)
+			fmt.Fprintf(writer, format, args...)
 		}
 	}
 	opts := chromedp.DefaultExecAllocatorOptions[:]
@@ -94,12 +132,36 @@ func RunHeadless(onConsoleLog func(s string), requiresPersistence bool, listenPo
 	// increase the WS timeout from 20s (default) to 30s as we see timeouts with 20s in CI
 	opts = append(opts, chromedp.WSURLReadTimeout(30*time.Second))
 
+	// Capture stdout/stderr from Chrome, and log it.
+	opts = append(opts, chromedp.CombinedOutput(coloredLogWriter{colour: ansiBlueForeground, logPrefix: logPrefix + " chrome:", output: os.Stdout}))
+
+	// Hook into chromedp to log the command that is about to be executed. The easiest way to do that seems to be to
+	// set a ModifyCmdFunc.
+	opts = append(opts, chromedp.ModifyCmdFunc(func(cmd *exec.Cmd) {
+		writer := coloredLogWriter{colour: ansiBlueForeground, logPrefix: logPrefix, output: os.Stdout}
+		fmt.Fprintf(writer, "Executing: %v\n", cmd.Args)
+
+		// Replicate the behaviour of the default ModifyCmdFunc: tell the kernel to send the child a SIGKILL when the
+		// parent thread dies.
+		if cmd.SysProcAttr == nil {
+			cmd.SysProcAttr = new(syscall.SysProcAttr)
+		}
+		cmd.SysProcAttr.Pdeathsig = syscall.SIGKILL
+	}))
+
 	allocCtx, allocCancel := chromedp.NewExecAllocator(context.Background(), opts...)
 	ctx, cancel := chromedp.NewContext(allocCtx, chromedp.WithBrowserOption(
 		chromedp.WithBrowserLogf(colorifyError(ansiYellowForeground, "LOG")),
 		chromedp.WithBrowserErrorf(colorifyError(ansiRedForeground, "ERROR")),
 		// chromedp.WithBrowserDebugf(log.Printf),
 	))
+
+	// Make sure we can talk to Chrome before we start messing about with js-sdk
+	fmt.Println("Starting chrome via chromedp")
+	err := chromedp.Run(ctx, chromedp.Evaluate(`(() => 1)()`, nil))
+	if err != nil {
+		return nil, fmt.Errorf("failed to run test evaluation via chromedp: %w", err)
+	}
 
 	// Listen for console logs for debugging AND to communicate live updates
 	chromedp.ListenTarget(ctx, func(ev interface{}) {
@@ -137,10 +199,10 @@ func RunHeadless(onConsoleLog func(s string), requiresPersistence bool, listenPo
 			panic(err)
 		}
 		baseJSURL = "http://" + ln.Addr().String()
-		fmt.Println("JS SDK listening on", baseJSURL)
+		fmt.Println(logPrefix, "JS SDK wrapper listening on", baseJSURL)
 		wg.Done()
-		srv.Serve(ln)
-		fmt.Println("JS SDK closing webserver")
+		err = srv.Serve(ln)
+		fmt.Printf("%s Closing webserver for JS SDK wrapper at %s: %v\n", logPrefix, baseJSURL, err)
 	}
 	go startServer()
 	wg.Wait()

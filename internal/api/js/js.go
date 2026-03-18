@@ -69,7 +69,7 @@ func NewJSClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, error)
 		verificationChannelMu: &sync.Mutex{},
 	}
 	portKey := opts.UserID + opts.DeviceID
-	browser, err := chrome.RunHeadless(func(s string) {
+	browser, err := chrome.RunHeadless(fmt.Sprintf("[JSClient %s,%s]", opts.UserID, opts.DeviceID), func(s string) {
 		writeToLog("[%s,%s] console.log %s\n", opts.UserID, opts.DeviceID, s)
 
 		msg := unpackControlMessage(t, s)
