@@ -12,9 +12,11 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/chromedp/cdproto/runtime"
@@ -70,6 +72,42 @@ type Browser struct {
 	Cancel  func()
 }
 
+// colouredLogWriter is an implementation of `io.Writer` which wraps an `os.File`, adding the date and logPrefix to each line,
+// and decorating the text in a specific colour.
+type coloredLogWriter struct {
+	colour    string
+	logPrefix string
+	output    *os.File
+}
+
+func (w coloredLogWriter) Write(p []byte) (n int, err error) {
+	_, err = w.output.WriteString(w.colour)
+	if err != nil {
+		return
+	}
+
+	last := byte('\n')
+	for _, c := range p {
+		// If this is the first byte after a newline, add the date and prefix
+		if last == '\n' {
+			_, err = w.output.WriteString(time.Now().Format(time.RFC3339) + " " + w.logPrefix + " ")
+			if err != nil {
+				return
+			}
+		}
+		_, err = w.output.Write([]byte{c})
+		if err != nil {
+			return
+		}
+		n += 1
+		last = c
+	}
+
+	ansiResetForeground := "\x1b[39m"
+	_, err = w.output.WriteString(ansiResetForeground)
+	return
+}
+
 func RunHeadless(logPrefix string, onConsoleLog func(s string), requiresPersistence bool, listenPort int) (*Browser, error) {
 	ansiRedForeground := "\x1b[31m"
 	ansiYellowForeground := "\x1b[33m"
@@ -77,9 +115,9 @@ func RunHeadless(logPrefix string, onConsoleLog func(s string), requiresPersiste
 
 	// colorifyError returns a log format function which prints its input with a given prefix and colour.
 	colorifyError := func(colour string, prefix string) func(format string, args ...any) {
+		writer := coloredLogWriter{colour: colour, logPrefix: logPrefix + "[chromedp " + prefix + "]", output: os.Stdout}
 		return func(format string, args ...any) {
-			format = ansiRedForeground + time.Now().Format(time.RFC3339) + " " + logPrefix + "[chromedp " + prefix + "] " + format + ansiResetForeground + "\n"
-			fmt.Printf(format, args...)
+			fmt.Fprintf(writer, format, args...)
 		}
 	}
 	opts := chromedp.DefaultExecAllocatorOptions[:]
