@@ -111,7 +111,7 @@ func (w coloredLogWriter) Write(p []byte) (n int, err error) {
 func RunHeadless(logPrefix string, onConsoleLog func(s string), requiresPersistence bool, listenPort int) (*Browser, error) {
 	ansiRedForeground := "\x1b[31m"
 	ansiYellowForeground := "\x1b[33m"
-	ansiResetForeground := "\x1b[39m"
+	ansiBlueForeground := "\x1b[34m"
 
 	// colorifyError returns a log format function which prints its input with a given prefix and colour.
 	colorifyError := func(colour string, prefix string) func(format string, args ...any) {
@@ -131,6 +131,23 @@ func RunHeadless(logPrefix string, onConsoleLog func(s string), requiresPersiste
 	}
 	// increase the WS timeout from 20s (default) to 30s as we see timeouts with 20s in CI
 	opts = append(opts, chromedp.WSURLReadTimeout(30*time.Second))
+
+	// Capture stdout/stderr from Chrome, and log it.
+	opts = append(opts, chromedp.CombinedOutput(coloredLogWriter{colour: ansiBlueForeground, logPrefix: logPrefix + " chrome:", output: os.Stdout}))
+
+	// Hook into chromedp to log the command that is about to be executed. The easiest way to do that seems to be to
+	// set a ModifyCmdFunc.
+	opts = append(opts, chromedp.ModifyCmdFunc(func(cmd *exec.Cmd) {
+		writer := coloredLogWriter{colour: ansiBlueForeground, logPrefix: logPrefix, output: os.Stdout}
+		fmt.Fprintf(writer, "Executing: %v\n", cmd.Args)
+
+		// Replicate the behaviour of the default ModifyCmdFunc: tell the kernel to send the child a SIGKILL when the
+		// parent thread dies.
+		if cmd.SysProcAttr == nil {
+			cmd.SysProcAttr = new(syscall.SysProcAttr)
+		}
+		cmd.SysProcAttr.Pdeathsig = syscall.SIGKILL
+	}))
 
 	allocCtx, allocCancel := chromedp.NewExecAllocator(context.Background(), opts...)
 	ctx, cancel := chromedp.NewContext(allocCtx, chromedp.WithBrowserOption(
