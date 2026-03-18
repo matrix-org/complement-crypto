@@ -70,7 +70,7 @@ type Browser struct {
 	Cancel  func()
 }
 
-func RunHeadless(onConsoleLog func(s string), requiresPersistence bool, listenPort int) (*Browser, error) {
+func RunHeadless(logPrefix string, onConsoleLog func(s string), requiresPersistence bool, listenPort int) (*Browser, error) {
 	ansiRedForeground := "\x1b[31m"
 	ansiYellowForeground := "\x1b[33m"
 	ansiResetForeground := "\x1b[39m"
@@ -78,7 +78,7 @@ func RunHeadless(onConsoleLog func(s string), requiresPersistence bool, listenPo
 	// colorifyError returns a log format function which prints its input with a given prefix and colour.
 	colorifyError := func(colour string, prefix string) func(format string, args ...any) {
 		return func(format string, args ...any) {
-			format = ansiRedForeground + time.Now().Format(time.RFC3339) + " [chromedp: " + prefix + "] " + format + ansiResetForeground + "\n"
+			format = ansiRedForeground + time.Now().Format(time.RFC3339) + " " + logPrefix + "[chromedp " + prefix + "] " + format + ansiResetForeground + "\n"
 			fmt.Printf(format, args...)
 		}
 	}
@@ -137,10 +137,10 @@ func RunHeadless(onConsoleLog func(s string), requiresPersistence bool, listenPo
 			panic(err)
 		}
 		baseJSURL = "http://" + ln.Addr().String()
-		fmt.Println("JS SDK listening on", baseJSURL)
+		fmt.Println(logPrefix, "JS SDK wrapper listening on", baseJSURL)
 		wg.Done()
-		srv.Serve(ln)
-		fmt.Println("JS SDK closing webserver")
+		err = srv.Serve(ln)
+		fmt.Printf("%s Closing webserver for JS SDK wrapper at %s: %v\n", logPrefix, baseJSURL, err)
 	}
 	go startServer()
 	wg.Wait()
