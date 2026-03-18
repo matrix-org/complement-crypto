@@ -156,6 +156,13 @@ func RunHeadless(logPrefix string, onConsoleLog func(s string), requiresPersiste
 		// chromedp.WithBrowserDebugf(log.Printf),
 	))
 
+	// Make sure we can talk to Chrome before we start messing about with js-sdk
+	fmt.Println("Starting chrome via chromedp")
+	err := chromedp.Run(ctx, chromedp.Evaluate(`(() => 1)()`, nil))
+	if err != nil {
+		return nil, fmt.Errorf("failed to run test evaluation via chromedp: %w", err)
+	}
+
 	// Listen for console logs for debugging AND to communicate live updates
 	chromedp.ListenTarget(ctx, func(ev interface{}) {
 		switch ev := ev.(type) {
