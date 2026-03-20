@@ -52,9 +52,7 @@ cp Cargo.toml Cargo.toml.backup
 cp Cargo.lock Cargo.lock.backup
 cp bindings/matrix-sdk-ffi/Cargo.toml bindings/matrix-sdk-ffi/Cargo.toml.backup
 trap "restore_backups" EXIT INT TERM
-sed -i.bak 's/uniffi =.*/uniffi = "0\.29\.5"/' Cargo.toml
 sed -i.bak 's/"wasm-unstable-single-threaded"//' bindings/matrix-sdk-ffi/Cargo.toml
-sed -i.bak 's^uniffi_bindgen =.*^uniffi_bindgen = { git = "https:\/\/github.com\/mozilla\/uniffi-rs", rev = "f7a0ba703b4c06fff8fffa98078f2e5d7588a695" }^' Cargo.toml
 sed -i.bak 's#matrix-sdk-crypto = {#matrix-sdk-crypto = {features = ["_disable-minimum-rotation-period-ms"],#' Cargo.toml
 cargo build -p matrix-sdk-ffi --features 'rustls-tls,sentry'
 # generate the bindings
