@@ -37,6 +37,10 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+      - name: Setup | Chromium
+        run: |
+          sudo apt-get -qq update
+          sudo apt-get -qq -y install chromium-browser
       - name: Resolve branches
         shell: bash
         # these env vars will be modified and used in subsequent steps
