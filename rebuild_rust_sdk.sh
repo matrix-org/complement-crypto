@@ -54,7 +54,7 @@ trap "restore_backups" EXIT INT TERM
 sed -i.bak 's/"wasm-unstable-single-threaded"//' bindings/matrix-sdk-ffi/Cargo.toml
 # Enable a hidden feature to make tests run faster.
 sed -i.bak 's#matrix-sdk-crypto = {#matrix-sdk-crypto = {features = ["_disable-minimum-rotation-period-ms"],#' Cargo.toml
-cargo build -p matrix-sdk-ffi --features 'rustls-tls,sentry'
+cargo build -p matrix-sdk-ffi --features 'sentry'
 # generate the bindings
 echo "generating bindings to $COMPLEMENT_DIR/internal/api/rust...";
 uniffi-bindgen-go -o $COMPLEMENT_DIR/internal/api/rust --config $COMPLEMENT_DIR/uniffi.toml --library ./target/debug/libmatrix_sdk_ffi.a
