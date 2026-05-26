@@ -26,9 +26,9 @@ if [ "$js_sdk_src" = "." ]; then
     # If we install from a local directory, we have to build the js-sdk ourselves.
     echo "Building js-sdk @ $(pwd)"
 
-    PM=$(cat package.json | jq -r '.packageManager')
+    PM=$(cat package.json | jq -r '.devEngines.packageManager.name // .packageManager')
     case "$PM" in
-        "pnpm@"*) pnpm install ;;
+        "pnpm"|"pnpm@"*) pnpm install ;;
         *) yarn install ;;
     esac
 
