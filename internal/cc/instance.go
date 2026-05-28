@@ -2,8 +2,6 @@ package cc
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"sync"
 	"testing"
 
@@ -11,6 +9,8 @@ import (
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/config"
 	"github.com/matrix-org/complement-crypto/internal/deploy"
+
+	complementconfig "github.com/matrix-org/complement/config"
 )
 
 // Instance represents a test instance.
@@ -18,7 +18,7 @@ import (
 // The instance is the global variable holding onto all data that must be shared
 // between tests, such as the configuration options and the deployed containers.
 type Instance struct {
-	ssDeployment           *deploy.SlidingSyncDeployment
+	ssDeployment           *deploy.ComplementCryptoDeployment
 	ssMutex                *sync.Mutex
 	complementCryptoConfig *config.ComplementCrypto
 }
@@ -32,14 +32,14 @@ func NewInstance(cfg *config.ComplementCrypto) *Instance {
 
 // TestMain is the entry point for running a test suite with this Instance.
 // The function signature matches the standard Go test suite TestMain()
-func (i *Instance) TestMain(m *testing.M) {
+func (i *Instance) TestMain(m *testing.M, namespace string) {
 	// Execute PreTestRun lifecycle hook
 	for _, binding := range i.complementCryptoConfig.Bindings() {
 		binding.PreTestRun("")
 	}
 
 	// Defer to complement to run the test suite
-	complement.TestMainWithCleanup(m, "crypto", func() { // always teardown even if panicking
+	complement.TestMain(m, namespace, complement.WithCleanup(func(conf *complementconfig.Complement) { // always teardown even if panicking
 		i.ssMutex.Lock()
 		if i.ssDeployment != nil {
 			i.ssDeployment.Teardown()
@@ -49,7 +49,7 @@ func (i *Instance) TestMain(m *testing.M) {
 		for _, binding := range i.complementCryptoConfig.Bindings() {
 			binding.PostTestRun("")
 		}
-	})
+	}))
 }
 
 // Deploy all backend servers if they do not already exist. Calling this multiple
@@ -57,18 +57,13 @@ func (i *Instance) TestMain(m *testing.M) {
 //
 // Tests will rarely use this function directly, preferring to use TestContext.
 // See Instance.CreateTestContext
-func (i *Instance) Deploy(t *testing.T) *deploy.SlidingSyncDeployment {
+func (i *Instance) Deploy(t *testing.T) *deploy.ComplementCryptoDeployment {
 	i.ssMutex.Lock()
 	defer i.ssMutex.Unlock()
 	if i.ssDeployment != nil {
 		return i.ssDeployment
 	}
-	workingDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("failed to find working directory: %s", err)
-	}
-	mitmProxyAddonsDir := filepath.Join(workingDir, "mitmproxy_addons")
-	i.ssDeployment = deploy.RunNewDeployment(t, mitmProxyAddonsDir, i.complementCryptoConfig.MITMDump)
+	i.ssDeployment = deploy.RunNewDeployment(t, i.complementCryptoConfig.MITMProxyAddonsDir, i.complementCryptoConfig.MITMDump)
 	return i.ssDeployment
 }
 

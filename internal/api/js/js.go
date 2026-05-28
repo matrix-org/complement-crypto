@@ -14,7 +14,6 @@ import (
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/api/js/chrome"
 	"github.com/matrix-org/complement/ct"
-	"github.com/matrix-org/complement/must"
 	"github.com/tidwall/gjson"
 )
 
@@ -70,7 +69,7 @@ func NewJSClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, error)
 		verificationChannelMu: &sync.Mutex{},
 	}
 	portKey := opts.UserID + opts.DeviceID
-	browser, err := chrome.RunHeadless(func(s string) {
+	browser, err := chrome.RunHeadless(fmt.Sprintf("[JSClient %s,%s]", opts.UserID, opts.DeviceID), func(s string) {
 		writeToLog("[%s,%s] console.log %s\n", opts.UserID, opts.DeviceID, s)
 
 		msg := unpackControlMessage(t, s)
@@ -191,12 +190,13 @@ func (c *JSClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {
 
 	// any events need to log the control string so we get notified
 	_, err = chrome.RunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`
-	window.__client.on("Event.decrypted", function(event) {
-		`+EmitControlMessageEventJS("event.getRoomId()", "event.getEffectiveEvent()")+`
-	});
-	window.__client.on("event", function(event) {
-		`+EmitControlMessageEventJS("event.getRoomId()", "event.getEffectiveEvent()")+`
-	});`))
+	const handleEvent = function(event) {
+		%s
+	};
+	window.__client.on("Event.decrypted", handleEvent);
+	window.__client.on("event", handleEvent);`,
+		EmitControlMessageEventJS("event.getRoomId()", "event.getEffectiveEvent()"),
+	))
 	if err != nil {
 		return err
 	}
@@ -509,7 +509,7 @@ func (c *JSClient) InviteUser(t ct.TestLike, roomID, userID string) error {
 	return err
 }
 
-func (c *JSClient) MustGetEvent(t ct.TestLike, roomID, eventID string) api.Event {
+func (c *JSClient) GetEvent(t ct.TestLike, roomID, eventID string) (*api.Event, error) {
 	t.Helper()
 	// serialised output (if encrypted):
 	// {
@@ -517,14 +517,17 @@ func (c *JSClient) MustGetEvent(t ct.TestLike, roomID, eventID string) api.Event
 	//    decrypted: { event }
 	// }
 	// else just returns { event }
-	evSerialised := chrome.MustRunAsyncFn[string](t, c.browser.Ctx, fmt.Sprintf(`
+	evSerialised, err := chrome.RunAsyncFn[string](t, c.browser.Ctx, fmt.Sprintf(`
 	return JSON.stringify(window.__client.getRoom("%s")?.getLiveTimeline()?.getEvents().filter((ev, i) => {
 		console.log("MustGetEvent["+i+"] => " + ev.getId()+ " " + JSON.stringify(ev.toJSON()));
 		return ev.getId() === "%s";
 	})[0].toJSON());
 	`, roomID, eventID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get event %s: %s", eventID, err)
+	}
 	if !gjson.Valid(*evSerialised) {
-		ct.Fatalf(t, "MustGetEvent(%s, %s) %s (js): invalid event, got %s", roomID, eventID, c.userID, *evSerialised)
+		return nil, fmt.Errorf("invalid event %s, got %s", eventID, *evSerialised)
 	}
 	result := gjson.Parse(*evSerialised)
 	decryptedEvent := result.Get("decrypted")
@@ -533,7 +536,7 @@ func (c *JSClient) MustGetEvent(t ct.TestLike, roomID, eventID string) api.Event
 	}
 	encryptedEvent := result.Get("encrypted")
 	//fmt.Printf("DECRYPTED: %s\nENCRYPTED: %s\n\n", decryptedEvent.Raw, encryptedEvent.Raw)
-	ev := api.Event{
+	ev := &api.Event{
 		ID:     decryptedEvent.Get("event_id").Str,
 		Text:   decryptedEvent.Get("content.body").Str,
 		Sender: decryptedEvent.Get("sender").Str,
@@ -546,14 +549,85 @@ func (c *JSClient) MustGetEvent(t ct.TestLike, roomID, eventID string) api.Event
 		ev.FailedToDecrypt = true
 	}
 
-	return ev
+	return ev, nil
 }
 
-func (c *JSClient) MustStartSyncing(t ct.TestLike) (stopSyncing func()) {
+func (c *JSClient) GetEventShield(t ct.TestLike, roomID, eventID string) (*api.EventShield, error) {
 	t.Helper()
-	stopSyncing, err := c.StartSyncing(t)
-	must.NotError(t, "StartSyncing", err)
-	return stopSyncing
+	// Serialized output:
+	//
+	// {
+	//    shieldColour: 0 | 1 | 2,  // NONE | GREY | RED
+	//    shieldReason: 0 ... 7
+	// }
+	encryptionInfoSerialised, err := chrome.RunAsyncFn[string](t, c.browser.Ctx, fmt.Sprintf(`
+		const ev = window.__client.getRoom("%s")?.getLiveTimeline()?.getEvents().filter((ev, i) => {
+			return ev.getId() === "%s";
+		})[0];
+		const encryptionInfo = await window.__client.getCrypto().getEncryptionInfoForEvent(ev);
+		return JSON.stringify(encryptionInfo);
+	`, roomID, eventID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get shield for event %s: %s", eventID, err)
+	}
+
+	var encryptionInfo struct {
+		ShieldColour uint `json:"shieldColour"`
+		ShieldReason uint `json:"shieldReason"`
+	}
+
+	if err := json.Unmarshal([]byte(*encryptionInfoSerialised), &encryptionInfo); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal encryption info: %s", err)
+	}
+
+	if encryptionInfo.ShieldColour == 0 {
+		// No shield
+		return nil, nil
+	}
+
+	var eventShield api.EventShield
+	switch encryptionInfo.ShieldColour {
+	case 1:
+		eventShield.Colour = api.EventShieldColourGrey
+	case 2:
+		eventShield.Colour = api.EventShieldColourRed
+	default:
+		return nil, fmt.Errorf("unknown shield colour: %d", encryptionInfo.ShieldColour)
+	}
+
+	switch encryptionInfo.ShieldReason {
+	case 0:
+		eventShield.Code = api.EventShieldCodeUnknown
+
+	case 1:
+		eventShield.Code = api.EventShieldCodeUnverifiedIdentity
+
+	case 2:
+		eventShield.Code = api.EventShieldCodeUnsignedDevice
+
+	case 3:
+		eventShield.Code = api.EventShieldCodeUnknownDevice
+
+	case 4:
+		eventShield.Code = api.EventShieldCodeAuthenticityNotGuaranteed
+
+	case 5:
+		eventShield.Code = api.EventShieldCodeMismatchedSenderKey
+
+	case 6:
+		eventShield.Code = api.EventShieldCodeSentInClear
+
+	case 7:
+		eventShield.Code = api.EventShieldCodeVerificationViolation
+
+	case 8:
+		eventShield.Code = api.EventShieldCodeMismatchedSender
+
+	default:
+		return nil, fmt.Errorf("unknown shield reason code: %d", encryptionInfo.ShieldReason)
+	}
+
+	return &eventShield, nil
 }
 
 // StartSyncing to begin syncing from sync v2 / sliding sync.
@@ -566,11 +640,11 @@ func (c *JSClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error) {
 			if (state !== "SYNCING") {
 				return;
 			}
-			`+EmitControlMessageSyncJS()+`
+			%s
 
 			window.__client.off("sync", fn);
 		};
-		window.__client.on("sync", fn);`))
+		window.__client.on("sync", fn);`, EmitControlMessageSyncJS()))
 	if err != nil {
 		return nil, fmt.Errorf("[%s]failed to listen for sync callback: %s", c.userID, err)
 	}
@@ -609,16 +683,7 @@ func (c *JSClient) IsRoomEncrypted(t ct.TestLike, roomID string) (bool, error) {
 	return *isEncrypted, nil
 }
 
-// SendMessage sends the given text as an m.room.message with msgtype:m.text into the given
-// room.
-func (c *JSClient) SendMessage(t ct.TestLike, roomID, text string) (eventID string) {
-	t.Helper()
-	eventID, err := c.TrySendMessage(t, roomID, text)
-	must.NotError(t, "failed to sendMessage", err)
-	return eventID
-}
-
-func (c *JSClient) TrySendMessage(t ct.TestLike, roomID, text string) (eventID string, err error) {
+func (c *JSClient) SendMessage(t ct.TestLike, roomID, text string) (eventID string, err error) {
 	t.Helper()
 	res, err := chrome.RunAsyncFn[map[string]interface{}](t, c.browser.Ctx, fmt.Sprintf(`
 	return await window.__client.sendMessage("%s", {
@@ -631,16 +696,17 @@ func (c *JSClient) TrySendMessage(t ct.TestLike, roomID, text string) (eventID s
 	return (*res)["event_id"].(string), nil
 }
 
-func (c *JSClient) MustBackpaginate(t ct.TestLike, roomID string, count int) {
+func (c *JSClient) Backpaginate(t ct.TestLike, roomID string, count int) error {
 	t.Helper()
-	chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(
+	_, err := chrome.RunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(
 		`await window.__client.scrollback(window.__client.getRoom("%s"), %d);`, roomID, count,
 	))
+	return err
 }
 
-func (c *JSClient) MustBackupKeys(t ct.TestLike) (recoveryKey string) {
+func (c *JSClient) BackupKeys(t ct.TestLike) (recoveryKey string, err error) {
 	t.Helper()
-	key := chrome.MustRunAsyncFn[string](t, c.browser.Ctx, `
+	key, err := chrome.RunAsyncFn[string](t, c.browser.Ctx, `
 		// we need to ensure that we have a recovery key first, though we don't actually care about it..?
 		const recoveryKey = await window.__client.getCrypto().createRecoveryKeyFromPassphrase();
 		// now use said key to make backups
@@ -652,15 +718,14 @@ func (c *JSClient) MustBackupKeys(t ct.TestLike) (recoveryKey string) {
 		// now we can enable key backups
 		await window.__client.getCrypto().checkKeyBackupAndEnable();
 		return recoveryKey.encodedPrivateKey;`)
+	if err != nil {
+		return "", fmt.Errorf("error enabling key backup: %s", err)
+	}
 	// the backup loop which sends keys will wait between 0-10s before uploading keys...
 	// See https://github.com/matrix-org/matrix-js-sdk/blob/49624d5d7308e772ebee84322886a39d2e866869/src/rust-crypto/backup.ts#L319
 	// Ideally this would be configurable..
 	time.Sleep(11 * time.Second)
-	return *key
-}
-
-func (c *JSClient) MustLoadBackup(t ct.TestLike, recoveryKey string) {
-	must.NotError(t, "failed to load backup", c.LoadBackup(t, recoveryKey))
+	return *key, nil
 }
 
 func (c *JSClient) LoadBackup(t ct.TestLike, recoveryKey string) error {
@@ -676,7 +741,8 @@ func (c *JSClient) LoadBackup(t ct.TestLike, recoveryKey string) error {
 		console.log("will return recovery key for default key id " + keyId);
 		const keyBackupCheck = await window.__client.getCrypto().checkKeyBackupAndEnable();
 		console.log("key backup: ", JSON.stringify(keyBackupCheck));
-		await window.__client.restoreKeyBackupWithSecretStorage(keyBackupCheck ? keyBackupCheck.backupInfo : null, undefined, undefined);`,
+		await window.__client.getCrypto().loadSessionBackupPrivateKeyFromSecretStorage();
+		await window.__client.getCrypto().restoreKeyBackup();`,
 		recoveryKey))
 	return err
 }
@@ -693,8 +759,9 @@ func (c *JSClient) WaitUntilEventInRoom(t ct.TestLike, roomID string, checker fu
 func (c *JSClient) Logf(t ct.TestLike, format string, args ...interface{}) {
 	t.Helper()
 	formatted := fmt.Sprintf(t.Name()+": "+format, args...)
+	firstLine := strings.Split(formatted, "\n")[0]
 	if c.browser.Ctx.Err() == nil { // don't log on dead browsers
-		chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`console.log("%s");`, strings.Replace(formatted, `"`, `\"`, -1)))
+		chrome.MustRunAsyncFn[chrome.Void](t, c.browser.Ctx, fmt.Sprintf(`console.log("%s");`, strings.Replace(firstLine, `"`, `\"`, -1)))
 		t.Logf(format, args...)
 	}
 }

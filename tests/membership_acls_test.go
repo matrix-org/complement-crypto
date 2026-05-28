@@ -2,6 +2,7 @@ package tests
 
 import (
 	"fmt"
+	"github.com/matrix-org/gomatrixserverlib/spec"
 	"testing"
 	"time"
 
@@ -30,12 +31,12 @@ func TestAliceBobEncryptionWorks(t *testing.T) {
 			cc.EncRoomOptions.PresetTrustedPrivateChat(),
 			cc.EncRoomOptions.Invite([]string{tc.Bob.UserID}),
 		)
-		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+		tc.Bob.MustJoinRoom(t, roomID, []spec.ServerName{clientTypeA.HS})
 
 		// SDK testing below
 		// -----------------
 
-		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+		tc.WithAliceAndBobSyncing(t, func(alice, bob api.TestClient) {
 			wantMsgBody := "Hello world"
 
 			// Check the room is in fact encrypted
@@ -48,7 +49,7 @@ func TestAliceBobEncryptionWorks(t *testing.T) {
 			t.Logf("bob room encrypted = %v", isEncrypted)
 
 			waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(wantMsgBody))
-			evID := alice.SendMessage(t, roomID, wantMsgBody)
+			evID := alice.MustSendMessage(t, roomID, wantMsgBody)
 
 			// Bob receives the message
 			t.Logf("bob (%s) waiting for event %s", bob.Type(), evID)
@@ -75,7 +76,7 @@ func TestCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T) {
 
 		// SDK testing below
 		// -----------------
-		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+		tc.WithAliceAndBobSyncing(t, func(alice, bob api.TestClient) {
 			wantMsgBody := "Message sent when bob is invited not joined"
 
 			// Check the room is in fact encrypted
@@ -84,10 +85,10 @@ func TestCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T) {
 			must.Equal(t, isEncrypted, true, "room is not encrypted when it should be")
 
 			// Alice sends the message whilst Bob is still invited.
-			alice.SendMessage(t, roomID, wantMsgBody)
+			alice.MustSendMessage(t, roomID, wantMsgBody)
 
 			// Bob joins the room (via Complement, but it shouldn't matter)
-			tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+			tc.Bob.MustJoinRoom(t, roomID, []spec.ServerName{clientTypeA.HS})
 
 			isEncrypted, err = bob.IsRoomEncrypted(t, roomID)
 			must.NotError(t, "failed to check if room is encrypted", err)
@@ -98,7 +99,7 @@ func TestCanDecryptMessagesAfterInviteButBeforeJoin(t *testing.T) {
 			// This also checks that subsequent messages are decryptable.
 			sentinelBody := "Sentinel"
 			waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(sentinelBody))
-			alice.SendMessage(t, roomID, sentinelBody)
+			alice.MustSendMessage(t, roomID, sentinelBody)
 			waiter.Waitf(t, 5*time.Second, "bob did not see alice's message")
 
 			// Explicitly ask for a pagination, rather than assuming the SDK will return events
@@ -122,16 +123,16 @@ func TestBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 
 		// SDK testing below
 		// -----------------
-		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+		tc.WithAliceAndBobSyncing(t, func(alice, bob api.TestClient) {
 			// Alice sends a message which Bob should not be able to decrypt
 			beforeJoinBody := "Before Bob joins"
 			waiter := alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(beforeJoinBody))
-			evID := alice.SendMessage(t, roomID, beforeJoinBody)
+			evID := alice.MustSendMessage(t, roomID, beforeJoinBody)
 			t.Logf("alice (%s) waiting for event %s", alice.Type(), evID)
 			waiter.Waitf(t, 5*time.Second, "alice did not see own message")
 
 			// now bob joins the room
-			tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+			tc.Bob.MustJoinRoom(t, roomID, []spec.ServerName{clientTypeA.HS})
 			time.Sleep(time.Second) // wait for it to appear on the client else rust crashes if it cannot find the room FIXME
 			waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(bob.UserID(), "join"))
 			waiter.Waitf(t, 5*time.Second, "bob did not see own join")
@@ -159,15 +160,15 @@ func TestOnRejoinBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 		tc := Instance().CreateTestContext(t, clientTypeA, clientTypeB)
 		// shared history visibility
 		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.PresetPublicChat())
-		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+		tc.Bob.MustJoinRoom(t, roomID, []spec.ServerName{clientTypeA.HS})
 
 		// SDK testing below
 		// -----------------
-		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+		tc.WithAliceAndBobSyncing(t, func(alice, bob api.TestClient) {
 			// Alice sends a message which Bob should be able to decrypt.
 			bothJoinedBody := "Alice and Bob in a room"
 			waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(bothJoinedBody))
-			evID := alice.SendMessage(t, roomID, bothJoinedBody)
+			evID := alice.MustSendMessage(t, roomID, bothJoinedBody)
 			t.Logf("bob (%s) waiting for event %s", bob.Type(), evID)
 			waiter.Waitf(t, 5*time.Second, "bob did not see alice's message")
 
@@ -179,12 +180,12 @@ func TestOnRejoinBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 			// now alice sends another message, which should use a key that bob does not have. Wait for the remote echo to come back.
 			onlyAliceBody := "Only me on my lonesome"
 			waiter = alice.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(onlyAliceBody))
-			evID = alice.SendMessage(t, roomID, onlyAliceBody)
+			evID = alice.MustSendMessage(t, roomID, onlyAliceBody)
 			t.Logf("alice (%s) waiting for event %s", alice.Type(), evID)
 			waiter.Waitf(t, 5*time.Second, "alice did not see own message")
 
 			// now bob rejoins the room, wait until he sees it.
-			tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+			tc.Bob.MustJoinRoom(t, roomID, []spec.ServerName{clientTypeA.HS})
 			waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(bob.UserID(), "join"))
 			waiter.Waitf(t, 5*time.Second, "bob did not see own join")
 			// this is required for some reason else tests fail
@@ -201,7 +202,7 @@ func TestOnRejoinBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 			time.Sleep(time.Second) // let alice realise bob is back in the room
 			// bob should be able to decrypt subsequent messages
 			bothJoinedBody = "Alice and Bob in a room again"
-			evID = alice.SendMessage(t, roomID, bothJoinedBody)
+			evID = alice.MustSendMessage(t, roomID, bothJoinedBody)
 			time.Sleep(time.Second) // TODO: use a Waiter; currently this is broken as it seems like listeners get detached on leave?
 			ev = bob.MustGetEvent(t, roomID, evID)
 			must.Equal(t, ev.Text, bothJoinedBody, "event was not decrypted correctly") */
@@ -217,16 +218,16 @@ func TestOnNewDeviceBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 		tc := Instance().CreateTestContext(t, clientTypeA, clientTypeB)
 		// shared history visibility
 		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.PresetPublicChat())
-		tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+		tc.Bob.MustJoinRoom(t, roomID, []spec.ServerName{clientTypeA.HS})
 
 		// SDK testing below
 		// -----------------
 
-		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+		tc.WithAliceAndBobSyncing(t, func(alice, bob api.TestClient) {
 			// Alice sends a message which Bob should be able to decrypt.
 			onlyFirstDeviceBody := "Alice and Bob in a room"
 			waiter := bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(onlyFirstDeviceBody))
-			evID := alice.SendMessage(t, roomID, onlyFirstDeviceBody)
+			evID := alice.MustSendMessage(t, roomID, onlyFirstDeviceBody)
 			t.Logf("bob (%s) waiting for event %s", bob.Type(), evID)
 			waiter.Waitf(t, 5*time.Second, "bob did not see alice's message")
 
@@ -234,7 +235,7 @@ func TestOnNewDeviceBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 			csapiBob2 := tc.MustRegisterNewDevice(t, tc.Bob, "NEW_DEVICE")
 			tc.WithClientSyncing(t, &cc.ClientCreationRequest{
 				User: csapiBob2,
-			}, func(bob2 api.Client) {
+			}, func(bob2 api.TestClient) {
 				time.Sleep(time.Second)             // let device keys propagate to alice
 				bob2.MustBackpaginate(t, roomID, 5) // ensure the older event is there
 				time.Sleep(time.Second)
@@ -244,7 +245,7 @@ func TestOnNewDeviceBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 				// now alice sends another message, which bob's new device should be able to decrypt.
 				decryptableBody := "Bob's new device can decrypt this"
 				waiter = bob2.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(decryptableBody))
-				evID = alice.SendMessage(t, roomID, decryptableBody)
+				evID = alice.MustSendMessage(t, roomID, decryptableBody)
 				t.Logf("bob2 (%s) waiting for event %s", bob2.Type(), evID)
 				waiter.Waitf(t, 5*time.Second, "bob2 did not see alice's message")
 			})
@@ -258,14 +259,14 @@ func TestOnNewDeviceBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 			// by bob's other logged in device though.
 			undecryptableBody := "Bob's logged out device won't be able to decrypt this"
 			waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody(undecryptableBody))
-			evID = alice.SendMessage(t, roomID, undecryptableBody)
+			evID = alice.MustSendMessage(t, roomID, undecryptableBody)
 			t.Logf("bob (%s) waiting for event %s", bob.Type(), evID)
 			waiter.Waitf(t, 5*time.Second, "bob did not see alice's event %s", evID)
 
 			// now bob logs in again
 			tc.WithClientSyncing(t, &cc.ClientCreationRequest{
 				User: csapiBob2,
-			}, func(bob2 api.Client) {
+			}, func(bob2 api.TestClient) {
 				time.Sleep(time.Second) // let device keys propagate to alice
 				undecryptableEvent := bob2.MustGetEvent(t, roomID, evID)
 				must.Equal(t, undecryptableEvent.FailedToDecrypt, true, "bob's new device was able to decrypt a message sent after he had logged out")
@@ -282,20 +283,20 @@ func TestChangingDeviceAfterInviteReEncrypts(t *testing.T) {
 		// shared history visibility
 		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice, cc.EncRoomOptions.PresetPublicChat())
 
-		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+		tc.WithAliceAndBobSyncing(t, func(alice, bob api.TestClient) {
 			// Alice invites Bob and then she sends an event
 			tc.Alice.MustInviteRoom(t, roomID, tc.Bob.UserID)
 			time.Sleep(time.Second) // let device keys propagate
 			body := "Alice should re-encrypt this message for bob's new device"
-			evID := alice.SendMessage(t, roomID, body)
+			evID := alice.MustSendMessage(t, roomID, body)
 
 			// now Bob logs in on a different device and accepts the invite. The different device should be able to decrypt the message.
 			csapiBob2 := tc.MustRegisterNewDevice(t, tc.Bob, "NEW_DEVICE")
 			tc.WithClientSyncing(t, &cc.ClientCreationRequest{
 				User: csapiBob2,
-			}, func(bob2 api.Client) {
+			}, func(bob2 api.TestClient) {
 				time.Sleep(time.Second) // let device keys propagate
-				tc.Bob.MustJoinRoom(t, roomID, []string{clientTypeA.HS})
+				tc.Bob.MustJoinRoom(t, roomID, []spec.ServerName{clientTypeA.HS})
 
 				time.Sleep(time.Second) // let the client load the events
 				bob2.MustBackpaginate(t, roomID, 5)

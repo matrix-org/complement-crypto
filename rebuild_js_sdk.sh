@@ -17,6 +17,7 @@ then
     exit 1
 fi
 
+corepack enable
 (cd ./internal/api/js/js-sdk && yarn add $1 && yarn install && yarn build)
 rm -rf ./internal/api/js/chrome/dist || echo 'no dist directory detected';
 cp -r ./internal/api/js/js-sdk/dist/. ./internal/api/js/chrome/dist

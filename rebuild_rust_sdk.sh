@@ -33,22 +33,28 @@ elif [[ $ARG == .* ]]; then # starts with . => relative path
     echo "path not found: $ARG";
     exit 1
   fi
-else # HTTPS URL => git clone into temp dir  
+else # HTTPS URL => git clone into temp dir
   rm -rf $RUST_SDK_DIR || echo 'no temp directory found, cloning';
   SEGMENTS=(${ARG//@/ });
   git clone --depth 1 --branch ${SEGMENTS[1]} ${SEGMENTS[0]} $RUST_SDK_DIR;
 fi
 
-# replace uniffi version to one that works with uniffi-bindgen-go
+function restore_backups {
+    for i in Cargo.toml Cargo.lock bindings/matrix-sdk-ffi/Cargo.toml; do
+        mv "$RUST_SDK_DIR/$i.backup" "$RUST_SDK_DIR/$i"
+    done
+}
+
 echo 'building matrix-sdk-ffi...';
 cd $RUST_SDK_DIR;
 cp Cargo.toml Cargo.toml.backup
 cp Cargo.lock Cargo.lock.backup
-trap "mv $RUST_SDK_DIR/Cargo.toml.backup $RUST_SDK_DIR/Cargo.toml; mv $RUST_SDK_DIR/Cargo.lock.backup $RUST_SDK_DIR/Cargo.lock" EXIT INT TERM
-sed -i.bak 's/uniffi =.*/uniffi = "0\.25\.3"/' Cargo.toml
-sed -i.bak 's^uniffi_bindgen =.*^uniffi_bindgen = { git = "https:\/\/github.com\/mozilla\/uniffi-rs", rev = "0a03b713306d6ce3de033157fc2ce92a238c2e24" }^' Cargo.toml
+cp bindings/matrix-sdk-ffi/Cargo.toml bindings/matrix-sdk-ffi/Cargo.toml.backup
+trap "restore_backups" EXIT INT TERM
+sed -i.bak 's/"wasm-unstable-single-threaded"//' bindings/matrix-sdk-ffi/Cargo.toml
+# Enable a hidden feature to make tests run faster.
 sed -i.bak 's#matrix-sdk-crypto = {#matrix-sdk-crypto = {features = ["_disable-minimum-rotation-period-ms"],#' Cargo.toml
-cargo build -p matrix-sdk-ffi
+cargo build -p matrix-sdk-ffi --features 'sentry'
 # generate the bindings
 echo "generating bindings to $COMPLEMENT_DIR/internal/api/rust...";
 uniffi-bindgen-go -o $COMPLEMENT_DIR/internal/api/rust --config $COMPLEMENT_DIR/uniffi.toml --library ./target/debug/libmatrix_sdk_ffi.a
@@ -56,5 +62,5 @@ uniffi-bindgen-go -o $COMPLEMENT_DIR/internal/api/rust --config $COMPLEMENT_DIR/
 cd $COMPLEMENT_DIR
 sed -i.bak 's^// #include <matrix_sdk_ffi.h>^// #include <matrix_sdk_ffi.h>\n// #cgo LDFLAGS: -lmatrix_sdk_ffi^' internal/api/rust/matrix_sdk_ffi/matrix_sdk_ffi.go
 
-echo "OK! Ensure LIBRARY_PATH is set to $RUST_SDK_DIR/target/debug so the .a/.dylib file is picked up when 'go test' is run."
-echo "e.g COMPLEMENT_BASE_IMAGE=homeserver:latest LIBRARY_PATH=\$LIBRARY_PATH:$RUST_SDK_DIR/target/debug go test ./tests"
+echo "OK! Ensure LIBRARY_PATH and LD_LIBRARY_PATH are set to $RUST_SDK_DIR/target/debug so the .so/.dylib file is picked up when 'go test' is run."
+echo "e.g COMPLEMENT_BASE_IMAGE=homeserver:latest LIBRARY_PATH=\$LIBRARY_PATH:$RUST_SDK_DIR/target/debug LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$RUST_SDK_DIR/target/debug go test ./tests"

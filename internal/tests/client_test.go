@@ -5,8 +5,10 @@ package tests
 
 import (
 	"fmt"
+	complementconfig "github.com/matrix-org/complement/config"
 	"log"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -25,59 +27,63 @@ import (
 
 var (
 	ssMutex      *sync.Mutex = &sync.Mutex{}
-	ssDeployment *deploy.SlidingSyncDeployment
+	ssDeployment *deploy.ComplementCryptoDeployment
 	// aka functions which make clients, and we don't care about the language.
 	// Tests just loop through this array for each client impl.
-	clientFactories []func(t *testing.T, cfg api.ClientCreationOpts) api.Client
+	clientFactories []func(t *testing.T, cfg api.ClientCreationOpts) api.TestClient
 )
 
-func Deploy(t *testing.T) *deploy.SlidingSyncDeployment {
+func Deploy(t *testing.T) *deploy.ComplementCryptoDeployment {
 	ssMutex.Lock()
 	defer ssMutex.Unlock()
 	if ssDeployment != nil {
 		return ssDeployment
 	}
-	ssDeployment = deploy.RunNewDeployment(t, "", "")
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get wd: %s", err)
+	}
+	ssDeployment = deploy.RunNewDeployment(t, filepath.Join(wd, "../../tests/mitmproxy_addons"), "")
 	return ssDeployment
 }
 
 func TestMain(m *testing.M) {
-	rustClientCreator := func(t *testing.T, cfg api.ClientCreationOpts) api.Client {
+	rustClientCreator := func(t *testing.T, cfg api.ClientCreationOpts) api.TestClient {
 		client, err := rust.NewRustClient(t, cfg)
 		if err != nil {
 			t.Fatalf("NewRustClient: %s", err)
 		}
-		return client
+		return api.NewTestClient(client)
 	}
-	jsClientCreator := func(t *testing.T, cfg api.ClientCreationOpts) api.Client {
+	jsClientCreator := func(t *testing.T, cfg api.ClientCreationOpts) api.TestClient {
 		client, err := js.NewJSClient(t, cfg)
 		if err != nil {
 			t.Fatalf("NewJSClient: %s", err)
 		}
-		return client
+		return api.NewTestClient(client)
 	}
 	clientFactories = append(clientFactories, rustClientCreator, jsClientCreator)
 
 	rpcBinary := os.Getenv("COMPLEMENT_CRYPTO_RPC_BINARY")
 	if rpcBinary != "" {
-		clientFactories = append(clientFactories, func(t *testing.T, cfg api.ClientCreationOpts) api.Client {
+		clientFactories = append(clientFactories, func(t *testing.T, cfg api.ClientCreationOpts) api.TestClient {
 			remoteBindings, err := rpc.NewLanguageBindings(rpcBinary, api.ClientTypeRust, "")
 			if err != nil {
 				log.Fatal(err)
 			}
-			return remoteBindings.MustCreateClient(t, cfg)
+			return api.NewTestClient(remoteBindings.MustCreateClient(t, cfg))
 		})
 	}
 	rust.SetupLogs("rust_sdk_logs")
-	js.SetupJSLogs("./logs/js_sdk.log")                       // rust sdk logs on its own
-	complement.TestMainWithCleanup(m, "clienttests", func() { // always teardown even if panicking
+	js.SetupJSLogs("./logs/js_sdk.log") // rust sdk logs on its own
+	complement.TestMain(m, "clienttests", complement.WithCleanup(func(conf *complementconfig.Complement) { // always teardown even if panicking
 		ssMutex.Lock()
 		if ssDeployment != nil {
 			ssDeployment.Teardown()
 		}
 		ssMutex.Unlock()
 		js.WriteJSLogs()
-	})
+	}))
 }
 
 // Test that the client can receive live messages as well as return events that have already been received.
@@ -99,7 +105,7 @@ func TestReceiveTimeline(t *testing.T) {
 	}
 
 	// test that if we start syncing with a room full of events, we see those events.
-	ForEachClient(t, "existing_events", deployment, func(t *testing.T, client api.Client, csapi *client.CSAPI) {
+	ForEachClient(t, "existing_events", deployment, func(t *testing.T, client api.TestClient, csapi *client.CSAPI) {
 		must.NotError(t, "Failed to login", client.Login(t, client.Opts()))
 		roomID, eventIDs := createAndSendEvents(t, csapi)
 		time.Sleep(time.Second) // give time for everything to settle server-side e.g sliding sync proxy
@@ -127,7 +133,7 @@ func TestReceiveTimeline(t *testing.T) {
 	})
 
 	// test that if we are already syncing and then see a room live stream full of events, we see those events.
-	ForEachClient(t, "live_events", deployment, func(t *testing.T, client api.Client, csapi *client.CSAPI) {
+	ForEachClient(t, "live_events", deployment, func(t *testing.T, client api.TestClient, csapi *client.CSAPI) {
 		must.NotError(t, "Failed to login", client.Login(t, client.Opts()))
 		stopSyncing := client.MustStartSyncing(t)
 		defer stopSyncing()
@@ -166,7 +172,7 @@ func TestReceiveTimeline(t *testing.T) {
 
 func TestCanWaitUntilEventInRoomBeforeRoomIsKnown(t *testing.T) {
 	deployment := Deploy(t)
-	ForEachClient(t, "", deployment, func(t *testing.T, client api.Client, csapi *client.CSAPI) {
+	ForEachClient(t, "", deployment, func(t *testing.T, client api.TestClient, csapi *client.CSAPI) {
 		roomID := csapi.MustCreateRoom(t, map[string]interface{}{})
 		eventID := csapi.SendEventSynced(t, roomID, b.Event{
 			Type: "m.room.message",
@@ -179,7 +185,7 @@ func TestCanWaitUntilEventInRoomBeforeRoomIsKnown(t *testing.T) {
 		completed := helpers.NewWaiter()
 		waiter := client.WaitUntilEventInRoom(t, roomID, api.CheckEventHasEventID(eventID))
 		go func() {
-			waiter.Waitf(t, 5*time.Second, "client did not seee event %s", eventID)
+			waiter.Waitf(t, 5*time.Second, "client did not see event %s", eventID)
 			completed.Finish()
 		}()
 		t.Logf("waiting for event %s", eventID)
@@ -191,35 +197,34 @@ func TestCanWaitUntilEventInRoomBeforeRoomIsKnown(t *testing.T) {
 
 func TestSendingEvents(t *testing.T) {
 	deployment := Deploy(t)
-	ForEachClient(t, "", deployment, func(t *testing.T, client api.Client, csapi *client.CSAPI) {
+	ForEachClient(t, "", deployment, func(t *testing.T, client api.TestClient, csapi *client.CSAPI) {
 		must.NotError(t, "Failed to login", client.Login(t, client.Opts()))
 		roomID := csapi.MustCreateRoom(t, map[string]interface{}{})
 		stopSyncing := client.MustStartSyncing(t)
 		defer stopSyncing()
-		eventID := client.SendMessage(t, roomID, "Test Message")
+		eventID := client.MustSendMessage(t, roomID, "Test Message")
 		event := client.MustGetEvent(t, roomID, eventID)
 		must.Equal(t, event.Text, "Test Message", "event text mismatch")
-		eventID2, err := client.TrySendMessage(t, roomID, "Another Test Message")
-		must.NotError(t, "TrySendMessage failed", err)
+		eventID2, err := client.SendMessage(t, roomID, "Another Test Message")
+		must.NotError(t, "SendMessage failed", err)
 		event2 := client.MustGetEvent(t, roomID, eventID2)
 		must.Equal(t, event2.Text, "Another Test Message", "event text mismatch")
 		// sending to a bogus room should error but not fail the test
-		invalidEventID, err := client.TrySendMessage(t, "!foo:hs1", "This should not work")
-		t.Logf("TrySendMessage -> %v", err)
-		must.NotEqual(t, err, nil, "TrySendMessage returned no error when it should have")
-		must.Equal(t, invalidEventID, "", "TrySendMessage returned an event ID when it should have returned an error")
+		invalidEventID, err := client.SendMessage(t, "!foo:hs1", "This should not work")
+		t.Logf("SendMessage -> %v", err)
+		must.NotEqual(t, err, nil, "SendMessage returned no error when it should have")
+		must.Equal(t, invalidEventID, "", "SendMessage returned an event ID when it should have returned an error")
 	})
 }
 
 // run a subtest for each client factory
-func ForEachClient(t *testing.T, name string, deployment *deploy.SlidingSyncDeployment, fn func(t *testing.T, client api.Client, csapi *client.CSAPI)) {
+func ForEachClient(t *testing.T, name string, deployment *deploy.ComplementCryptoDeployment, fn func(t *testing.T, client api.TestClient, csapi *client.CSAPI)) {
 	for _, createClient := range clientFactories {
 		csapiAlice := deployment.Register(t, "hs1", helpers.RegistrationOpts{
 			LocalpartSuffix: "client",
 			Password:        "complement-crypto-password",
 		})
 		opts := api.NewClientCreationOpts(csapiAlice)
-		opts.SlidingSyncURL = deployment.SlidingSyncURLForHS(t, "hs1")
 		client := createClient(t, opts)
 		t.Run(name+" "+string(client.Type()), func(t *testing.T) {
 			fn(t, client, csapiAlice)

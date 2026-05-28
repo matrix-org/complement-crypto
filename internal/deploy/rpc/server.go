@@ -11,7 +11,7 @@ import (
 	"github.com/matrix-org/complement-crypto/internal/api/langs"
 )
 
-const InactivityThreshold = 30 * time.Second
+const InactivityThreshold = 60 * time.Second
 
 // Server exposes the api.Client interface over the wire, consumed via net/rpc.
 // Args and return params must be encodable with encoding/gob.
@@ -43,7 +43,7 @@ func NewServer() *Server {
 
 type ClientCreationOpts struct {
 	api.ClientCreationOpts
-	Lang      api.ClientTypeLang // need to know the type for pulling out the corret bindings
+	Lang      api.ClientTypeLang // need to know the type for pulling out the correct bindings
 	ContextID string
 }
 
@@ -111,12 +111,6 @@ func (s *Server) Login(opts api.ClientCreationOpts, void *int) error {
 	return s.activeClient.Login(&api.MockT{}, opts)
 }
 
-func (s *Server) MustStartSyncing(testName string, void *int) error {
-	defer s.keepAlive()
-	s.stopSyncing = s.activeClient.MustStartSyncing(&api.MockT{TestName: testName})
-	return nil
-}
-
 func (s *Server) StartSyncing(testName string, void *int) error {
 	defer s.keepAlive()
 	stopSyncing, err := s.activeClient.StartSyncing(&api.MockT{TestName: testName})
@@ -152,14 +146,8 @@ type RPCSendMessage struct {
 
 func (s *Server) SendMessage(msg RPCSendMessage, eventID *string) error {
 	defer s.keepAlive()
-	*eventID = s.activeClient.SendMessage(&api.MockT{TestName: msg.TestName}, msg.RoomID, msg.Text)
-	return nil
-}
-
-func (s *Server) TrySendMessage(msg RPCSendMessage, eventID *string) error {
-	defer s.keepAlive()
 	var err error
-	*eventID, err = s.activeClient.TrySendMessage(&api.MockT{TestName: msg.TestName}, msg.RoomID, msg.Text)
+	*eventID, err = s.activeClient.SendMessage(&api.MockT{TestName: msg.TestName}, msg.RoomID, msg.Text)
 	if err != nil {
 		return err
 	}
@@ -234,10 +222,8 @@ func (s *Server) WaiterStart(input RPCWait, void *int) error {
 
 func (s *Server) WaiterPoll(waiterID int, eventsToCheck *[]api.Event) error {
 	defer s.keepAlive()
-	fmt.Println("Acquiring lock")
 	s.waitersMu.Lock()
 	defer s.waitersMu.Unlock()
-	fmt.Println("Acquired!")
 	w := s.waiters[waiterID]
 	if w == nil {
 		return fmt.Errorf("unknown waiter id %d", waiterID)
@@ -261,10 +247,9 @@ type RPCBackpaginate struct {
 	Count    int
 }
 
-func (s *Server) MustBackpaginate(input RPCBackpaginate, void *int) error {
+func (s *Server) Backpaginate(input RPCBackpaginate, void *int) error {
 	defer s.keepAlive()
-	s.activeClient.MustBackpaginate(&api.MockT{TestName: input.TestName}, input.RoomID, input.Count)
-	return nil
+	return s.activeClient.Backpaginate(&api.MockT{TestName: input.TestName}, input.RoomID, input.Count)
 }
 
 type RPCGetEvent struct {
@@ -273,18 +258,34 @@ type RPCGetEvent struct {
 	EventID  string
 }
 
-// MustGetEvent will return the client's view of this event, or fail the test if the event cannot be found.
-func (s *Server) MustGetEvent(input RPCGetEvent, output *api.Event) error {
+// GetEvent will return the client's view of this event, or returns an error if the event cannot be found.
+func (s *Server) GetEvent(input RPCGetEvent, output *api.Event) error {
 	defer s.keepAlive()
-	*output = s.activeClient.MustGetEvent(&api.MockT{TestName: input.TestName}, input.RoomID, input.EventID)
+	ev, err := s.activeClient.GetEvent(&api.MockT{TestName: input.TestName}, input.RoomID, input.EventID)
+	if err != nil {
+		return err
+	}
+	*output = *ev
 	return nil
 }
 
-// MustBackupKeys will backup E2EE keys, else fail the test.
-func (s *Server) MustBackupKeys(testName string, recoveryKey *string) error {
+// GetEventShield will return the "shield state" for this event, or `nil` if the event should have no shield, or an error if the event cannot be found.
+func (s *Server) GetEventShield(input RPCGetEvent, output **api.EventShield) error {
 	defer s.keepAlive()
-	*recoveryKey = s.activeClient.MustBackupKeys(&api.MockT{TestName: testName})
+	shield, err := s.activeClient.GetEventShield(&api.MockT{TestName: input.TestName}, input.RoomID, input.EventID)
+	if err != nil {
+		return err
+	}
+	*output = shield
 	return nil
+}
+
+// BackupKeys will backup E2EE keys, else fail the test.
+func (s *Server) BackupKeys(testName string, recoveryKey *string) error {
+	defer s.keepAlive()
+	var err error
+	*recoveryKey, err = s.activeClient.BackupKeys(&api.MockT{TestName: testName})
+	return err
 }
 
 type RPCGetNotification struct {
@@ -300,13 +301,6 @@ func (s *Server) GetNotification(input RPCGetNotification, output *api.Notificat
 		*output = *n
 	}
 	return err
-}
-
-// MustLoadBackup will recover E2EE keys from the latest backup, else fail the test.
-func (s *Server) MustLoadBackup(recoveryKey string, void *int) error {
-	defer s.keepAlive()
-	s.activeClient.MustLoadBackup(&api.MockT{}, recoveryKey)
-	return nil
 }
 
 func (s *Server) LoadBackup(recoveryKey string, void *int) error {

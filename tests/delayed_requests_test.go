@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"github.com/matrix-org/gomatrixserverlib/spec"
 	"strings"
 	"testing"
 	"time"
@@ -33,10 +34,10 @@ func TestDelayedInviteResponse(t *testing.T) {
 	Instance().ForEachClientType(t, func(t *testing.T, clientType api.ClientType) {
 		tc := Instance().CreateTestContext(t, clientType, clientType)
 		roomID := tc.CreateNewEncryptedRoom(t, tc.Alice)
-		tc.WithAliceAndBobSyncing(t, func(alice, bob api.Client) {
+		tc.WithAliceAndBobSyncing(t, func(alice, bob api.TestClient) {
 			// we send a message first so clients which lazily call /members can do so now.
 			// if we don't do this, the client won't rely on /sync for the member list so won't fail.
-			alice.SendMessage(t, roomID, "dummy message to make /members call")
+			alice.MustSendMessage(t, roomID, "dummy message to make /members call")
 
 			config := tc.Deployment.MITM().Configure(t)
 			serverHasInvite := helpers.NewWaiter()
@@ -67,10 +68,10 @@ func TestDelayedInviteResponse(t *testing.T) {
 				// once the server got the invite, send a message
 				serverHasInvite.Waitf(t, 3*time.Second, "did not intercept invite")
 				t.Logf("intercepted invite; sending message")
-				eventID := alice.SendMessage(t, roomID, "hello world!")
+				eventID := alice.MustSendMessage(t, roomID, "hello world!")
 
 				// bob joins, ensure he can decrypt the message.
-				tc.Bob.JoinRoom(t, roomID, []string{clientType.HS})
+				tc.Bob.JoinRoom(t, roomID, []spec.ServerName{clientType.HS})
 				bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(tc.Bob.UserID, "join")).Waitf(t, 7*time.Second, "did not see own join")
 				bob.MustBackpaginate(t, roomID, 3)
 

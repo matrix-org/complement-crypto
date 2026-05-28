@@ -3,12 +3,12 @@
 
 Complement Crypto is an end-to-end test suite for next generation Matrix _clients_, designed to test the full spectrum of E2EE APIs.
 It currently tests [rust SDK FFI bindings](https://github.com/matrix-org/matrix-rust-sdk/tree/main/bindings/matrix-sdk-ffi) and
-[JS SDK](https://github.com/matrix-org/matrix-js-sdk/).
+[JS SDK](https://github.com/matrix-org/matrix-js-sdk/), but can be expanded to support any client SDK.
 
 ### Installing
 
 *Please ensure you have met Complement's [Dependencies](https://github.com/matrix-org/complement?tab=readme-ov-file#dependencies) first.
-In practice, this means you must have `go`, `docker` and `libolm` installed.*
+In practice, this means you must have `go` and `docker` installed.*
 
 Complement Crypto can be compiled and run in different modes depending on which SDK is being tested. For example, if you only want
 to test JS SDK then you do not need to compile rust code or run rust tests, and vice versa. Conversely, if you want to test
@@ -56,21 +56,22 @@ The [version] is split into the URL and TAG|BRANCH then fed directly into 'git c
 
 ### Running
 
-Find a complement-compatible homeserver image. If you don't care which image is used, use `ghcr.io/matrix-org/synapse-service:v1.94.0` 
+Find a complement-compatible homeserver image. If you don't care which image is used, use `ghcr.io/matrix-org/synapse-service:v1.117.0`
 which will Just Work out-of-the-box.
 
 To run only rust tests:
 ```
 COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX=rr \
-COMPLEMENT_BASE_IMAGE=ghcr.io/matrix-org/synapse-service:v1.94.0 \
+COMPLEMENT_BASE_IMAGE=ghcr.io/matrix-org/synapse-service:v1.114.0 \
 LIBRARY_PATH=$LIBRARY_PATH:/path/to/matrix-rust-sdk/target/debug \
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/matrix-rust-sdk/target/debug \
 go test -v -count=1 -tags=rust -timeout 15m ./tests
 ```
 
 To run only JS tests:
 ```
 COMPLEMENT_CRYPTO_TEST_CLIENT_MATRIX=jj \
-COMPLEMENT_BASE_IMAGE=ghcr.io/matrix-org/synapse-service:v1.94.0 \
+COMPLEMENT_BASE_IMAGE=ghcr.io/matrix-org/synapse-service:v1.114.0 \
 go test -v -count=1 -tags=jssdk -timeout 15m ./tests
 ```
 
@@ -90,19 +91,19 @@ There is an exhaustive set of tests that this repository aims to exercise. See [
 Tests sometimes require reverse proxy interception to let some requests pass through but not others. For this, we use [mitmproxy](https://mitmproxy.org/).
 
 ```
-     Host        |       dockerd           
-                 |                          +-----------+      
-                 |                     .--> | ss proxy1 | <------.
- +----------+    |    +-----------+    |    +-----+-----+        V
- | Go tests | <--|--> | mitmproxy | <--+--> | hs1 |          +----------+
- +----------+    |    +-----------+    |    +-----+          | postgres |
-                 |                     +--> | hs2 |          +----------+
-                 |                     |    +-----+-----+        ^
-                 |                     `--> | ss proxy2 | <------`
-                 |                          +-----------+      
+     Host        |       Containers
+                 |                         
+ +----------+    |    +-----------+         +-----+
+ | Go tests | <--|--> | mitmproxy | <--+--> | hs1 |
+ +----------+    |    +-----------+    |    +-----+
+      |          |       ^             +--> | hs2 |
+  +---V--------+ |       |                  +-----+
+  | RPC Client |-|-------`
+  +------------+ |    
 ```
-
-TODO: flesh out mitm controller API
+- Go tests can create clients inside the test process or use the Complement Go client to make CSAPI requests. On startup, the first test which calls `Deploy` will deploy the entire stack of homeservers/proxies/mitmproxy.
+- The RPC client is a single client (e.g JS SDK) which can make CSAPI requests. RPC clients are generally only made when testing multiprocess code or testing SIGKILL behaviour.
+- `mitmproxy` reverse proxies all the homeservers so all CSAPI traffic from a client goes through it. This enables requests/responses to be intercepted and modified, as well as traffic to be dumped to file.
 
 ### Rationale
 

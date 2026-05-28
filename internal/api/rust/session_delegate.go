@@ -12,10 +12,10 @@ func NewMemoryClientSessionDelegate() *MemoryClientSessionDelegate {
 	}
 }
 
-func (d *MemoryClientSessionDelegate) RetrieveSessionFromKeychain(userID string) (matrix_sdk_ffi.Session, *matrix_sdk_ffi.ClientError) {
+func (d *MemoryClientSessionDelegate) RetrieveSessionFromKeychain(userID string) (matrix_sdk_ffi.Session, error) {
 	s, exists := d.userIDToSession[userID]
 	if !exists {
-		return matrix_sdk_ffi.Session{}, matrix_sdk_ffi.NewClientErrorGeneric("Failed to find RestorationToken in the Keychain.")
+		return matrix_sdk_ffi.Session{}, matrix_sdk_ffi.NewClientErrorGeneric("Failed to find RestorationToken in the Keychain.", nil)
 	}
 	return s, nil
 }

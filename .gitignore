@@ -5,6 +5,7 @@ js-sdk/dist
 /internal/api/js/chrome/dist
 /internal/api/js/js-sdk/dist/
 /internal/api/js/js-sdk/node_modules/
+/internal/api/rust/matrix_sdk*
 /internal/tests/logs/
 __pycache__
 /rust-sdk/
