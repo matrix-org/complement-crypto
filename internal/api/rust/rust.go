@@ -96,8 +96,14 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, erro
 	}
 	// @alice:hs1, FOOBAR => alice_hs1_FOOBAR
 	username := strings.Replace(opts.UserID[1:], ":", "_", -1) + "_" + opts.DeviceID
+	ab = ab.Username(username)
+
 	sessionPath := "rust_storage/" + username
-	ab = ab.SessionPaths(sessionPath, sessionPath).Username(username)
+	storeKey := []byte("my_secret_thirty-two_byte_string")
+	ab = ab.SqliteStore(
+		matrix_sdk_ffi.NewSqliteStoreBuilder(sessionPath, sessionPath).Key(&storeKey),
+	)
+
 	client, err := ab.Build()
 	if err != nil {
 		return nil, fmt.Errorf("ClientBuilder.Build failed: %s", err)
