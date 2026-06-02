@@ -13,8 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/go-connections/nat"
 	"github.com/matrix-org/complement"
 	"github.com/matrix-org/complement-crypto/internal/api"
@@ -23,6 +21,9 @@ import (
 	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/complement/helpers"
 	"github.com/matrix-org/complement/must"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/mount"
+	mobyClient "github.com/moby/moby/client"
 	testcontainers "github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
@@ -115,7 +116,7 @@ func (d *ComplementCryptoDeployment) Teardown() {
 			"container-hs2.log": d.Deployment.ContainerID(&api.MockT{}, "hs2"),
 		}
 		for filename, containerID := range filenameToContainerID {
-			logs, err := dockerClient.ContainerLogs(context.Background(), containerID, container.LogsOptions{
+			logs, err := dockerClient.ContainerLogs(context.Background(), containerID, mobyClient.ContainerLogsOptions{
 				ShowStdout: true,
 				ShowStderr: true,
 				Follow:     false,
@@ -245,7 +246,7 @@ func externalURL(t *testing.T, c testcontainers.Container, exposedPort string) s
 		// This can be fixed by replacing localhost with 127.0.01 in the request URL.
 		host = "127.0.0.1"
 	}
-	mappedPort, err := c.MappedPort(ctx, nat.Port(exposedPort))
+	mappedPort, err := c.MappedPort(ctx, nat.Port(exposedPort).Port())
 	must.NotError(t, "failed to get mapped port", err)
 	return fmt.Sprintf("http://%s:%s", host, mappedPort.Port())
 }
