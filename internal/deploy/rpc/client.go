@@ -3,6 +3,7 @@ package rpc
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"log"
 	"net/rpc"
 	"os"
@@ -64,43 +65,7 @@ func (r *LanguageBindings) MustCreateClient(t ct.TestLike, cfg api.ClientCreatio
 	}
 	// wait until we get a high-numbered port
 	portCh := make(chan portChannelPayload)
-	go func() {
-		rd := bufio.NewReader(stdout)
-		defer close(portCh)
-		defer func() {
-			// log stdout from the RPC server
-			go func() {
-				for {
-					str, err := rd.ReadString('\n')
-					if err != nil {
-						log.Print("RPC ERROR: " + err.Error())
-						break
-					}
-					log.Printf("  RPC (%s): %s", contextID, str)
-				}
-			}()
-			// we need to .Wait to ensure we clean up resources when the RPC server dies.
-			rpcCmd.Wait()
-		}()
-
-		var port int
-		for {
-			str, err := rd.ReadString('\n')
-			if port == 0 { // we need a port
-				if err != nil {
-					portCh <- portChannelPayload{port: 0, err: fmt.Errorf("failed to read stdout line: %s", err)}
-					return
-				}
-				port, err = strconv.Atoi(strings.TrimSpace(str))
-				if err != nil {
-					log.Printf("  RPC (%s) stdout line isn't a port: %s", contextID, str)
-					continue
-				}
-				portCh <- portChannelPayload{port: port, err: nil}
-				break
-			}
-		}
-	}()
+	go readPortNumberAndLogOutput(contextID, portCh, rpcCmd, stdout)
 	select {
 	case p := <-portCh:
 		rpcAddr := fmt.Sprintf("127.0.0.1:%d", p.port)
@@ -133,6 +98,46 @@ func (r *LanguageBindings) MustCreateClient(t ct.TestLike, cfg api.ClientCreatio
 type portChannelPayload struct {
 	port int
 	err  error
+}
+
+// readPortNumberAndLogOutput waits for the RPC server to write the port number to stdout, and writes the port number to the `portCh` channel.
+// Any other output is logged.
+func readPortNumberAndLogOutput(contextID string, portCh chan portChannelPayload, rpcCmd *exec.Cmd, stdout io.ReadCloser) {
+	rd := bufio.NewReader(stdout)
+	defer close(portCh)
+	defer func() {
+		// log stdout from the RPC server
+		go func() {
+			for {
+				str, err := rd.ReadString('\n')
+				if err != nil {
+					log.Print("RPC ERROR: " + err.Error())
+					break
+				}
+				log.Printf("  RPC (%s): %s", contextID, str)
+			}
+		}()
+		// we need to .Wait to ensure we clean up resources when the RPC server dies.
+		rpcCmd.Wait()
+	}()
+
+	var port int
+	for {
+		str, err := rd.ReadString('\n')
+		if port == 0 { // we need a port
+			if err != nil {
+				portCh <- portChannelPayload{port: 0, err: fmt.Errorf("failed to read stdout line: %s", err)}
+				return
+			}
+			port, err = strconv.Atoi(strings.TrimSpace(str))
+			if err != nil {
+				log.Printf("  RPC (%s) stdout line isn't a port: %s", contextID, str)
+				continue
+			}
+			portCh <- portChannelPayload{port: port, err: nil}
+			break
+		}
+	}
 }
 
 // RPCClient implements api.Client by making RPC calls to an RPC server, which actually has a concrete api.Client
