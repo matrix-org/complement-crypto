@@ -65,10 +65,8 @@ func (r *LanguageBindings) MustCreateClient(t ct.TestLike, cfg api.ClientCreatio
 	}
 	// wait until we get a high-numbered port
 	portCh := make(chan portChannelPayload)
-	go readPortNumberAndLogOutput(t, contextID, portCh, rpcCmd, stdout)
-
-	// XXX should we not stop the RPC server once the test is complete, rather than leaving it running to clutter
-	//   up the logs of future tests?
+	logsFlushed := make(chan struct{})
+	go readPortNumberAndLogOutput(t, contextID, portCh, rpcCmd, stdout, logsFlushed)
 
 	select {
 	case p := <-portCh:
@@ -91,6 +89,7 @@ func (r *LanguageBindings) MustCreateClient(t ct.TestLike, cfg api.ClientCreatio
 			client: client,
 			lang:   r.clientType,
 			rpcCmd: rpcCmd,
+			logsFlushed: logsFlushed,
 		}
 	case <-time.After(time.Second):
 		ct.Fatalf(t, "RPC (%s): timed out waiting for port number to be echoed to stdout. Did the RPC binary run, and is it actually the RPC binary? Path: %s", contextID, r.binaryPath)
@@ -106,7 +105,9 @@ type portChannelPayload struct {
 
 // readPortNumberAndLogOutput waits for the RPC server to write the port number to stdout, and writes the port number to the `portCh` channel.
 // Any other output is logged.
-func readPortNumberAndLogOutput(t ct.TestLike, contextID string, portCh chan portChannelPayload, rpcCmd *exec.Cmd, stdout io.ReadCloser) {
+//
+// Once the RPC server closes and all the logs are flushed, `logsFlushed` is closed.
+func readPortNumberAndLogOutput(t ct.TestLike, contextID string, portCh chan portChannelPayload, rpcCmd *exec.Cmd, stdout io.ReadCloser, logsFlushed chan struct{}) {
 	rd := bufio.NewReader(stdout)
 	defer close(portCh)
 
@@ -115,10 +116,11 @@ func readPortNumberAndLogOutput(t ct.TestLike, contextID string, portCh chan por
 	defer func() {
 		// log stdout from the RPC server
 		go func() {
+			defer close(logsFlushed)
 			for {
 				str, err := rd.ReadString('\n')
 				if err != nil {
-					t.Logf("RPC (%s): ERROR: %s", contextID, err)
+					t.Logf("RPC (%s): server closed: %s", contextID, err)
 					break
 				}
 				t.Logf("RPC (%s): server output: %s", contextID, str)
@@ -154,6 +156,9 @@ type RPCClient struct {
 	client *rpc.Client
 	lang   api.ClientTypeLang
 	rpcCmd *exec.Cmd
+
+	// logsFlushed is a channel that is closed when the log copier goroutine has completed.
+	logsFlushed chan struct{}
 }
 
 func (c *RPCClient) ForceClose(t ct.TestLike) {
@@ -171,12 +176,15 @@ func (c *RPCClient) ForceClose(t ct.TestLike) {
 func (c *RPCClient) Close(t ct.TestLike) {
 	t.Helper()
 	var void int
-	fmt.Println("RPCClient.Close")
+	t.Logf("RPCClient.Close")
 	err := c.client.Call("Server.Close", t.Name(), &void)
 	if err != nil {
 		t.Fatalf("RPCClient.Close: %s", err)
 	}
 	c.client.Close()
+
+	// Wait for the goroutine that copies stdout to the logs to complete
+	<- c.logsFlushed
 }
 
 func (c *RPCClient) GetNotification(t ct.TestLike, roomID, eventID string) (*api.Notification, error) {
