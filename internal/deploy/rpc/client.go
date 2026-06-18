@@ -63,10 +63,7 @@ func (r *LanguageBindings) MustCreateClient(t ct.TestLike, cfg api.ClientCreatio
 		ct.Fatalf(t, "%s: cannot start RPC binary %s: %s", contextID, r.binaryPath, err)
 	}
 	// wait until we get a high-numbered port
-	portCh := make(chan struct {
-		port int
-		err  error
-	})
+	portCh := make(chan portChannelPayload)
 	go func() {
 		rd := bufio.NewReader(stdout)
 		defer close(portCh)
@@ -91,10 +88,7 @@ func (r *LanguageBindings) MustCreateClient(t ct.TestLike, cfg api.ClientCreatio
 			str, err := rd.ReadString('\n')
 			if port == 0 { // we need a port
 				if err != nil {
-					portCh <- struct {
-						port int
-						err  error
-					}{port: 0, err: fmt.Errorf("failed to read stdout line: %s", err)}
+					portCh <- portChannelPayload{port: 0, err: fmt.Errorf("failed to read stdout line: %s", err)}
 					return
 				}
 				port, err = strconv.Atoi(strings.TrimSpace(str))
@@ -102,13 +96,7 @@ func (r *LanguageBindings) MustCreateClient(t ct.TestLike, cfg api.ClientCreatio
 					log.Printf("  RPC (%s) stdout line isn't a port: %s", contextID, str)
 					continue
 				}
-				portCh <- struct {
-					port int
-					err  error
-				}{
-					port: port,
-					err:  nil,
-				}
+				portCh <- portChannelPayload{port: port, err: nil}
 				break
 			}
 		}
@@ -139,6 +127,12 @@ func (r *LanguageBindings) MustCreateClient(t ct.TestLike, cfg api.ClientCreatio
 		ct.Fatalf(t, "%s: timed out waiting for port number to be echoed to stdout. Did the RPC binary run, and is it actually the RPC binary? Path: %s", contextID, r.binaryPath)
 	}
 	panic("unreachable")
+}
+
+// portChannelPayload is the payload of the channel that we use to communicate the port number from the RPC server to the RPC client.
+type portChannelPayload struct {
+	port int
+	err  error
 }
 
 // RPCClient implements api.Client by making RPC calls to an RPC server, which actually has a concrete api.Client
