@@ -219,15 +219,20 @@ func TestSendingEvents(t *testing.T) {
 
 // run a subtest for each client factory
 func ForEachClient(t *testing.T, name string, deployment *deploy.ComplementCryptoDeployment, fn func(t *testing.T, client api.TestClient, csapi *client.CSAPI)) {
-	for _, createClient := range clientFactories {
+	testWrapper := func (createClient func (t *testing.T, cfg api.ClientCreationOpts) api.TestClient) {
 		csapiAlice := deployment.Register(t, "hs1", helpers.RegistrationOpts{
 			LocalpartSuffix: "client",
 			Password:        "complement-crypto-password",
 		})
 		opts := api.NewClientCreationOpts(csapiAlice)
 		client := createClient(t, opts)
+		defer client.Close(t)
 		t.Run(name+" "+string(client.Type()), func(t *testing.T) {
 			fn(t, client, csapiAlice)
 		})
+	}
+
+	for _, createClient := range clientFactories {
+		testWrapper(createClient)
 	}
 }
