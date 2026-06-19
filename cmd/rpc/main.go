@@ -32,8 +32,11 @@ func main() {
 
 	// Wait for `Server.Close` to be called, then shut down the HTTP server.
 	<- srvDoneChannel
+	fmt.Println("Server starting clean shutdown...")
 	err = httpServer.Shutdown(context.Background())
 	if err != nil {
 		log.Fatal("HTTP server Shutdown error: ", err)
 	}
+
+	fmt.Println("Server shutdown complete")
 }
