@@ -21,6 +21,10 @@ import (
 	"golang.org/x/exp/slices"
 )
 
+// LogTarget is the name of the `target` we use in logToFile: it is in effect a fake "crate" that we tell the
+// rust-sdk is producing the logs.
+const LogTarget = "complement_crypto";
+
 func DeleteOldLogs(prefix string) {
 	// delete old log files
 	files, _ := os.ReadDir("./logs")
@@ -35,7 +39,7 @@ func SetupLogs(prefix string) {
 	// log new files
 	matrix_sdk_ffi.InitPlatform(matrix_sdk_ffi.TracingConfiguration{
 		LogLevel:              matrix_sdk_ffi.LogLevelTrace,
-		ExtraTargets:          nil,
+		ExtraTargets:          []string {LogTarget},
 		WriteToStdoutOrSystem: false,
 		WriteToFiles: &matrix_sdk_ffi.TracingFileConfiguration{
 			Path:       "./logs",
@@ -745,7 +749,7 @@ func (c *RustClient) Logf(t ct.TestLike, format string, args ...interface{}) {
 }
 
 func (c *RustClient) logToFile(t ct.TestLike, format string, args ...interface{}) {
-	matrix_sdk_ffi.LogEvent("rust.go", &zero, matrix_sdk_ffi.LogLevelInfo, t.Name(), fmt.Sprintf(format, args...))
+	matrix_sdk_ffi.LogEvent("rust.go", &zero, matrix_sdk_ffi.LogLevelInfo, LogTarget + "::" + t.Name(), fmt.Sprintf(format, args...))
 }
 
 func (c *RustClient) ensureListening(t ct.TestLike, roomID string) {
