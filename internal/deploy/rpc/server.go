@@ -131,6 +131,11 @@ func (s *Server) StopSyncing(testName string, void *int) error {
 	return nil
 }
 
+func (s *Server) SubscribeToRoom(roomID string, void *int) error {
+	defer s.keepAlive()
+	return s.activeClient.SubscribeToRoom(&api.MockT{}, roomID)
+}
+
 func (s *Server) IsRoomEncrypted(roomID string, isEncrypted *bool) error {
 	defer s.keepAlive()
 	var err error

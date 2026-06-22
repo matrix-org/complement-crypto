@@ -670,6 +670,11 @@ func (c *JSClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error) {
 	}, nil
 }
 
+// SubscribeToRoom is a no-op on the js sdk, because it uses regular sync.
+func (c *JSClient) SubscribeToRoom(t ct.TestLike, roomID string) error {
+	return nil
+}
+
 // IsRoomEncrypted returns true if the room is encrypted. May return an error e.g if you
 // provide a bogus room ID.
 func (c *JSClient) IsRoomEncrypted(t ct.TestLike, roomID string) (bool, error) {

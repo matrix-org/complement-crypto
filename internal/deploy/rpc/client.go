@@ -236,6 +236,15 @@ func (c *RPCClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error) 
 	}, nil
 }
 
+// SubscribeToRoom sets up a subscription to the given room, on SDKs that use sliding sync. (On SDKs that
+// use regular sync, this is a no-op.)
+//
+// StartSyncing must have been called before this function.
+func (c *RPCClient) SubscribeToRoom(t ct.TestLike, roomID string) error {
+	var void int
+	return c.client.Call("Server.SubscribeToRoom", roomID, &void)
+}
+
 // IsRoomEncrypted returns true if the room is encrypted. May return an error e.g if you
 // provide a bogus room ID.
 func (c *RPCClient) IsRoomEncrypted(t ct.TestLike, roomID string) (bool, error) {

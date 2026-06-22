@@ -39,6 +39,11 @@ type Client interface {
 	// MUST BLOCK until the initial sync is complete.
 	// Returns an error if there was a problem syncing.
 	StartSyncing(t ct.TestLike) (stopSyncing func(), err error)
+	// SubscribeToRoom sets up a subscription to the given room, on SDKs that use sliding sync. (On SDKs that
+	// use regular sync, this is a no-op.)
+	//
+	// StartSyncing must have been called before this function.
+	SubscribeToRoom(t ct.TestLike, roomId string) error
 	// IsRoomEncrypted returns true if the room is encrypted. May return an error e.g if you
 	// provide a bogus room ID.
 	IsRoomEncrypted(t ct.TestLike, roomID string) (bool, error)
