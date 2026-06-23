@@ -3,7 +3,7 @@ package rpc
 import (
 	"bufio"
 	"fmt"
-	"log"
+	"io"
 	"net/rpc"
 	"os"
 	"os/exec"
@@ -53,73 +53,28 @@ func (r *LanguageBindings) MustCreateClient(t ct.TestLike, cfg api.ClientCreatio
 	if _, err := os.Stat(r.binaryPath); err != nil {
 		ct.Fatalf(t, "%s: RPC binary at %s does not exist or cannot be executed/read: %s", contextID, r.binaryPath, err)
 	}
+	t.Logf("RPC (%s): starting RPC binary at %s", contextID, r.binaryPath)
 	rpcCmd := exec.Command(r.binaryPath)
 	stdout, err := rpcCmd.StdoutPipe()
 	if err != nil {
-		ct.Fatalf(t, "%s: cannot pipe stdout of rpc binary: %s", contextID, err)
+		ct.Fatalf(t, "RPC (%s): cannot pipe stdout of rpc binary: %s", contextID, err)
 	}
 	rpcCmd.Stderr = rpcCmd.Stdout
 	if err := rpcCmd.Start(); err != nil { // this calls NewRPCServer() effectively
-		ct.Fatalf(t, "%s: cannot start RPC binary %s: %s", contextID, r.binaryPath, err)
+		ct.Fatalf(t, "RPC (%s): cannot start RPC binary %s: %s", contextID, r.binaryPath, err)
 	}
 	// wait until we get a high-numbered port
-	portCh := make(chan struct {
-		port int
-		err  error
-	})
-	go func() {
-		rd := bufio.NewReader(stdout)
-		defer close(portCh)
-		defer func() {
-			// log stdout from the RPC server
-			go func() {
-				for {
-					str, err := rd.ReadString('\n')
-					if err != nil {
-						log.Print("RPC ERROR: " + err.Error())
-						break
-					}
-					log.Printf("  RPC (%s): %s", contextID, str)
-				}
-			}()
-			// we need to .Wait to ensure we clean up resources when the RPC server dies.
-			rpcCmd.Wait()
-		}()
+	portCh := make(chan portChannelPayload)
+	logsFlushed := make(chan struct{})
+	go readPortNumberAndLogOutput(t, contextID, portCh, rpcCmd, stdout, logsFlushed)
 
-		var port int
-		for {
-			str, err := rd.ReadString('\n')
-			if port == 0 { // we need a port
-				if err != nil {
-					portCh <- struct {
-						port int
-						err  error
-					}{port: 0, err: fmt.Errorf("failed to read stdout line: %s", err)}
-					return
-				}
-				port, err = strconv.Atoi(strings.TrimSpace(str))
-				if err != nil {
-					log.Printf("  RPC (%s) stdout line isn't a port: %s", contextID, str)
-					continue
-				}
-				portCh <- struct {
-					port int
-					err  error
-				}{
-					port: port,
-					err:  nil,
-				}
-				break
-			}
-		}
-	}()
 	select {
 	case p := <-portCh:
 		rpcAddr := fmt.Sprintf("127.0.0.1:%d", p.port)
 		var void int
 		client, err := rpc.DialHTTP("tcp", rpcAddr)
 		if err != nil {
-			t.Fatalf("RPC MustCreateClient DialHTTP: %s", err)
+			ct.Fatalf(t, "RPC (%s): MustCreateClient DialHTTP failed: %s", contextID, err)
 		}
 
 		err = client.Call("Server.MustCreateClient", ClientCreationOpts{
@@ -128,17 +83,72 @@ func (r *LanguageBindings) MustCreateClient(t ct.TestLike, cfg api.ClientCreatio
 			Lang:               r.clientType,
 		}, &void)
 		if err != nil {
-			ct.Fatalf(t, "%s: failed to create RPC client: %s", contextID, err)
+			ct.Fatalf(t, "RPC (%s): failed to create RPC client: %s", contextID, err)
 		}
 		return &RPCClient{
 			client: client,
 			lang:   r.clientType,
 			rpcCmd: rpcCmd,
+			logsFlushed: logsFlushed,
 		}
 	case <-time.After(time.Second):
-		ct.Fatalf(t, "%s: timed out waiting for port number to be echoed to stdout. Did the RPC binary run, and is it actually the RPC binary? Path: %s", contextID, r.binaryPath)
+		ct.Fatalf(t, "RPC (%s): timed out waiting for port number to be echoed to stdout. Did the RPC binary run, and is it actually the RPC binary? Path: %s", contextID, r.binaryPath)
 	}
 	panic("unreachable")
+}
+
+// portChannelPayload is the payload of the channel that we use to communicate the port number from the RPC server to the RPC client.
+type portChannelPayload struct {
+	port int
+	err  error
+}
+
+// readPortNumberAndLogOutput waits for the RPC server to write the port number to stdout, and writes the port number to the `portCh` channel.
+// Any other output is logged.
+//
+// Once the RPC server closes and all the logs are flushed, `logsFlushed` is closed.
+func readPortNumberAndLogOutput(t ct.TestLike, contextID string, portCh chan portChannelPayload, rpcCmd *exec.Cmd, stdout io.ReadCloser, logsFlushed chan struct{}) {
+	rd := bufio.NewReader(stdout)
+	defer close(portCh)
+
+	// XXX: why is this written as a `defer`, rather than simply happening after the `for` loop, given nobody is
+	//   waiting for `readPortNumberAndLogOutput` to complete?
+	defer func() {
+		// log stdout from the RPC server
+		go func() {
+			defer close(logsFlushed)
+			for {
+				str, err := rd.ReadString('\n')
+				if err != nil {
+					t.Logf("RPC (%s): server closed: %s", contextID, err)
+					break
+				}
+				t.Logf("RPC (%s): server output: %s", contextID, str)
+			}
+		}()
+		// we need to .Wait to ensure we clean up resources when the RPC server dies.
+		rpcCmd.Wait()
+	}()
+
+	var port int
+	for {
+		str, err := rd.ReadString('\n')
+		if port == 0 { // we need a port. XXX: why would it not be 0, given we `break` having successfully read the port?
+			if err != nil {
+				portCh <- portChannelPayload{port: 0, err: fmt.Errorf("failed to read stdout line: %s", err)}
+				return
+			}
+			port, err = strconv.Atoi(strings.TrimSpace(str))
+			if err != nil {
+				// Not a port number. Log it like a normal line.
+				t.Logf("RPC (%s): server output: %s", contextID, str)
+				continue
+			}
+			t.Logf("RPC (%s): server started on port %d", contextID, port)
+			portCh <- portChannelPayload{port: port, err: nil}
+			break
+		}
+	}
 }
 
 // RPCClient implements api.Client by making RPC calls to an RPC server, which actually has a concrete api.Client
@@ -146,6 +156,9 @@ type RPCClient struct {
 	client *rpc.Client
 	lang   api.ClientTypeLang
 	rpcCmd *exec.Cmd
+
+	// logsFlushed is a channel that is closed when the log copier goroutine has completed.
+	logsFlushed chan struct{}
 }
 
 func (c *RPCClient) ForceClose(t ct.TestLike) {
@@ -163,12 +176,22 @@ func (c *RPCClient) ForceClose(t ct.TestLike) {
 func (c *RPCClient) Close(t ct.TestLike) {
 	t.Helper()
 	var void int
-	fmt.Println("RPCClient.Close")
-	err := c.client.Call("Server.Close", t.Name(), &void)
-	if err != nil {
-		t.Fatalf("RPCClient.Close: %s", err)
+	t.Logf("RPCClient.Close")
+	if err := c.client.Call("Server.Close", t.Name(), &void); err != nil {
+		// XXX this fails with "unexpected EOF" sometimes, and I don't understand why.
+		//   The server won't actually stop until all clients have disconnected, so the RPC call should
+		//   complete cleanly.
+		t.Logf("RPCClient.Close: Server.Close RPC call returned error: %s", err)
 	}
-	c.client.Close()
+	t.Logf("RPCClient.Close: disconnecting RPC client")
+	if err := c.client.Close(); err != nil {
+		t.Logf("RPCClient.Close: error disconnecting RPC client: %s", err)
+	}
+
+	// Wait for the goroutine that copies stdout to the logs to complete
+	t.Logf("RPCClient.Close: waiting for server to shut down")
+	<- c.logsFlushed
+	t.Logf("RPCClient.Close: done")
 }
 
 func (c *RPCClient) GetNotification(t ct.TestLike, roomID, eventID string) (*api.Notification, error) {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -11,7 +12,8 @@ import (
 )
 
 func main() {
-	srv := crpc.NewServer()
+	srvDoneChannel := make(chan struct{})
+	srv := crpc.NewServer(srvDoneChannel)
 	rpc.Register(srv)
 	rpc.HandleHTTP()
 	listener, err := net.Listen("tcp", ":0")
@@ -21,5 +23,20 @@ func main() {
 	// tell the parent process what port we are listening on.
 	port := listener.Addr().(*net.TCPAddr).Port
 	fmt.Println(port)
-	fmt.Println(http.Serve(listener, nil))
+
+	// Start an HTTP server on the listener. It will send requests to the default HttpMux, which we've
+	// already told rpc to handle.
+	httpServer := &http.Server{}
+
+	go httpServer.Serve(listener)
+
+	// Wait for `Server.Close` to be called, then shut down the HTTP server.
+	<- srvDoneChannel
+	fmt.Println("Server starting clean shutdown...")
+	err = httpServer.Shutdown(context.Background())
+	if err != nil {
+		log.Fatal("HTTP server Shutdown error: ", err)
+	}
+
+	fmt.Println("Server shutdown complete")
 }

@@ -28,14 +28,21 @@ type Server struct {
 	waitersMu     *sync.Mutex
 	lastCmdRecv   time.Time
 	lastCmdRecvMu *sync.Mutex
+
+	// done is a chanel that is closed once Close() has been called.
+	done chan struct{}
 }
 
-func NewServer() *Server {
+// NewServer creates a new Server instance.
+//
+// doneChannel is a channel that will be closed once Close() has been called.
+func NewServer(doneChannel chan struct{}) *Server {
 	srv := &Server{
 		waiters:       make(map[int]*RPCServerWaiter),
 		waitersMu:     &sync.Mutex{},
 		lastCmdRecv:   time.Now(),
 		lastCmdRecvMu: &sync.Mutex{},
+		done: doneChannel,
 	}
 	go srv.checkKeepAlive()
 	return srv
@@ -91,6 +98,8 @@ func (s *Server) Close(testName string, void *int) error {
 	s.activeClient.Close(&api.MockT{TestName: testName})
 	// write logs
 	s.bindings.PostTestRun(s.contextID)
+	// Flag to main that we should shut down the HTTP server, once the client disconnects.
+	close(s.done)
 	return nil
 }
 
