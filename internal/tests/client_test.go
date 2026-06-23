@@ -90,8 +90,7 @@ func TestMain(m *testing.M) {
 func TestReceiveTimeline(t *testing.T) {
 	deployment := Deploy(t)
 
-	createAndSendEvents := func(t *testing.T, csapi *client.CSAPI) (roomID string, eventIDs []string) {
-		roomID = csapi.MustCreateRoom(t, map[string]interface{}{})
+	createAndSendEvents := func(t *testing.T, csapi *client.CSAPI, roomID string) (eventIDs []string) {
 		for i := 0; i < 10; i++ {
 			eventIDs = append(eventIDs, csapi.SendEventSynced(t, roomID, b.Event{
 				Type: "m.room.message",
@@ -107,7 +106,8 @@ func TestReceiveTimeline(t *testing.T) {
 	// test that if we start syncing with a room full of events, we see those events.
 	ForEachClient(t, "existing_events", deployment, func(t *testing.T, client api.TestClient, csapi *client.CSAPI) {
 		must.NotError(t, "Failed to login", client.Login(t, client.Opts()))
-		roomID, eventIDs := createAndSendEvents(t, csapi)
+		roomID := csapi.MustCreateRoom(t, map[string]interface{}{})
+		eventIDs := createAndSendEvents(t, csapi, roomID)
 		time.Sleep(time.Second) // give time for everything to settle server-side e.g sliding sync proxy
 		stopSyncing := client.MustStartSyncing(t)
 		defer stopSyncing()
@@ -134,17 +134,24 @@ func TestReceiveTimeline(t *testing.T) {
 
 	// test that if we are already syncing and then see a room live stream full of events, we see those events.
 	ForEachClient(t, "live_events", deployment, func(t *testing.T, client api.TestClient, csapi *client.CSAPI) {
+		roomID := csapi.MustCreateRoom(t, map[string]interface{}{})
+
 		must.NotError(t, "Failed to login", client.Login(t, client.Opts()))
 		stopSyncing := client.MustStartSyncing(t)
 		defer stopSyncing()
+		// Subscribe to the room, so that sliding sync returns all events.
+		must.NotError(t,"could not subscribe to room", client.SubscribeToRoom(t, roomID))
+
 		time.Sleep(time.Second) // give time for syncing to be well established.
 		// send the messages whilst syncing.
-		roomID, eventIDs := createAndSendEvents(t, csapi)
+		eventIDs := createAndSendEvents(t, csapi, roomID)
+
 		// ensure we see all the events
 		for i, eventID := range eventIDs {
 			t.Logf("waiting for event %d : %s", i, eventID)
 			client.WaitUntilEventInRoom(t, roomID, api.CheckEventHasEventID(eventID)).Waitf(t, 5*time.Second, "client did not see event %s", eventID)
 		}
+
 		// now send another live event and ensure we see it. This ensure we can still wait for events after having
 		// previously waited for events.
 		waiter := client.WaitUntilEventInRoom(t, roomID, api.CheckEventHasBody("Final"))
