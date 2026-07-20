@@ -188,12 +188,13 @@ func TestOnRejoinBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 			tc.Bob.MustJoinRoom(t, roomID, []spec.ServerName{clientTypeA.HS})
 			waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasMembership(bob.UserID(), "join"))
 			waiter.Waitf(t, 5*time.Second, "bob did not see own join")
-			// this is required for some reason else tests fail
-			time.Sleep(time.Second)
 
-			// bob hits scrollback and should see but not be able to decrypt the message
+			// bob hits scrollback and should see but not be able to decrypt the message.
+			// Set up a waiter for the event before backpaginating, so we know when it's available.
+			waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasEventID(evID))
 			bob.MustBackpaginate(t, roomID, 5)
-			// TODO: jJ runs fail as the timeline omits the event e.g it has leave,join and not leave,msg,join.
+			waiter.Waitf(t, 5*time.Second, "bob did not see backpaginated message")
+
 			ev := bob.MustGetEvent(t, roomID, evID)
 			must.NotEqual(t, ev.Text, onlyAliceBody, "bob was able to decrypt a message from before he was joined")
 			must.Equal(t, ev.FailedToDecrypt, true, "message not marked as failed to decrypt")
