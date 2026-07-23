@@ -1,25 +1,29 @@
---- internal/api/rust/matrix_sdk_ffi/matrix_sdk_ffi.go.bak	2026-07-23 17:07:10.407000000 +0100
-+++ internal/api/rust/matrix_sdk_ffi/matrix_sdk_ffi.go	2026-07-23 17:07:32.137000000 +0100
-@@ -1,16 +1,18 @@
- package matrix_sdk_ffi
- 
- // #include <matrix_sdk_ffi.h>
- // #cgo LDFLAGS: -lmatrix_sdk_ffi
- import "C"
- 
-+import "os"
-+
- import (
- 	"bytes"
- 	"encoding/binary"
- 	"errors"
- 	"fmt"
+--- internal/api/rust/matrix_sdk_ffi/matrix_sdk_ffi.go.orig	2026-07-23 17:25:04.754939450 +0100
++++ internal/api/rust/matrix_sdk_ffi/matrix_sdk_ffi.go	2026-07-23 17:27:40.408000000 +0100
+@@ -19,20 +19,22 @@
  	"io"
  	"math"
  	"runtime"
  	"runtime/cgo"
  	"sync"
-@@ -23495,20 +23497,21 @@
+ 	"sync/atomic"
+ 	"time"
+ 	"unsafe"
+ )
+ 
++import "os"
++
+ // This is needed, because as of go 1.24
+ // type RustBuffer C.RustBuffer cannot have methods,
+ // RustBuffer is treated as non-local type
+ type GoRustBuffer struct {
+ 	inner C.RustBuffer
+ }
+ 
+ type RustBufferI interface {
+ 	AsReader() *bytes.Reader
+ 	Free()
+@@ -23494,20 +23496,21 @@
  // possible, instead of just storing IDs and coming back to the timeline
  // object to look up items.
  func (_self *Timeline) GetEventTimelineItemByEventId(eventId string) (EventTimelineItem, error) {
