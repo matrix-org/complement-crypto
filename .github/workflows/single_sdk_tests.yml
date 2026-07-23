@@ -148,6 +148,7 @@ jobs:
         run: |
           echo "Compiling matrix-rust-sdk @ $RUST_SDK"
           cd complement-crypto && ./install_uniffi_bindgen_go.sh && ./rebuild_rust_sdk.sh $RUST_SDK_DIR
+          patch -p0 < matrix_sdk_ffi.patch
 
       - name: Build RPC client (rust)
         if: ${{ inputs.use_rust_sdk != '' }}
