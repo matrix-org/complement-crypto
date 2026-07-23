@@ -1,6 +1,25 @@
---- internal/api/rust/matrix_sdk_ffi/matrix_sdk_ffi.go.bak	2026-07-23 16:39:06.249000000 +0100
-+++ internal/api/rust/matrix_sdk_ffi/matrix_sdk_ffi.go	2026-07-23 16:32:50.560000000 +0100
-@@ -23496,20 +23496,21 @@
+--- internal/api/rust/matrix_sdk_ffi/matrix_sdk_ffi.go.bak	2026-07-23 17:07:10.407000000 +0100
++++ internal/api/rust/matrix_sdk_ffi/matrix_sdk_ffi.go	2026-07-23 17:07:32.137000000 +0100
+@@ -1,16 +1,18 @@
+ package matrix_sdk_ffi
+ 
+ // #include <matrix_sdk_ffi.h>
+ // #cgo LDFLAGS: -lmatrix_sdk_ffi
+ import "C"
+ 
++import "os"
++
+ import (
+ 	"bytes"
+ 	"encoding/binary"
+ 	"errors"
+ 	"fmt"
+ 	"io"
+ 	"math"
+ 	"runtime"
+ 	"runtime/cgo"
+ 	"sync"
+@@ -23495,20 +23497,21 @@
  // possible, instead of just storing IDs and coming back to the timeline
  // object to look up items.
  func (_self *Timeline) GetEventTimelineItemByEventId(eventId string) (EventTimelineItem, error) {
