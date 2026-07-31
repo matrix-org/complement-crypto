@@ -198,6 +198,8 @@ func TestOnRejoinBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 			must.NotEqual(t, ev.Text, onlyAliceBody, "bob was able to decrypt a message from before he was joined")
 			must.Equal(t, ev.FailedToDecrypt, true, "message not marked as failed to decrypt")
 
+			t.Logf("Bob has received the event but couldn't decrypt it, everything is ok")
+
 			/* TODO: needs client changes
 			time.Sleep(time.Second) // let alice realise bob is back in the room
 			// bob should be able to decrypt subsequent messages
