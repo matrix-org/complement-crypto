@@ -111,6 +111,8 @@ jobs:
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version: "1.25"
+      - name: Install gotestsum
+        run: go install gotest.tools/gotestsum@latest
       - name: "Install Complement Dependencies"
         shell: bash
         run: |
@@ -170,7 +172,7 @@ jobs:
           export COMPLEMENT_CRYPTO_RPC_BINARY="$(pwd)/complement-crypto/rpc"
           cd complement-crypto &&
           set -o pipefail &&
-          go test -v -p 2 -count=1 -json -tags=$GO_TAGS -timeout 15m ./tests ./tests/$LANG_SPECIFIC_TESTS | gotestfmt
+          gotestsum --format=testname --rerun-fails=5 --packages="./tests ./tests/$LANG_SPECIFIC_TESTS" -- -v -p 2 -count=1 -json -tags=$GO_TAGS -timeout 15m
         shell: bash # required for pipefail to be A Thing. pipefail is required to stop gotestfmt swallowing non-zero exit codes
         env:
           COMPLEMENT_BASE_IMAGE: homeserver
