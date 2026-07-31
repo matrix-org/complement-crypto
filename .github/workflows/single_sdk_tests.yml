@@ -135,6 +135,11 @@ jobs:
         run: |
           rustup toolchain install stable
           rustup default stable
+      - name: Install just
+        if: ${{ inputs.use_rust_sdk != '' }}
+        uses: taiki-e/install-action@67729d5c413db75907f0ad1e39bb04b9c868ff60 # v2.85.7
+        with:
+          tool: just
       - name: "Download Rust SDK" # no need to download rust SDK if we are using the local checkout.
         if: ${{ inputs.use_rust_sdk != '' && inputs.use_rust_sdk != '.'}}
         run: |
@@ -147,7 +152,7 @@ jobs:
           RUST_SDK_DIR: ${{ inputs.use_rust_sdk == '.' && '..' || './rust-sdk' }}
         run: |
           echo "Compiling matrix-rust-sdk @ $RUST_SDK"
-          cd complement-crypto && ./install_uniffi_bindgen_go.sh && ./rebuild_rust_sdk.sh $RUST_SDK_DIR
+          cd complement-crypto && just install-uniffi-bindgen && ./rebuild_rust_sdk.sh $RUST_SDK_DIR
 
       - name: Build RPC client (rust)
         if: ${{ inputs.use_rust_sdk != '' }}

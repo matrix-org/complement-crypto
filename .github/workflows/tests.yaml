@@ -60,6 +60,10 @@ jobs:
       - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
         with:
           workspaces: "rust-sdk"
+      - name: Install just
+        uses: taiki-e/install-action@67729d5c413db75907f0ad1e39bb04b9c868ff60 # v2.85.7
+        with:
+          tool: just
       - name: "Install Complement Dependencies"
         run: |
           go install -v github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@4c97682ab858d6bbd26fc020e255cb339c9c8119 # v2.5.0
@@ -72,7 +76,7 @@ jobs:
 
       - name: Build Rust FFI bindings
         run: |
-          ./install_uniffi_bindgen_go.sh && ./rebuild_rust_sdk.sh ./rust-sdk
+          just install-uniffi-bindgen && ./rebuild_rust_sdk.sh ./rust-sdk
 
       # Temporary: as it takes 3m to build the complement synapse image >:(
       # If you're bumping the image version here, don't forget to bump it in ./single_sdk_tests.yml

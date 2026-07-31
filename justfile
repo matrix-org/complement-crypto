@@ -25,4 +25,4 @@ build-rust-bindings rust-sdk-path:
 
 # Install the uniffi-bindgen-go command line utility, necessary to build the bindings.
 install-uniffi-bindgen:
-    cargo install uniffi-bindgen-go --tag {{ UNIFFI_GO_VERSION }} --git https://github.com/NordSecurity/uniffi-bindgen-go/
+    cargo install uniffi-bindgen-go --tag {{ UNIFFI_GO_VERSION }} --git https://github.com/NordSecurity/uniffi-bindgen-go
