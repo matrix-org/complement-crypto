@@ -35,24 +35,10 @@ Examples:
 
 Pre-requisites:
  - `cargo` installed and on your PATH
- - Install uniffi bindings for Go: `./install_uniffi_bindgen_go.sh` - ensure `uniffi-bindgen-go` is on your PATH.
+ - Install uniffi bindings for Go: `just install-uniffi-bindgen` - ensure `uniffi-bindgen-go` is on your PATH.
 
-Run `./rebuild_rust_sdk.sh` according to its help page:
-```
-Rebuild the version of rust SDK used. Execute this inside the complement-crypto directory. (requires on PATH: uniffi-bindgen-go, cargo, git)
-Usage: ./rebuild_rust_sdk.sh [version|directory]
-  [version]: the rust SDK git repo and branch|tag to use. Syntax: '$HTTPS_URL@$TAG|$BRANCH'
-             Stores repository in $PWD/_temp_rust_sdk
-  [directory]: the local rust SDK checkout to use.
-
-Examples:
-  Install main branch:  ./rebuild_rust_sdk.sh https://github.com/matrix-org/matrix-rust-sdk@main
-  Install 0.7.1 tag:    ./rebuild_rust_sdk.sh https://github.com/matrix-org/matrix-rust-sdk@0.7.1
-  Install ./rust-sdk    ./rebuild_rust_sdk.sh ./rust-sdk
-
-[directory] is determined if the first character is a '.' or '/'. If neither, it is assumed to be a [version]
-The [version] is split into the URL and TAG|BRANCH then fed directly into 'git clone --depth 1 --branch <tag_name> <repo_url>'
-```
+Run `just rebuild-rust-sdk $PATH-TO-RUST-SDK`, the `$PATH-TO-RUST-SDK` needs to
+be a local checkout of the https://github.com/matrix-org/matrix-rust-sdk/ repo.
 
 ### Running
 
