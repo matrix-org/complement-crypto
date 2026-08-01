@@ -131,7 +131,7 @@ jobs:
 
       # Rust SDK only steps.
       # The aim is to guarantee that rust-sdk is either at '.' or './complement-crypto/rust-sdk'
-      # which we then pass to rebuild_rust_sdk.sh
+      # which we then pass to `just rebuild-rust-sdk`
       - name: Setup | Rust
         if: ${{ inputs.use_rust_sdk != '' }}
         run: |
@@ -154,7 +154,7 @@ jobs:
           RUST_SDK_DIR: ${{ inputs.use_rust_sdk == '.' && '..' || './rust-sdk' }}
         run: |
           echo "Compiling matrix-rust-sdk @ $RUST_SDK"
-          cd complement-crypto && just install-uniffi-bindgen && ./rebuild_rust_sdk.sh $RUST_SDK_DIR
+          cd complement-crypto && just install-uniffi-bindgen && just rebuild-rust-sdk $RUST_SDK_DIR
 
       - name: Build RPC client (rust)
         if: ${{ inputs.use_rust_sdk != '' }}
