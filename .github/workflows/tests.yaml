@@ -76,7 +76,7 @@ jobs:
 
       - name: Build Rust FFI bindings
         run: |
-          just install-uniffi-bindgen && ./rebuild_rust_sdk.sh ./rust-sdk
+          just install-uniffi-bindgen && just rebuild-rust-sdk ./rust-sdk
 
       # Temporary: as it takes 3m to build the complement synapse image >:(
       # If you're bumping the image version here, don't forget to bump it in ./single_sdk_tests.yml
