@@ -101,7 +101,7 @@ Sometimes the bug cannot be found via client log files alone. Server logs are au
 
 ### How do I view HTTP flows in a web UI?
 
-Perhaps server logs aren't giving enough information and you want to see all HTTP requests/responses done. In that case, [enable mitmdump](https://github.com/matrix-org/complement-crypto/blob/main/ENVIRONMENT.md#complement_crypto_mitmdump) (done automatically in CI) and open the dump file in mitmweb to see the raw HTTP request/responses made by all clients. If you don't have mitmweb, run [`open_mitmweb.sh`](https://github.com/matrix-org/complement-crypto/blob/main/open_mitmweb.sh) which will use the mitmproxy image. Once the web UI pops up, File -> Open -> find the dump file.
+Perhaps server logs aren't giving enough information and you want to see all HTTP requests/responses done. In that case, [enable mitmdump](https://github.com/matrix-org/complement-crypto/blob/main/ENVIRONMENT.md#complement_crypto_mitmdump) (done automatically in CI) and open the dump file in mitmweb to see the raw HTTP request/responses made by all clients. If you don't have mitmweb, run `just open_mitmweb` which will use the mitmproxy image. Once the web UI pops up, File -> Open -> find the dump file.
  - You cannot search HTTP bodies currently: see https://github.com/mitmproxy/mitmproxy/issues/3609
  - Very large dump files take a while to load, you may need to stop a script from running. However, the UI still functions.
 
