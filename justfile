@@ -10,6 +10,11 @@ COMPLEMENT_DIR := justfile_directory()
 default:
     just --list
 
+# Opens a browser with mitmweb. Then you can open a dump file made via COMPLEMENT_CRYPTO_MITMDUMP. (requires on PATH: docker)
+open-mitmweb:
+    (sleep 1 && python3 -m webbrowser http://localhost:1445) &
+    docker run --rm -p 1445:8081 mitmproxy/mitmproxy:10.1.5  mitmweb --web-host 0.0.0.0
+
 # Run the Rust tests of complement crypto.
 test rust-sdk-path pattern="":
     @echo "Using RUST_PATH: $(realpath {{ rust-sdk-path }})"
