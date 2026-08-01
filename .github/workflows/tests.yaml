@@ -46,6 +46,10 @@ jobs:
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version: "1.25"
+
+      - name: Install gotestsum
+        run: go install gotest.tools/gotestsum@latest
+
       - name: Setup | Rust
         run: |
           rustup toolchain install stable
@@ -156,7 +160,7 @@ jobs:
           export LD_LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
           export COMPLEMENT_CRYPTO_RPC_BINARY="$(pwd)/rpc"
           set -o pipefail &&
-          go test -p 3 -v -json -tags='jssdk,rust' -count=1 -timeout 15m ./tests ./tests/js ./tests/rust | gotestfmt
+          gotestsum --format=testname --rerun-fails=5 --packages="./tests ./tests/js ./tests/rust" -- -v -p 3 -count=1 -json -tags='jssdk,rust' -timeout 15m
         shell: bash # required for pipefail to be A Thing. pipefail is required to stop gotestfmt swallowing non-zero exit codes
         name: Run Complement Crypto Tests
         env:
