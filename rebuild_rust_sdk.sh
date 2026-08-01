@@ -40,7 +40,7 @@ else # HTTPS URL => git clone into temp dir
 fi
 
 function restore_backups {
-    for i in Cargo.toml Cargo.lock bindings/matrix-sdk-ffi/Cargo.toml; do
+    for i in Cargo.toml Cargo.lock; do
         mv "$RUST_SDK_DIR/$i.backup" "$RUST_SDK_DIR/$i"
     done
 }
@@ -49,9 +49,7 @@ echo 'building matrix-sdk-ffi...';
 cd $RUST_SDK_DIR;
 cp Cargo.toml Cargo.toml.backup
 cp Cargo.lock Cargo.lock.backup
-cp bindings/matrix-sdk-ffi/Cargo.toml bindings/matrix-sdk-ffi/Cargo.toml.backup
 trap "restore_backups" EXIT INT TERM
-sed -i.bak 's/"wasm-unstable-single-threaded"//' bindings/matrix-sdk-ffi/Cargo.toml
 # Enable a hidden feature to make tests run faster.
 sed -i.bak 's#matrix-sdk-crypto = {#matrix-sdk-crypto = {features = ["_disable-minimum-rotation-period-ms"],#' Cargo.toml
 cargo build -p matrix-sdk-ffi --features 'sentry'
