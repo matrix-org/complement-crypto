@@ -5,7 +5,7 @@ Complement-Crypto is configured exclusively through the use of environment varia
 Complement-Crypto always runs in dirty mode (homeservers exist for the entire duration of the test suite) for performance reasons.
 
 #### `COMPLEMENT_CRYPTO_MITMDUMP`
-The path to dump the output from `mitmdump`. This file can then be used with mitmweb to view all the HTTP flows in the test.  
+The path to dump the output from `mitmdump`. This file can then be used with mitmweb (`mitmweb -r <dump file>`) to view all the HTTP flows in the test.
 - Type: `string`
 - Default: ""
 
