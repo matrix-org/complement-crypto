@@ -37,7 +37,7 @@ Pre-requisites:
  - `cargo` installed and on your PATH
  - Install uniffi bindings for Go: `just install-uniffi-bindgen` - ensure `uniffi-bindgen-go` is on your PATH.
 
-Run `just rebuild-rust-sdk $PATH-TO-RUST-SDK`, the `$PATH-TO-RUST-SDK` needs to
+Run `just rebuild-rust-sdk $PATH-TO-RUST-SDK`. `$PATH-TO-RUST-SDK` must
 be a local checkout of the https://github.com/matrix-org/matrix-rust-sdk/ repo.
 
 ### Running
