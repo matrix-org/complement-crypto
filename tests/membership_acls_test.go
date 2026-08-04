@@ -194,6 +194,12 @@ func TestOnRejoinBobCanSeeButNotDecryptHistoryInPublicRoom(t *testing.T) {
 			// bob hits scrollback and should see but not be able to decrypt the message
 			bob.MustBackpaginate(t, roomID, 5)
 			// TODO: jJ runs fail as the timeline omits the event e.g it has leave,join and not leave,msg,join.
+
+			// On matrix-rust-sdk, Backpaginate returns before the event is actually added to the timeline,
+			// which happens asynchronously
+			waiter = bob.WaitUntilEventInRoom(t, roomID, api.CheckEventHasEventID(evID))
+			waiter.Waitf(t, 1*time.Second, "Bob did not see Alice's message %s", evID)
+
 			ev := bob.MustGetEvent(t, roomID, evID)
 			must.NotEqual(t, ev.Text, onlyAliceBody, "bob was able to decrypt a message from before he was joined")
 			must.Equal(t, ev.FailedToDecrypt, true, "message not marked as failed to decrypt")
@@ -300,6 +306,12 @@ func TestChangingDeviceAfterInviteReEncrypts(t *testing.T) {
 
 				time.Sleep(time.Second) // let the client load the events
 				bob2.MustBackpaginate(t, roomID, 5)
+
+				// On matrix-rust-sdk, Backpaginate returns before the event is actually added to the timeline,
+				// which happens asynchronously
+				waiter := bob2.WaitUntilEventInRoom(t, roomID, api.CheckEventHasEventID(evID))
+				waiter.Waitf(t, 1*time.Second, "Bob did not see Alice's message %s", evID)
+
 				event := bob2.MustGetEvent(t, roomID, evID)
 				must.Equal(t, event.FailedToDecrypt, true, "bob2 was able to decrypt the message: expected this to fail")
 				// must.Equal(t, event.Text, body, "bob2 failed to decrypt body")
