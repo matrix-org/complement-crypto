@@ -230,12 +230,12 @@ in-place and then recompile it.
 
 Ensure you have `uniffi-bindgen-go` installed and on your `PATH`:
 ```
-./install_uniffi_bindgen_go.sh
+just install-uniffi-bindgen
 ```
 
 Check out matrix-rust-sdk, edit your files and then run:
 ```
-./rebuild_rust_sdk.sh /path/to/your/matrix-rust-sdk
+just rebuild-rust-sdk /path/to/your/matrix-rust-sdk
 ```
 
 Make sure you launch the tests with `LIBRARY_PATH` and `LD_LIBRARY_PATH` pointing to
