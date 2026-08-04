@@ -46,7 +46,7 @@ func testSigkillBeforeKeysUploadResponseRust(t *testing.T, clientType api.Client
 			if terminated.Load() {
 				// make sure the 2nd upload 200 OKs
 				if cd.ResponseCode != 200 {
-					t.Errorf("2nd /keys/upload did not 200 OK => got %v", cd.ResponseCode)
+					ct.Errorf(t, "2nd /keys/upload did not 200 OK => got %v", cd.ResponseCode)
 				}
 				t.Logf("recv 2nd /keys/upload => HTTP %d", cd.ResponseCode)
 				seenSecondKeysUploadWaiter.Finish()

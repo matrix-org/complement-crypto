@@ -572,7 +572,7 @@ func TestSpoofedEventSenderHandling(t *testing.T) {
 					shield, err := bob.GetEventShield(t, roomID, spoofedEventID)
 					must.NotError(t, "Could not get shield for Bob's view of spoofed message", err)
 					if shield == nil {
-						t.Errorf("Bob did not get a shield for the spoofed message")
+						ct.Errorf(t, "Bob did not get a shield for the spoofed message")
 					} else {
 						must.Equal(t, shield.Colour, api.EventShieldColourRed, "Colour of shield")
 						must.Equal(t, shield.Code, api.EventShieldCodeMismatchedSender, "Shield code")
