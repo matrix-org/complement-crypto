@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/complement/must"
 )
 
@@ -13,7 +14,7 @@ func receiveFromChannel(t *testing.T, ch <-chan string) string {
 	case val := <-ch:
 		return val
 	case <-time.After(time.Second):
-		t.Fatalf("failed to receive from channel")
+		ct.Fatalf(t, "failed to receive from channel")
 	}
 	return ""
 }

@@ -398,7 +398,7 @@ func TestRoomKeyIsNotCycledOnClientRestart(t *testing.T) {
 		case api.ClientTypeJS:
 			testRoomKeyIsNotCycledOnClientRestartJS(t, a)
 		default:
-			t.Fatalf("unknown lang: %s", a.Lang)
+			ct.Fatalf(t, "unknown lang: %s", a.Lang)
 		}
 	})
 }
@@ -613,7 +613,7 @@ func withSpoofSender(t *testing.T, tc *cc.TestContext, attackerUserID string, ta
 				t.Logf("Rewriting event %s from %s to have sender of %s", event.Get("event_id").String(), event.Get("sender").String(), spoofedUserID)
 				var err error
 				if eventArrayRaw, err = sjson.Set(eventArrayRaw, fmt.Sprintf("%d.sender", idx.Int()), spoofedUserID); err != nil {
-					t.Fatalf("Couldn't patch event array: %s", err)
+					ct.Fatalf(t, "Couldn't patch event array: %s", err)
 				}
 			}
 			return true
@@ -636,7 +636,7 @@ func withSpoofSender(t *testing.T, tc *cc.TestContext, attackerUserID string, ta
 				roomListJSONPath = "rooms"
 				timelineJSONPath = "timeline"
 			} else {
-				t.Fatalf("Unknown sync endpoint: %s", cd.URL)
+				ct.Fatalf(t, "Unknown sync endpoint: %s", cd.URL)
 			}
 
 			rawBody := string(cd.ResponseBody)
@@ -648,7 +648,7 @@ func withSpoofSender(t *testing.T, tc *cc.TestContext, attackerUserID string, ta
 				jsonPath := fmt.Sprintf("%s.%s.%s", roomListJSONPath, gjson.Escape(roomID.String()), timelineJSONPath)
 				var err error
 				if rawBody, err = sjson.SetRaw(rawBody, jsonPath, patchedTimeline); err != nil {
-					t.Fatalf("Couldn't patch response json: %s", err)
+					ct.Fatalf(t, "Couldn't patch response json: %s", err)
 				}
 				return true
 			})

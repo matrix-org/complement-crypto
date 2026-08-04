@@ -165,7 +165,7 @@ func (c *RPCClient) ForceClose(t ct.TestLike) {
 	t.Helper()
 	err := c.rpcCmd.Process.Kill()
 	if err != nil {
-		t.Fatalf("failed to kill process: %s", err)
+		ct.Fatalf(t, "failed to kill process: %s", err)
 	}
 }
 
@@ -230,7 +230,7 @@ func (c *RPCClient) DeletePersistentStorage(t ct.TestLike) {
 	var void int
 	err := c.client.Call("Server.DeletePersistentStorage", t.Name(), &void)
 	if err != nil {
-		t.Fatalf("RPCClient.DeletePersistentStorage: %s", err)
+		ct.Fatalf(t, "RPCClient.DeletePersistentStorage: %s", err)
 	}
 }
 func (c *RPCClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {
@@ -295,7 +295,7 @@ func (c *RPCClient) WaitUntilEventInRoom(t ct.TestLike, roomID string, checker f
 		RoomID:   roomID,
 	}, &waiterID)
 	if err != nil {
-		t.Fatalf("RPCClient.WaitUntilEventInRoom: %s", err)
+		ct.Fatalf(t, "RPCClient.WaitUntilEventInRoom: %s", err)
 	}
 	return &RPCWaiter{
 		client:   c.client,
@@ -356,7 +356,7 @@ func (c *RPCClient) Logf(t ct.TestLike, format string, args ...interface{}) {
 	var void int
 	err := c.client.Call("Server.Logf", str, &void)
 	if err != nil {
-		t.Fatalf("RPCClient.Logf: %s", err)
+		ct.Fatalf(t, "RPCClient.Logf: %s", err)
 	}
 }
 

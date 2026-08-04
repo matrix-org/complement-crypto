@@ -22,7 +22,7 @@ func TestSigkillBeforeKeysUploadResponse(t *testing.T) {
 		case api.ClientTypeJS:
 			testSigkillBeforeKeysUploadResponseJS(t, a)
 		default:
-			t.Fatalf("unknown lang: %s", a.Lang)
+			ct.Fatalf(t, "unknown lang: %s", a.Lang)
 		}
 	})
 }
