@@ -246,7 +246,15 @@ func (c *LoggedClient) Backpaginate(t ct.TestLike, roomID string, count int) err
 	t.Helper()
 	c.Logf(t, "%s Backpaginate %d %s", c.logPrefix(), count, roomID)
 	err := c.Client.Backpaginate(t, roomID, count)
-	c.Logf(t, "%s Backpaginate %d %s => %s", c.logPrefix(), count, roomID, err)
+
+	var result string
+	if err == nil {
+		result = "SUCCESS"
+	} else {
+		result = fmt.Sprintf("ERROR: %v", err)
+	}
+	c.Logf(t, "%s Backpaginate %d %s => %s", c.logPrefix(), count, roomID, result)
+	
 	return err
 }
 
