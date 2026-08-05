@@ -148,7 +148,6 @@ jobs:
           export LD_LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
           export COMPLEMENT_CRYPTO_RPC_BINARY="$(pwd)/rpc"
           gotestsum --format=testname --packages="./internal/tests" -- -v -json -count=1 -timeout 15m
-        shell: bash # required for pipefail to be A Thing. pipefail is required to stop gotestfmt swallowing non-zero exit codes
         env:
           COMPLEMENT_BASE_IMAGE: homeserver
           COMPLEMENT_ENABLE_DIRTY_RUNS: 1
