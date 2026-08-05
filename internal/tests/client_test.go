@@ -5,7 +5,10 @@ package tests
 
 import (
 	"fmt"
+
 	complementconfig "github.com/matrix-org/complement/config"
+	"github.com/matrix-org/complement/ct"
+
 	"log"
 	"os"
 	"path/filepath"
