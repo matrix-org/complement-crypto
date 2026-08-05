@@ -825,7 +825,7 @@ func (c *RustClient) ensureListening(t ct.TestLike, roomID string) {
 					continue
 				}
 				timeline = slices.Insert(timeline, i, timelineItemToEvent(x.Value))
-				c.logToFile(t, "[%s]_______ INSERT %+v\n", c.userID, timeline[i])
+				c.logToFile(t, "[%s]_______ INSERT %+v", c.userID, timeline[i])
 				newEvents = append(newEvents, timeline[i])
 			case matrix_sdk_ffi.TimelineDiffRemove:
 				i := int(x.Index)
@@ -838,7 +838,7 @@ func (c *RustClient) ensureListening(t ct.TestLike, roomID string) {
 				for _, item := range x.Values {
 					ev := timelineItemToEvent(item)
 					timeline = append(timeline, ev)
-					c.logToFile(t, "[%s]_______ APPEND %+v\n", c.userID, ev)
+					c.logToFile(t, "[%s]_______ APPEND %+v", c.userID, ev)
 					newEvents = append(newEvents, ev)
 				}
 			case matrix_sdk_ffi.TimelineDiffReset:
@@ -846,13 +846,13 @@ func (c *RustClient) ensureListening(t ct.TestLike, roomID string) {
 				for i, item := range x.Values {
 					ev := timelineItemToEvent(item)
 					timeline[i] = ev
-					c.logToFile(t, "[%s]_______ RESET %+v\n", c.userID, ev)
+					c.logToFile(t, "[%s]_______ RESET %+v", c.userID, ev)
 					newEvents = append(newEvents, ev)
 				}
 			case matrix_sdk_ffi.TimelineDiffPushBack: // append but 1 element
 				ev := timelineItemToEvent(x.Value)
 				timeline = append(timeline, ev)
-				c.logToFile(t, "[%s]_______ PUSH BACK %+v\n", c.userID, ev)
+				c.logToFile(t, "[%s]_______ PUSH BACK %+v", c.userID, ev)
 				newEvents = append(newEvents, ev)
 			case matrix_sdk_ffi.TimelineDiffSet:
 				ev := timelineItemToEvent(x.Value)
@@ -865,7 +865,7 @@ func (c *RustClient) ensureListening(t ct.TestLike, roomID string) {
 				} else if i == len(timeline) {
 					timeline = append(timeline, ev)
 				}
-				c.logToFile(t, "[%s]_______ SET %+v\n", c.userID, ev)
+				c.logToFile(t, "[%s]_______ SET %+v", c.userID, ev)
 				newEvents = append(newEvents, ev)
 			case matrix_sdk_ffi.TimelineDiffPushFront:
 				ev := timelineItemToEvent(x.Value)
@@ -909,7 +909,7 @@ func (w *timelineWaiter) TryWaitf(t ct.TestLike, s time.Duration, format string,
 		// check if it exists in the timeline already
 		info := w.client.rooms[w.roomID]
 		if info == nil {
-			w.client.logToFile(t, "_____checkForEvent[%s] room does not exist\n", w.client.userID)
+			w.client.logToFile(t, "_____checkForEvent[%s] room does not exist", w.client.userID)
 			return false
 		}
 		for _, ev := range info.timeline {
@@ -921,7 +921,7 @@ func (w *timelineWaiter) TryWaitf(t ct.TestLike, s time.Duration, format string,
 				return true
 			}
 		}
-		w.client.logToFile(t, "_____checkForEvent[%s] checked %d timeline events and no match \n", w.client.userID, len(info.timeline))
+		w.client.logToFile(t, "_____checkForEvent[%s] checked %d timeline events and no match", w.client.userID, len(info.timeline))
 		return false
 	}
 
