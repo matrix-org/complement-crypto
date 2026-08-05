@@ -40,13 +40,13 @@ jobs:
         with:
           persist-credentials: false
 
-      # Install Node, Go and Rust, along with gotestfmt
       - name: Setup | Node.js LTS
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: "lts/*"
           cache: "yarn"
           cache-dependency-path: "internal/api/js/js-sdk/yarn.lock"
+
       - name: Setup | Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
@@ -69,13 +69,11 @@ jobs:
       - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
         with:
           workspaces: "rust-sdk"
+
       - name: Install just
         uses: taiki-e/install-action@67729d5c413db75907f0ad1e39bb04b9c868ff60 # v2.85.7
         with:
           tool: just
-      - name: "Install Complement Dependencies"
-        run: |
-          go install -v github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@4c97682ab858d6bbd26fc020e255cb339c9c8119 # v2.5.0
 
       # Install whatever version of the JS SDK is in package.json
       - name: Build JS SDK
@@ -149,8 +147,7 @@ jobs:
           export LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
           export LD_LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
           export COMPLEMENT_CRYPTO_RPC_BINARY="$(pwd)/rpc"
-          set -o pipefail &&
-          go test -v -json -count=1 -timeout 15m ./internal/tests | gotestfmt
+          gotestsum --format=testname --packages="./internal/tests" -- -v -json -count=1 -timeout 15m
         shell: bash # required for pipefail to be A Thing. pipefail is required to stop gotestfmt swallowing non-zero exit codes
         env:
           COMPLEMENT_BASE_IMAGE: homeserver
@@ -164,9 +161,7 @@ jobs:
           export LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
           export LD_LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
           export COMPLEMENT_CRYPTO_RPC_BINARY="$(pwd)/rpc"
-          set -o pipefail &&
           gotestsum --format=testname --junitfile=junit.xml --packages="./tests ./tests/js ./tests/rust" -- -v -p 3 -count=1 -json -tags='jssdk,rust' -timeout 15m
-        shell: bash # required for pipefail to be A Thing. pipefail is required to stop gotestfmt swallowing non-zero exit codes
         name: Run Complement Crypto Tests
         env:
           COMPLEMENT_BASE_IMAGE: homeserver
