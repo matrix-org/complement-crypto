@@ -1,5 +1,4 @@
 from typing import Optional
-import asyncio
 import aiohttp
 import json
 
@@ -7,8 +6,6 @@ import mitmproxy
 from mitmproxy import ctx, flowfilter
 from mitmproxy.http import Response
 from controller import MITM_DOMAIN_NAME
-from urllib.request import urlopen, Request
-from urllib.error import HTTPError, URLError
 from datetime import datetime
 
 # See README.md for information about this addon
