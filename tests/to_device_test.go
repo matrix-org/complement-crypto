@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/gomatrixserverlib/spec"
 
 	"github.com/matrix-org/complement-crypto/internal/api"
@@ -124,7 +125,7 @@ func TestUnprocessedToDeviceMessagesArentLostOnRestart(t *testing.T) {
 			case api.ClientTypeJS:
 				testUnprocessedToDeviceMessagesArentLostOnRestartJS(t, tc, roomID, eventID)
 			default:
-				t.Fatalf("unknown lang: %s", clientType.Lang)
+				ct.Fatalf(t, "unknown lang: %s", clientType.Lang)
 			}
 		})
 	})
@@ -310,7 +311,7 @@ func TestToDeviceMessagesAreBatched(t *testing.T) {
 						return nil
 					}
 					if len(usersMap.Map()) != 100 {
-						t.Errorf("PUT /sendToDevice did not batch messages, got %d want 100", len(usersMap.Map()))
+						ct.Errorf(t, "PUT /sendToDevice did not batch messages, got %d want 100", len(usersMap.Map()))
 						t.Logf("%s", usersMap.Raw)
 					}
 					waiter.Finish()

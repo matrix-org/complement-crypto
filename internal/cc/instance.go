@@ -9,6 +9,7 @@ import (
 	"github.com/matrix-org/complement-crypto/internal/api"
 	"github.com/matrix-org/complement-crypto/internal/config"
 	"github.com/matrix-org/complement-crypto/internal/deploy"
+	"github.com/matrix-org/complement/ct"
 
 	complementconfig "github.com/matrix-org/complement/config"
 )
@@ -124,7 +125,7 @@ func (i *Instance) CreateTestContext(t *testing.T, clientType ...api.ClientType)
 		tc.Charlie = tc.RegisterNewUser(t, clientType[2], "charlie")
 	}
 	if len(clientType) > 3 {
-		t.Fatalf("CreateTestContext: too many clients: got %d", len(clientType))
+		ct.Fatalf(t, "CreateTestContext: too many clients: got %d", len(clientType))
 	}
 	return tc
 }

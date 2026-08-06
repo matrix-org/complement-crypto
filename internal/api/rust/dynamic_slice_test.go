@@ -3,12 +3,14 @@ package rust
 import (
 	"slices"
 	"testing"
+
+	"github.com/matrix-org/complement/ct"
 )
 
 func mustEqual(t *testing.T, got, want []int, msg string) {
 	t.Helper()
 	if !slices.Equal(got, want) {
-		t.Errorf("%s, got %v want %v", msg, got, want)
+		ct.Errorf(t, "%s, got %v want %v", msg, got, want)
 	}
 }
 

@@ -261,7 +261,7 @@ func (c *RustClient) RequestOwnUserVerification(t ct.TestLike) chan api.Verifica
 		},
 		SendCancel: func() {
 			if err := svc.CancelVerification(); err != nil {
-				t.Errorf("failed to CancelVerification: %s", err)
+				ct.Errorf(t, "failed to CancelVerification: %s", err)
 			}
 		},
 		SendStart: func(method string) {
@@ -270,17 +270,17 @@ func (c *RustClient) RequestOwnUserVerification(t ct.TestLike) chan api.Verifica
 				return
 			}
 			if err := svc.StartSasVerification(); err != nil {
-				t.Errorf("failed to StartSasVerification: %s", err)
+				ct.Errorf(t, "failed to StartSasVerification: %s", err)
 			}
 		},
 		SendApprove: func() {
 			if err := svc.ApproveVerification(); err != nil {
-				t.Errorf("failed to ApproveVerification: %s", err)
+				ct.Errorf(t, "failed to ApproveVerification: %s", err)
 			}
 		},
 		SendDecline: func() {
 			if err := svc.DeclineVerification(); err != nil {
-				t.Errorf("failed to ApproveVerification: %s", err)
+				ct.Errorf(t, "failed to ApproveVerification: %s", err)
 			}
 		},
 		SendTransition: func() {
@@ -317,7 +317,7 @@ func (c *RustClient) DeletePersistentStorage(t ct.TestLike) {
 }
 func (c *RustClient) ForceClose(t ct.TestLike) {
 	t.Helper()
-	t.Fatalf("Cannot force close a rust client, use an RPC client instead.")
+	ct.Fatalf(t, "Cannot force close a rust client, use an RPC client instead.")
 }
 
 func (c *RustClient) Close(t ct.TestLike) {
