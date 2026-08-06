@@ -9,6 +9,7 @@ def install(package):
     subprocess.check_call([sys.executable, "-m", "pip", "install", package])
 
 install("aiohttp")
+install("attrs")
 
 from callback import Callback
 from controller import MITM_DOMAIN_NAME, app
