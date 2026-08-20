@@ -106,10 +106,9 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, erro
 		t.Logf("setting cross process store locks holder name=%s", xprocessName)
 		ab = ab.CrossProcessLockConfig(matrix_sdk_ffi.CrossProcessLockConfigMultiProcess { xprocessName })
 	}
+
 	// @alice:hs1, FOOBAR => alice_hs1_FOOBAR
 	username := strings.Replace(opts.UserID[1:], ":", "_", -1) + "_" + opts.DeviceID
-	ab = ab.Username(username)
-
 	sessionPath := "rust_storage/" + username
 	storeKey := []byte("my_secret_thirty-two_byte_string")
 	ab = ab.SqliteStore(
