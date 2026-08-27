@@ -582,7 +582,7 @@ func (c *RustClient) SubscribeToRoom(t ct.TestLike, roomID string) error {
 	if c.syncService == nil {
 		return fmt.Errorf("cannot subscribe to room %s: StartSyncing not yet called", roomID)
 	}
-	if err := c.syncService.RoomListService().SubscribeToRooms([]string{roomID}); err != nil {
+	if err := c.syncService.RoomListService().SetRoomSubscriptions([]string{roomID}); err != nil {
 		return fmt.Errorf("cannot subscribe to room %s: %s", roomID, err)
 	}
 	return nil
