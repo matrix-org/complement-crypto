@@ -29,7 +29,7 @@ test rust-sdk-path pattern="":
 
 # Install the uniffi-bindgen-go command line utility, necessary to build the bindings.
 install-uniffi-bindgen:
-    cargo install uniffi-bindgen-go --tag {{ UNIFFI_GO_VERSION }} --git https://github.com/NordSecurity/uniffi-bindgen-go
+    cargo install uniffi-bindgen-go --rev 4f79e52bd8f518e5fa4d7acff9e586aee21e12a0 --git https://github.com/NordSecurity/uniffi-bindgen-go
 
 # Rebuild the version of matrix-rust-sdk used and regenerate its Go bindings.
 rebuild-rust-sdk rust-sdk-path:
