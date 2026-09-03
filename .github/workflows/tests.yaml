@@ -7,6 +7,8 @@ on:
     branches: ["main"]
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'
 
 jobs:
   check-signoff:
@@ -30,22 +32,31 @@ jobs:
   complement:
     name: Tests
     runs-on: ubuntu-22.04
+
+    permissions:
+      contents: read
+      id-token: write
+
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
-      # Install Node, Go and Rust, along with gotestfmt
       - name: Setup | Node.js LTS
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: "lts/*"
           cache: "yarn"
           cache-dependency-path: "internal/api/js/js-sdk/yarn.lock"
+
       - name: Setup | Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version: "1.25"
+
+      - name: Install gotestsum
+        run: go install gotest.tools/gotestsum@c4a0df2e75a225d979a444342dd3db752b53619f # v1.13.0
+
       - name: Setup | Rust
         run: |
           rustup toolchain install stable
@@ -60,9 +71,11 @@ jobs:
       - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
         with:
           workspaces: "rust-sdk"
-      - name: "Install Complement Dependencies"
-        run: |
-          go install -v github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@4c97682ab858d6bbd26fc020e255cb339c9c8119 # v2.5.0
+
+      - name: Install just
+        uses: taiki-e/install-action@67729d5c413db75907f0ad1e39bb04b9c868ff60 # v2.85.7
+        with:
+          tool: just
 
       # Install whatever version of the JS SDK is in package.json
       - name: Build JS SDK
@@ -72,7 +85,7 @@ jobs:
 
       - name: Build Rust FFI bindings
         run: |
-          ./install_uniffi_bindgen_go.sh && ./rebuild_rust_sdk.sh ./rust-sdk
+          just install-uniffi-bindgen && just rebuild-rust-sdk ./rust-sdk
 
       # Temporary: as it takes 3m to build the complement synapse image >:(
       # If you're bumping the image version here, don't forget to bump it in ./single_sdk_tests.yml
@@ -136,9 +149,7 @@ jobs:
           export LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
           export LD_LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
           export COMPLEMENT_CRYPTO_RPC_BINARY="$(pwd)/rpc"
-          set -o pipefail &&
-          go test -v -json -count=1 -timeout 15m ./internal/tests | gotestfmt
-        shell: bash # required for pipefail to be A Thing. pipefail is required to stop gotestfmt swallowing non-zero exit codes
+          gotestsum --format=testname --packages="./internal/tests" -- -v -json -count=1 -timeout 15m
         env:
           COMPLEMENT_BASE_IMAGE: homeserver
           COMPLEMENT_ENABLE_DIRTY_RUNS: 1
@@ -151,9 +162,7 @@ jobs:
           export LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
           export LD_LIBRARY_PATH="$(pwd)/rust-sdk/target/debug"
           export COMPLEMENT_CRYPTO_RPC_BINARY="$(pwd)/rpc"
-          set -o pipefail &&
-          go test -p 3 -v -json -tags='jssdk,rust' -count=1 -timeout 15m ./tests ./tests/js ./tests/rust | gotestfmt
-        shell: bash # required for pipefail to be A Thing. pipefail is required to stop gotestfmt swallowing non-zero exit codes
+          gotestsum --format=testname --junitfile=junit.xml --packages="./tests ./tests/js ./tests/rust" -- -v -p 3 -count=1 -json -tags='jssdk,rust' -timeout 15m
         name: Run Complement Crypto Tests
         env:
           COMPLEMENT_BASE_IMAGE: homeserver
@@ -163,6 +172,13 @@ jobs:
           COMPLEMENT_SHARE_ENV_PREFIX: PASS_
           PASS_SYNAPSE_COMPLEMENT_DATABASE: sqlite
           DOCKER_BUILDKIT: 1
+
+      - name: Upload test results to Codecov
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        if: ${{ always() }} # do this even if the tests fail
+        with:
+          use_oidc: true
+          report_type: "test_results"
 
       - name: Upload logs
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0

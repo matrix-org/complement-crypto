@@ -66,6 +66,9 @@ type RustRoomInfo struct {
 }
 
 type RustClient struct {
+	// A logging span specific to this client instance; name includes the user ID and device ID.
+	FFISpan *matrix_sdk_ffi.Span
+
 	FFIClient             *matrix_sdk_ffi.Client
 	syncService           *matrix_sdk_ffi.SyncService
 	roomsListener         *RoomsListener
@@ -85,7 +88,12 @@ type RustClient struct {
 
 func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, error) {
 	t.Logf("NewRustClient[%s][%s] creating...", opts.UserID, opts.DeviceID)
-	matrix_sdk_ffi.LogEvent("rust.go", &zero, matrix_sdk_ffi.LogLevelInfo, t.Name(), fmt.Sprintf("NewRustClient[%s][%s] creating...", opts.UserID, opts.DeviceID))
+
+	span := matrix_sdk_ffi.NewSpan("rust.go", &zero, matrix_sdk_ffi.LogLevelInfo, LogTarget, fmt.Sprintf("CC[%s][%s]", opts.UserID, opts.DeviceID), nil)
+	span.Enter()
+	defer span.Exit()
+
+	matrix_sdk_ffi.LogEvent("rust.go", &zero, matrix_sdk_ffi.LogLevelInfo, LogTarget+"::"+t.Name(), fmt.Sprintf("NewRustClient[%s][%s] creating...", opts.UserID, opts.DeviceID))
 	slidingSyncVersion := matrix_sdk_ffi.SlidingSyncVersionBuilderNative
 	clientSessionDelegate := NewMemoryClientSessionDelegate()
 	ab := matrix_sdk_ffi.NewClientBuilder().
@@ -98,10 +106,9 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, erro
 		t.Logf("setting cross process store locks holder name=%s", xprocessName)
 		ab = ab.CrossProcessLockConfig(matrix_sdk_ffi.CrossProcessLockConfigMultiProcess { xprocessName })
 	}
+
 	// @alice:hs1, FOOBAR => alice_hs1_FOOBAR
 	username := strings.Replace(opts.UserID[1:], ":", "_", -1) + "_" + opts.DeviceID
-	ab = ab.Username(username)
-
 	sessionPath := "rust_storage/" + username
 	storeKey := []byte("my_secret_thirty-two_byte_string")
 	ab = ab.SqliteStore(
@@ -113,6 +120,7 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, erro
 		return nil, fmt.Errorf("ClientBuilder.Build failed: %s", err)
 	}
 	c := &RustClient{
+		FFISpan:               span,
 		userID:                opts.UserID,
 		FFIClient:             client,
 		roomsListener:         NewRoomsListener(),
@@ -161,6 +169,9 @@ func (c *RustClient) Opts() api.ClientCreationOpts {
 }
 
 func (c *RustClient) GetNotification(t ct.TestLike, roomID, eventID string) (*api.Notification, error) {
+	c.FFISpan.Enter()
+	defer c.FFISpan.Exit()
+
 	if c.notifClient == nil {
 		var err error
 		c.Logf(t, "creating NotificationClient")
@@ -218,6 +229,9 @@ func (c *RustClient) GetNotification(t ct.TestLike, roomID, eventID string) (*ap
 }
 
 func (c *RustClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {
+	c.FFISpan.Enter()
+	defer c.FFISpan.Exit()
+
 	var deviceID *string
 	if opts.DeviceID != "" {
 		deviceID = &opts.DeviceID
@@ -234,6 +248,9 @@ func (c *RustClient) Login(t ct.TestLike, opts api.ClientCreationOpts) error {
 }
 
 func (c *RustClient) CurrentAccessToken(t ct.TestLike) string {
+	c.FFISpan.Enter()
+	defer c.FFISpan.Exit()
+
 	s, err := c.FFIClient.Session()
 	if err != nil {
 		ct.Fatalf(t, "error retrieving session: %s", err)
@@ -246,6 +263,9 @@ func (c *RustClient) ListenForVerificationRequests(t ct.TestLike) chan api.Verif
 }
 
 func (c *RustClient) RequestOwnUserVerification(t ct.TestLike) chan api.VerificationStage {
+	c.FFISpan.Enter()
+	defer c.FFISpan.Exit()
+
 	svc, err := c.FFIClient.GetSessionVerificationController()
 	if err != nil {
 		ct.Fatalf(t, "GetSessionVerificationController: %s", err)
@@ -261,7 +281,7 @@ func (c *RustClient) RequestOwnUserVerification(t ct.TestLike) chan api.Verifica
 		},
 		SendCancel: func() {
 			if err := svc.CancelVerification(); err != nil {
-				t.Errorf("failed to CancelVerification: %s", err)
+				ct.Errorf(t, "failed to CancelVerification: %s", err)
 			}
 		},
 		SendStart: func(method string) {
@@ -270,17 +290,17 @@ func (c *RustClient) RequestOwnUserVerification(t ct.TestLike) chan api.Verifica
 				return
 			}
 			if err := svc.StartSasVerification(); err != nil {
-				t.Errorf("failed to StartSasVerification: %s", err)
+				ct.Errorf(t, "failed to StartSasVerification: %s", err)
 			}
 		},
 		SendApprove: func() {
 			if err := svc.ApproveVerification(); err != nil {
-				t.Errorf("failed to ApproveVerification: %s", err)
+				ct.Errorf(t, "failed to ApproveVerification: %s", err)
 			}
 		},
 		SendDecline: func() {
 			if err := svc.DeclineVerification(); err != nil {
-				t.Errorf("failed to ApproveVerification: %s", err)
+				ct.Errorf(t, "failed to ApproveVerification: %s", err)
 			}
 		},
 		SendTransition: func() {
@@ -307,6 +327,9 @@ func (c *RustClient) RequestOwnUserVerification(t ct.TestLike) chan api.Verifica
 }
 
 func (c *RustClient) DeletePersistentStorage(t ct.TestLike) {
+	c.FFISpan.Enter()
+	defer c.FFISpan.Exit()
+
 	t.Helper()
 	if c.persistentStoragePath != "" {
 		err := os.RemoveAll(c.persistentStoragePath)
@@ -316,11 +339,17 @@ func (c *RustClient) DeletePersistentStorage(t ct.TestLike) {
 	}
 }
 func (c *RustClient) ForceClose(t ct.TestLike) {
+	c.FFISpan.Enter()
+	defer c.FFISpan.Exit()
+
 	t.Helper()
-	t.Fatalf("Cannot force close a rust client, use an RPC client instead.")
+	ct.Fatalf(t, "Cannot force close a rust client, use an RPC client instead.")
 }
 
 func (c *RustClient) Close(t ct.TestLike) {
+	c.FFISpan.Enter()
+	defer c.FFISpan.Exit()
+
 	t.Helper()
 	c.closed.Store(true)
 	c.roomsMu.Lock()
@@ -348,6 +377,9 @@ func (c *RustClient) Close(t ct.TestLike) {
 }
 
 func (c *RustClient) GetEvent(t ct.TestLike, roomID, eventID string) (*api.Event, error) {
+	c.FFISpan.Enter()
+	defer c.FFISpan.Exit()
+
 	t.Helper()
 	_, ui_timeline := c.findRoom(t, roomID)
 	timelineItem, err := ui_timeline.GetEventTimelineItemByEventId(eventID)
@@ -362,6 +394,9 @@ func (c *RustClient) GetEvent(t ct.TestLike, roomID, eventID string) (*api.Event
 }
 
 func (c *RustClient) GetEventShield(t ct.TestLike, roomID, eventID string) (*api.EventShield, error) {
+	c.FFISpan.Enter()
+	defer c.FFISpan.Exit()
+
 	t.Helper()
 	_, uiTimeline := c.findRoom(t, roomID)
 	timelineItem, err := uiTimeline.GetEventTimelineItemByEventId(eventID)
@@ -418,6 +453,9 @@ func (c *RustClient) GetEventShield(t ct.TestLike, roomID, eventID string) (*api
 // StartSyncing to begin syncing from sync v2 / sliding sync.
 // Tests should call stopSyncing() at the end of the test.
 func (c *RustClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error) {
+	c.FFISpan.Enter()
+	defer c.FFISpan.Exit()
+
 	t.Helper()
 	// It's critical that we destroy the sync_service_builder object before we return.
 	// You might be tempted to chain this function call e.g FFIClient.SyncService().Finish()
@@ -428,6 +466,7 @@ func (c *RustClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error)
 	// where the stack trace doesn't hit any test code, but does start at a `free_` function.
 	sb := c.FFIClient.SyncService()
 	defer sb.Destroy()
+	sb = sb.WithParentSpan(c.FFISpan)
 	syncService, err := sb.Finish()
 	if err != nil {
 		return nil, fmt.Errorf("[%s]failed to make sync service: %s", c.userID, err)
@@ -536,11 +575,14 @@ func (c *RustClient) StartSyncing(t ct.TestLike) (stopSyncing func(), err error)
 //
 // StartSyncing must have been called before this function.
 func (c *RustClient) SubscribeToRoom(t ct.TestLike, roomID string) error {
+	c.FFISpan.Enter()
+	defer c.FFISpan.Exit()
+
 	t.Helper()
 	if c.syncService == nil {
 		return fmt.Errorf("cannot subscribe to room %s: StartSyncing not yet called", roomID)
 	}
-	if err := c.syncService.RoomListService().SubscribeToRooms([]string{roomID}); err != nil {
+	if err := c.syncService.RoomListService().SetRoomSubscriptions([]string{roomID}); err != nil {
 		return fmt.Errorf("cannot subscribe to room %s: %s", roomID, err)
 	}
 	return nil
@@ -549,6 +591,9 @@ func (c *RustClient) SubscribeToRoom(t ct.TestLike, roomID string) error {
 // IsRoomEncrypted returns true if the room is encrypted. May return an error e.g if you
 // provide a bogus room ID.
 func (c *RustClient) IsRoomEncrypted(t ct.TestLike, roomID string) (bool, error) {
+	c.FFISpan.Enter()
+	defer c.FFISpan.Exit()
+
 	t.Helper()
 	r, _ := c.findRoom(t, roomID)
 	if r == nil {
@@ -564,6 +609,9 @@ func (c *RustClient) IsRoomEncrypted(t ct.TestLike, roomID string) (bool, error)
 }
 
 func (c *RustClient) BackupKeys(t ct.TestLike) (recoveryKey string, err error) {
+	c.FFISpan.Enter()
+	defer c.FFISpan.Exit()
+
 	t.Helper()
 	genericListener := newGenericStateListener[matrix_sdk_ffi.EnableRecoveryProgress]()
 	var listener matrix_sdk_ffi.EnableRecoveryProgressListener = genericListener
@@ -600,6 +648,9 @@ func (c *RustClient) BackupKeys(t ct.TestLike) (recoveryKey string, err error) {
 }
 
 func (c *RustClient) LoadBackup(t ct.TestLike, recoveryKey string) error {
+	c.FFISpan.Enter()
+	defer c.FFISpan.Exit()
+
 	t.Helper()
 	e := c.FFIClient.Encryption()
 	defer e.Destroy()
@@ -607,6 +658,9 @@ func (c *RustClient) LoadBackup(t ct.TestLike, recoveryKey string) error {
 }
 
 func (c *RustClient) WaitUntilEventInRoom(t ct.TestLike, roomID string, checker func(api.Event) bool) api.Waiter {
+	c.FFISpan.Enter()
+	defer c.FFISpan.Exit()
+
 	t.Helper()
 	c.ensureListening(t, roomID)
 	return &timelineWaiter{
@@ -621,6 +675,9 @@ func (c *RustClient) Type() api.ClientTypeLang {
 }
 
 func (c *RustClient) SendMessage(t ct.TestLike, roomID, text string) (eventID string, err error) {
+	c.FFISpan.Enter()
+	defer c.FFISpan.Exit()
+
 	t.Helper()
 	var isChannelClosed atomic.Bool
 	ch := make(chan bool)
@@ -674,12 +731,17 @@ func (c *RustClient) SendMessage(t ct.TestLike, roomID, text string) (eventID st
 }
 
 func (c *RustClient) InviteUser(t ct.TestLike, roomID, userID string) error {
+	c.FFISpan.Enter()
+	defer c.FFISpan.Exit()
 	t.Helper()
 	r, _ := c.findRoom(t, roomID)
 	return r.InviteUserById(userID)
 }
 
 func (c *RustClient) Backpaginate(t ct.TestLike, roomID string, count int) error {
+	c.FFISpan.Enter()
+	defer c.FFISpan.Exit()
+
 	t.Helper()
 	_, timeline := c.findRoom(t, roomID)
 	if timeline == nil {
@@ -764,6 +826,8 @@ func (c *RustClient) Logf(t ct.TestLike, format string, args ...interface{}) {
 }
 
 func (c *RustClient) logToFile(t ct.TestLike, format string, args ...interface{}) {
+	c.FFISpan.Enter()
+	defer c.FFISpan.Exit()
 	matrix_sdk_ffi.LogEvent("rust.go", &zero, matrix_sdk_ffi.LogLevelInfo, LogTarget + "::" + t.Name(), fmt.Sprintf(format, args...))
 }
 
@@ -825,7 +889,7 @@ func (c *RustClient) ensureListening(t ct.TestLike, roomID string) {
 					continue
 				}
 				timeline = slices.Insert(timeline, i, timelineItemToEvent(x.Value))
-				c.logToFile(t, "[%s]_______ INSERT %+v\n", c.userID, timeline[i])
+				c.logToFile(t, "[%s]_______ INSERT %+v", c.userID, timeline[i])
 				newEvents = append(newEvents, timeline[i])
 			case matrix_sdk_ffi.TimelineDiffRemove:
 				i := int(x.Index)
@@ -838,7 +902,7 @@ func (c *RustClient) ensureListening(t ct.TestLike, roomID string) {
 				for _, item := range x.Values {
 					ev := timelineItemToEvent(item)
 					timeline = append(timeline, ev)
-					c.logToFile(t, "[%s]_______ APPEND %+v\n", c.userID, ev)
+					c.logToFile(t, "[%s]_______ APPEND %+v", c.userID, ev)
 					newEvents = append(newEvents, ev)
 				}
 			case matrix_sdk_ffi.TimelineDiffReset:
@@ -846,13 +910,13 @@ func (c *RustClient) ensureListening(t ct.TestLike, roomID string) {
 				for i, item := range x.Values {
 					ev := timelineItemToEvent(item)
 					timeline[i] = ev
-					c.logToFile(t, "[%s]_______ RESET %+v\n", c.userID, ev)
+					c.logToFile(t, "[%s]_______ RESET %+v", c.userID, ev)
 					newEvents = append(newEvents, ev)
 				}
 			case matrix_sdk_ffi.TimelineDiffPushBack: // append but 1 element
 				ev := timelineItemToEvent(x.Value)
 				timeline = append(timeline, ev)
-				c.logToFile(t, "[%s]_______ PUSH BACK %+v\n", c.userID, ev)
+				c.logToFile(t, "[%s]_______ PUSH BACK %+v", c.userID, ev)
 				newEvents = append(newEvents, ev)
 			case matrix_sdk_ffi.TimelineDiffSet:
 				ev := timelineItemToEvent(x.Value)
@@ -865,7 +929,7 @@ func (c *RustClient) ensureListening(t ct.TestLike, roomID string) {
 				} else if i == len(timeline) {
 					timeline = append(timeline, ev)
 				}
-				c.logToFile(t, "[%s]_______ SET %+v\n", c.userID, ev)
+				c.logToFile(t, "[%s]_______ SET %+v", c.userID, ev)
 				newEvents = append(newEvents, ev)
 			case matrix_sdk_ffi.TimelineDiffPushFront:
 				ev := timelineItemToEvent(x.Value)
@@ -909,7 +973,7 @@ func (w *timelineWaiter) TryWaitf(t ct.TestLike, s time.Duration, format string,
 		// check if it exists in the timeline already
 		info := w.client.rooms[w.roomID]
 		if info == nil {
-			w.client.logToFile(t, "_____checkForEvent[%s] room does not exist\n", w.client.userID)
+			w.client.logToFile(t, "_____checkForEvent[%s] room does not exist", w.client.userID)
 			return false
 		}
 		for _, ev := range info.timeline {
@@ -921,7 +985,7 @@ func (w *timelineWaiter) TryWaitf(t ct.TestLike, s time.Duration, format string,
 				return true
 			}
 		}
-		w.client.logToFile(t, "_____checkForEvent[%s] checked %d timeline events and no match \n", w.client.userID, len(info.timeline))
+		w.client.logToFile(t, "_____checkForEvent[%s] checked %d timeline events and no match", w.client.userID, len(info.timeline))
 		return false
 	}
 

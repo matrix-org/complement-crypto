@@ -3,6 +3,7 @@ package rust
 import (
 	"testing"
 
+	"github.com/matrix-org/complement/ct"
 	"github.com/matrix-org/complement/must"
 )
 
@@ -40,7 +41,7 @@ func TestRoomListener(t *testing.T) {
 	rl.BroadcastUpdateForRoom("quuz")
 	select {
 	case <-recv:
-		t.Fatalf("received room id after cancel()")
+		ct.Fatalf(t, "received room id after cancel()")
 	default:
 		// we expect to hit this
 	}
@@ -54,7 +55,7 @@ func TestRoomListener(t *testing.T) {
 	rl.BroadcastUpdateForRoom("no one is listening")
 	select {
 	case <-recv2:
-		t.Fatalf("received room id after returning true")
+		ct.Fatalf(t, "received room id after returning true")
 	default:
 		// we expect to hit this
 	}

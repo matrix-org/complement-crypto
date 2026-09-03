@@ -111,11 +111,9 @@ jobs:
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version: "1.25"
-      - name: "Install Complement Dependencies"
-        shell: bash
-        run: |
-          go install -v github.com/gotesttools/gotestfmt/v2/cmd/gotestfmt@4c97682ab858d6bbd26fc020e255cb339c9c8119 # v2.5.0
-
+      - name: Install gotestsum
+        run: go install gotest.tools/gotestsum@c4a0df2e75a225d979a444342dd3db752b53619f # v1.13.0
+      
       # JS SDK only steps
       - name: Setup | Node.js LTS
         if: ${{ inputs.use_js_sdk != '' }}
@@ -129,12 +127,17 @@ jobs:
 
       # Rust SDK only steps.
       # The aim is to guarantee that rust-sdk is either at '.' or './complement-crypto/rust-sdk'
-      # which we then pass to rebuild_rust_sdk.sh
+      # which we then pass to `just rebuild-rust-sdk`
       - name: Setup | Rust
         if: ${{ inputs.use_rust_sdk != '' }}
         run: |
           rustup toolchain install stable
           rustup default stable
+      - name: Install just
+        if: ${{ inputs.use_rust_sdk != '' }}
+        uses: taiki-e/install-action@67729d5c413db75907f0ad1e39bb04b9c868ff60 # v2.85.7
+        with:
+          tool: just
       - name: "Download Rust SDK" # no need to download rust SDK if we are using the local checkout.
         if: ${{ inputs.use_rust_sdk != '' && inputs.use_rust_sdk != '.'}}
         run: |
@@ -147,7 +150,7 @@ jobs:
           RUST_SDK_DIR: ${{ inputs.use_rust_sdk == '.' && '..' || './rust-sdk' }}
         run: |
           echo "Compiling matrix-rust-sdk @ $RUST_SDK"
-          cd complement-crypto && ./install_uniffi_bindgen_go.sh && ./rebuild_rust_sdk.sh $RUST_SDK_DIR
+          cd complement-crypto && just install-uniffi-bindgen && just rebuild-rust-sdk $RUST_SDK_DIR
 
       - name: Build RPC client (rust)
         if: ${{ inputs.use_rust_sdk != '' }}
@@ -169,9 +172,7 @@ jobs:
           export LD_LIBRARY_PATH="$(pwd)$RUST_SDK_LIB_RELATIVE"
           export COMPLEMENT_CRYPTO_RPC_BINARY="$(pwd)/complement-crypto/rpc"
           cd complement-crypto &&
-          set -o pipefail &&
-          go test -v -p 2 -count=1 -json -tags=$GO_TAGS -timeout 15m ./tests ./tests/$LANG_SPECIFIC_TESTS | gotestfmt
-        shell: bash # required for pipefail to be A Thing. pipefail is required to stop gotestfmt swallowing non-zero exit codes
+            gotestsum --format=testname --packages="./tests ./tests/$LANG_SPECIFIC_TESTS" -- -v -p 2 -count=1 -json -tags=$GO_TAGS -timeout 15m
         env:
           COMPLEMENT_BASE_IMAGE: homeserver
           COMPLEMENT_ENABLE_DIRTY_RUNS: 1

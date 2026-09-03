@@ -116,7 +116,7 @@ func (c *TestContext) mustCreateMultiprocessClient(t *testing.T, req *ClientCrea
 	ctxPrefix := fmt.Sprintf("%d", c.RPCInstance.Add(1))
 	remoteBindings, err := rpc.NewLanguageBindings(c.RPCBinaryPath, req.User.ClientType.Lang, ctxPrefix)
 	if err != nil {
-		t.Fatalf("Failed to create new RPC language bindings: %s", err)
+		ct.Fatalf(t, "Failed to create new RPC language bindings: %s", err)
 	}
 	return api.NewTestClient(remoteBindings.MustCreateClient(t, req.Opts))
 }
@@ -319,7 +319,7 @@ func (c *TestContext) MustCreateClient(t *testing.T, req *ClientCreationRequest)
 func mustCreateClient(t *testing.T, clientType api.ClientType, cfg api.ClientCreationOpts) api.TestClient {
 	bindings := langs.GetLanguageBindings(clientType.Lang)
 	if bindings == nil {
-		t.Fatalf("unknown language: %s", clientType.Lang)
+		ct.Fatalf(t, "unknown language: %s", clientType.Lang)
 	}
 	c := bindings.MustCreateClient(t, cfg)
 	return api.NewTestClient(c)

@@ -5,7 +5,10 @@ package tests
 
 import (
 	"fmt"
+
 	complementconfig "github.com/matrix-org/complement/config"
+	"github.com/matrix-org/complement/ct"
+
 	"log"
 	"os"
 	"path/filepath"
@@ -41,7 +44,7 @@ func Deploy(t *testing.T) *deploy.ComplementCryptoDeployment {
 	}
 	wd, err := os.Getwd()
 	if err != nil {
-		t.Fatalf("failed to get wd: %s", err)
+		ct.Fatalf(t, "failed to get wd: %s", err)
 	}
 	ssDeployment = deploy.RunNewDeployment(t, filepath.Join(wd, "../../tests/mitmproxy_addons"), "")
 	return ssDeployment
@@ -51,14 +54,14 @@ func TestMain(m *testing.M) {
 	rustClientCreator := func(t *testing.T, cfg api.ClientCreationOpts) api.TestClient {
 		client, err := rust.NewRustClient(t, cfg)
 		if err != nil {
-			t.Fatalf("NewRustClient: %s", err)
+			ct.Fatalf(t, "NewRustClient: %s", err)
 		}
 		return api.NewTestClient(client)
 	}
 	jsClientCreator := func(t *testing.T, cfg api.ClientCreationOpts) api.TestClient {
 		client, err := js.NewJSClient(t, cfg)
 		if err != nil {
-			t.Fatalf("NewJSClient: %s", err)
+			ct.Fatalf(t, "NewJSClient: %s", err)
 		}
 		return api.NewTestClient(client)
 	}
