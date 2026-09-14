@@ -3,8 +3,14 @@
 set dotenv-load
 
 BASE_IMAGE := "ghcr.io/matrix-org/synapse-service:v1.117.0"
-UNIFFI_GO_VERSION := "v0.7.1+v0.31.0"
 COMPLEMENT_DIR := justfile_directory()
+
+# Replace the `install-uniffi-bindgen` recipe with this once uniffi-bindgen-go
+# gets a release with Uniffi 0.32 support.
+# cargo install uniffi-bindgen-go --tag {{ UNIFFI_GO_VERSION }} --git https://github.com/NordSecurity/uniffi-bindgen-go
+#
+# As such, this variable is not used till we're back on a release of uniffi-bindgen-go
+# UNIFFI_GO_VERSION := "v0.7.1+v0.31.0"
 
 # List the available recipes.
 default:
