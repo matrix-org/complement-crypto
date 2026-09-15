@@ -34,8 +34,12 @@ Examples:
 #### Rust SDK
 
 Pre-requisites:
- - `cargo` installed and on your PATH
- - Install uniffi bindings for Go: `just install-uniffi-bindgen` - ensure `uniffi-bindgen-go` is on your PATH.
+
+- `cargo` installed and on your PATH
+- Install uniffi bindings for Go: `just install-uniffi-bindgen` - ensure `uniffi-bindgen-go` is on your PATH.
+
+Note that we're currently using a fork of `uniffi-bindgen-go` to support Uniffi
+0.32, pending its official release with Uniffi 0.32 support.
 
 Run `just rebuild-rust-sdk $PATH-TO-RUST-SDK`. `$PATH-TO-RUST-SDK` must
 be a local checkout of the https://github.com/matrix-org/matrix-rust-sdk/ repo.
@@ -70,6 +74,7 @@ see [ENVIRONMENT.md](ENVIRONMENT.md) for the full configuration options.
 *See [FAQ.md](FAQ.md) for more information around debugging.*
 
 ### Test hitlist
+
 There is an exhaustive set of tests that this repository aims to exercise. See [TEST_HITLIST.md](TEST_HITLIST.md).
 
 ### Architecture

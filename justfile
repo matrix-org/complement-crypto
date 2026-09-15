@@ -3,8 +3,14 @@
 set dotenv-load
 
 BASE_IMAGE := "ghcr.io/matrix-org/synapse-service:v1.117.0"
-UNIFFI_GO_VERSION := "v0.7.1+v0.31.0"
 COMPLEMENT_DIR := justfile_directory()
+
+# Replace the `install-uniffi-bindgen` recipe with this once uniffi-bindgen-go
+# gets a release with Uniffi 0.32 support.
+# cargo install uniffi-bindgen-go --tag {{ UNIFFI_GO_VERSION }} --git https://github.com/NordSecurity/uniffi-bindgen-go
+#
+# As such, this variable is not used till we're back on a release of uniffi-bindgen-go
+# UNIFFI_GO_VERSION := "v0.7.1+v0.31.0"
 
 # List the available recipes.
 default:
@@ -29,7 +35,7 @@ test rust-sdk-path pattern="":
 
 # Install the uniffi-bindgen-go command line utility, necessary to build the bindings.
 install-uniffi-bindgen:
-    cargo install uniffi-bindgen-go --tag {{ UNIFFI_GO_VERSION }} --git https://github.com/NordSecurity/uniffi-bindgen-go
+    cargo install uniffi-bindgen-go --rev 4f79e52bd8f518e5fa4d7acff9e586aee21e12a0 --git https://github.com/NordSecurity/uniffi-bindgen-go
 
 # Rebuild the version of matrix-rust-sdk used and regenerate its Go bindings.
 rebuild-rust-sdk rust-sdk-path:
