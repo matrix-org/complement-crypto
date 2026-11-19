@@ -94,7 +94,7 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, erro
 	defer span.Exit()
 
 	matrix_sdk_ffi.LogEvent("rust.go", &zero, matrix_sdk_ffi.LogLevelInfo, LogTarget+"::"+t.Name(), fmt.Sprintf("NewRustClient[%s][%s] creating...", opts.UserID, opts.DeviceID))
-	slidingSyncVersion := matrix_sdk_ffi.SlidingSyncVersionBuilderNative
+	slidingSyncVersion := matrix_sdk_ffi.SlidingSyncVersionBuilderUnstable
 	clientSessionDelegate := NewMemoryClientSessionDelegate()
 	ab := matrix_sdk_ffi.NewClientBuilder().
 		HomeserverUrl(opts.BaseURL).
@@ -136,7 +136,7 @@ func NewRustClient(t ct.TestLike, opts api.ClientCreationOpts) (api.Client, erro
 			UserId:             opts.UserID,
 			DeviceId:           opts.DeviceID,
 			HomeserverUrl:      opts.BaseURL,
-			SlidingSyncVersion: matrix_sdk_ffi.SlidingSyncVersionNative,
+			SlidingSyncVersion: matrix_sdk_ffi.SlidingSyncVersionUnstable,
 		}
 		if err := client.RestoreSession(session); err != nil {
 			return nil, fmt.Errorf("RestoreSession: %s", err)
