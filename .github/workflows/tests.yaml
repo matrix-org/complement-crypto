@@ -42,12 +42,17 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Setup | pnpm
+        uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: "internal/api/js/js-sdk/package.json"
+
       - name: Setup | Node.js LTS
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: "lts/*"
-          cache: "yarn"
-          cache-dependency-path: "internal/api/js/js-sdk/yarn.lock"
+          cache: "pnpm"
+          cache-dependency-path: "internal/api/js/js-sdk/pnpm-lock.yaml"
 
       - name: Setup | Go
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0

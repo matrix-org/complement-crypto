@@ -1,0 +1,7 @@
+packages:
+  - "."
+
+allowBuilds:
+  # Needed for `vite` to build, since esbuild's postinstall downloads and links
+  # a platform-specific binary.
+  esbuild: true
