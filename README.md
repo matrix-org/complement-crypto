@@ -20,9 +20,9 @@ This means you MUST compile at least 1 SDK in order for Complement-Crypto to com
 
 Run `./rebuild_js_sdk.sh` according to its help page:
 ```
-Rebuild the version of JS SDK used. (requires on PATH: yarn)
+Rebuild the version of JS SDK used. (requires on PATH: pnpm)
 Usage: ./rebuild_js_sdk.sh [version]
-  [version]: the yarn/npm package to use. This is fed directly into 'yarn add' so branches/commits can be used
+  [version]: the npm package to use. This is fed directly into 'pnpm add' so branches/commits can be used
 
 Examples:
   Install a released version:    ./rebuild_js_sdk.sh matrix-js-sdk@29.1.0

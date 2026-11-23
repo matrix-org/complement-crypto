@@ -32,11 +32,11 @@ if [ "$js_sdk_src" = "." ]; then
         *) yarn install ;;
     esac
 
-    yarn_path="file:$(pwd)"
+    js_sdk_path="file:$(pwd)"
 else
-    # No need to build the js-sdk when installing from git: yarn will do it for us.
-    yarn_path="https://github.com/matrix-org/matrix-js-sdk#$js_sdk_src"
+    # No need to build the js-sdk when installing from git: pnpm will do it for us.
+    js_sdk_path="https://github.com/matrix-org/matrix-js-sdk#$js_sdk_src"
 fi
 
 cd "$complement_crypto_dir"
-./rebuild_js_sdk.sh "matrix-js-sdk@$yarn_path"
+./rebuild_js_sdk.sh "matrix-js-sdk@$js_sdk_path"

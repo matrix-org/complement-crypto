@@ -13,5 +13,5 @@
     "matrix-js-sdk": "^41.0.0",
     "vite": "^6.4.3"
   },
-  "packageManager": "yarn@1.22.22"
+  "packageManager": "pnpm@12.21.0"
 }

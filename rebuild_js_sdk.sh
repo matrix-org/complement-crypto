@@ -5,9 +5,9 @@ JS_SDK_VERSION=$1
 
 if [ -z "$JS_SDK_VERSION" ] || [ "$JS_SDK_VERSION" = "-h" ] || [ "$JS_SDK_VERSION" = "--help" ];
 then
-    echo "Rebuild the version of JS SDK used. (requires on PATH: yarn)"
+    echo "Rebuild the version of JS SDK used. (requires on PATH: pnpm)"
     echo "Usage: $0 [version]"
-    echo "  [version]: the yarn/npm package to use. This is fed directly into 'yarn add' so branches/commits can be used"
+    echo "  [version]: the npm package to use. This is fed directly into 'pnpm add' so branches/commits can be used"
     echo ""
     echo "Examples:"
     echo "  Install a released version:    $0 matrix-js-sdk@29.1.0"
@@ -17,7 +17,6 @@ then
     exit 1
 fi
 
-corepack enable
-(cd ./internal/api/js/js-sdk && yarn add $1 && yarn install && yarn build)
+(cd ./internal/api/js/js-sdk && pnpm add $1 && pnpm install && pnpm build)
 rm -rf ./internal/api/js/chrome/dist || echo 'no dist directory detected';
 cp -r ./internal/api/js/js-sdk/dist/. ./internal/api/js/chrome/dist
