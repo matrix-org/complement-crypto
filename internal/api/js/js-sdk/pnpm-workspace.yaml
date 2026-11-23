@@ -5,3 +5,6 @@ allowBuilds:
   # Needed for `vite` to build, since esbuild's postinstall downloads and links
   # a platform-specific binary.
   esbuild: true
+  # Needed for CI to install the SDK from a git URL, since pnpm must run its
+  # prepare script to build it from source.
+  matrix-js-sdk: true
